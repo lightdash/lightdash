@@ -9,8 +9,9 @@ import {
     IconChevronRight,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { artifactVtName } from '../artifactTransition';
 import styles from './AiArtifactButton.module.css';
 
 interface AiArtifactButtonProps {
@@ -44,6 +45,13 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
         }
     }, [artifact]);
 
+    // Only carries the shared view-transition name while the panel is
+    // closed; when the panel is open the panel holds the name instead.
+    const vtName =
+        artifact && !isArtifactOpen
+            ? artifactVtName(artifact.artifactUuid, artifact.versionUuid)
+            : 'none';
+
     return (
         <UnstyledButton
             className={styles.artifactButton}
@@ -51,6 +59,7 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
             data-loading={isLoading}
             onClick={onClick}
             disabled={isLoading}
+            style={{ '--vt-name': vtName } as CSSProperties}
         >
             <Box className={styles.container}>
                 <Box className={styles.iconChip}>

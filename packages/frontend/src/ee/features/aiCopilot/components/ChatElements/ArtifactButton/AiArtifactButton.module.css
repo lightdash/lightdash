@@ -13,6 +13,9 @@
         border-color 220ms ease,
         background-color 220ms ease;
     animation: artifactSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    /* Shared name with the floating panel — set via inline --vt-name when
+     * this artifact is NOT currently open, cleared (none) when it is. */
+    view-transition-name: var(--vt-name, none);
 
     background-color: light-dark(
         var(--mantine-color-white),

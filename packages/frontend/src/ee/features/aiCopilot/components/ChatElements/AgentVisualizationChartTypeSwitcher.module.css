@@ -1,7 +1,7 @@
 .pillRoot {
     background: transparent;
     padding: 0;
-    border-radius: 999px;
+    border-radius: 8px;
 }
 
 .pillControl {
@@ -13,7 +13,7 @@
         var(--mantine-color-ldGray-1),
         var(--mantine-color-ldDark-6)
     );
-    border-radius: 999px;
+    border-radius: 6px;
     box-shadow: none;
 }
 
@@ -22,8 +22,13 @@
         var(--mantine-color-ldGray-6),
         var(--mantine-color-ldGray-5)
     );
-    padding: 4px 8px;
-    border-radius: 999px;
+    /* Equal vertical + horizontal padding so the icon sits dead-center. */
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
     transition:
         color 120ms ease,
         background 120ms ease;

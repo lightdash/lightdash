@@ -62,6 +62,7 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { startArtifactTransition } from './artifactTransition';
 import { ContentLink } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
@@ -732,23 +733,25 @@ export const AssistantBubble: FC<Props> = memo(
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
                                                   messageArtifact.versionUuid;
-                                          if (isThisArtifactOpen) {
-                                              dispatch(clearArtifact());
-                                              return;
-                                          }
-                                          dispatch(
-                                              setArtifact({
-                                                  artifactUuid:
-                                                      messageArtifact.artifactUuid,
-                                                  versionUuid:
-                                                      messageArtifact.versionUuid,
-                                                  messageUuid: message.uuid,
-                                                  threadUuid:
-                                                      message.threadUuid,
-                                                  projectUuid: projectUuid,
-                                                  agentUuid: agentUuid,
-                                              }),
-                                          );
+                                          startArtifactTransition(() => {
+                                              if (isThisArtifactOpen) {
+                                                  dispatch(clearArtifact());
+                                                  return;
+                                              }
+                                              dispatch(
+                                                  setArtifact({
+                                                      artifactUuid:
+                                                          messageArtifact.artifactUuid,
+                                                      versionUuid:
+                                                          messageArtifact.versionUuid,
+                                                      messageUuid: message.uuid,
+                                                      threadUuid:
+                                                          message.threadUuid,
+                                                      projectUuid: projectUuid,
+                                                      agentUuid: agentUuid,
+                                                  }),
+                                              );
+                                          });
                                       }}
                                       isArtifactOpen={
                                           artifact?.artifactUuid ===

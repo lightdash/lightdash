@@ -21,7 +21,7 @@ import {
     IconInfoCircle,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useMemo, useState, type FC } from 'react';
+import { memo, useMemo, useState, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
@@ -40,6 +40,7 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
+import { artifactVtName, startArtifactTransition } from './artifactTransition';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -256,7 +257,17 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryResults.error
         ) {
             return (
-                <div className={styles.floatingPanel}>
+                <div
+                    className={styles.floatingPanel}
+                    style={
+                        {
+                            '--vt-name': artifactVtName(
+                                artifact.artifactUuid,
+                                artifact.versionUuid,
+                            ),
+                        } as CSSProperties
+                    }
+                >
                     <Center className={styles.loading}>
                         <Loader
                             type="dots"
@@ -316,7 +327,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             size="sm"
                             variant="subtle"
                             color="ldGray.6"
-                            onClick={() => dispatch(clearArtifact())}
+                            onClick={() =>
+                                startArtifactTransition(() =>
+                                    dispatch(clearArtifact()),
+                                )
+                            }
                             aria-label="Close"
                         >
                             <MantineIcon icon={IconX} />
@@ -327,7 +342,17 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         );
 
         return (
-            <div className={styles.floatingPanel}>
+            <div
+                className={styles.floatingPanel}
+                style={
+                    {
+                        '--vt-name': artifactVtName(
+                            artifact.artifactUuid,
+                            artifact.versionUuid,
+                        ),
+                    } as CSSProperties
+                }
+            >
                 <div className={styles.floatingContent}>
                     <AiVisualizationRenderer
                         vizQueryData={queryExecutionHandle.data}
