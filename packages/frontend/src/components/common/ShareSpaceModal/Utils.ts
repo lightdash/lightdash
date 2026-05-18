@@ -3,8 +3,11 @@ export const getUserNameOrEmail = (
     firstName: string | undefined,
     lastName: string | undefined,
     email: string | undefined,
+    isInternal: boolean,
 ) => {
-    if (firstName && lastName) {
+    if (isInternal) {
+        return firstName || 'Service account';
+    } else if (firstName && lastName) {
         return `${firstName} ${lastName}`;
     } else if (email) {
         return email;
@@ -18,8 +21,11 @@ export const getInitials = (
     firstName: string | undefined,
     lastName: string | undefined,
     email: string | undefined,
+    isInternal: boolean,
 ) => {
-    if (firstName && lastName) {
+    if (isInternal) {
+        return 'SA';
+    } else if (firstName && lastName) {
         return firstName.substr(0, 1) + lastName.substr(0, 1);
     } else if (email) {
         return email.substr(0, 2).toUpperCase();

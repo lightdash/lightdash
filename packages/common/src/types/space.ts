@@ -129,6 +129,7 @@ export type SpaceAccessUserMetadata = {
     firstName: string;
     lastName: string;
     email: string;
+    isInternal: boolean;
 };
 
 export type SpaceInheritanceChainItem = {
