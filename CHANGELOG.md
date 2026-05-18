@@ -1,3 +1,12 @@
+# [0.2967.0](https://github.com/lightdash/lightdash/compare/0.2966.2...0.2967.0) (2026-05-18)
+
+
+### Features
+
+* **frontend:** pivot table sort menu, indicator, and click target ([#23046](https://github.com/lightdash/lightdash/issues/23046)) ([8b1167c](https://github.com/lightdash/lightdash/commit/8b1167ca33bcb01f8a2da0ba0ed29c69c4b331e7))
+* **frontend:** pivot-aware sort UX ([#23047](https://github.com/lightdash/lightdash/issues/23047)) ([1043989](https://github.com/lightdash/lightdash/commit/10439898f6c20e3faa0a8aed385671427f32b583))
+* pivot-aware sort identity and column sort UI improvements ([#23237](https://github.com/lightdash/lightdash/issues/23237)) ([dcd8623](https://github.com/lightdash/lightdash/commit/dcd86232b5ad8aa637cc390de83d32e9f73d3a97)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2966.2](https://github.com/lightdash/lightdash/compare/0.2966.1...0.2966.2) (2026-05-18)
 
 
