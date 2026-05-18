@@ -120,27 +120,23 @@ describe('SQL fanout deduplication', () => {
         });
     });
 
-    it('sum_distinct grouped by dimension should return correct per-group values', () => {
-        // Query 1: Ground truth — direct SUM on payments table grouped by payment_method (no fan-out)
-        const paymentsQuery = {
+    it('sum_distinct should return the same global deduplicated total on every dimension row (SPK-450)', () => {
+        // Ground truth: direct SUM on payments table without grouping (no fan-out)
+        const paymentsTotalQuery = {
             exploreName: 'payments',
-            dimensions: ['payments_payment_method'],
+            dimensions: [],
             metrics: ['payments_total_revenue'],
             filters: {},
-            sorts: [
-                {
-                    fieldId: 'payments_payment_method',
-                    descending: false,
-                },
-            ],
+            sorts: [],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
             metricOverrides: {},
         };
 
-        // Query 2: sum_distinct on the wide table grouped by payment_method
-        // Before the fix, PARTITION BY excluded payment_method, zeroing out all but one row per payment_id
+        // sum_distinct on the wide (fanned-out) table grouped by a non-distinct-key dimension.
+        // Selected dimensions must NOT participate in the dedup PARTITION BY — every row should
+        // show the same global total, since payment_method isn't part of distinct_keys.
         const wideTableQuery = {
             exploreName: 'customer_order_payments',
             dimensions: ['customer_order_payments_payment_method'],
@@ -158,19 +154,14 @@ describe('SQL fanout deduplication', () => {
             metricOverrides: {},
         };
 
-        runMetricQuery(projectUuid, paymentsQuery).then((paymentsRows) => {
-            expect(paymentsRows.length).to.be.greaterThan(1);
-
-            // Build lookup: payment_method → total_revenue
-            const expectedByMethod: Record<string, number> = {};
-            paymentsRows.forEach((row) => {
-                const method = String(row.payments_payment_method);
-                expectedByMethod[method] = Number(row.payments_total_revenue);
-            });
+        runMetricQuery(projectUuid, paymentsTotalQuery).then((totalRows) => {
+            expect(totalRows).to.have.length(1);
+            const expectedTotal = Number(totalRows[0].payments_total_revenue);
+            expect(expectedTotal).to.be.greaterThan(0);
 
             runMetricQuery(projectUuid, wideTableQuery).then(
                 (wideTableRows) => {
-                    expect(wideTableRows.length).to.eq(paymentsRows.length);
+                    expect(wideTableRows.length).to.be.greaterThan(1);
 
                     wideTableRows.forEach((row) => {
                         const method = String(
@@ -179,10 +170,9 @@ describe('SQL fanout deduplication', () => {
                         const deduped = Number(
                             row.customer_order_payments_total_payment_amount_deduped,
                         );
-                        const expected = expectedByMethod[method];
 
                         expect(deduped, `payment_method=${method}`).to.eq(
-                            expected,
+                            expectedTotal,
                         );
                     });
                 },

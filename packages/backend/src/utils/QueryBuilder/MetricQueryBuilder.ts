@@ -2674,24 +2674,21 @@ export class MetricQueryBuilder {
 
     /**
      * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
-     * Follows the same pattern as PoP CTEs: separate CTE per metric, joined on dimensions.
+     * The dedup CTE collapses to a single scalar per metric (grain = distinct_keys), and is attached
+     * to every output row via CROSS JOIN. Selected dimensions are intentionally excluded from the
+     * PARTITION BY and GROUP BY so the same globally-deduplicated value is repeated across rows —
+     * see SPK-450.
      */
     private buildDistinctMetricCtes({
-        dimensionSelects,
-        dimensionGroupBy,
         dimensionFilters,
         sqlFrom,
         joinsSql,
         dimensionJoins,
-        baseCteName,
     }: {
-        dimensionSelects: Record<string, string>;
-        dimensionGroupBy: string | undefined;
         dimensionFilters: string | undefined;
         sqlFrom: string;
         joinsSql: string | undefined;
         dimensionJoins: string[];
-        baseCteName: string;
     }): {
         ctes: string[];
         ddJoins: string[];
@@ -2710,30 +2707,9 @@ export class MetricQueryBuilder {
             },
         );
 
-        const dimensionAlias = Object.keys(dimensionSelects).map(
-            (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
-        );
-
-        // Recompute GROUP BY for the outer CTE using dimension count
-        const ddGroupBy =
-            dimensionAlias.length > 0
-                ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
-                : undefined;
-
         const ctes: string[] = [];
         const ddJoins: string[] = [];
         const ddMetricSelects: string[] = [];
-
-        // Extract raw SQL expressions from dimension selects (strip " AS alias" suffix)
-        const dimensionExprs = Object.entries(dimensionSelects).map(
-            ([id, selectStr]) => {
-                const suffix = ` AS ${fieldQuoteChar}${id}${fieldQuoteChar}`;
-                const idx = selectStr.lastIndexOf(suffix);
-                return idx > -1
-                    ? selectStr.substring(0, idx).trim()
-                    : selectStr.trim();
-            },
-        );
 
         for (const metricId of ddMetricIds) {
             const metric = this.getMetricFromId(metricId);
@@ -2743,18 +2719,12 @@ export class MetricQueryBuilder {
             ) {
                 const ddCteName = `dd_${snakeCaseName(metricId)}`;
 
-                // Include selected dimensions in PARTITION BY so each
-                // (distinct_key, dimension) combination gets its own rn=1
-                const partitionExprs = [
-                    ...metric.compiledDistinctKeys,
-                    ...dimensionExprs,
-                ];
-
-                // Inner subquery: raw data + ROW_NUMBER
+                // Inner subquery: pick one row per distinct-key combination.
+                // dimensionJoins + dimensionFilters are still applied so query-level
+                // filters narrow the dedup population, but no dimensions are projected.
                 const innerSelects = [
-                    ...Object.values(dimensionSelects),
                     `  ${metric.compiledValueSql} AS __dd_val`,
-                    `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
+                    `  ROW_NUMBER() OVER (PARTITION BY ${metric.compiledDistinctKeys.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
                 ];
 
                 const innerSubquery = MetricQueryBuilder.assembleSqlParts([
@@ -2765,7 +2735,7 @@ export class MetricQueryBuilder {
                     dimensionFilters,
                 ]);
 
-                // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
+                // Outer CTE: aggregate the deduped rows into a single scalar (no GROUP BY)
                 let outerAgg: string;
                 if (metric.type === MetricType.AVERAGE_DISTINCT) {
                     const floatType = warehouseSqlBuilder.getFloatingType();
@@ -2773,29 +2743,12 @@ export class MetricQueryBuilder {
                 } else {
                     outerAgg = `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
                 }
-                const outerSelects = [
-                    ...dimensionAlias,
-                    `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
-                ];
 
-                const cteSql = `${ddCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __dd_sub\n${ddGroupBy ?? ''}\n)`;
+                const cteSql = `${ddCteName} AS (\nSELECT\n  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}\nFROM (\n${innerSubquery}\n) __dd_sub\n)`;
                 ctes.push(cteSql);
 
-                // Build JOIN clause (same NULL-safe pattern as PoP)
-                if (dimensionAlias.length === 0) {
-                    ddJoins.push(`CROSS JOIN ${ddCteName}`);
-                } else {
-                    ddJoins.push(
-                        `INNER JOIN ${ddCteName} ON ${dimensionAlias
-                            .map(
-                                (alias) =>
-                                    `( ${baseCteName}.${alias} = ${ddCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${ddCteName}.${alias} IS NULL ) )`,
-                            )
-                            .join(' AND ')}`,
-                    );
-                }
+                ddJoins.push(`CROSS JOIN ${ddCteName}`);
 
-                // Metric select for final query
                 ddMetricSelects.push(
                     `  ${ddCteName}.${fieldQuoteChar}${metricId}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 );
@@ -4142,13 +4095,10 @@ export class MetricQueryBuilder {
                 ddJoins,
                 ddMetricSelects,
             } = this.buildDistinctMetricCtes({
-                dimensionSelects: dimensionsSQL.selects,
-                dimensionGroupBy: dimensionsSQL.groupBySQL,
                 dimensionFilters: dimensionsSQL.filtersSQL,
                 sqlFrom,
                 joinsSql: joins.joinSQL,
                 dimensionJoins: dimensionsSQL.joins,
-                baseCteName: ddBaseCteName,
             });
             ctes.push(...ddCtes);
 

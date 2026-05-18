@@ -2200,7 +2200,7 @@ LIMIT 10`;
             );
         });
 
-        test('sum_distinct should include selected dimensions in PARTITION BY', () => {
+        test('sum_distinct should partition only on distinct keys regardless of selected dimensions (SPK-450)', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_SUM_DISTINCT,
                 compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
@@ -2209,14 +2209,18 @@ LIMIT 10`;
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // The PARTITION BY should include both the distinct key and the selected dimensions
+            // PARTITION BY contains only the distinct key — selected dimensions are excluded so the
+            // dedup CTE collapses to a single scalar that's repeated across every output row.
             expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method, "orders".status',
+                'PARTITION BY "orders".line_item_id ORDER BY',
             );
-            // Should still have the ROW_NUMBER window function
+            expect(result.query).not.toContain('"orders".payment_method,');
+            // Scalar dedup CTE is attached via CROSS JOIN, never INNER JOIN on dimensions.
+            expect(result.query).toContain(
+                'CROSS JOIN dd_orders_total_revenue',
+            );
+            expect(result.query).not.toContain('INNER JOIN dd_');
             expect(result.query).toContain('ROW_NUMBER() OVER');
-            // Should have the dd CTE
-            expect(result.query).toContain('dd_orders_total_revenue');
         });
 
         test('sum_distinct should work with no dimensions selected', () => {
@@ -2261,7 +2265,7 @@ LIMIT 10`;
             expect(result.query).not.toContain('COALESCE');
         });
 
-        test('average_distinct should include selected dimensions in PARTITION BY', () => {
+        test('average_distinct should partition only on distinct keys regardless of selected dimensions (SPK-450)', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_AVERAGE_DISTINCT,
                 compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
@@ -2271,10 +2275,13 @@ LIMIT 10`;
             });
 
             expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method',
+                'PARTITION BY "orders".line_item_id ORDER BY',
             );
-            expect(result.query).toContain('GROUP BY');
-            expect(result.query).toContain('dd_orders_avg_shipping_cost');
+            expect(result.query).not.toContain('"orders".payment_method,');
+            expect(result.query).toContain(
+                'CROSS JOIN dd_orders_avg_shipping_cost',
+            );
+            expect(result.query).not.toContain('INNER JOIN dd_');
         });
 
         test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
@@ -2297,11 +2304,6 @@ LIMIT 10`;
             );
             // The inlined fallback SUM should NOT appear in the final SELECT
             // (it's OK inside the CTE, but not in the outer query)
-            const outerSelect =
-                result.query.split('FROM')[
-                    result.query.split('FROM').length - 1
-                ];
-            // Check the final SELECT doesn't use the raw inlined SQL
             expect(result.query).not.toMatch(
                 /SELECT[\s\S]*\(SUM\("orders"\.amount\)\) \* 1\.1[\s\S]*FROM(?![\s\S]*AS \()/,
             );
