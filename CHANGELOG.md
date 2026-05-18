@@ -1,3 +1,10 @@
+## [0.2960.2](https://github.com/lightdash/lightdash/compare/0.2960.1...0.2960.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* data apps builder styles and UI tweaks ([#23136](https://github.com/lightdash/lightdash/issues/23136)) ([b728b09](https://github.com/lightdash/lightdash/commit/b728b09a3e43563da072ad40794d5b9da21f33d5))
+
 ## [0.2960.1](https://github.com/lightdash/lightdash/compare/0.2960.0...0.2960.1) (2026-05-18)
 
 
