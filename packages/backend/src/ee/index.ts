@@ -169,12 +169,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            aiAgentDocumentService: ({ models, context }) =>
+            aiAgentDocumentService: ({ models, repository, context }) =>
                 new AiAgentDocumentService({
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>

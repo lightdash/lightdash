@@ -1,3 +1,4 @@
+import { AiAgentDocumentStructuredSummary } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiAgentDocumentTableName = 'ai_agent_document';
@@ -11,7 +12,7 @@ export type DbAiAgentDocument = {
     mime_type: string;
     content: string | null;
     content_size_bytes: number;
-    summary: string;
+    summary: AiAgentDocumentStructuredSummary;
     storage_key: string;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
