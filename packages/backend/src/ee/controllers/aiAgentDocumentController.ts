@@ -34,7 +34,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentDocumentService } from '../services/AiAgentDocumentService';
 
-@Route('/api/v1/aiAgentDocuments')
+@Route('/api/v1/aiAgents/documents')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentDocumentController extends BaseController {
