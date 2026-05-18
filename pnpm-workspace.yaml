@@ -33,3 +33,5 @@ minimumReleaseAgeExclude:
   - pm2@7.0.0
   # Renovate security update: sanitize-html@2.17.4
   - sanitize-html@2.17.4
+  # Renovate security update: nodemailer@8.0.5
+  - nodemailer@8.0.5
