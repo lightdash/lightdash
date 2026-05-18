@@ -112,14 +112,29 @@
     animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Default keyframes only (no custom fade asymmetry). For named groups
- * whose old and new images are identical (e.g. a sibling button), the
- * default cross-fade keeps oldOpacity + newOpacity ≈ 1 — combined with
- * plus-lighter blending, that means identical content stays visually
- * unchanged. Custom keyframes would break this symmetry and flicker. */
-:global(::view-transition-old(*)),
-:global(::view-transition-new(*)) {
-    animation-duration: 280ms;
-    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+/* Asymmetric hand-off: the old element fades quickly, the new one
+ * fades in slightly later. Safe to do here because only the elements
+ * actually morphing carry a view-transition-name (see
+ * useIsArtifactTransitioning in artifactTransition.ts) — siblings
+ * never get into the snapshot tree, so they can't flicker. */
+:global(::view-transition-old(*)) {
+    animation: 160ms cubic-bezier(0.32, 0.72, 0, 1) both vtFadeOut;
     mix-blend-mode: plus-lighter;
+}
+
+:global(::view-transition-new(*)) {
+    animation: 280ms cubic-bezier(0.32, 0.72, 0, 1) 80ms both vtFadeIn;
+    mix-blend-mode: plus-lighter;
+}
+
+@keyframes vtFadeOut {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes vtFadeIn {
+    from {
+        opacity: 0;
+    }
 }

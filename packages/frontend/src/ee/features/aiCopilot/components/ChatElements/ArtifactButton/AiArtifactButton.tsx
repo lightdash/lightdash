@@ -11,7 +11,11 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { artifactVtName } from '../artifactTransition';
+import {
+    artifactKey,
+    artifactVtName,
+    useIsArtifactTransitioning,
+} from '../artifactTransition';
 import styles from './AiArtifactButton.module.css';
 
 interface AiArtifactButtonProps {
@@ -45,10 +49,16 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
         }
     }, [artifact]);
 
-    // Only carries the shared view-transition name while the panel is
-    // closed; when the panel is open the panel holds the name instead.
+    // Only carries the shared view-transition name when this artifact is
+    // actively morphing (and isn't currently the open one — the panel
+    // holds the name in that case). Sibling buttons get `none` and stay
+    // out of the snapshot tree entirely, so they don't animate.
+    const key = artifact
+        ? artifactKey(artifact.artifactUuid, artifact.versionUuid)
+        : null;
+    const isTransitioning = useIsArtifactTransitioning(key);
     const vtName =
-        artifact && !isArtifactOpen
+        artifact && isTransitioning && !isArtifactOpen
             ? artifactVtName(artifact.artifactUuid, artifact.versionUuid)
             : 'none';
 

@@ -40,7 +40,11 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { artifactVtName, startArtifactTransition } from './artifactTransition';
+import {
+    artifactKey,
+    artifactVtName,
+    startArtifactTransition,
+} from './artifactTransition';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -328,8 +332,14 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             variant="subtle"
                             color="ldGray.6"
                             onClick={() =>
-                                startArtifactTransition(() =>
-                                    dispatch(clearArtifact()),
+                                startArtifactTransition(
+                                    [
+                                        artifactKey(
+                                            artifact.artifactUuid,
+                                            artifact.versionUuid,
+                                        ),
+                                    ],
+                                    () => dispatch(clearArtifact()),
                                 )
                             }
                             aria-label="Close"

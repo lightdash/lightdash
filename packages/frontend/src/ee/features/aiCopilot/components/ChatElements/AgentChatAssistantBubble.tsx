@@ -62,7 +62,7 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
-import { startArtifactTransition } from './artifactTransition';
+import { artifactKey, startArtifactTransition } from './artifactTransition';
 import { ContentLink } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
@@ -733,25 +733,49 @@ export const AssistantBubble: FC<Props> = memo(
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
                                                   messageArtifact.versionUuid;
-                                          startArtifactTransition(() => {
-                                              if (isThisArtifactOpen) {
-                                                  dispatch(clearArtifact());
-                                                  return;
-                                              }
-                                              dispatch(
-                                                  setArtifact({
-                                                      artifactUuid:
-                                                          messageArtifact.artifactUuid,
-                                                      versionUuid:
-                                                          messageArtifact.versionUuid,
-                                                      messageUuid: message.uuid,
-                                                      threadUuid:
-                                                          message.threadUuid,
-                                                      projectUuid: projectUuid,
-                                                      agentUuid: agentUuid,
-                                                  }),
+                                          // Names every artifact that
+                                          // moves in this transition:
+                                          // the clicked one, plus the
+                                          // currently-open one when
+                                          // switching artifacts.
+                                          const involvedKeys = [
+                                              artifactKey(
+                                                  messageArtifact.artifactUuid,
+                                                  messageArtifact.versionUuid,
+                                              ),
+                                          ];
+                                          if (artifact && !isThisArtifactOpen) {
+                                              involvedKeys.push(
+                                                  artifactKey(
+                                                      artifact.artifactUuid,
+                                                      artifact.versionUuid,
+                                                  ),
                                               );
-                                          });
+                                          }
+                                          startArtifactTransition(
+                                              involvedKeys,
+                                              () => {
+                                                  if (isThisArtifactOpen) {
+                                                      dispatch(clearArtifact());
+                                                      return;
+                                                  }
+                                                  dispatch(
+                                                      setArtifact({
+                                                          artifactUuid:
+                                                              messageArtifact.artifactUuid,
+                                                          versionUuid:
+                                                              messageArtifact.versionUuid,
+                                                          messageUuid:
+                                                              message.uuid,
+                                                          threadUuid:
+                                                              message.threadUuid,
+                                                          projectUuid:
+                                                              projectUuid,
+                                                          agentUuid: agentUuid,
+                                                      }),
+                                                  );
+                                              },
+                                          );
                                       }}
                                       isArtifactOpen={
                                           artifact?.artifactUuid ===
