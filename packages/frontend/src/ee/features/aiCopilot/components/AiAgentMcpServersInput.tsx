@@ -624,12 +624,9 @@ export const AiAgentMcpServersInput = ({
                                             isStartingMcpOAuthConnection &&
                                             startingMcpOAuthConnection?.mcpServerUuid ===
                                                 mcpServer.uuid;
-                                        const connectionStatus =
-                                            mcpServer.authType === 'none'
-                                                ? 'connected'
-                                                : isConnecting
-                                                  ? 'connecting'
-                                                  : mcpServer.connectionStatus;
+                                        const connectionStatus = isConnecting
+                                            ? 'connecting'
+                                            : mcpServer.connectionStatus;
 
                                         return (
                                             <Table.Tr key={mcpServer.uuid}>
@@ -644,6 +641,16 @@ export const AiAgentMcpServersInput = ({
                                                         >
                                                             {mcpServer.url}
                                                         </Text>
+                                                        {mcpServer.error && (
+                                                            <Text
+                                                                size="xs"
+                                                                c="red.7"
+                                                            >
+                                                                {
+                                                                    mcpServer.error
+                                                                }
+                                                            </Text>
+                                                        )}
                                                     </Stack>
                                                 </Table.Td>
                                                 <Table.Td>
