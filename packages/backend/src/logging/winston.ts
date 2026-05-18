@@ -325,14 +325,19 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
 // Stamps every log emitted while processing this request with the requesting
 // user's organization context, by attaching it to the AsyncLocalStorage-backed
 // ExecutionContext that `addExecutionContent` already merges into log payloads.
-// Place this AFTER session/auth middlewares so req.user is populated.
+// Place this AFTER session/auth middlewares so req.user and req.account are
+// populated. req.user is set for session-authenticated requests; embed/JWT
+// requests populate req.account only, so we fall back to it.
 export const requestExecutionContextMiddleware: express.RequestHandler = (
     req,
     _res,
     next,
 ) => {
-    const organizationUuid = req.user?.organizationUuid;
-    const organizationName = req.user?.organizationName;
+    const organizationUuid =
+        req.user?.organizationUuid ??
+        req.account?.organization?.organizationUuid;
+    const organizationName =
+        req.user?.organizationName ?? req.account?.organization?.name;
     if (!organizationUuid && !organizationName) {
         next();
         return;

@@ -199,7 +199,11 @@ export type SchedulerTaskArguments = {
  * Stamps the current job's AsyncLocalStorage-backed ExecutionContext with
  * scheduler/sync attribution so every downstream log line and warehouse
  * `queryTags` row carries the originating scheduler_uuid, scheduler_name,
- * saved_sql_uuid, job_id, and organization context.
+ * saved_sql_uuid, and job_id.
+ *
+ * Called once per scheduler task entry point. Replaces any prior scheduler
+ * sub-context. Organization context (organization_uuid, organization_name)
+ * is set centrally by SchedulerTaskTracer before the task runs.
  *
  * SchedulerWorkerEventEmitter has already opened a context per job, so we
  * only need to `update()` — there is nothing to do outside a worker job.
@@ -209,23 +213,18 @@ function setSchedulerJobLogContext(args: {
     schedulerUuid?: string;
     schedulerName?: string;
     savedSqlUuid?: string | null;
-    organizationUuid?: string;
-    organizationName?: string;
 }) {
     if (!ExecutionContext.exists()) return;
-    const updates: Partial<ExecutionContextInfo> = {};
-    if (args.organizationUuid)
-        updates.organization_uuid = args.organizationUuid;
-    if (args.organizationName)
-        updates.organization_name = args.organizationName;
     const schedulerCtx: NonNullable<ExecutionContextInfo['scheduler']> = {};
     if (args.schedulerUuid) schedulerCtx.scheduler_uuid = args.schedulerUuid;
     if (args.schedulerName) schedulerCtx.scheduler_name = args.schedulerName;
     if (args.savedSqlUuid) schedulerCtx.saved_sql_uuid = args.savedSqlUuid;
     if (args.jobId) schedulerCtx.job_id = args.jobId;
-    if (Object.keys(schedulerCtx).length > 0) updates.scheduler = schedulerCtx;
-    if (Object.keys(updates).length === 0) return;
-    ExecutionContext.update(updates as unknown as Record<string, unknown>);
+    if (Object.keys(schedulerCtx).length === 0) return;
+    ExecutionContext.update({ scheduler: schedulerCtx } as unknown as Record<
+        string,
+        unknown
+    >);
 }
 
 export default class SchedulerTask {
@@ -1057,7 +1056,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -1434,7 +1432,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -1880,6 +1877,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: MaterializePreAggregatePayload,
     ) {
+        setSchedulerJobLogContext({ jobId });
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
                 task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
@@ -2213,6 +2211,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: UploadMetricGsheetPayload,
     ) {
+        setSchedulerJobLogContext({ jobId });
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
                 task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
@@ -2410,7 +2409,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
@@ -2848,7 +2846,6 @@ export default class SchedulerTask {
         setSchedulerJobLogContext({
             jobId,
             schedulerUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
@@ -4144,7 +4141,6 @@ export default class SchedulerTask {
     ) {
         setSchedulerJobLogContext({
             jobId,
-            organizationUuid: payload.organizationUuid,
         });
         await this.logWrapper(
             {
@@ -4751,7 +4747,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
@@ -4984,7 +4979,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
@@ -5207,7 +5201,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
@@ -5428,7 +5421,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -5660,7 +5652,6 @@ export default class SchedulerTask {
             schedulerUuid,
             schedulerName: scheduler.name,
             savedSqlUuid: scheduler.savedSqlUuid,
-            organizationUuid: notification.organizationUuid,
         });
 
         this.analytics.track({
