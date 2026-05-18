@@ -2,6 +2,11 @@ import { Explore } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import { renderAvailableExplores } from '../../prompts/availableExplores';
 
+const CONTEXT_MATCH_SEARCH_RANK_MIN = 0.7;
+const AI_HINTS_SEARCH_RANK_MIN = 0.6;
+const AMBIGUITY_RANK_WINDOW = 0.15;
+const CHART_USAGE_TIEBREAKER_MULTIPLIER = 3;
+
 const TEMPLATE = `You are the data-discovery subagent for the Lightdash AI Analyst.
 
 Your sole job is to take the user's question and return a structured handoff describing which explore and which fields the parent agent should use to answer it. You do NOT answer the user, build queries, or produce visualizations.
@@ -30,14 +35,14 @@ Execute these steps in order. Do NOT skip steps.
 
 Scan the user's query for a domain word that matches an explore name (singular/plural counts — "order" matches "orders"). Call findExplores with the full user query.
 
-- If exactly one explore matches with searchRank > 0.7 and there's a clear context word match → status: "resolved". Proceed to Step 5.
+- If exactly one explore matches with searchRank > ${CONTEXT_MATCH_SEARCH_RANK_MIN} and there's a clear context word match → status: "resolved". Proceed to Step 5.
 - If no clear context match → continue to Step 2.
 
 ### Step 2: AI hints check
 
 Look at the topMatchingFields and exploreSearchResults from findExplores. Compare their aiHints + descriptions against the user's intent.
 
-- If one explore's aiHints semantically match the request and it appears with searchRank > 0.6 → status: "resolved". Proceed to Step 5.
+- If one explore's aiHints semantically match the request and it appears with searchRank > ${AI_HINTS_SEARCH_RANK_MIN} → status: "resolved". Proceed to Step 5.
 - Otherwise → continue to Step 3.
 
 ### Step 3: Verified-content fast path
@@ -51,10 +56,10 @@ Look at the usageInVerifiedCharts attribute on every field in topMatchingFields.
 
 ### Step 4: Ambiguity check
 
-Count DISTINCT explores in topMatchingFields. If 2+ distinct explores appear with scores within 0.15 of each other:
+Count DISTINCT explores in topMatchingFields. If 2+ distinct explores appear with scores within ${AMBIGUITY_RANK_WINDOW} of each other:
 
 - First check joined tables. If one explore's joinedTables include another entity the user mentioned, that explore can handle the whole query → status: "resolved". Proceed to Step 5.
-- Then check usageInCharts. If one explore's fields have meaningfully higher aggregate usage (3x+), prefer it → status: "resolved". Proceed to Step 5.
+- Then check usageInCharts. If one explore's fields have meaningfully higher aggregate usage (${CHART_USAGE_TIEBREAKER_MULTIPLIER}x+), prefer it → status: "resolved". Proceed to Step 5.
 - If still tied (or all usages are 0 / equal) → status: "ambiguous". DO NOT call findFields. Call submitResult with the candidate explores and a suggestedQuestion.
 
 If only 1 distinct explore appears in topMatchingFields → status: "resolved". Proceed to Step 5.
