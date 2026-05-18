@@ -1,3 +1,10 @@
+# [0.2968.0](https://github.com/lightdash/lightdash/compare/0.2967.0...0.2968.0) (2026-05-18)
+
+
+### Features
+
+* **ai:** floating artifact panel with morph from chat ([#23246](https://github.com/lightdash/lightdash/issues/23246)) ([ff221d4](https://github.com/lightdash/lightdash/commit/ff221d491f11f14e49b49234bdb77de298c47a85))
+
 # [0.2967.0](https://github.com/lightdash/lightdash/compare/0.2966.2...0.2967.0) (2026-05-18)
 
 
