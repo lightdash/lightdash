@@ -1,3 +1,10 @@
+# [0.2970.0](https://github.com/lightdash/lightdash/compare/0.2969.0...0.2970.0) (2026-05-18)
+
+
+### Features
+
+* **backend:** structured observability for scheduler & warehouse queries ([#23250](https://github.com/lightdash/lightdash/issues/23250)) ([45038d6](https://github.com/lightdash/lightdash/commit/45038d6a5b7b522961ecc0777f841cfe10341ac2))
+
 # [0.2969.0](https://github.com/lightdash/lightdash/compare/0.2968.0...0.2969.0) (2026-05-18)
 
 
