@@ -370,6 +370,12 @@ export default class App {
             middleware(expressApp),
         );
 
+        if (this.lightdashConfig.prometheus.extendedMetricsEnabled) {
+            expressApp.use(
+                this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
+            );
+        }
+
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );

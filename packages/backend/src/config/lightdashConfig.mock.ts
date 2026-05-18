@@ -98,6 +98,7 @@ export const lightdashConfigMock: LightdashConfig = {
         path: '/metrics',
         eventMetricsEnabled: false,
         allQueryMetricsEnabled: false,
+        extendedMetricsEnabled: false,
     },
     chart: { versionHistory: { daysLimit: 0 } },
     dashboard: {
