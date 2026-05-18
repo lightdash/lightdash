@@ -3151,6 +3151,10 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_markdowns');
             await copyDashboardTileContent('dashboard_tile_sql_charts');
             await copyDashboardTileContent('dashboard_tile_headings');
+            // Data app tiles are copied with `app_uuid` left pointing at the
+            // source project's app — the preview project gets no `apps` row of
+            // its own. See `docs/data-apps.md` Limitations.
+            await copyDashboardTileContent('dashboard_tile_data_apps');
 
             // Get AI Agents from the source project
             // Note: AI agents are an Enterprise Edition feature. The table may not exist
