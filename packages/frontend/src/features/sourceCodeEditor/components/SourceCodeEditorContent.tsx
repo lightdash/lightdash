@@ -107,6 +107,7 @@ const SourceCodeEditorContent: FC = () => {
                 subject('SourceCode', {
                     organizationUuid: user.data?.organizationUuid,
                     projectUuid,
+                    isProtectedBranch: false,
                 }),
             ) ?? false,
         [user.data?.ability, user.data?.organizationUuid, projectUuid],

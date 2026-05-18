@@ -62,7 +62,11 @@ export const HeaderCreate: FC = () => {
     );
     const canWriteBackToDbt = !!user.data?.ability?.can(
         'manage',
-        subject('SourceCode', { organizationUuid, projectUuid }),
+        subject('SourceCode', {
+            organizationUuid,
+            projectUuid,
+            isProtectedBranch: false,
+        }),
     );
 
     const dispatch = useAppDispatch();
