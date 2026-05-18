@@ -37545,7 +37545,7 @@ export function RegisterRoutes(app: Router) {
         projectUuid: { in: 'query', name: 'projectUuid', dataType: 'string' },
     };
     app.get(
-        '/api/v1/aiAgentDocuments',
+        '/api/v1/aiAgents/documents',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.listDocuments,
@@ -37606,7 +37606,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v1/aiAgentDocuments/:documentUuid',
+        '/api/v1/aiAgents/documents/:documentUuid',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.getDocument,
@@ -37667,7 +37667,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v1/aiAgentDocuments/:documentUuid/content',
+        '/api/v1/aiAgents/documents/:documentUuid/content',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.getDocumentContent,
@@ -37728,7 +37728,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/aiAgentDocuments',
+        '/api/v1/aiAgents/documents',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.createDocument,
@@ -37795,7 +37795,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.patch(
-        '/api/v1/aiAgentDocuments/:documentUuid',
+        '/api/v1/aiAgents/documents/:documentUuid',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.updateDocument,
@@ -37856,7 +37856,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.delete(
-        '/api/v1/aiAgentDocuments/:documentUuid',
+        '/api/v1/aiAgents/documents/:documentUuid',
         ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
         ...fetchMiddlewares<RequestHandler>(
             AiAgentDocumentController.prototype.deleteDocument,
