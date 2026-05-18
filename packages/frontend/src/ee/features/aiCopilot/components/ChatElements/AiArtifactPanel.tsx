@@ -14,13 +14,8 @@ import {
     Loader,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine-8/core';
-import {
-    IconExclamationCircle,
-    IconInfoCircle,
-    IconX,
-} from '@tabler/icons-react';
+import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
@@ -278,29 +273,17 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         const floatingHead = (
             <div className={styles.head}>
-                <Box flex="1" miw={0}>
+                <Stack gap={0} flex={1} miw={0}>
                     <TruncatedText fz="sm" fw={600} maxWidth="100%">
                         {title}
                     </TruncatedText>
-                </Box>
-                <Group gap={2} className={styles.headRight}>
                     {description && (
-                        <Tooltip
-                            label={description}
-                            multiline
-                            w={260}
-                            withinPortal
-                        >
-                            <ActionIcon
-                                size="sm"
-                                variant="subtle"
-                                color="ldGray.6"
-                                aria-label="Description"
-                            >
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
+                            {description}
+                        </TruncatedText>
                     )}
+                </Stack>
+                <Group gap={2} className={styles.headRight}>
                     <AiChartQuickOptions
                         message={message}
                         projectUuid={artifact.projectUuid}

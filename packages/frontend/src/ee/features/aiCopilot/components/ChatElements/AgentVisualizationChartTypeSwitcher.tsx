@@ -73,6 +73,7 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
                         <MantineIcon
                             icon={CHART_TYPE_ICONS[chartType]}
                             size="sm"
+                            stroke={1.3}
                             style={{
                                 rotate:
                                     chartType === 'horizontal'
