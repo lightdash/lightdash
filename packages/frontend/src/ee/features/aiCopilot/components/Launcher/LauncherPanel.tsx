@@ -315,6 +315,12 @@ const ExistingThreadPanel: FC<{
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
+                        threadUuid={threadId}
+                        latestAssistantMessageUuid={
+                            [...(thread.messages ?? [])]
+                                .reverse()
+                                .find((m) => m.role === 'assistant')?.uuid
+                        }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={
                             sqlModeAvailable

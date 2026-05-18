@@ -122,6 +122,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 messageCount={thread.messages?.length || 0}
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
+                threadUuid={threadUuid}
+                latestAssistantMessageUuid={
+                    [...(thread.messages ?? [])]
+                        .reverse()
+                        .find((m) => m.role === 'assistant')?.uuid
+                }
                 sqlMode={sqlModeAvailable ? sqlMode : undefined}
                 onSqlModeChange={
                     sqlModeAvailable && threadUuid

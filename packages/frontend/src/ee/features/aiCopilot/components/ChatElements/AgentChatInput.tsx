@@ -1,4 +1,8 @@
-import { FeatureFlags, type AiModelOption } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type AgentSuggestion,
+    type AiModelOption,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -26,9 +30,8 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
-import { usePostResponseChips } from '../../hooks/usePostResponseChips';
 import styles from './AgentChatInput.module.css';
-import { AgentSuggestionChips, type DisplayChip } from './AgentSuggestionChips';
+import { AgentSuggestionChips } from './AgentSuggestionChips';
 
 const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
@@ -68,6 +71,8 @@ interface AgentChatInputProps {
     messageCount?: number;
     projectUuid?: string;
     agentUuid?: string;
+    threadUuid?: string;
+    latestAssistantMessageUuid?: string;
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
@@ -102,6 +107,8 @@ export const AgentChatInput = ({
     messageCount = 0,
     projectUuid,
     agentUuid,
+    threadUuid,
+    latestAssistantMessageUuid,
     models,
     selectedModelId,
     onModelChange,
@@ -134,22 +141,26 @@ export const AgentChatInput = ({
     const suggestionsFlag = useServerFeatureFlag(
         FeatureFlags.AiAgentSuggestions,
     );
-    const emptyStateEnabled =
+
+    const emptyStateMode =
         !isMinimalMode &&
         messageCount === 0 &&
         suggestionsFlag.data?.enabled === true;
-
-    const postResponseEnabled = messageCount > 0 && !loading;
+    const postResponseMode =
+        messageCount > 0 &&
+        !loading &&
+        !!threadUuid &&
+        !!latestAssistantMessageUuid &&
+        suggestionsFlag.data?.enabled === true;
 
     const suggestionsQuery = useAgentSuggestions({
         projectUuid,
         agentUuid,
-        enabled: emptyStateEnabled,
-    });
-
-    const postResponseChips = usePostResponseChips({
-        messageCount,
-        enabled: postResponseEnabled,
+        threadUuid: postResponseMode ? threadUuid : undefined,
+        afterMessageUuid: postResponseMode
+            ? latestAssistantMessageUuid
+            : undefined,
+        enabled: emptyStateMode || postResponseMode,
     });
 
     const editor = useEditor({
@@ -220,8 +231,35 @@ export const AgentChatInput = ({
     }, [editor, disabled]);
 
     const handleChipClick = useCallback(
-        (chip: DisplayChip, index: number) => {
-            if (chip.source === 'empty-state') {
+        (chip: AgentSuggestion, index: number) => {
+            const trackClick = (extra: Record<string, unknown>) => {
+                if (!projectUuid || !agentUuid) return;
+                track({
+                    name: EventName.AI_AGENT_SUGGESTION_CLICK,
+                    properties: {
+                        projectId: projectUuid,
+                        agentId: agentUuid,
+                        chipLabel: chip.label,
+                        chipIndex: index,
+                        chipKind: chip.kind,
+                        mode: emptyStateMode ? 'empty-state' : 'post-response',
+                        ...extra,
+                    },
+                });
+            };
+
+            if (chip.kind === 'action') {
+                trackClick({ chipAction: chip.action });
+                showToastInfo({
+                    title: chip.label,
+                    subtitle: `Action handler for ${chip.action} on artifact ${chip.artifactUuid} (wired up next).`,
+                });
+                return;
+            }
+
+            // prompt chip: empty-state inserts mention to compose around;
+            // post-response auto-submits the label.
+            if (emptyStateMode) {
                 if (!editor) return;
                 editor
                     .chain()
@@ -229,48 +267,25 @@ export const AgentChatInput = ({
                     .insertContent([
                         {
                             type: SUGGESTION_CHIP_MENTION_NAME,
-                            attrs: {
-                                id: chip.data.tool,
-                                label: chip.data.label,
-                            },
+                            attrs: { id: chip.tool, label: chip.label },
                         },
                         { type: 'text', text: ' ' },
                     ])
                     .run();
-
-                if (projectUuid && agentUuid) {
-                    track({
-                        name: EventName.AI_AGENT_SUGGESTION_CLICK,
-                        properties: {
-                            projectId: projectUuid,
-                            agentId: agentUuid,
-                            chipLabel: chip.data.label,
-                            chipTool: chip.data.tool,
-                            chipIndex: index,
-                        },
-                    });
-                }
+                trackClick({ chipTool: chip.tool });
                 return;
             }
 
-            if (chip.data.kind === 'prompt') {
-                if (loadingRef.current || disabledRef.current) return;
-                onSubmitRef.current({
-                    message: chip.data.label,
-                    toolHints: [],
-                });
-                editor?.commands.clearContent();
-                setValueState('');
-                return;
-            }
-
-            showToastInfo({
-                title: chip.data.label,
-                subtitle:
-                    'Prototype only — this is where the matching workflow would open.',
+            if (loadingRef.current || disabledRef.current) return;
+            onSubmitRef.current({
+                message: chip.label,
+                toolHints: [chip.tool],
             });
+            editor?.commands.clearContent();
+            setValueState('');
+            trackClick({ chipTool: chip.tool });
         },
-        [editor, projectUuid, agentUuid, track, showToastInfo],
+        [editor, projectUuid, agentUuid, track, showToastInfo, emptyStateMode],
     );
 
     const handleImpression = useCallback(
@@ -306,47 +321,25 @@ export const AgentChatInput = ({
         setValueState('');
     };
 
-    const displayChips: DisplayChip[] = useMemo(() => {
-        if (emptyStateEnabled) {
-            const llmChips = suggestionsQuery.data?.chips ?? [];
-            return llmChips.map((data) => ({
-                source: 'empty-state' as const,
-                data,
-            }));
-        }
-        if (postResponseEnabled) {
-            return postResponseChips.map((data) => ({
-                source: 'post-response' as const,
-                data,
-            }));
-        }
-        return [];
-    }, [
-        emptyStateEnabled,
-        postResponseEnabled,
-        suggestionsQuery.data,
-        postResponseChips,
-    ]);
-
     const chipRow = useMemo(() => {
-        if (!emptyStateEnabled && !postResponseEnabled) return null;
-        if (emptyStateEnabled && suggestionsQuery.isError) return null;
-        const isLoadingChips = emptyStateEnabled && suggestionsQuery.isLoading;
-        if (!isLoadingChips && displayChips.length === 0) return null;
+        if (!emptyStateMode && !postResponseMode) return null;
+        if (suggestionsQuery.isError) return null;
+        const chips = suggestionsQuery.data?.chips ?? [];
+        if (!suggestionsQuery.isLoading && chips.length === 0) return null;
         return (
             <AgentSuggestionChips
-                chips={displayChips}
-                isLoading={isLoadingChips}
+                chips={chips}
+                isLoading={suggestionsQuery.isLoading}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
             />
         );
     }, [
-        emptyStateEnabled,
-        postResponseEnabled,
+        emptyStateMode,
+        postResponseMode,
         suggestionsQuery.isError,
         suggestionsQuery.isLoading,
-        displayChips,
+        suggestionsQuery.data,
         handleChipClick,
         handleImpression,
     ]);

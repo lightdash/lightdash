@@ -1,7 +1,6 @@
-import type { AgentSuggestion } from '@lightdash/common';
+import type { AgentSuggestion, AgentSuggestionAction } from '@lightdash/common';
 import { Box, Button, Skeleton } from '@mantine-8/core';
 import {
-    IconCalendarTime,
     IconChartHistogram,
     IconCompass,
     IconDeviceFloppy,
@@ -10,48 +9,33 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import type {
-    PostResponseActionId,
-    PostResponseChip,
-} from '../../hooks/usePostResponseChips';
 import styles from './AgentSuggestionChips.module.css';
 
-export type DisplayChip =
-    | { source: 'empty-state'; data: AgentSuggestion }
-    | { source: 'post-response'; data: PostResponseChip };
-
 type Props = {
-    chips: DisplayChip[];
+    chips: AgentSuggestion[];
     isLoading: boolean;
-    onChipClick: (chip: DisplayChip, index: number) => void;
+    onChipClick: (chip: AgentSuggestion, index: number) => void;
     onImpression?: (chipCount: number) => void;
 };
 
 const SKELETON_COUNT = 4;
 
-const ACTION_ICONS: Record<PostResponseActionId, Icon> = {
+const ACTION_ICONS: Record<AgentSuggestionAction, Icon> = {
     saveAsChart: IconDeviceFloppy,
     pinToDashboard: IconPin,
     openInExplore: IconCompass,
-    scheduleDelivery: IconCalendarTime,
 };
 
-const renderLeftIcon = (chip: DisplayChip) => {
-    if (chip.source !== 'post-response') return undefined;
-    if (chip.data.kind !== 'action') return undefined;
-    const Icon = ACTION_ICONS[chip.data.action] ?? IconChartHistogram;
+const renderLeftIcon = (chip: AgentSuggestion) => {
+    if (chip.kind !== 'action') return undefined;
+    const Icon = ACTION_ICONS[chip.action] ?? IconChartHistogram;
     return <MantineIcon icon={Icon} size={14} />;
 };
 
-const chipKey = (chip: DisplayChip, idx: number) => {
-    if (chip.source === 'empty-state') {
-        return `es-${chip.data.tool}-${chip.data.label}-${idx}`;
-    }
-    return `pr-${chip.data.kind}-${chip.data.label}-${idx}`;
-};
-
-const isActionChip = (chip: DisplayChip) =>
-    chip.source === 'post-response' && chip.data.kind === 'action';
+const chipKey = (chip: AgentSuggestion, idx: number) =>
+    chip.kind === 'action'
+        ? `act-${chip.action}-${chip.label}-${idx}`
+        : `prom-${chip.tool}-${chip.label}-${idx}`;
 
 export const AgentSuggestionChips = ({
     chips,
@@ -91,17 +75,18 @@ export const AgentSuggestionChips = ({
         <Box className={styles.row}>
             {chips.map((chip, idx) => {
                 const classes = [styles.chip, styles.fadeIn];
-                if (isActionChip(chip)) classes.push(styles.actionChip);
+                if (chip.kind === 'action') classes.push(styles.actionChip);
                 return (
                     <Button
                         key={chipKey(chip, idx)}
                         variant="default"
                         size="xs"
                         className={classes.join(' ')}
+                        style={{ ['--chip-idx' as string]: idx }}
                         leftSection={renderLeftIcon(chip)}
                         onClick={() => onChipClick(chip, idx)}
                     >
-                        {chip.data.label}
+                        {chip.label}
                     </Button>
                 );
             })}

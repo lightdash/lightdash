@@ -148,6 +148,7 @@ import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import {
     generateAgentSuggestions,
     SUGGESTION_FALLBACK_CHIPS,
+    type SuggestionPromptContext,
 } from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
@@ -252,6 +253,20 @@ function cleanupOAuthCache(): void {
             oauthResponseUrlCache.delete(key);
         }
     });
+}
+
+const CLARIFYING_QUESTION_RE =
+    /(\?\s*$)|(could you clarify)|(did you mean)|(which (one|of these))|(let me know which)|(what would you like)/i;
+
+const REFUSAL_RE =
+    /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
+
+function detectClarifyingQuestion(text: string): boolean {
+    return CLARIFYING_QUESTION_RE.test(text);
+}
+
+function detectRefusal(text: string): boolean {
+    return REFUSAL_RE.test(text);
 }
 
 export class AiAgentService extends BaseService {
@@ -605,7 +620,17 @@ export class AiAgentService extends BaseService {
 
     public async getAgentSuggestions(
         user: SessionUser,
-        { projectUuid, agentUuid }: { projectUuid: string; agentUuid: string },
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            afterMessageUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid?: string;
+            afterMessageUuid?: string;
+        },
     ): Promise<{ chips: AgentSuggestion[] }> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -649,6 +674,14 @@ export class AiAgentService extends BaseService {
             .slice(0, 6)
             .map((q) => q.question);
 
+        const threadContext = threadUuid
+            ? await this.buildSuggestionsThreadContext({
+                  organizationUuid,
+                  threadUuid,
+                  afterMessageUuid,
+              })
+            : null;
+
         const startedAt = Date.now();
         let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
         let usingFallback = true;
@@ -669,14 +702,24 @@ export class AiAgentService extends BaseService {
                     explores,
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
+                    thread: threadContext?.contextForPrompt,
                 },
                 {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     agentId: agentUuid,
+                    mode: threadContext ? 'post-response' : 'empty-state',
                 },
             );
-            chips = generated.chips;
+
+            const chartArtifactUuid = threadContext?.chartArtifactUuid ?? null;
+            chips = generated.chips
+                .map((chip): AgentSuggestion | null => {
+                    if (chip.kind === 'prompt') return chip;
+                    if (!chartArtifactUuid) return null;
+                    return { ...chip, artifactUuid: chartArtifactUuid };
+                })
+                .filter((chip): chip is AgentSuggestion => chip !== null);
             usingFallback = false;
             modelId = String(modelOptions.model.modelId ?? 'unknown');
         } catch (error) {
@@ -707,6 +750,73 @@ export class AiAgentService extends BaseService {
         });
 
         return { chips };
+    }
+
+    private async buildSuggestionsThreadContext({
+        organizationUuid,
+        threadUuid,
+        afterMessageUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+        afterMessageUuid?: string;
+    }): Promise<{
+        contextForPrompt: NonNullable<SuggestionPromptContext['thread']>;
+        chartArtifactUuid: string | null;
+    } | null> {
+        const messages = await this.aiAgentModel.findThreadMessages({
+            organizationUuid,
+            threadUuid,
+        });
+        if (messages.length === 0) return null;
+
+        // Pick the target assistant message: the one named by afterMessageUuid
+        // if supplied, else the most recent assistant message in the thread.
+        const candidates = messages.filter(
+            (m): m is Extract<typeof m, { role: 'assistant' }> =>
+                m.role === 'assistant',
+        );
+        const latestAssistant = afterMessageUuid
+            ? (candidates.find((m) => m.uuid === afterMessageUuid) ??
+              candidates[candidates.length - 1])
+            : candidates[candidates.length - 1];
+
+        if (!latestAssistant) return null;
+
+        const latestAssistantText = (latestAssistant.message ?? '').slice(
+            0,
+            1600,
+        );
+        const askedClarifyingQuestion =
+            detectClarifyingQuestion(latestAssistantText);
+        const refused = detectRefusal(latestAssistantText);
+        const chartArtifact = (latestAssistant.artifacts ?? []).find(
+            (a) => a.artifactType === 'chart',
+        );
+
+        // Last 6 messages, truncated text. The transcript gives the LLM enough
+        // grounding without dumping the full thread.
+        const recentMessages = messages.slice(-6).map((m) => ({
+            role: m.role,
+            text:
+                m.role === 'user'
+                    ? (m.message ?? '').slice(0, 600)
+                    : (m.message ?? '').slice(0, 600),
+        }));
+
+        return {
+            contextForPrompt: {
+                recentMessages,
+                latestAssistantTurn: {
+                    text: latestAssistantText,
+                    askedClarifyingQuestion,
+                    refused,
+                    latestQuery: null,
+                    chartArtifactPresent: !!chartArtifact,
+                },
+            },
+            chartArtifactUuid: chartArtifact?.artifactUuid ?? null,
+        };
     }
 
     private async executeAsyncAiMetricQuery(

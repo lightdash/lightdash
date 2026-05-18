@@ -10482,7 +10482,7 @@
                     "findContent"
                 ]
             },
-            "AgentSuggestion": {
+            "AgentSuggestionPromptChip": {
                 "properties": {
                     "defaults": {
                         "properties": {
@@ -10509,10 +10509,49 @@
                     },
                     "label": {
                         "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["prompt"],
+                        "nullable": false
                     }
                 },
-                "required": ["defaults", "tool", "label"],
+                "required": ["defaults", "tool", "label", "kind"],
                 "type": "object"
+            },
+            "AgentSuggestionAction": {
+                "type": "string",
+                "enum": ["saveAsChart", "pinToDashboard", "openInExplore"]
+            },
+            "AgentSuggestionActionChip": {
+                "properties": {
+                    "artifactUuid": {
+                        "type": "string"
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/AgentSuggestionAction"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["action"],
+                        "nullable": false
+                    }
+                },
+                "required": ["artifactUuid", "action", "label", "kind"],
+                "type": "object"
+            },
+            "AgentSuggestion": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionPromptChip"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionActionChip"
+                    }
+                ]
             },
             "ApiSuccess__chips-AgentSuggestion-Array__": {
                 "properties": {
@@ -11483,6 +11522,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
