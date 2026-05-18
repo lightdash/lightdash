@@ -7,6 +7,7 @@ import { captureException } from '@sentry/react';
 import {
     DefaultChatTransport,
     readUIMessageStream,
+    type UIMessageChunk,
     type ReasoningUIPart,
     type UIMessage,
 } from 'ai';
@@ -14,6 +15,7 @@ import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
     addReasoning,
+    addMcpUnavailableNotice,
     addToolCall,
     markToolCallDecided,
     setError,
@@ -37,6 +39,17 @@ export interface AiAgentThreadStreamOptions {
     onError?: (error: string) => void;
     refetchThread?: () => void;
 }
+
+type McpUnavailableNoticeChunk = UIMessageChunk & {
+    type: 'data-mcp-unavailable';
+    data: {
+        serverUuid: string;
+        serverName: string;
+        message: string;
+        status: 'not_connected' | 'connecting' | 'connected' | 'error';
+    };
+    transient?: boolean;
+};
 
 const getAgentThreadReadableStream = async (
     projectUuid: string,
@@ -86,6 +99,29 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
     }
 };
 
+export const getMcpUnavailableNoticeFromChunk = (
+    chunk: UIMessageChunk,
+): McpUnavailableNoticeChunk['data'] | null => {
+    if (
+        chunk.type === 'data-mcp-unavailable' &&
+        'data' in chunk &&
+        chunk.data &&
+        typeof chunk.data === 'object'
+    ) {
+        const data = chunk.data as McpUnavailableNoticeChunk['data'];
+        if (
+            typeof data.serverUuid === 'string' &&
+            typeof data.serverName === 'string' &&
+            typeof data.message === 'string' &&
+            typeof data.status === 'string'
+        ) {
+            return data;
+        }
+    }
+
+    return null;
+};
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -120,11 +156,33 @@ export function useAiAgentThreadStreamMutation() {
 
                 const parser = new ChatStreamParser();
                 const chunkStream = parser.parseStream(response);
+                const [rawChunkStream, uiMessageChunkStream] =
+                    chunkStream.tee();
                 const stream = readUIMessageStream({
-                    stream: chunkStream,
+                    stream: uiMessageChunkStream,
                 });
+                const rawChunkReader = rawChunkStream.getReader();
 
                 const handledToolOutputIds = new Set<string>();
+
+                const consumeRawChunks = (async () => {
+                    while (true) {
+                        const { done, value } = await rawChunkReader.read();
+                        if (done) {
+                            break;
+                        }
+
+                        const notice = getMcpUnavailableNoticeFromChunk(value);
+                        if (notice) {
+                            dispatch(
+                                addMcpUnavailableNotice({
+                                    threadUuid,
+                                    notice,
+                                }),
+                            );
+                        }
+                    }
+                })();
 
                 for await (const uiMessage of stream) {
                     if (abortController.signal.aborted) return;
@@ -362,6 +420,7 @@ export function useAiAgentThreadStreamMutation() {
                     }
                 }
 
+                await consumeRawChunks;
                 onFinish?.();
                 dispatch(stopStreaming({ threadUuid }));
             } catch (error) {
