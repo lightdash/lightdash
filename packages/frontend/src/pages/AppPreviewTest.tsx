@@ -36,6 +36,9 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const scheduledDeliveriesFlag = useServerFeatureFlag(
+        FeatureFlags.DataAppsScheduledDeliveries,
+    );
     const { user } = useApp();
 
     // Always fetch app to get creator info + latest ready version when needed.
@@ -200,12 +203,14 @@ export default function AppPreviewTest() {
                             >
                                 Continue building
                             </Menu.Item>
-                            <Menu.Item
-                                leftSection={<IconSend size={14} />}
-                                onClick={() => setSchedulerModalOpen(true)}
-                            >
-                                Schedule delivery
-                            </Menu.Item>
+                            {scheduledDeliveriesFlag.data?.enabled && (
+                                <Menu.Item
+                                    leftSection={<IconSend size={14} />}
+                                    onClick={() => setSchedulerModalOpen(true)}
+                                >
+                                    Schedule delivery
+                                </Menu.Item>
+                            )}
                         </Menu.Dropdown>
                     </Menu>
                 </Box>
