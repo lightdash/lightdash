@@ -1,4 +1,9 @@
-import { AiAgent, AiMcpServer, WarehouseTypes } from '@lightdash/common';
+import {
+    AiAgent,
+    AiMcpServer,
+    AiMcpServerConnectionStatus,
+    WarehouseTypes,
+} from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
@@ -28,6 +33,7 @@ import {
     StoreToolCallFn,
     StoreToolResultsFn,
     TrackEventFn,
+    UpdateMcpServerRuntimeStateFn,
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
@@ -40,6 +46,13 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
+};
+
+export type UnavailableMcpServer = {
+    serverUuid: string;
+    serverName: string;
+    message: string;
+    status: AiMcpServerConnectionStatus;
 };
 
 export type AiAgentArgs = AnyAiModel & {
@@ -105,6 +118,7 @@ export type AiAgentDependencies = {
     createChange: CreateChangeFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    updateMcpServerRuntimeState: UpdateMcpServerRuntimeStateFn;
     perf: PerformanceMetrics;
 };
 

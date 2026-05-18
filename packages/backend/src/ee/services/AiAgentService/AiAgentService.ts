@@ -3993,6 +3993,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
+            updateMcpServerRuntimeState: (data) =>
+                this.aiAgentModel.updateMcpServerRuntimeState(data),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

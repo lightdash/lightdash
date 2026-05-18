@@ -1,7 +1,7 @@
-import type { MCPClient } from '@ai-sdk/mcp';
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
+    createUIMessageStream,
     generateText,
     smoothStream,
     stepCountIs,
@@ -9,9 +9,10 @@ import {
     StreamTextResult,
     type Output,
     type ToolSet,
+    type UIMessageChunk,
 } from 'ai';
 import Logger from '../../../../logging/logger';
-import { createHttpMcpClient } from '../AiAgentMcpRuntimeClient';
+import { resolveMcpTools } from '../AiAgentMcpToolResolver';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
@@ -28,6 +29,7 @@ import type {
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
+    UnavailableMcpServer,
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
 import {
@@ -48,6 +50,7 @@ const STEP_CAP = 40;
 
 type AgentToolSetup = {
     tools: ToolSet;
+    unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
 
@@ -88,13 +91,9 @@ export const defaultAgentOptions = {
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
-const sanitizeMcpToolKeyPart = (value: string) => {
-    const sanitized = value
-        .replace(/[^a-zA-Z0-9_]+/g, '_')
-        .replace(/_+/g, '_')
-        .replace(/^_+/, '')
-        .replace(/_+$/, '');
-    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
+export type StreamAgentResponseResult = {
+    stream: ReadableStream<UIMessageChunk>;
+    consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
 };
 
 const getAgentTools = async (
@@ -229,71 +228,32 @@ const getAgentTools = async (
         );
         return {
             tools,
+            unavailableMcpServers: [],
             closeMcpClients: async () => undefined,
         };
     }
 
-    const mcpClients: MCPClient[] = [];
-    const usedToolNames = new Set(Object.keys(tools));
+    const {
+        tools: mcpTools,
+        unavailableMcpServers,
+        closeMcpClients,
+    } = await resolveMcpTools({
+        mcpServers: args.mcpServers,
+        initialToolNames: Object.keys(tools),
+        updateMcpServerRuntimeState: dependencies.updateMcpServerRuntimeState,
+        debugLoggingEnabled: args.debugLoggingEnabled,
+    });
 
-    try {
-        for await (const mcpServer of args.mcpServers) {
-            logger(
-                'Agent Tools',
-                `Connecting to MCP server: ${mcpServer.name} (${mcpServer.url})`,
-            );
-
-            const mcpClient = await createHttpMcpClient(mcpServer, (error) => {
-                Logger.error(
-                    `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
-                    error,
-                );
-            });
-            mcpClients.push(mcpClient);
-
-            const mcpTools = await mcpClient.tools();
-            const serverPrefix = sanitizeMcpToolKeyPart(mcpServer.name);
-
-            for (const [toolName, toolDefinition] of Object.entries(mcpTools)) {
-                const toolSuffix = sanitizeMcpToolKeyPart(toolName);
-                const baseToolName = `mcp_${serverPrefix}__${toolSuffix}`;
-                let namespacedToolName = baseToolName;
-                let collisionCount = 1;
-
-                while (usedToolNames.has(namespacedToolName)) {
-                    collisionCount += 1;
-                    namespacedToolName = `${baseToolName}_${collisionCount}`;
-                }
-
-                usedToolNames.add(namespacedToolName);
-                tools[namespacedToolName] = toolDefinition as ToolSet[string];
-            }
-        }
-    } catch (error) {
-        await Promise.allSettled(mcpClients.map((client) => client.close()));
-        throw error;
-    }
+    const mergedTools = { ...tools, ...mcpTools };
 
     logger(
         'Agent Tools',
-        `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
+        `Successfully retrieved agent tools: ${Object.keys(mergedTools).join(', ')}`,
     );
     return {
-        tools,
-        closeMcpClients: async () => {
-            const results = await Promise.allSettled(
-                mcpClients.map((client) => client.close()),
-            );
-
-            for (const result of results) {
-                if (result.status === 'rejected') {
-                    Logger.error(
-                        '[AiAgent][MCP] Failed to close MCP client',
-                        result.reason,
-                    );
-                }
-            }
-        },
+        tools: mergedTools,
+        unavailableMcpServers,
+        closeMcpClients,
     };
 };
 
@@ -358,18 +318,18 @@ export const generateAgentResponse = async ({
         'Generate Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const availableExplores = await dependencies.listExplores();
-    const messages = getAgentMessages(args, availableExplores);
-    const { tools, closeMcpClients } = await getAgentTools(
-        args,
-        dependencies,
-        availableExplores,
-    );
+    let closeMcpClients: AgentToolSetup['closeMcpClients'] = async () =>
+        undefined;
 
     const startTime = Date.now();
     const modelName = args.model.modelId;
 
     try {
+        const availableExplores = await dependencies.listExplores();
+        const { tools, closeMcpClients: closeResolvedMcpClients } =
+            await getAgentTools(args, dependencies, availableExplores);
+        closeMcpClients = closeResolvedMcpClients;
+        const messages = getAgentMessages(args, availableExplores);
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
@@ -530,7 +490,7 @@ export const streamAgentResponse = async ({
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-}): Promise<StreamTextResult<any, Output.Output>> => {
+}): Promise<StreamAgentResponseResult> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Stream Agent Response',
@@ -540,18 +500,13 @@ export const streamAgentResponse = async ({
         'Stream Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const availableExplores = await dependencies.listExplores();
-    const messages = getAgentMessages(args, availableExplores);
-    const { tools, closeMcpClients } = await getAgentTools(
-        args,
-        dependencies,
-        availableExplores,
-    );
 
     const startTime = Date.now();
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
+    let closeMcpClients: AgentToolSetup['closeMcpClients'] = async () =>
+        undefined;
     const modelName =
         typeof args.model === 'string' ? args.model : args.model.modelId;
 
@@ -565,6 +520,14 @@ export const streamAgentResponse = async ({
     };
 
     try {
+        const availableExplores = await dependencies.listExplores();
+        const {
+            tools,
+            unavailableMcpServers: resolvedUnavailableMcpServers,
+            closeMcpClients: closeResolvedMcpClients,
+        } = await getAgentTools(args, dependencies, availableExplores);
+        closeMcpClients = closeResolvedMcpClients;
+        const messages = getAgentMessages(args, availableExplores);
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
@@ -824,8 +787,25 @@ export const streamAgentResponse = async ({
             ),
         });
 
+        const stream = createUIMessageStream({
+            execute: ({ writer }) => {
+                for (const unavailableMcpServer of resolvedUnavailableMcpServers) {
+                    writer.write({
+                        type: 'data-mcp-unavailable',
+                        data: unavailableMcpServer,
+                        transient: true,
+                    });
+                }
+
+                writer.merge(result.toUIMessageStream());
+            },
+        });
+
         logger('Stream Agent Response', 'Returning stream result.');
-        return result;
+        return {
+            stream,
+            consumeStream: result.consumeStream.bind(result),
+        };
     } catch (error) {
         const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
