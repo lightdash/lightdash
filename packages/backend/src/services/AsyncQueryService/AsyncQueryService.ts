@@ -57,6 +57,7 @@ import {
     isField,
     isJwtUser,
     isMetric,
+    isPeriodOverPeriodAdditionalMetric,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -5540,6 +5541,17 @@ export class AsyncQueryService extends ProjectService {
     private static getCalculateTotalMetricQuery(
         metricQuery: MetricQuery,
     ): MetricQuery {
+        // PoP additional metrics require their time dimension to be selected
+        // (they join the shifted CTE on that field). The totals query strips
+        // all dimensions to collapse to a single row, so any PoP entries
+        // would fail the "time dim must be selected" check in MetricQueryBuilder.
+        // Totals on a "12 months ago" column aren't meaningful anyway —
+        // strip PoP entries from both metrics and additionalMetrics.
+        const popMetricIds = new Set(
+            (metricQuery.additionalMetrics ?? [])
+                .filter(isPeriodOverPeriodAdditionalMetric)
+                .map(getItemId),
+        );
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5547,8 +5559,10 @@ export class AsyncQueryService extends ProjectService {
             sorts: [],
             dimensions: [],
             customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
+            metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
+            additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
+                (am) => !isPeriodOverPeriodAdditionalMetric(am),
+            ),
         };
 
         const hasMetricFilters =
