@@ -790,7 +790,32 @@ export class AiAgentService extends BaseService {
             );
 
             const dropped: string[] = [];
-            const validated = generated.chips.filter((chip) => {
+            // Resolve model-side intent into final wire shape. Navigate chips
+            // carry a recentConversationIndex from the LLM; the server turns
+            // that into a real thread URL using the conversations array we
+            // built earlier (which has the UUIDs the LLM never sees).
+            const resolved: AgentSuggestion[] = [];
+            for (const chip of generated.chips) {
+                if (chip.kind === 'prompt') {
+                    resolved.push(chip);
+                } else {
+                    const conv =
+                        recentUserConversations?.[chip.recentConversationIndex];
+                    if (conv) {
+                        resolved.push({
+                            kind: 'navigate',
+                            label: chip.label,
+                            url: `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${conv.threadUuid}`,
+                        });
+                    } else {
+                        dropped.push(
+                            `${chip.label} (no recent conversation at index ${chip.recentConversationIndex})`,
+                        );
+                    }
+                }
+            }
+
+            const validated = resolved.filter((chip) => {
                 const result = validateAgentSuggestion(chip, validationCatalog);
                 if (!result.valid) {
                     dropped.push(`${chip.label} (${result.reason})`);
@@ -937,6 +962,7 @@ export class AiAgentService extends BaseService {
                     lastUserMessage:
                         thread.firstMessage?.message?.slice(0, 200) ?? null,
                     daysAgo,
+                    threadUuid: thread.uuid,
                 };
             });
         } catch (error) {

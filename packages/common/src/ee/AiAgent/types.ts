@@ -62,7 +62,8 @@ export const AGENT_SUGGESTION_TOOLS = [
 
 export type AgentSuggestionTool = (typeof AGENT_SUGGESTION_TOOLS)[number];
 
-export type AgentSuggestion = {
+export type AgentSuggestionPromptChip = {
+    kind: 'prompt';
     label: string;
     tool: AgentSuggestionTool;
     defaults: {
@@ -71,3 +72,15 @@ export type AgentSuggestion = {
         timeframe: string | null;
     };
 };
+
+export type AgentSuggestionNavigateChip = {
+    kind: 'navigate';
+    label: string;
+    // Resolved server-side. The LLM only declares intent (an index into
+    // recentUserConversations); the server turns that into a real URL.
+    url: string;
+};
+
+export type AgentSuggestion =
+    | AgentSuggestionPromptChip
+    | AgentSuggestionNavigateChip;

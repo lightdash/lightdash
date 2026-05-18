@@ -285,12 +285,20 @@ export const AgentChatInput = ({
                         projectId: projectUuid,
                         agentId: agentUuid,
                         chipLabel: chip.label,
-                        chipTool: chip.tool,
+                        chipKind: chip.kind,
+                        chipTool:
+                            chip.kind === 'prompt' ? chip.tool : undefined,
                         chipIndex: index,
                         mode: emptyStateMode ? 'empty-state' : 'post-response',
                     },
                 });
             };
+
+            if (chip.kind === 'navigate') {
+                trackClick();
+                void navigate(chip.url);
+                return;
+            }
 
             // Empty-state: insert as a mention so the user can compose around it.
             // Post-response: auto-submit because the user wants exactly that next.
@@ -320,7 +328,7 @@ export const AgentChatInput = ({
             setValueState('');
             trackClick();
         },
-        [editor, projectUuid, agentUuid, track, emptyStateMode],
+        [editor, projectUuid, agentUuid, track, emptyStateMode, navigate],
     );
 
     const handleImpression = useCallback(

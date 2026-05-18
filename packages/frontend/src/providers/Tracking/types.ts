@@ -484,7 +484,8 @@ type AiAgentSuggestionClickEvent = {
         projectId: string;
         agentId: string;
         chipLabel: string;
-        chipTool: string;
+        chipKind: 'prompt' | 'navigate';
+        chipTool?: string;
         chipIndex: number;
         mode: 'empty-state' | 'post-response';
     };

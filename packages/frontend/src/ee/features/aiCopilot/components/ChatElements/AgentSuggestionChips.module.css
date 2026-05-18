@@ -42,7 +42,7 @@
             transparent
         );
         border-color: transparent;
-        color: var(--mantine-color-ldGray-2);
+        color: var(--mantine-color-ldDark-7);
     }
 
     &:hover {
@@ -67,6 +67,31 @@
 
     &:active {
         transform: scale(0.97);
+    }
+}
+
+/* Navigate chips signal "this goes somewhere" — a subtle indigo tint plus
+ * the left arrow icon. The treatment stays quiet at rest; hover brings the
+ * indigo forward so the chip clearly reads as a navigation affordance. */
+.navigateChip {
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+
+    &:hover {
+        @mixin light {
+            color: var(--mantine-color-indigo-8);
+            border-color: var(--mantine-color-indigo-3);
+        }
+
+        @mixin dark {
+            color: var(--mantine-color-indigo-1);
+            border-color: var(--mantine-color-indigo-5);
+        }
     }
 }
 
