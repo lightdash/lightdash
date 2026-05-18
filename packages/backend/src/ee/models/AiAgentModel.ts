@@ -949,7 +949,7 @@ export class AiAgentModel {
             throw new NotFoundError('MCP server not found');
         }
 
-        if ((row as DbAiMcpServer).auth_type === 'oauth') {
+        if (row.auth_type === 'oauth') {
             const credential = await this.getCredential(
                 args.serverUuid,
                 'shared',

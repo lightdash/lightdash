@@ -75,10 +75,15 @@ import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistor
 import {
     APICallError,
     AssistantModelMessage,
+    createUIMessageStream,
     ModelMessage,
+    pipeUIMessageStreamToResponse,
+    StreamTextResult,
     ToolCallPart,
     ToolModelMessage,
     UserModelMessage,
+    type Output,
+    type ToolSet,
 } from 'ai';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -134,6 +139,7 @@ import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
+    type AgentMcpToolSetup,
 } from '../ai/agents/agentV2';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
@@ -189,6 +195,15 @@ import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService'
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
 >;
+
+type AgentResponseStream = {
+    pipeUIMessageStreamToResponse: (
+        response: Parameters<
+            typeof pipeUIMessageStreamToResponse
+        >[0]['response'],
+    ) => void;
+    consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
+};
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
@@ -1801,7 +1816,7 @@ export class AiAgentService extends BaseService {
             threadUuid: string;
             enableSqlMode: boolean;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>> {
+    ): Promise<AgentResponseStream> {
         try {
             const {
                 user: validatedUser,
@@ -3770,7 +3785,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>>;
+    ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: ModelMessage[],
@@ -3812,7 +3827,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   stream: false;
               }
         ),
-    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
+    ): Promise<string | AgentResponseStream> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -3948,6 +3963,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: options.canManageAgent,
         };
 
+        const mcpToolSetup: AgentMcpToolSetup =
+            await this.aiAgentMcpRuntimeClient.resolveTools({
+                mcpServers,
+                debugLoggingEnabled:
+                    this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            });
+
         const dependencies: AiAgentDependencies = {
             listExplores,
             getExplore,
@@ -3993,8 +4015,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
-            updateMcpServerRuntimeState: (data) =>
-                this.aiAgentModel.updateMcpServerRuntimeState(data),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
@@ -4021,9 +4041,42 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             },
         };
 
-        return stream
-            ? streamAgentResponse({ args, dependencies })
-            : generateAgentResponse({ args, dependencies });
+        if (!stream) {
+            return generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup,
+            });
+        }
+
+        const result = await streamAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup,
+        });
+        const streamWithMcpNotices = createUIMessageStream({
+            execute: ({ writer }) => {
+                for (const unavailableMcpServer of mcpToolSetup.unavailableMcpServers) {
+                    writer.write({
+                        type: 'data-mcp-unavailable',
+                        data: unavailableMcpServer,
+                        transient: true,
+                    });
+                }
+
+                writer.merge(result.toUIMessageStream());
+            },
+        });
+
+        return {
+            pipeUIMessageStreamToResponse: (response) => {
+                pipeUIMessageStreamToResponse({
+                    response,
+                    stream: streamWithMcpNotices,
+                });
+            },
+            consumeStream: result.consumeStream.bind(result),
+        };
     }
 
     // TODO: user permissions

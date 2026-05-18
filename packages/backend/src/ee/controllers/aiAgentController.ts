@@ -66,7 +66,6 @@ import {
     Route,
     SuccessResponse,
 } from '@tsoa/runtime';
-import { pipeUIMessageStreamToResponse } from 'ai';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
 import {
@@ -626,24 +625,20 @@ export class AiAgentController extends BaseController {
         @Body() body?: ApiAiAgentThreadStreamRequest,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
-        const { stream, consumeStream } =
-            await this.getAiAgentService().streamAgentThreadResponse(
-                toSessionUser(req.account),
-                {
-                    agentUuid,
-                    threadUuid,
-                    enableSqlMode: body?.enableSqlMode ?? false,
-                },
-            );
+        const stream = await this.getAiAgentService().streamAgentThreadResponse(
+            toSessionUser(req.account),
+            {
+                agentUuid,
+                threadUuid,
+                enableSqlMode: body?.enableSqlMode ?? false,
+            },
+        );
 
         /**
          * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
          * Hack to get the response object from the request
          */
-        pipeUIMessageStreamToResponse({
-            response: req.res!,
-            stream,
-        });
+        stream.pipeUIMessageStreamToResponse(req.res!);
 
         // If client disconnects, continue consuming the stream so side-effects complete
         let hasConsumed = false;
@@ -667,7 +662,7 @@ export class AiAgentController extends BaseController {
                     },
                 });
             }
-            void consumeStream({
+            void stream.consumeStream({
                 onError: (error) => {
                     Logger.error(`Error consuming stream ${String(error)}`);
                     if (!isStreamTimeoutError(error)) {

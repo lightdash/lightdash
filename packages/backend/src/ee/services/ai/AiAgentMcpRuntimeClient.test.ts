@@ -1,20 +1,13 @@
 import type { MCPClient } from '@ai-sdk/mcp';
+import type { LightdashConfig } from '../../../config/parseConfig';
+import type { AiAgentModel } from '../../models/AiAgentModel';
+import * as mcpRuntimeClientModule from './AiAgentMcpRuntimeClient';
 import {
+    AiAgentMcpRuntimeClient,
     createHttpMcpClient,
     McpAuthorizationRequiredError,
 } from './AiAgentMcpRuntimeClient';
-import { resolveMcpTools } from './AiAgentMcpToolResolver';
 import type { AiAgentMcpServer } from './types/aiAgent';
-
-jest.mock('./AiAgentMcpRuntimeClient', () => {
-    const actual = jest.requireActual('./AiAgentMcpRuntimeClient');
-    return {
-        ...actual,
-        createHttpMcpClient: jest.fn(),
-    };
-});
-
-const mockedCreateHttpMcpClient = jest.mocked(createHttpMcpClient);
 
 const getMcpServer = (
     overrides: Partial<AiAgentMcpServer>,
@@ -37,15 +30,32 @@ const getMcpServer = (
 });
 
 describe('resolveMcpTools', () => {
+    let createHttpMcpClientSpy: jest.SpiedFunction<typeof createHttpMcpClient>;
+    const aiAgentModel = {
+        updateMcpServerRuntimeState: jest.fn(),
+    } as unknown as AiAgentModel;
+    const runtimeClient = new AiAgentMcpRuntimeClient({
+        aiAgentModel,
+        lightdashConfig: {
+            siteUrl: 'https://lightdash.example.com',
+        } as LightdashConfig,
+    });
+
     beforeEach(() => {
-        mockedCreateHttpMcpClient.mockReset();
+        createHttpMcpClientSpy = jest.spyOn(
+            mcpRuntimeClientModule,
+            'createHttpMcpClient',
+        );
+        createHttpMcpClientSpy.mockReset();
+        jest.mocked(aiAgentModel.updateMcpServerRuntimeState).mockReset();
+    });
+
+    afterEach(() => {
+        createHttpMcpClientSpy.mockRestore();
     });
 
     it('keeps healthy MCP tools when another MCP fails', async () => {
         const close = jest.fn().mockResolvedValue(undefined);
-        const updateMcpServerRuntimeState = jest
-            .fn()
-            .mockResolvedValue(undefined);
         const healthyServer = getMcpServer({ name: 'Docs MCP' });
         const brokenServer = getMcpServer({
             uuid: 'broken-server',
@@ -53,7 +63,7 @@ describe('resolveMcpTools', () => {
             url: 'https://broken.example.com/mcp',
         });
 
-        mockedCreateHttpMcpClient.mockImplementation(
+        createHttpMcpClientSpy.mockImplementation(
             async (mcpServer: Parameters<typeof createHttpMcpClient>[0]) => {
                 if (mcpServer.uuid === brokenServer.uuid) {
                     throw new Error('Connection refused');
@@ -68,14 +78,12 @@ describe('resolveMcpTools', () => {
             },
         );
 
-        const result = await resolveMcpTools({
+        const result = await runtimeClient.resolveTools({
             mcpServers: [healthyServer, brokenServer],
-            initialToolNames: ['mcp_docs_mcp__search'],
-            updateMcpServerRuntimeState,
             debugLoggingEnabled: false,
         });
 
-        expect(Object.keys(result.tools)).toEqual(['mcp_docs_mcp__search_2']);
+        expect(Object.keys(result.tools)).toEqual(['mcp_docs_mcp__search']);
         expect(result.unavailableMcpServers).toEqual([
             {
                 serverUuid: 'broken-server',
@@ -85,12 +93,12 @@ describe('resolveMcpTools', () => {
                 status: 'error',
             },
         ]);
-        expect(updateMcpServerRuntimeState).toHaveBeenCalledWith({
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
             serverUuid: healthyServer.uuid,
             connectionStatus: 'connected',
             error: null,
         });
-        expect(updateMcpServerRuntimeState).toHaveBeenCalledWith({
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
             serverUuid: 'broken-server',
             connectionStatus: 'error',
             error: 'We could not connect to the MCP server. Check that it is available and try again.',
@@ -107,11 +115,8 @@ describe('resolveMcpTools', () => {
             authType: 'oauth',
             connectionStatus: 'not_connected',
         });
-        const updateMcpServerRuntimeState = jest
-            .fn()
-            .mockResolvedValue(undefined);
 
-        mockedCreateHttpMcpClient.mockRejectedValue(
+        createHttpMcpClientSpy.mockRejectedValue(
             new McpAuthorizationRequiredError(
                 oauthServer.name,
                 oauthServer.uuid,
@@ -119,10 +124,8 @@ describe('resolveMcpTools', () => {
             ),
         );
 
-        const result = await resolveMcpTools({
+        const result = await runtimeClient.resolveTools({
             mcpServers: [oauthServer],
-            initialToolNames: [],
-            updateMcpServerRuntimeState,
             debugLoggingEnabled: false,
         });
 
@@ -135,7 +138,7 @@ describe('resolveMcpTools', () => {
                 status: 'not_connected',
             },
         ]);
-        expect(updateMcpServerRuntimeState).toHaveBeenCalledWith({
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
             serverUuid: 'oauth-server',
             connectionStatus: 'not_connected',
             error: 'MCP server "OAuth MCP" requires authorization before this agent can use it.',

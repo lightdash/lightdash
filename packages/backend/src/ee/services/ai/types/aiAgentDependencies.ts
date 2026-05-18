@@ -2,7 +2,6 @@ import {
     AdditionalMetric,
     AgentToolOutput,
     AiArtifact,
-    AiMcpServerConnectionStatus,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
     AllChartsSearchResult,
@@ -218,10 +217,3 @@ export type RecordSqlApprovalFn = (
     decision: 'approved' | 'rejected',
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
-
-export type UpdateMcpServerRuntimeStateFn = (data: {
-    serverUuid: string;
-    connectionStatus: AiMcpServerConnectionStatus;
-    error: string | null;
-    actorUserUuid?: string | null;
-}) => Promise<void>;

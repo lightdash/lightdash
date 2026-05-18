@@ -33,7 +33,6 @@ import {
     StoreToolCallFn,
     StoreToolResultsFn,
     TrackEventFn,
-    UpdateMcpServerRuntimeStateFn,
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
@@ -118,7 +117,6 @@ export type AiAgentDependencies = {
     createChange: CreateChangeFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
-    updateMcpServerRuntimeState: UpdateMcpServerRuntimeStateFn;
     perf: PerformanceMetrics;
 };
 
