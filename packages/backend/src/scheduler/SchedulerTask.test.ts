@@ -3,7 +3,10 @@ import {
     NotEnoughResults,
     ThresholdOperator,
 } from '@lightdash/common';
-import SchedulerTask from './SchedulerTask';
+import SchedulerTask, {
+    buildSchedulerLogContext,
+    setSchedulerJobLogContext,
+} from './SchedulerTask';
 import {
     resultsWithOneRow,
     resultsWithTwoDecreasingRows,
@@ -11,6 +14,72 @@ import {
     thresholdIncreasedByMock,
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
+
+describe('buildSchedulerLogContext', () => {
+    it('returns null when no attribution fields are set', () => {
+        expect(buildSchedulerLogContext({})).toBeNull();
+    });
+
+    it('returns null when only nullish values are passed', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: undefined,
+                savedSqlUuid: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('includes only populated fields', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: 'job-1',
+                schedulerUuid: 'sched-1',
+            }),
+        ).toEqual({
+            job_id: 'job-1',
+            scheduler_uuid: 'sched-1',
+        });
+    });
+
+    it('omits a null savedSqlUuid', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: 'job-1',
+                savedSqlUuid: null,
+            }),
+        ).toEqual({ job_id: 'job-1' });
+    });
+});
+
+describe('setSchedulerJobLogContext', () => {
+    it('invokes the injected updater with the built sub-context', () => {
+        const update = jest.fn();
+        setSchedulerJobLogContext(
+            {
+                jobId: 'job-1',
+                schedulerUuid: 'sched-1',
+                schedulerName: 'My sync',
+                savedSqlUuid: 'sql-1',
+            },
+            update,
+        );
+        expect(update).toHaveBeenCalledTimes(1);
+        expect(update).toHaveBeenCalledWith({
+            scheduler: {
+                job_id: 'job-1',
+                scheduler_uuid: 'sched-1',
+                scheduler_name: 'My sync',
+                saved_sql_uuid: 'sql-1',
+            },
+        });
+    });
+
+    it('skips the updater entirely when no attribution fields are set', () => {
+        const update = jest.fn();
+        setSchedulerJobLogContext({}, update);
+        expect(update).not.toHaveBeenCalled();
+    });
+});
 
 describe('isPositiveThresholdAlert', () => {
     it('should return false if there are no results or no thresholds', () => {

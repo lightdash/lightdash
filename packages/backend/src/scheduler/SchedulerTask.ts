@@ -196,35 +196,67 @@ export type SchedulerTaskArguments = {
 };
 
 /**
- * Stamps the current job's AsyncLocalStorage-backed ExecutionContext with
- * scheduler/sync attribution so every downstream log line and warehouse
- * `queryTags` row carries the originating scheduler_uuid, scheduler_name,
- * saved_sql_uuid, and job_id.
+ * Builds the scheduler sub-context from a partial set of attribution fields.
+ * Pure function — used directly in tests; the default updater calls it.
  *
- * Called once per scheduler task entry point. Replaces any prior scheduler
- * sub-context. Organization context (organization_uuid, organization_name)
- * is set centrally by SchedulerTaskTracer before the task runs.
- *
- * SchedulerWorkerEventEmitter has already opened a context per job, so we
- * only need to `update()` — there is nothing to do outside a worker job.
+ * Returns `null` when no fields are populated so callers can short-circuit
+ * the ExecutionContext write.
  */
-function setSchedulerJobLogContext(args: {
+export function buildSchedulerLogContext(args: {
     jobId?: string;
     schedulerUuid?: string;
     schedulerName?: string;
     savedSqlUuid?: string | null;
-}) {
-    if (!ExecutionContext.exists()) return;
+}): NonNullable<ExecutionContextInfo['scheduler']> | null {
     const schedulerCtx: NonNullable<ExecutionContextInfo['scheduler']> = {};
     if (args.schedulerUuid) schedulerCtx.scheduler_uuid = args.schedulerUuid;
     if (args.schedulerName) schedulerCtx.scheduler_name = args.schedulerName;
     if (args.savedSqlUuid) schedulerCtx.saved_sql_uuid = args.savedSqlUuid;
     if (args.jobId) schedulerCtx.job_id = args.jobId;
-    if (Object.keys(schedulerCtx).length === 0) return;
-    ExecutionContext.update({ scheduler: schedulerCtx } as unknown as Record<
-        string,
-        unknown
-    >);
+    return Object.keys(schedulerCtx).length === 0 ? null : schedulerCtx;
+}
+
+/**
+ * Strategy used to write scheduler attribution into the surrounding log
+ * context. Injected so tests can supply a spy; the default writes through
+ * the AsyncLocalStorage-backed `ExecutionContext`.
+ */
+export type SchedulerLogContextUpdater = (
+    update: Pick<ExecutionContextInfo, 'scheduler'>,
+) => void;
+
+const defaultSchedulerLogContextUpdater: SchedulerLogContextUpdater = (
+    update,
+) => {
+    if (!ExecutionContext.exists()) return;
+    ExecutionContext.update(update as unknown as Record<string, unknown>);
+};
+
+/**
+ * Stamps the current job's log context with scheduler/sync attribution so
+ * every downstream log line and warehouse `queryTags` row carries the
+ * originating scheduler_uuid, scheduler_name, saved_sql_uuid, and job_id.
+ *
+ * Called once per scheduler task entry point. Replaces any prior scheduler
+ * sub-context. Organization context (organization_uuid, organization_name)
+ * is set centrally by SchedulerTaskTracer before the task runs.
+ *
+ * The context updater is injected (default: writes through ExecutionContext)
+ * so unit tests can verify the built sub-context without setting up
+ * AsyncLocalStorage.
+ */
+export function setSchedulerJobLogContext(
+    args: {
+        jobId?: string;
+        schedulerUuid?: string;
+        schedulerName?: string;
+        savedSqlUuid?: string | null;
+    },
+    update: SchedulerLogContextUpdater = defaultSchedulerLogContextUpdater,
+) {
+    const scheduler = buildSchedulerLogContext(args);
+    if (!scheduler) return;
+    update({ scheduler });
 }
 
 export default class SchedulerTask {
