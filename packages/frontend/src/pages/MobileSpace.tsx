@@ -1,4 +1,6 @@
 import {
+    ContentType,
+    contentToResourceViewItem,
     ResourceViewItemType,
     spaceToResourceViewItem,
     wrapResourceView,
@@ -17,6 +19,7 @@ import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { useInfiniteContent } from '../hooks/useContent';
 import { useSpace, useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 
@@ -31,6 +34,15 @@ const MobileSpace: FC = () => {
         error,
     } = useSpace(projectUuid, spaceUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const { data: appsContent } = useInfiniteContent(
+        {
+            projectUuids: projectUuid ? [projectUuid] : [],
+            spaceUuids: spaceUuid ? [spaceUuid] : [],
+            contentTypes: [ContentType.DATA_APP],
+            pageSize: 100,
+        },
+        { enabled: !!projectUuid && !!spaceUuid },
+    );
     const { user } = useApp();
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {
@@ -39,6 +51,10 @@ const MobileSpace: FC = () => {
         );
         const dashboardsInSpace = space?.dashboards || [];
         const chartsInSpace = space?.queries || [];
+        const appsInSpace =
+            appsContent?.pages.flatMap((page) =>
+                page.data.map(contentToResourceViewItem),
+            ) ?? [];
         const allItems = [
             ...wrapResourceView(
                 childSpaces.map(spaceToResourceViewItem),
@@ -49,6 +65,7 @@ const MobileSpace: FC = () => {
                 ResourceViewItemType.DASHBOARD,
             ),
             ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
+            ...appsInSpace,
         ];
         if (search && search !== '') {
             const matchingItems: ResourceViewItem[] = [];
@@ -62,7 +79,7 @@ const MobileSpace: FC = () => {
             return matchingItems;
         }
         return allItems;
-    }, [space, spaces, spaceUuid, search]);
+    }, [space, spaces, spaceUuid, appsContent, search]);
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
         return <ForbiddenPanel />;
