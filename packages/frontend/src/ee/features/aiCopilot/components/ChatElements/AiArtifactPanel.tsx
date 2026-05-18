@@ -10,6 +10,7 @@ import {
     ActionIcon,
     Box,
     Center,
+    Divider,
     Group,
     Loader,
     Stack,
@@ -297,15 +298,23 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         compiledSql={compiledSql?.query}
                     />
                     {showCloseButton && (
-                        <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="ldGray.6"
-                            onClick={() => dispatch(clearArtifact())}
-                            aria-label="Close"
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
+                        <>
+                            <Divider
+                                orientation="vertical"
+                                color="ldGray.3"
+                                mx={4}
+                                my={4}
+                            />
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="ldGray.6"
+                                onClick={() => dispatch(clearArtifact())}
+                                aria-label="Close"
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </>
                     )}
                 </Group>
             </div>

@@ -207,15 +207,29 @@ export const AiChartQuickOptions = ({
 
     return (
         <Fragment>
-            {canVerify && isVerified && (
-                <Tooltip label="Remove from verified answers" position="bottom">
+            {canVerify && (
+                <Tooltip
+                    label={
+                        isVerified
+                            ? 'Remove from verified answers'
+                            : 'Add to verified answers'
+                    }
+                    position="bottom"
+                >
                     <ActionIcon
                         size="sm"
                         variant="subtle"
-                        color="green"
+                        color={isVerified ? 'green' : 'ldGray.6'}
                         onClick={handleVerifyToggle}
                     >
-                        <MantineIcon icon={IconCircleCheckFilled} size="lg" />
+                        <MantineIcon
+                            icon={
+                                isVerified
+                                    ? IconCircleCheckFilled
+                                    : IconCircleCheck
+                            }
+                            size="lg"
+                        />
                     </ActionIcon>
                 </Tooltip>
             )}
@@ -302,20 +316,6 @@ export const AiChartQuickOptions = ({
                             Open in SQL Runner
                         </Menu.Item>
                     ) : null}
-
-                    {canVerify && !isVerified && (
-                        <Fragment>
-                            <Menu.Divider />
-                            <Menu.Item
-                                onClick={handleVerifyToggle}
-                                leftSection={
-                                    <MantineIcon icon={IconCircleCheck} />
-                                }
-                            >
-                                Mark as verified
-                            </Menu.Item>
-                        </Fragment>
-                    )}
                 </Menu.Dropdown>
             </Menu>
             <MantineModal
