@@ -5,7 +5,7 @@ import {
     AiAgentDocumentSummary,
     AlreadyExistsError,
     NotFoundError,
-    ParameterError,
+    PayloadTooLargeError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { omit } from 'lodash';
@@ -214,8 +214,13 @@ export class AiAgentDocumentModel {
             existingTotal + contentSizeBytes >
             AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES
         ) {
-            throw new ParameterError(
+            throw new PayloadTooLargeError(
                 `Organization document quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes would be exceeded`,
+                {
+                    currentBytes: existingTotal,
+                    incomingBytes: contentSizeBytes,
+                    quotaBytes: AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
+                },
             );
         }
 

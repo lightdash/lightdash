@@ -128,6 +128,7 @@ interface ServiceManifest {
     aiService: unknown;
     aiAgentService: unknown;
     aiAgentAdminService: unknown;
+    aiAgentDocumentService: unknown;
     aiOrganizationSettingsService: unknown;
     scimService: unknown;
     supportService: unknown;
@@ -1194,6 +1195,12 @@ export class ServiceRepository
         AiOrganizationSettingsServiceImplT,
     >(): AiOrganizationSettingsServiceImplT {
         return this.getService('aiOrganizationSettingsService');
+    }
+
+    public getAiAgentDocumentService<
+        AiAgentDocumentServiceImplT,
+    >(): AiAgentDocumentServiceImplT {
+        return this.getService('aiAgentDocumentService');
     }
 
     public getRolesService(): RolesService {
