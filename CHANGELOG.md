@@ -1,3 +1,21 @@
+# [0.2963.0](https://github.com/lightdash/lightdash/compare/0.2962.2...0.2963.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* **pivot-sort:** emit column_ranking CTE for metric sort without row dimensions (#PROD-5983) ([#23138](https://github.com/lightdash/lightdash/issues/23138)) ([db93962](https://github.com/lightdash/lightdash/commit/db93962443b423de38371c5db07cdeb8c80ba1fe)), closes [#PROD-5983](https://github.com/lightdash/lightdash/issues/PROD-5983)
+* **prod-437:** apply parameter formats in pivoted tables ([#23127](https://github.com/lightdash/lightdash/issues/23127)) ([174472e](https://github.com/lightdash/lightdash/commit/174472e27dba65b8d7d94a86064beaa3bd15ca2c))
+* support viewing data apps on mobile ([#23216](https://github.com/lightdash/lightdash/issues/23216)) ([50c6214](https://github.com/lightdash/lightdash/commit/50c62148877f6db081665d70e32c77a88027219d))
+
+
+### Features
+
+* add http_server_requests_seconds prometheus metric (opt-in) ([#23214](https://github.com/lightdash/lightdash/issues/23214)) ([f4157d8](https://github.com/lightdash/lightdash/commit/f4157d87dc667ba0c00fed79bd7ac43056c0c6a9))
+* **ai-agent:** stream response by word with 20ms delay ([#23217](https://github.com/lightdash/lightdash/issues/23217)) ([a537527](https://github.com/lightdash/lightdash/commit/a537527381d83a43eac969999696018317ea2e95))
+* **ai:** teach discoverFields subagent to prefer verified-chart fields ([#23211](https://github.com/lightdash/lightdash/issues/23211)) ([19f92b1](https://github.com/lightdash/lightdash/commit/19f92b1ce615db4ad51ffa51014d7c6386cb0991)), closes [#23208](https://github.com/lightdash/lightdash/issues/23208)
+* **filters:** allow locking dashboard filters when no tabs exist ([#23219](https://github.com/lightdash/lightdash/issues/23219)) ([d5fea03](https://github.com/lightdash/lightdash/commit/d5fea03411c658f4d6917cf717f580b6433c7e11)), closes [#23106](https://github.com/lightdash/lightdash/issues/23106)
+* **sentry:** tag authenticated traffic with organization.name ([#23193](https://github.com/lightdash/lightdash/issues/23193)) ([2e93c7a](https://github.com/lightdash/lightdash/commit/2e93c7ab51aeb161e378c16c16599f560b0b8964))
+
 ## [0.2962.2](https://github.com/lightdash/lightdash/compare/0.2962.1...0.2962.2) (2026-05-18)
 
 
