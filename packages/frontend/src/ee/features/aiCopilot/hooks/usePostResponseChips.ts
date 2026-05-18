@@ -19,27 +19,26 @@ export type PostResponseChip =
 
 const ROTATING_SETS: PostResponseChip[][] = [
     [
-        { kind: 'prompt', label: 'Break this down by month' },
-        { kind: 'prompt', label: 'Compare with the previous quarter' },
-        { kind: 'prompt', label: 'Show only the top 10' },
+        { kind: 'prompt', label: 'Break this down further' },
+        { kind: 'prompt', label: 'Compare with a previous period' },
+        { kind: 'prompt', label: 'Show only the top results' },
         { kind: 'action', label: 'Save as chart', action: 'saveAsChart' },
     ],
     [
-        { kind: 'prompt', label: 'Filter to enterprise customers' },
-        { kind: 'prompt', label: 'Roll this up by region' },
-        { kind: 'prompt', label: 'Switch to percentages' },
+        { kind: 'prompt', label: 'What is driving the change?' },
+        { kind: 'prompt', label: 'Roll this up to a higher level' },
+        { kind: 'prompt', label: 'Show the methodology' },
         { kind: 'action', label: 'Pin to dashboard', action: 'pinToDashboard' },
     ],
     [
-        { kind: 'prompt', label: 'What is driving the change?' },
-        { kind: 'prompt', label: 'Compare top 5 vs bottom 5' },
+        { kind: 'prompt', label: 'Compare top vs bottom performers' },
+        { kind: 'prompt', label: 'Limit to the most recent data' },
         { kind: 'action', label: 'Open in Explore', action: 'openInExplore' },
         { kind: 'action', label: 'Save as chart', action: 'saveAsChart' },
     ],
     [
-        { kind: 'prompt', label: 'Schedule this as a weekly digest' },
-        { kind: 'prompt', label: 'Show me the SQL behind this' },
-        { kind: 'prompt', label: 'Alert me if revenue drops below 50k' },
+        { kind: 'prompt', label: 'Schedule this as a recurring report' },
+        { kind: 'prompt', label: 'Alert me on significant changes' },
         {
             kind: 'action',
             label: 'Schedule delivery',
