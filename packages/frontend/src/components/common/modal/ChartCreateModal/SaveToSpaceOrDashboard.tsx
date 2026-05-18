@@ -9,6 +9,7 @@ import {
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
     type DashboardChartTile,
+    type DashboardTile,
     type DashboardVersionedFields,
     type SavedChart,
 } from '@lightdash/common';
@@ -347,7 +348,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     dashboardUuid: originatingDashboard.dashboardUuid,
                 };
                 savedQuery = await createChart(newChartInDashboard);
-                const activeTabUuid = getDashboardActiveTabUuid();
+                const activeTabUuid = getDashboardActiveTabUuid(
+                    originatingDashboard.dashboardUuid,
+                );
                 const newTile: CreateDashboardChartTile = {
                     uuid: uuid4(),
                     type: DashboardTileTypes.SAVED_CHART,
@@ -359,13 +362,18 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     },
                     ...getDefaultChartTileSize(savedData.chartConfig?.type),
                 };
-                const unsavedTiles = getUnsavedDashboardTiles();
+                const unsavedTiles = getUnsavedDashboardTiles(
+                    originatingDashboard.dashboardUuid,
+                );
                 const existingTiles =
                     unsavedTiles?.length > 0
                         ? unsavedTiles
                         : originatingDashboardData?.tiles;
                 setUnsavedDashboardTiles(
-                    appendNewTilesToBottom(existingTiles ?? [], [newTile]),
+                    originatingDashboard.dashboardUuid,
+                    appendNewTilesToBottom<
+                        DashboardTile | CreateDashboardChartTile
+                    >(existingTiles ?? [], [newTile]),
                 );
                 void navigate(
                     activeTabUuid

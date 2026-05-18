@@ -1016,11 +1016,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
         // Temp filters
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
-            'unsavedDashboardFilters',
-        );
+        const filtersStorageKey = dashboardUuid
+            ? `unsavedDashboardFilters:${dashboardUuid}`
+            : null;
+        const unsavedDashboardFiltersRaw = filtersStorageKey
+            ? sessionStorage.getItem(filtersStorageKey)
+            : null;
 
-        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (filtersStorageKey) {
+            sessionStorage.removeItem(filtersStorageKey);
+        }
         if (unsavedDashboardFiltersRaw) {
             try {
                 const unsavedDashboardFilters = JSON.parse(

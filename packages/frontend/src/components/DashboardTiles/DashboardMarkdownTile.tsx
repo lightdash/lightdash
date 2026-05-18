@@ -6,6 +6,7 @@ import { Box, Menu, useMantineColorScheme } from '@mantine-8/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
@@ -45,7 +46,7 @@ const MarkdownTile: FC<Props> = (props) => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const unsavedDashboardTiles = getUnsavedDashboardTiles();
+    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
 
     const dashboardComments = useMemo(
         () =>
@@ -66,8 +67,11 @@ const MarkdownTile: FC<Props> = (props) => {
             uuid: uuid4(),
         };
 
+        const unsavedDashboardTiles = dashboardUuid
+            ? getUnsavedDashboardTiles(dashboardUuid)
+            : [];
         const existingTiles =
-            unsavedDashboardTiles?.length > 0
+            unsavedDashboardTiles.length > 0
                 ? unsavedDashboardTiles
                 : dashboardTiles;
 
@@ -77,7 +81,8 @@ const MarkdownTile: FC<Props> = (props) => {
         setHaveTilesChanged(true);
     }, [
         props.tile,
-        unsavedDashboardTiles,
+        dashboardUuid,
+        getUnsavedDashboardTiles,
         dashboardTiles,
         setDashboardTiles,
         setHaveTilesChanged,
