@@ -198,7 +198,11 @@ export default class NatsWorkerApp {
 
     private async initServer(worker: NatsWorker, natsClient: NatsClient) {
         const app = express();
-        app.use(this.prometheusMetrics.httpServerRequestMetricsMiddleware());
+        if (this.lightdashConfig.prometheus.extendedMetricsEnabled) {
+            app.use(
+                this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
+            );
+        }
         const server = http.createServer(app);
 
         createTerminus(server, {
