@@ -55,6 +55,7 @@ export type AiMcpServer = {
     hasCredentials: boolean;
     credentialScope: AiMcpCredentialScope | null;
     connectionStatus: AiMcpServerConnectionStatus | null;
+    error: string | null;
     connectedByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;

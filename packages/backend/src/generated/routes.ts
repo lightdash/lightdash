@@ -8746,6 +8746,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                error: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 connectionStatus: {
                     dataType: 'union',
                     subSchemas: [

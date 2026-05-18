@@ -160,6 +160,13 @@ export type DbAiMcpServer = {
     name: string;
     url: string;
     auth_type: 'none' | 'bearer' | 'oauth';
+    connection_status:
+        | 'not_connected'
+        | 'connecting'
+        | 'connected'
+        | 'error'
+        | null;
+    error: string | null;
     created_at: Date;
     updated_at: Date;
 };
