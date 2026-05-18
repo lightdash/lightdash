@@ -573,20 +573,22 @@ export class AiAgentModel {
     }
 
     private static getMcpServerCredentialStatus(
-        authType: DbAiMcpServer['auth_type'],
+        row: DbAiMcpServer,
         credential: AiMcpCredential | null,
     ): Pick<
         AiMcpServer,
         | 'hasCredentials'
         | 'credentialScope'
         | 'connectionStatus'
+        | 'error'
         | 'connectedByUserUuid'
     > {
-        if (authType === 'none') {
+        if (row.auth_type === 'none') {
             return {
                 hasCredentials: false,
                 credentialScope: null,
-                connectionStatus: null,
+                connectionStatus: row.connection_status ?? 'connected',
+                error: row.error,
                 connectedByUserUuid: null,
             };
         }
@@ -596,15 +598,20 @@ export class AiAgentModel {
                 hasCredentials: false,
                 credentialScope: null,
                 connectionStatus: 'not_connected',
+                error: row.error,
                 connectedByUserUuid: null,
             };
         }
 
-        if (credential.credentials.type === 'oauth') {
+        if (
+            row.auth_type === 'oauth' &&
+            credential.credentials.type === 'oauth'
+        ) {
             return {
                 hasCredentials: true,
                 credentialScope: credential.credentialScope,
                 connectionStatus: credential.credentials.connectionStatus,
+                error: credential.credentials.lastError ?? null,
                 connectedByUserUuid:
                     credential.updatedByUserUuid ??
                     credential.createdByUserUuid ??
@@ -615,7 +622,8 @@ export class AiAgentModel {
         return {
             hasCredentials: true,
             credentialScope: credential.credentialScope,
-            connectionStatus: 'connected',
+            connectionStatus: row.connection_status ?? 'connected',
+            error: row.error,
             connectedByUserUuid:
                 credential.updatedByUserUuid ??
                 credential.createdByUserUuid ??
@@ -628,7 +636,7 @@ export class AiAgentModel {
         credential: AiMcpCredential | null = null,
     ): AiMcpServer {
         const credentialStatus = AiAgentModel.getMcpServerCredentialStatus(
-            row.auth_type,
+            row,
             credential,
         );
 
@@ -897,6 +905,9 @@ export class AiAgentModel {
                     name: args.name,
                     url: args.url,
                     auth_type: args.authType,
+                    connection_status:
+                        args.authType === 'oauth' ? null : 'connected',
+                    error: null,
                 })
                 .returning('*');
 
@@ -1387,8 +1398,26 @@ export class AiAgentModel {
             .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
             .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
 
+        const credentials = await trx(AiMcpServerCredentialTableName)
+            .whereIn(
+                'ai_mcp_server_uuid',
+                rows.map((row) => (row as DbAiMcpServer).ai_mcp_server_uuid),
+            )
+            .andWhere('credential_scope', 'shared');
+
+        const credentialMap = new Map(
+            credentials.map((row) => {
+                const credential = this.toAiMcpCredential(row);
+                return [credential.mcpServerUuid, credential];
+            }),
+        );
+
         return rows.map((row) =>
-            AiAgentModel.toAiMcpServer(row as DbAiMcpServer),
+            AiAgentModel.toAiMcpServer(
+                row as DbAiMcpServer,
+                credentialMap.get((row as DbAiMcpServer).ai_mcp_server_uuid) ??
+                    null,
+            ),
         );
     }
 
@@ -1461,9 +1490,21 @@ export class AiAgentModel {
         const rowMap = new Map(
             rows.map((row) => [row.ai_mcp_server_uuid, row as DbAiMcpServer]),
         );
+        const credentials = await trx(AiMcpServerCredentialTableName)
+            .whereIn('ai_mcp_server_uuid', uniqueMcpServerUuids)
+            .andWhere('credential_scope', 'shared');
+        const credentialMap = new Map(
+            credentials.map((row) => {
+                const credential = this.toAiMcpCredential(row);
+                return [credential.mcpServerUuid, credential];
+            }),
+        );
 
         return uniqueMcpServerUuids.map((mcpServerUuid) =>
-            AiAgentModel.toAiMcpServer(rowMap.get(mcpServerUuid)!),
+            AiAgentModel.toAiMcpServer(
+                rowMap.get(mcpServerUuid)!,
+                credentialMap.get(mcpServerUuid) ?? null,
+            ),
         );
     }
 
