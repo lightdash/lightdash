@@ -321,6 +321,35 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Short-circuit CORS preflights for data-app iframe asset fetches.
+        //
+        // The data-app preview iframe uses `sandbox="allow-scripts allow-modals"`
+        // (no `allow-same-origin`), so subresource fetches originate from the
+        // opaque origin `null`. The global `cors()` middleware below ends those
+        // preflights with 204 but, because `null` doesn't match the configured
+        // allow-list, omits `Access-Control-Allow-Origin` — which blocks the
+        // subsequent asset GET and renders the iframe (and any scheduled
+        // screenshot of it) as a blank page. The appPreviewRouter has its own
+        // permissive CORS handler for these URLs, but it never runs because
+        // `cors()` short-circuits the preflight first. Handling OPTIONS here
+        // restores the intended behaviour without widening CORS for any other
+        // route. The matching GET handler remains auth-gated by `requireToken`.
+        if (this.lightdashConfig.appRuntime.s3) {
+            expressApp.options(
+                '/api/apps/:appUuid/versions/:version/assets/:filename',
+                (_req, res) => {
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    res.setHeader(
+                        'Access-Control-Allow-Methods',
+                        'GET, OPTIONS',
+                    );
+                    res.setHeader('Access-Control-Allow-Headers', '*');
+                    res.setHeader('Access-Control-Max-Age', '86400');
+                    res.status(204).end();
+                },
+            );
+        }
+
         // Cross-Origin Resource Sharing policy (CORS)
         // WARNING: this middleware should be mounted before the helmet middleware
         // (ideally at the top of the middleware stack)
