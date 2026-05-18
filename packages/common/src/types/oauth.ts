@@ -22,7 +22,7 @@ export interface OAuthAuthorizationCode {
     createdAt: Date;
     usedAt: Date | null;
     codeChallenge: string | null;
-    codeChallengeMethod: 'S256' | 'plain' | null;
+    codeChallengeMethod: 'S256' | null;
 }
 
 export interface OAuthAccessToken {
