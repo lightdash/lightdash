@@ -8096,6 +8096,38 @@ export class ProjectService extends BaseService {
         return this.projectModel.getTableGroups(projectUuid);
     }
 
+    async replaceProjectTableGroups({
+        user,
+        projectUuid,
+        tableGroups,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        tableGroups: Record<string, GroupType>;
+    }) {
+        const { organizationUuid, type, createdByUserUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                    type,
+                    createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User does not have permission to update project table groups`,
+            );
+        }
+
+        await this.projectModel.setTableGroups(projectUuid, tableGroups);
+    }
+
     async replaceProjectParameters({
         user,
         projectUuid,

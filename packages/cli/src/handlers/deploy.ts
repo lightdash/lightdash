@@ -136,6 +136,17 @@ const replaceProjectDefaults = async (
     }
 };
 
+const replaceProjectTableGroups = async (
+    projectUuid: string,
+    lightdashProjectConfig: LightdashProjectConfig,
+) => {
+    await lightdashApi<null>({
+        method: 'PUT',
+        url: `/api/v1/projects/${projectUuid}/table-groups`,
+        body: JSON.stringify(lightdashProjectConfig.table_groups ?? {}),
+    });
+};
+
 const BATCH_UPLOAD_MAX_ATTEMPTS = 4;
 const BATCH_UPLOAD_INITIAL_BACKOFF_MS = 500;
 const BATCH_UPLOAD_MAX_BACKOFF_MS = 4000;
@@ -384,6 +395,21 @@ export const deploy = async (
         console.error(
             styles.warning(
                 `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectTableGroups(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project table groups: ${getErrorMessage(
+                    e,
+                )}\n`,
             ),
         );
     }
