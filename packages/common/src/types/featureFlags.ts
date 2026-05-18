@@ -139,16 +139,6 @@ export enum FeatureFlags {
     ResultsCacheEnabled = 'results-cache-enabled',
 
     /**
-     * Route the AI analyst's explore/field discovery through a focused
-     * subagent (single `discoverFields` tool replaces `findExplores` +
-     * `findFields` in the parent toolset). Targets context bloat and
-     * disambiguation accuracy on rich semantic layers. Off by default —
-     * dogfood internally, then expand per-org once the eval set confirms
-     * no regression.
-     */
-    AiDiscoverFieldsSubagent = 'ai-discover-fields-subagent',
-
-    /**
      * Allow dashboard editors to mark individual dashboard filters as locked.
      * Locked filters are visible to viewers but cannot be edited from view
      * mode, and URL/embed filter overrides targeting a locked filter's field

@@ -64,13 +64,6 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     siteUrl: string;
     canManageAgent: boolean;
-    /**
-     * When true, the parent agent registers the `discoverFields` subagent
-     * tool *instead of* the legacy `findExplores` + `findFields` pair.
-     * Gated by `FeatureFlags.AiDiscoverFieldsSubagent` — off by default
-     * during rollout.
-     */
-    useDiscoverFieldsSubagent: boolean;
 };
 
 export type PerformanceMetrics = {
