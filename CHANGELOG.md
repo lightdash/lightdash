@@ -1,3 +1,10 @@
+## [0.2966.2](https://github.com/lightdash/lightdash/compare/0.2966.1...0.2966.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* add feature flag for app app deliveries ([#23247](https://github.com/lightdash/lightdash/issues/23247)) ([42f546d](https://github.com/lightdash/lightdash/commit/42f546d8419a36df37d02cb057f63a88b8e11e91))
+
 ## [0.2966.1](https://github.com/lightdash/lightdash/compare/0.2966.0...0.2966.1) (2026-05-18)
 
 
