@@ -1,3 +1,4 @@
+import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AiAgentModel } from '../../models/AiAgentModel';
@@ -8,6 +9,11 @@ import {
     McpAuthorizationRequiredError,
 } from './AiAgentMcpRuntimeClient';
 import type { AiAgentMcpServer } from './types/aiAgent';
+
+jest.mock('@ai-sdk/mcp', () => ({
+    ...jest.requireActual('@ai-sdk/mcp'),
+    createMCPClient: jest.fn(),
+}));
 
 const getMcpServer = (
     overrides: Partial<AiAgentMcpServer>,
@@ -143,5 +149,71 @@ describe('resolveMcpTools', () => {
             connectionStatus: 'not_connected',
             error: 'MCP server "OAuth MCP" requires authorization before this agent can use it.',
         });
+    });
+
+    it('marks first-time OAuth authorization failures as not_connected', async () => {
+        const oauthServer = getMcpServer({
+            uuid: 'oauth-server-first-time',
+            name: 'OAuth MCP',
+            authType: 'oauth',
+            connectionStatus: null,
+        });
+
+        createHttpMcpClientSpy.mockRejectedValue(
+            new McpAuthorizationRequiredError(
+                oauthServer.name,
+                oauthServer.uuid,
+                'shared',
+            ),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [oauthServer],
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toEqual([
+            {
+                serverUuid: 'oauth-server-first-time',
+                serverName: 'OAuth MCP',
+                message:
+                    'MCP server "OAuth MCP" requires authorization before this agent can use it.',
+                status: 'not_connected',
+            },
+        ]);
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
+            serverUuid: 'oauth-server-first-time',
+            connectionStatus: 'not_connected',
+            error: 'MCP server "OAuth MCP" requires authorization before this agent can use it.',
+        });
+    });
+});
+
+describe('createHttpMcpClient', () => {
+    beforeEach(() => {
+        jest.mocked(mcpSdk.createMCPClient).mockReset();
+    });
+
+    it('normalizes first-time OAuth authorization failures as authorization-required', async () => {
+        jest.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error('MCP HTTP Transport Error: HTTP 401 Unauthorized'),
+        );
+
+        await expect(
+            createHttpMcpClient({
+                uuid: 'oauth-server',
+                name: 'OAuth MCP',
+                url: 'https://oauth.example.com/mcp',
+                authType: 'oauth',
+                resolvedCredential: null,
+                resolvedCredentialScope: null,
+            }),
+        ).rejects.toEqual(
+            new McpAuthorizationRequiredError(
+                'OAuth MCP',
+                'oauth-server',
+                'shared',
+            ),
+        );
     });
 });

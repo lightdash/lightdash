@@ -367,15 +367,11 @@ const normalizeMcpError = (
     mcpServer: McpServerConnectionArgs,
     error: unknown,
 ): Error => {
-    if (
-        mcpServer.authType === 'oauth' &&
-        isMcpAuthorizationError(error) &&
-        mcpServer.resolvedCredentialScope
-    ) {
+    if (mcpServer.authType === 'oauth' && isMcpAuthorizationError(error)) {
         return new McpAuthorizationRequiredError(
             mcpServer.name,
             mcpServer.uuid,
-            mcpServer.resolvedCredentialScope,
+            mcpServer.resolvedCredentialScope ?? 'shared',
         );
     }
 
@@ -403,9 +399,7 @@ const getUnavailableMcpStatus = (
             return 'connecting';
         }
 
-        if (mcpServer.connectionStatus === 'not_connected') {
-            return 'not_connected';
-        }
+        return 'not_connected';
     }
 
     return 'error';
