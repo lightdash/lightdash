@@ -1,3 +1,10 @@
+## [0.2966.1](https://github.com/lightdash/lightdash/compare/0.2966.0...0.2966.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* shorten pivot anchor CTE suffixes to fit Postgres 63-char identifier limit ([#22095](https://github.com/lightdash/lightdash/issues/22095)) ([693a893](https://github.com/lightdash/lightdash/commit/693a8935503af06b0470c51effb655eb05d37dab)), closes [#21401](https://github.com/lightdash/lightdash/issues/21401)
+
 # [0.2966.0](https://github.com/lightdash/lightdash/compare/0.2965.1...0.2966.0) (2026-05-18)
 
 
