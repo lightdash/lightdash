@@ -474,6 +474,13 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+export type ApiAppSchedulersResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets[];
+};
+
+export type ApiCreateAppSchedulerResponse = ApiSchedulerAndTargetsResponse;
+
 export type ApiSchedulersResponse = ApiSuccess<
     KnexPaginatedData<SchedulerAndTargets[]>
 >;

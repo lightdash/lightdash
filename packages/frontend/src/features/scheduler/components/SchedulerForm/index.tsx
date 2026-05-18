@@ -20,7 +20,7 @@ type Props = {
     savedSchedulerData?: SchedulerAndTargets;
     resource?: {
         uuid: string;
-        type: 'chart' | 'dashboard';
+        type: 'chart' | 'dashboard' | 'app';
     };
     onSubmit: (data: any) => void;
     onSendNow: (data: CreateSchedulerAndTargetsWithoutIds) => void;
@@ -49,7 +49,9 @@ const SchedulerForm: FC<Props> = ({
     numericMetrics,
     isDashboardTabsAvailable,
     onSubmit,
+    resource,
 }) => {
+    const isApp = resource?.type === 'app';
     const form = useSchedulerFormContext();
 
     const isDashboard = dashboard !== undefined;
@@ -128,6 +130,7 @@ const SchedulerForm: FC<Props> = ({
                         }
                         numericMetrics={numericMetrics}
                         isDashboardTabsAvailable={isDashboardTabsAvailable}
+                        isApp={isApp}
                     />
                 </Tabs.Panel>
 

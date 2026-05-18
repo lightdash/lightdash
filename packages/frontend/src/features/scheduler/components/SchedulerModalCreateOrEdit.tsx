@@ -2,6 +2,7 @@ import {
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
+    SchedulerFormat,
     type ApiError,
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
@@ -49,7 +50,8 @@ import { Limit } from './types';
 interface UseSchedulerFormModalProps {
     schedulerUuid: string | undefined; // undefined = create, string = edit
     resourceUuid: string;
-    isChart: boolean;
+    isChart?: boolean;
+    isApp?: boolean;
     isThresholdAlert?: boolean;
     createMutation: UseMutationResult<
         SchedulerAndTargets,
@@ -65,6 +67,7 @@ const useSchedulerFormModal = ({
     schedulerUuid,
     resourceUuid,
     isChart,
+    isApp,
     isThresholdAlert,
     createMutation,
     onBack,
@@ -88,28 +91,37 @@ const useSchedulerFormModal = ({
         useSendNowScheduler();
 
     // Resource prop for form
-    const formResource = useMemo(
-        () =>
-            isEditMode
-                ? scheduler.data?.dashboardUuid ||
-                  scheduler.data?.savedChartUuid
-                    ? {
-                          type: (scheduler.data.dashboardUuid
-                              ? 'dashboard'
-                              : 'chart') as 'dashboard' | 'chart',
-                          uuid:
-                              scheduler.data.dashboardUuid ??
-                              scheduler.data.savedChartUuid,
-                      }
-                    : undefined
-                : {
-                      type: (isChart ? 'chart' : 'dashboard') as
-                          | 'dashboard'
-                          | 'chart',
-                      uuid: resourceUuid,
-                  },
-        [isEditMode, scheduler.data, isChart, resourceUuid],
-    );
+    const formResource = useMemo(() => {
+        if (isEditMode) {
+            if (scheduler.data?.appUuid) {
+                return {
+                    type: 'app' as const,
+                    uuid: scheduler.data.appUuid,
+                };
+            }
+            if (
+                scheduler.data?.dashboardUuid ||
+                scheduler.data?.savedChartUuid
+            ) {
+                return {
+                    type: scheduler.data.dashboardUuid
+                        ? ('dashboard' as const)
+                        : ('chart' as const),
+                    uuid:
+                        scheduler.data.dashboardUuid ??
+                        scheduler.data.savedChartUuid,
+                };
+            }
+            return undefined;
+        }
+        if (isApp) {
+            return { type: 'app' as const, uuid: resourceUuid };
+        }
+        return {
+            type: (isChart ? 'chart' : 'dashboard') as 'dashboard' | 'chart',
+            uuid: resourceUuid,
+        };
+    }, [isEditMode, scheduler.data, isApp, isChart, resourceUuid]);
 
     const projectUuid = useProjectUuid();
     const isDashboard = formResource?.type === 'dashboard';
@@ -142,6 +154,10 @@ const useSchedulerFormModal = ({
                   ? DEFAULT_VALUES_ALERT
                   : {
                         ...DEFAULT_VALUES,
+                        // Apps only support image deliveries
+                        format: isApp
+                            ? SchedulerFormat.IMAGE
+                            : DEFAULT_VALUES.format,
                         selectedTabs: isDashboardTabsAvailable
                             ? dashboard?.tabs.map((tab) => tab.uuid)
                             : null,
@@ -278,23 +294,41 @@ const useSchedulerFormModal = ({
             formResource?.type,
         );
 
-        const resource = isEditMode
-            ? {
-                  savedChartUuid: scheduler.data?.savedChartUuid ?? null,
-                  dashboardUuid: scheduler.data?.dashboardUuid ?? null,
-                  savedSqlUuid: scheduler.data?.savedSqlUuid ?? null,
-              }
-            : isChart
-              ? {
-                    savedChartUuid: resourceUuid,
-                    dashboardUuid: null,
-                    savedSqlUuid: null,
-                }
-              : {
-                    dashboardUuid: resourceUuid,
-                    savedChartUuid: null,
-                    savedSqlUuid: null,
-                };
+        let resource: {
+            savedChartUuid: string | null;
+            dashboardUuid: string | null;
+            savedSqlUuid: string | null;
+            appUuid: string | null;
+        };
+        if (isEditMode) {
+            resource = {
+                savedChartUuid: scheduler.data?.savedChartUuid ?? null,
+                dashboardUuid: scheduler.data?.dashboardUuid ?? null,
+                savedSqlUuid: scheduler.data?.savedSqlUuid ?? null,
+                appUuid: scheduler.data?.appUuid ?? null,
+            };
+        } else if (isApp) {
+            resource = {
+                appUuid: resourceUuid,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+            };
+        } else if (isChart) {
+            resource = {
+                savedChartUuid: resourceUuid,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid: null,
+            };
+        } else {
+            resource = {
+                dashboardUuid: resourceUuid,
+                savedChartUuid: null,
+                savedSqlUuid: null,
+                appUuid: null,
+            };
+        }
 
         const unsavedScheduler: CreateSchedulerAndTargets = {
             ...schedulerData,
@@ -309,6 +343,7 @@ const useSchedulerFormModal = ({
         isEditMode,
         scheduler.data,
         isChart,
+        isApp,
         resourceUuid,
         user,
         track,
@@ -356,7 +391,8 @@ interface Props {
     >;
     onClose: () => void;
     onBack: () => void;
-    isChart: boolean;
+    isChart?: boolean;
+    isApp?: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
@@ -369,7 +405,8 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     resourceUuid,
     createMutation,
     schedulerUuidToEdit,
-    isChart,
+    isChart = false,
+    isApp,
     isThresholdAlert,
     itemsMap,
     currentParameterValues,
@@ -400,6 +437,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         schedulerUuid,
         resourceUuid,
         isChart,
+        isApp,
         isThresholdAlert,
         createMutation,
         onBack,
