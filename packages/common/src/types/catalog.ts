@@ -89,6 +89,7 @@ export type CatalogField = Pick<
         tags?: string[]; // Tags from table, for filtering
         categories: Pick<Tag, 'name' | 'color' | 'tagUuid' | 'yamlReference'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
+        verifiedChartUsage?: number;
         icon: CatalogItemIcon | null;
         aiHints: string[] | null;
         searchRank?: number;

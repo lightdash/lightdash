@@ -112,6 +112,7 @@ import {
     CatalogSearchContext,
 } from '../../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../../models/ChangesetModel';
+import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -213,6 +214,7 @@ type AiAgentServiceDependencies = {
     catalogService: CatalogService;
     catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
+    contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
@@ -270,6 +272,8 @@ export class AiAgentService extends BaseService {
     private readonly catalogModel: CatalogModel;
 
     private readonly changesetModel: ChangesetModel;
+
+    private readonly contentVerificationModel: ContentVerificationModel;
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -338,6 +342,7 @@ export class AiAgentService extends BaseService {
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
         this.changesetModel = dependencies.changesetModel;
+        this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
@@ -3203,6 +3208,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
+        let verifiedFieldUsagePromise: Promise<Map<string, number>> | null =
+            null;
+        const getVerifiedFieldUsage = () => {
+            if (!verifiedFieldUsagePromise) {
+                verifiedFieldUsagePromise =
+                    this.contentVerificationModel.getVerifiedFieldUsage(
+                        projectUuid,
+                    );
+            }
+            return verifiedFieldUsagePromise;
+        };
+        const lookupVerifiedChartUsage = (
+            verifiedUsage: Map<string, number>,
+            tableName: string,
+            fieldName: string,
+            fieldType: string,
+        ) => verifiedUsage.get(`${tableName}_${fieldName}::${fieldType}`) ?? 0;
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
@@ -3266,6 +3289,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         filteredExplores,
                     });
 
+                const verifiedFieldUsage = await getVerifiedFieldUsage();
                 const topMatchingFields = fieldSearchResults.data
                     .filter((item) => item.type === CatalogType.Field)
                     .map((field) => ({
@@ -3276,6 +3300,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         searchRank: field.searchRank,
                         description: field.description,
                         chartUsage: field.chartUsage ?? 0,
+                        verifiedChartUsage: lookupVerifiedChartUsage(
+                            verifiedFieldUsage,
+                            field.tableName,
+                            field.name,
+                            field.fieldType,
+                        ),
                     }));
 
                 return {
@@ -3316,7 +3346,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination };
+                const verifiedFieldUsage = await getVerifiedFieldUsage();
+                const enrichedFields = catalogFields.map((field) => ({
+                    ...field,
+                    verifiedChartUsage: lookupVerifiedChartUsage(
+                        verifiedFieldUsage,
+                        field.tableName,
+                        field.name,
+                        field.fieldType,
+                    ),
+                }));
+
+                return { fields: enrichedFields, pagination };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
