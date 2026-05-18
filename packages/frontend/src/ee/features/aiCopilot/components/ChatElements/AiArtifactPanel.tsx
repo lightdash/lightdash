@@ -21,7 +21,6 @@ import {
     IconInfoCircle,
     IconX,
 } from '@tabler/icons-react';
-import { motion } from 'motion/react';
 import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
@@ -40,7 +39,6 @@ import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
-import { AiVisualizationProviders } from './AiVisualizationProviders';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -53,15 +51,10 @@ type ArtifactRef = {
     threadUuid: string;
 };
 
-// Snappy, low-drama easing so the button→panel morph doesn't feel heavy.
-const MORPH_TRANSITION = {
-    layout: { duration: 0.22, ease: [0.32, 0.72, 0, 1] as const },
-};
-
 type AiArtifactPanelProps = {
     artifact: ArtifactRef;
     showCloseButton?: boolean;
-    // `floating` (default) = chromeless floating card with morph + pill.
+    // `floating` (default) = chromeless floating card with pill toolbar.
     // `inline`             = legacy inline rendering for admin views.
     variant?: 'floating' | 'inline';
 };
@@ -177,8 +170,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const shouldShowPill =
             parsedChartConfig?.type === AiResultType.QUERY_RESULT;
 
-        const layoutId = `ai-artifact-${artifact.artifactUuid}-${artifact.versionUuid}`;
-
         if (isArtifactLoading || !message) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
@@ -235,8 +226,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             );
         }
 
-        // Inline variant (admin verified-content view): no morph wrapper,
-        // no floating pill — legacy chrome.
+        // Inline variant (admin verified-content view): no floating chrome,
+        // no pill — legacy chrome owned by AiChartVisualization.
         if (variant === 'inline') {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
@@ -255,9 +246,9 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             );
         }
 
-        // Floating chart artifact: chromeless head, body, floating pill.
-        // Wait for the viz query data so the providers can mount with valid
-        // inputs — the head + body share the same viz context.
+        // Floating chart artifact: chromeless head + chart + floating pill.
+        // Wait for the viz query data so the renderer mounts with valid
+        // inputs.
         if (
             queryExecutionHandle.isLoading ||
             queryResults.isFetchingRows ||
@@ -265,21 +256,15 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryResults.error
         ) {
             return (
-                <motion.div
-                    layoutId={layoutId}
-                    className={styles.floatingPanel}
-                    transition={MORPH_TRANSITION}
-                >
-                    <div className={styles.floatingInner}>
-                        <Center className={styles.loading}>
-                            <Loader
-                                type="dots"
-                                color="gray"
-                                delayedMessage="Loading visualization..."
-                            />
-                        </Center>
-                    </div>
-                </motion.div>
+                <div className={styles.floatingPanel}>
+                    <Center className={styles.loading}>
+                        <Loader
+                            type="dots"
+                            color="gray"
+                            delayedMessage="Loading visualization..."
+                        />
+                    </Center>
+                </div>
             );
         }
 
@@ -289,96 +274,83 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryExecutionHandle.data.metadata.description ?? null;
         const metricQuery = queryExecutionHandle.data.query.metricQuery;
 
-        return (
-            <motion.div
-                layoutId={layoutId}
-                className={styles.floatingPanel}
-                transition={MORPH_TRANSITION}
-            >
-                <AiVisualizationProviders
-                    vizQueryData={queryExecutionHandle.data}
-                    queryResults={queryResults}
-                    chartConfig={artifactData.chartConfig!}
-                    selectedChartType={selectedChartType}
-                >
-                    <div className={styles.floatingInner}>
-                        <div className={styles.head}>
-                            <Box flex="1" miw={0}>
-                                <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                                    {title}
-                                </TruncatedText>
-                            </Box>
-                            <Group gap={2} className={styles.headRight}>
-                                {description && (
-                                    <Tooltip
-                                        label={description}
-                                        multiline
-                                        w={260}
-                                        withinPortal
-                                    >
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="ldGray.6"
-                                            aria-label="Description"
-                                        >
-                                            <MantineIcon
-                                                icon={IconInfoCircle}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                                <AiChartQuickOptions
-                                    message={message}
-                                    projectUuid={artifact.projectUuid}
-                                    agentUuid={artifact.agentUuid}
-                                    artifactData={artifactData}
-                                    saveChartOptions={{
-                                        name: title,
-                                        description: description,
-                                        linkToMessage: true,
-                                    }}
-                                    compiledSql={compiledSql?.query}
-                                />
-                                {showCloseButton && (
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        color="ldGray.6"
-                                        onClick={() =>
-                                            dispatch(clearArtifact())
-                                        }
-                                        aria-label="Close"
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                )}
-                            </Group>
-                        </div>
+        const floatingHead = (
+            <div className={styles.head}>
+                <Box flex="1" miw={0}>
+                    <TruncatedText fz="sm" fw={600} maxWidth="100%">
+                        {title}
+                    </TruncatedText>
+                </Box>
+                <Group gap={2} className={styles.headRight}>
+                    {description && (
+                        <Tooltip
+                            label={description}
+                            multiline
+                            w={260}
+                            withinPortal
+                        >
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="ldGray.6"
+                                aria-label="Description"
+                            >
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    <AiChartQuickOptions
+                        message={message}
+                        projectUuid={artifact.projectUuid}
+                        agentUuid={artifact.agentUuid}
+                        artifactData={artifactData}
+                        saveChartOptions={{
+                            name: title,
+                            description: description,
+                            linkToMessage: true,
+                        }}
+                        compiledSql={compiledSql?.query}
+                    />
+                    {showCloseButton && (
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="ldGray.6"
+                            onClick={() => dispatch(clearArtifact())}
+                            aria-label="Close"
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    )}
+                </Group>
+            </div>
+        );
 
-                        <div className={styles.body}>
-                            <AiVisualizationRenderer
-                                vizQueryData={queryExecutionHandle.data}
-                                chartConfig={artifactData.chartConfig!}
-                                selectedChartType={selectedChartType}
-                            />
-                            {shouldShowPill && metricQuery && (
-                                <Box className={styles.floatingPill}>
-                                    <AgentVisualizationChartTypeSwitcher
-                                        metricQuery={metricQuery}
-                                        selectedChartType={effectiveChartType}
-                                        hasGroupByDimensions={
-                                            (groupByDimensions?.length ?? 0) > 0
-                                        }
-                                        onChartTypeChange={setSelectedChartType}
-                                        variant="pill"
-                                    />
-                                </Box>
-                            )}
-                        </div>
-                    </div>
-                </AiVisualizationProviders>
-            </motion.div>
+        return (
+            <div className={styles.floatingPanel}>
+                <div className={styles.floatingContent}>
+                    <AiVisualizationRenderer
+                        vizQueryData={queryExecutionHandle.data}
+                        results={queryResults}
+                        chartConfig={artifactData.chartConfig!}
+                        selectedChartType={selectedChartType}
+                        headerContent={floatingHead}
+                    />
+                </div>
+                {shouldShowPill && metricQuery && (
+                    <Box className={styles.floatingPill}>
+                        <AgentVisualizationChartTypeSwitcher
+                            metricQuery={metricQuery}
+                            selectedChartType={effectiveChartType}
+                            hasGroupByDimensions={
+                                (groupByDimensions?.length ?? 0) > 0
+                            }
+                            onChartTypeChange={setSelectedChartType}
+                            variant="pill"
+                        />
+                    </Box>
+                )}
+            </div>
         );
     },
 );

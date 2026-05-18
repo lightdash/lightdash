@@ -24,7 +24,6 @@ import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
-import { AiVisualizationProviders } from './AiVisualizationProviders';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -167,21 +166,13 @@ export const AiChartVisualization: FC<Props> = ({
     );
 
     return (
-        <Stack gap="md" h="100%">
-            <AiVisualizationProviders
-                vizQueryData={queryExecutionHandle.data}
-                queryResults={queryResults}
-                chartConfig={artifactData.chartConfig!}
-                selectedChartType={selectedChartType}
-            >
-                <AiVisualizationRenderer
-                    vizQueryData={queryExecutionHandle.data}
-                    chartConfig={artifactData.chartConfig!}
-                    selectedChartType={selectedChartType}
-                    onChartTypeChange={setSelectedChartType}
-                    headerContent={inlineHeaderContent}
-                />
-            </AiVisualizationProviders>
-        </Stack>
+        <AiVisualizationRenderer
+            vizQueryData={queryExecutionHandle.data}
+            results={queryResults}
+            chartConfig={artifactData.chartConfig!}
+            selectedChartType={selectedChartType}
+            onChartTypeChange={setSelectedChartType}
+            headerContent={inlineHeaderContent}
+        />
     );
 };

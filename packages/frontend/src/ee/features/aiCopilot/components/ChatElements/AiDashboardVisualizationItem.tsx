@@ -30,7 +30,6 @@ import {
     useAiAgentDashboardChartVizQuery,
 } from '../../hooks/useProjectAiAgents';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
-import { AiVisualizationProviders } from './AiVisualizationProviders';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -267,23 +266,17 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
 
         return (
             <Flex direction="column" h="100%">
-                <AiVisualizationProviders
+                <AiVisualizationRenderer
                     vizQueryData={queryExecutionHandle.data}
-                    queryResults={queryResults}
+                    results={queryResults}
                     chartConfig={visualization}
                     selectedChartType={selectedChartType}
+                    onChartTypeChange={handleChartTypeChange}
                     onExpandedChartConfigChange={
                         handleExpandedChartConfigChange
                     }
-                >
-                    <AiVisualizationRenderer
-                        vizQueryData={queryExecutionHandle.data}
-                        chartConfig={visualization}
-                        selectedChartType={selectedChartType}
-                        onChartTypeChange={handleChartTypeChange}
-                        headerContent={<VisualizationHeaderWithButton />}
-                    />
-                </AiVisualizationProviders>
+                    headerContent={<VisualizationHeaderWithButton />}
+                />
             </Flex>
         );
     },

@@ -8,8 +8,10 @@
         0 1px 2px rgba(0, 0, 0, 0.04),
         0 8px 24px rgba(0, 0, 0, 0.06),
         0 32px 80px rgba(0, 0, 0, 0.08);
-    overflow: visible;
+    overflow: hidden;
     position: relative;
+    animation: floatingPanelEnter 240ms cubic-bezier(0.32, 0.72, 0, 1);
+    transform-origin: top right;
 }
 
 @mixin dark {
@@ -23,32 +25,19 @@
     }
 }
 
-.floatingInner {
-    border-radius: 16px;
-    overflow: hidden;
-    display: grid;
-    grid-template-rows: auto 1fr;
-    min-height: 0;
+.floatingContent {
     height: 100%;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        calc(var(--mantine-spacing-md) + 40px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .head {
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
-        var(--mantine-spacing-xs);
-}
-
-.title {
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
-    color: var(--mantine-color-text);
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .headRight {
@@ -56,14 +45,6 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
-}
-
-.body {
-    position: relative;
-    padding: 0 var(--mantine-spacing-md) calc(var(--mantine-spacing-md) + 36px);
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
 }
 
 .floatingPill {
@@ -90,4 +71,21 @@
     height: 100%;
     display: grid;
     place-items: center;
+}
+
+@keyframes floatingPanelEnter {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .floatingPanel {
+        animation: none;
+    }
 }
