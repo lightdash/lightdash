@@ -1,5 +1,6 @@
 import {
     parseVizConfig,
+    type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
     type AiArtifact,
 } from '@lightdash/common';
@@ -34,6 +35,11 @@ type Props = {
     versionUuid: string;
     message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
+    // When false, the legacy inline header (title/description/actions) is
+    // suppressed so a parent (e.g. the floating panel) can render its own.
+    showInlineHeader?: boolean;
+    controlledChartType?: AiAgentChartTypeOption | null;
+    onControlledChartTypeChange?: (type: AiAgentChartTypeOption) => void;
 };
 
 export const AiChartVisualization: FC<Props> = ({
@@ -44,6 +50,9 @@ export const AiChartVisualization: FC<Props> = ({
     versionUuid,
     message,
     showCloseButton = true,
+    showInlineHeader = true,
+    controlledChartType,
+    onControlledChartTypeChange,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useMediaQuery('(max-width: 768px)');
@@ -122,52 +131,54 @@ export const AiChartVisualization: FC<Props> = ({
         return null;
     }
 
+    const inlineHeaderContent = showInlineHeader ? (
+        <Group gap="md" align="start">
+            <Stack gap={0} flex={1}>
+                <Title order={5}>
+                    {queryExecutionHandle.data.metadata.title}
+                </Title>
+                <Text c="dimmed" size="xs">
+                    {queryExecutionHandle.data.metadata.description}
+                </Text>
+            </Stack>
+            <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
+                <ViewSqlButton sql={compiledSql?.query} />
+                <AiChartQuickOptions
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    artifactData={artifactData}
+                    saveChartOptions={{
+                        name: queryExecutionHandle.data.metadata.title,
+                        description:
+                            queryExecutionHandle.data.metadata.description,
+                        linkToMessage: true,
+                    }}
+                    compiledSql={compiledSql?.query}
+                />
+                {showCloseButton && (
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="ldGray.4"
+                        onClick={() => dispatch(clearArtifact())}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                )}
+            </Group>
+        </Group>
+    ) : undefined;
+
     return (
         <Stack gap="md" h="100%">
             <AiVisualizationRenderer
                 results={queryResults}
                 queryExecutionHandle={queryExecutionHandle}
                 chartConfig={artifactData.chartConfig!}
-                headerContent={
-                    <Group gap="md" align="start">
-                        <Stack gap={0} flex={1}>
-                            <Title order={5}>
-                                {queryExecutionHandle.data.metadata.title}
-                            </Title>
-                            <Text c="dimmed" size="xs">
-                                {queryExecutionHandle.data.metadata.description}
-                            </Text>
-                        </Stack>
-                        <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                            <ViewSqlButton sql={compiledSql?.query} />
-                            <AiChartQuickOptions
-                                message={message}
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                artifactData={artifactData}
-                                saveChartOptions={{
-                                    name: queryExecutionHandle.data.metadata
-                                        .title,
-                                    description:
-                                        queryExecutionHandle.data.metadata
-                                            .description,
-                                    linkToMessage: true,
-                                }}
-                                compiledSql={compiledSql?.query}
-                            />
-                            {showCloseButton && (
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="ldGray.4"
-                                    onClick={() => dispatch(clearArtifact())}
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            )}
-                        </Group>
-                    </Group>
-                }
+                headerContent={inlineHeaderContent}
+                controlledChartType={controlledChartType}
+                onControlledChartTypeChange={onControlledChartTypeChange}
             />
         </Stack>
     );
