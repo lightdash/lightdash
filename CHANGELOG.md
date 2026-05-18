@@ -1,3 +1,10 @@
+## [0.2960.1](https://github.com/lightdash/lightdash/compare/0.2960.0...0.2960.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* persist mcp oauth callback errors ([#23121](https://github.com/lightdash/lightdash/issues/23121)) ([f5892ef](https://github.com/lightdash/lightdash/commit/f5892efca43ed5400f9d0506ea518b7073706056)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2960.0](https://github.com/lightdash/lightdash/compare/0.2959.0...0.2960.0) (2026-05-15)
 
 
