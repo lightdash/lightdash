@@ -45,8 +45,9 @@ Look at the topMatchingFields and exploreSearchResults from findExplores. Compar
 Count DISTINCT explores in topMatchingFields. If 2+ distinct explores appear with scores within 0.15 of each other:
 
 - First check joined tables. If one explore's joinedTables include another entity the user mentioned, that explore can handle the whole query → status: "resolved". Proceed to Step 4.
-- Then check usageInCharts on the fields. If one explore's fields have meaningfully higher aggregate usage (3x+), prefer it → status: "resolved". Proceed to Step 4.
-- If still tied (or all usageInCharts are 0 / equal) → status: "ambiguous". DO NOT call findFields. Call submitResult with the candidate explores and a suggestedQuestion.
+- Then check usageInVerifiedCharts on the fields. Verified charts are admin-approved as canonical for this project; their fields are the authoritative ones. If one explore has fields appearing in verified charts and the other has none, prefer the explore with verified usage → status: "resolved". Proceed to Step 4.
+- Then check usageInCharts. If one explore's fields have meaningfully higher aggregate usage (3x+), prefer it → status: "resolved". Proceed to Step 4.
+- If still tied (or all usages are 0 / equal) → status: "ambiguous". DO NOT call findFields. Call submitResult with the candidate explores and a suggestedQuestion.
 
 If only 1 distinct explore appears in topMatchingFields → status: "resolved". Proceed to Step 4.
 
@@ -64,6 +65,8 @@ Pick a FILTERED set of fields the parent will plausibly need:
 - Relevant date dimensions at appropriate granularities (e.g. include both order_date and order_date_month if the user might want either).
 - Filter dimensions hinted at in the query.
 - Useful joined-table fields when the explore exposes them.
+
+When two candidate fields are equally relevant, prefer the one with non-zero usageInVerifiedCharts — admins have endorsed that field as canonical for this project. Use this as a tiebreaker, not as a hard filter: a clearly more relevant field with verifiedChartUsage=0 still beats an irrelevant field with verifiedChartUsage=5.
 
 **Joined vs base table fields with similar names**: base tables represent events (an order, a visit, a payment) — their fields describe attributes at the time of that event. Joined tables represent entities (a customer, a product) — their fields describe persistent attributes. When the user mentions an entity by name and both tables expose a similar-looking field, prefer the joined-table field unless the description clearly says event-level granularity. Set isFromJoinedTable accordingly so the parent can display the right marker.
 

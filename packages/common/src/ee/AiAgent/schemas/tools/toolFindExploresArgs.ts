@@ -76,6 +76,7 @@ export const findExploresRankingMetadataSchema = z.object({
                 fieldType: z.string(),
                 searchRank: z.number().nullable().optional(),
                 chartUsage: z.number().nullable().optional(),
+                verifiedChartUsage: z.number().nullable().optional(),
             }),
         )
         .optional(),
