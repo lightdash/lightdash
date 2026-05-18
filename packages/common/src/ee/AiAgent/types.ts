@@ -51,3 +51,23 @@ export type AiAgentVizConfig =
           type: 'query_result';
           config: ToolRunQueryArgs;
       };
+
+export const AGENT_SUGGESTION_TOOLS = [
+    'generateDashboard',
+    'runQuery',
+    'runSql',
+    'proposeChange',
+    'findContent',
+] as const;
+
+export type AgentSuggestionTool = (typeof AGENT_SUGGESTION_TOOLS)[number];
+
+export type AgentSuggestion = {
+    label: string;
+    tool: AgentSuggestionTool;
+    defaults: {
+        explore: string | null;
+        dimensions: string[];
+        timeframe: string | null;
+    };
+};

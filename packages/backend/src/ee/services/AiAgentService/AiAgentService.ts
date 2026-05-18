@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTION_TOOLS,
+    AgentSuggestion,
     AgentSummaryContext,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -36,6 +38,7 @@ import {
     CommercialFeatureFlags,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
@@ -100,6 +103,8 @@ import {
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
+    AiAgentSuggestionsGeneratedEvent,
+    AiAgentSuggestionSubmitEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
@@ -147,6 +152,10 @@ import {
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import {
+    generateAgentSuggestions,
+    SUGGESTION_FALLBACK_CHIPS,
+} from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
@@ -611,6 +620,112 @@ export class AiAgentService extends BaseService {
         }));
 
         return exploreAccessSummary;
+    }
+
+    public async getAgentSuggestions(
+        user: SessionUser,
+        { projectUuid, agentUuid }: { projectUuid: string; agentUuid: string },
+    ): Promise<{ chips: AgentSuggestion[] }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const featureEnabled = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentSuggestions,
+        });
+        if (!featureEnabled.enabled) {
+            return { chips: [] };
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            agent.tags,
+        );
+
+        const explores = availableExplores.slice(0, 12).map((explore) => {
+            const baseTable = explore.tables[explore.baseTable];
+            return {
+                name: explore.name,
+                label: explore.label,
+                description: baseTable.description ?? null,
+                dimensions: Object.values(baseTable.dimensions)
+                    .slice(0, 8)
+                    .map((d) => d.label),
+                metrics: Object.values(baseTable.metrics)
+                    .slice(0, 8)
+                    .map((m) => m.label),
+            };
+        });
+
+        const verifiedQuestionsData =
+            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+        const verifiedQuestions = verifiedQuestionsData
+            .slice(0, 6)
+            .map((q) => q.question);
+
+        const startedAt = Date.now();
+        let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
+        let usingFallback = true;
+        let modelId = 'fallback';
+
+        try {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+                useFastModel: true,
+            });
+
+            const generated = await generateAgentSuggestions(
+                modelOptions,
+                {
+                    agentName: agent.name,
+                    agentInstruction: agent.instruction,
+                    enabledTools: AGENT_SUGGESTION_TOOLS,
+                    explores,
+                    verifiedQuestions,
+                    verifiedContentTags: agent.tags ?? [],
+                },
+                {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                },
+            );
+            chips = generated.chips;
+            usingFallback = false;
+            modelId = String(modelOptions.model.modelId ?? 'unknown');
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to generate agent suggestions, falling back to defaults: ${String(
+                    error,
+                )}`,
+            );
+            Sentry.captureException(error, {
+                tags: { errorType: 'AiAgentSuggestionsGenerationFailed' },
+            });
+        }
+
+        this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
+            event: 'ai_agent.suggestions_generated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                agentId: agentUuid,
+                chipCount: chips.length,
+                exploreCount: explores.length,
+                verifiedQuestionsCount: verifiedQuestions.length,
+                latencyMs: Date.now() - startedAt,
+                modelId,
+                usingFallback,
+            },
+        });
+
+        return { chips };
     }
 
     private async executeAsyncAiMetricQuery(
@@ -1828,10 +1943,12 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            toolHints,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
+            toolHints: string[];
         },
     ): Promise<AgentResponseStream> {
         try {
@@ -1860,6 +1977,19 @@ export class AiAgentService extends BaseService {
                 }),
             );
 
+            if (toolHints.length > 0) {
+                this.analytics.track<AiAgentSuggestionSubmitEvent>({
+                    event: 'ai_agent.suggestion_submit',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: prompt.projectUuid,
+                        agentId: agentUuid,
+                        toolHints,
+                    },
+                });
+            }
+
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
                 chatHistoryMessages,
@@ -1868,6 +1998,7 @@ export class AiAgentService extends BaseService {
                     stream: true,
                     canManageAgent,
                     enableSqlMode,
+                    toolHints,
                 },
             );
             return response;
@@ -3839,6 +3970,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -3849,6 +3981,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -3859,6 +3992,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -3868,6 +4002,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -4016,6 +4151,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
+            toolHints: options.toolHints ?? [],
         };
 
         const mcpToolSetup: AgentMcpToolSetup =

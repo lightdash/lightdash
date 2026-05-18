@@ -2,6 +2,7 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
+    ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentEvaluationResponse,
@@ -1031,6 +1032,7 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResultsResponse['results']
     | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
+    | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
