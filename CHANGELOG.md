@@ -1,3 +1,10 @@
+## [0.2965.1](https://github.com/lightdash/lightdash/compare/0.2965.0...0.2965.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* **prod-7782:** send table_groups from CLI deploy/preview ([#23228](https://github.com/lightdash/lightdash/issues/23228)) ([fbfe8c0](https://github.com/lightdash/lightdash/commit/fbfe8c0fcce5700494463e8a575fc62574a761e0))
+
 # [0.2965.0](https://github.com/lightdash/lightdash/compare/0.2964.0...0.2965.0) (2026-05-18)
 
 
