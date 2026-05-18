@@ -10,20 +10,81 @@ type DocumentWithViewTransition = Document & {
     };
 };
 
-// Three swappable morph styles. Edit the default below or flip at runtime
-// from the browser console: `setArtifactMorph('snap')`.
+// Three swappable morph styles. Default is `lift`; flip via the
+// floating dev picker (see ArtifactMorphPicker) or from the browser
+// console: `setArtifactMorph('snap' | 'lift' | 'expand')`. Selection
+// persists across reloads via localStorage.
 export type ArtifactMorphStyle = 'lift' | 'snap' | 'expand';
+const MORPH_STYLES: readonly ArtifactMorphStyle[] = [
+    'snap',
+    'lift',
+    'expand',
+] as const;
 const DEFAULT_MORPH_STYLE: ArtifactMorphStyle = 'lift';
+const MORPH_STORAGE_KEY = 'lightdash.artifactMorph';
+
+function isMorphStyle(value: unknown): value is ArtifactMorphStyle {
+    return (
+        typeof value === 'string' &&
+        (MORPH_STYLES as readonly string[]).includes(value)
+    );
+}
+
+function readStoredMorphStyle(): ArtifactMorphStyle {
+    if (typeof window === 'undefined') return DEFAULT_MORPH_STYLE;
+    try {
+        const stored = window.localStorage.getItem(MORPH_STORAGE_KEY);
+        return isMorphStyle(stored) ? stored : DEFAULT_MORPH_STYLE;
+    } catch {
+        return DEFAULT_MORPH_STYLE;
+    }
+}
+
+const morphListeners = new Set<() => void>();
+let currentMorphStyle: ArtifactMorphStyle = DEFAULT_MORPH_STYLE;
+
+function applyMorphStyle(style: ArtifactMorphStyle) {
+    currentMorphStyle = style;
+    if (typeof document !== 'undefined') {
+        document.documentElement.dataset.artifactMorph = style;
+    }
+    try {
+        window.localStorage.setItem(MORPH_STORAGE_KEY, style);
+    } catch {
+        // ignore quota / privacy-mode failures
+    }
+    morphListeners.forEach((fn) => fn());
+}
 
 if (typeof document !== 'undefined') {
-    document.documentElement.dataset.artifactMorph = DEFAULT_MORPH_STYLE;
+    applyMorphStyle(readStoredMorphStyle());
 }
+
 if (typeof window !== 'undefined') {
     (window as unknown as Record<string, unknown>).setArtifactMorph = (
         style: ArtifactMorphStyle,
     ) => {
-        document.documentElement.dataset.artifactMorph = style;
+        applyMorphStyle(style);
     };
+}
+
+export const ARTIFACT_MORPH_STYLES = MORPH_STYLES;
+
+export function useArtifactMorphStyle(): [
+    ArtifactMorphStyle,
+    (style: ArtifactMorphStyle) => void,
+] {
+    const value = useSyncExternalStore(
+        (fn) => {
+            morphListeners.add(fn);
+            return () => {
+                morphListeners.delete(fn);
+            };
+        },
+        () => currentMorphStyle,
+        () => currentMorphStyle,
+    );
+    return [value, applyMorphStyle];
 }
 
 /**

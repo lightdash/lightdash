@@ -96,31 +96,37 @@
  * inside a `document.startViewTransition` snapshot. The shared
  * --vt-name on button + panel lets the browser morph between them. */
 
-/* ---- Variant tokens ---- Three swappable morph styles. Defaults to
- * `lift`; flip at runtime with `setArtifactMorph('snap')` or `'expand'`
- * in the browser console. Tokens cascade into the view-transition
- * pseudo-elements via :root inheritance. */
-:global(html) {
-    --vt-group-duration: 320ms;
+/* ---- Variant tokens ---- Three swappable morph styles. Each is meant
+ * to feel categorically different: `snap` is near-instant, `lift` is
+ * the polished default, `expand` is dramatic with a clear scale-up.
+ * Flip at runtime with `setArtifactMorph('snap' | 'lift' | 'expand')`. */
+:global(html),
+:global(html[data-artifact-morph='lift']) {
+    /* Polished default — soft asymmetric hand-off with subtle scale-up. */
+    --vt-group-duration: 360ms;
     --vt-group-ease: cubic-bezier(0.32, 0.72, 0, 1);
-    --vt-old-anim: 160ms cubic-bezier(0.32, 0.72, 0, 1) both vtFadeOut;
-    --vt-new-anim: 280ms cubic-bezier(0.32, 0.72, 0, 1) 80ms both vtFadeIn;
+    --vt-old-anim: 180ms cubic-bezier(0.32, 0.72, 0, 1) both vtFadeOut;
+    --vt-new-anim: 320ms cubic-bezier(0.32, 0.72, 0, 1) 100ms both vtLiftIn;
     --vt-blend: plus-lighter;
 }
 
 :global(html[data-artifact-morph='snap']) {
-    --vt-group-duration: 200ms;
+    /* Near-instant. Sharp ease, no scale, no plus-lighter — feels like
+     * a state change with the tiniest visual confirmation. */
+    --vt-group-duration: 140ms;
     --vt-group-ease: cubic-bezier(0.4, 0, 0.2, 1);
-    --vt-old-anim: 200ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeOut;
-    --vt-new-anim: 200ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeIn;
+    --vt-old-anim: 100ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeOut;
+    --vt-new-anim: 140ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeIn;
     --vt-blend: normal;
 }
 
 :global(html[data-artifact-morph='expand']) {
-    --vt-group-duration: 440ms;
+    /* Dramatic. Long duration, big scale-up with an overshoot ease —
+     * panel visibly grows out of the button with a flourish. */
+    --vt-group-duration: 720ms;
     --vt-group-ease: cubic-bezier(0.16, 1, 0.3, 1);
-    --vt-old-anim: 200ms cubic-bezier(0.16, 1, 0.3, 1) both vtFadeOut;
-    --vt-new-anim: 360ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both vtExpandIn;
+    --vt-old-anim: 220ms cubic-bezier(0.16, 1, 0.3, 1) both vtFadeOut;
+    --vt-new-anim: 600ms cubic-bezier(0.16, 1, 0.3, 1) 140ms both vtExpandBig;
     --vt-blend: plus-lighter;
 }
 
@@ -185,10 +191,21 @@
     }
 }
 
-@keyframes vtExpandIn {
+@keyframes vtLiftIn {
     from {
         opacity: 0;
-        transform: scale(0.96);
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes vtExpandBig {
+    from {
+        opacity: 0;
+        transform: scale(0.82);
     }
     to {
         opacity: 1;

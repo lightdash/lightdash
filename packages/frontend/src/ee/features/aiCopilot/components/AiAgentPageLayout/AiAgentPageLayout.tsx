@@ -27,6 +27,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { ArtifactMorphPicker } from '../ChatElements/ArtifactMorphPicker';
 import styles from './aiAgentPageLayout.module.css';
 import { SidebarButton } from './SidebarButton';
 
@@ -175,6 +176,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     {artifact && <AiArtifactPanel artifact={artifact} />}
                 </Drawer>
             )}
+
+            {/* Dev-only floating picker for the artifact morph variant.
+             * Remove (or guard) before shipping. */}
+            <ArtifactMorphPicker />
         </div>
     );
 };
