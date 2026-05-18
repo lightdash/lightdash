@@ -56,6 +56,20 @@ export function getQueryContextLabel(
     return SCHEDULED_CONTEXTS.has(context) ? 'scheduled' : 'interactive';
 }
 
+export function getHttpUriLabel(req: express.Request): string {
+    const { route } = req;
+    if (route?.path !== undefined) {
+        const base = req.baseUrl ?? '';
+        const pathPart = route.path === '/' ? '' : route.path;
+        const combined = `${base}${pathPart}`;
+        return combined.length > 0 ? combined : '/';
+    }
+    if (req.path?.startsWith('/assets/')) {
+        return '/assets/*';
+    }
+    return 'unmatched';
+}
+
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
@@ -150,20 +164,6 @@ export default class PrometheusMetrics {
         this.config = config;
     }
 
-    private static getHttpUriLabel(req: express.Request): string {
-        const route = req.route;
-        if (route?.path !== undefined) {
-            const base = req.baseUrl ?? '';
-            const pathPart = route.path === '/' ? '' : route.path;
-            const combined = `${base}${pathPart}`;
-            return combined.length > 0 ? combined : '/';
-        }
-        if (req.path?.startsWith('/assets/')) {
-            return '/assets/*';
-        }
-        return req.path && req.path.length > 0 ? req.path : '/';
-    }
-    
     public httpServerRequestMetricsMiddleware(): express.RequestHandler {
         return (req, res, next) => {
             const histogram = this.httpServerRequestsDurationSeconds;
@@ -177,7 +177,7 @@ export default class PrometheusMetrics {
                 histogram.observe(
                     {
                         method: req.method,
-                        uri: PrometheusMetrics.getHttpUriLabel(req),
+                        uri: getHttpUriLabel(req),
                         status_code: String(res.statusCode),
                     },
                     seconds,
@@ -260,7 +260,10 @@ export default class PrometheusMetrics {
                             name: 'http_server_requests_seconds',
                             help: 'HTTP server request duration in seconds',
                             labelNames: ['method', 'uri', 'status_code'],
-                            buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                            buckets: [
+                                0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                                2.5, 5, 10, 30, 60, 120,
+                            ],
                             ...rest,
                         });
                 }
