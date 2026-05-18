@@ -97,8 +97,8 @@
  * --vt-name on button + panel lets the browser morph between them. */
 
 /* Disable the default root cross-fade — without this every element on
- * the page (sibling artifact buttons, chat bubbles, etc.) gets blended
- * old→new during the transition, which reads as a sitewide flicker. */
+ * the page (sibling chat bubbles, page chrome) gets blended old→new
+ * during the transition, which reads as a sitewide flicker. */
 :global(::view-transition-old(root)),
 :global(::view-transition-new(root)) {
     animation: none;
@@ -108,36 +108,18 @@
 /* Group = the bounding box that morphs between old and new positions
  * and sizes. Slow easing matches a physical rise. */
 :global(::view-transition-group(*)) {
-    animation-duration: 360ms;
+    animation-duration: 320ms;
     animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* plus-lighter avoids the muddy "two ghosts" look of a default
- * cross-fade between very different visuals (icon → chart). The old
- * fades out quickly, the new fades in slightly later — gives a
- * hand-off feel rather than a simultaneous dissolve. */
-:global(::view-transition-image-pair(*)) {
-    isolation: auto;
-}
-
-:global(::view-transition-old(*)) {
-    animation: 160ms cubic-bezier(0.32, 0.72, 0, 1) both vtFadeOut;
-    mix-blend-mode: plus-lighter;
-}
-
+/* Default keyframes only (no custom fade asymmetry). For named groups
+ * whose old and new images are identical (e.g. a sibling button), the
+ * default cross-fade keeps oldOpacity + newOpacity ≈ 1 — combined with
+ * plus-lighter blending, that means identical content stays visually
+ * unchanged. Custom keyframes would break this symmetry and flicker. */
+:global(::view-transition-old(*)),
 :global(::view-transition-new(*)) {
-    animation: 280ms cubic-bezier(0.32, 0.72, 0, 1) 80ms both vtFadeIn;
+    animation-duration: 280ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
     mix-blend-mode: plus-lighter;
-}
-
-@keyframes vtFadeOut {
-    to {
-        opacity: 0;
-    }
-}
-
-@keyframes vtFadeIn {
-    from {
-        opacity: 0;
-    }
 }
