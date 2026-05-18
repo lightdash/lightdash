@@ -66,9 +66,11 @@ import {
     toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    validateAgentSuggestion,
     WarehouseQueryError,
     type AiPromptContextInput,
     type SessionUser,
+    type SuggestionValidationCatalog,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -267,6 +269,42 @@ function detectClarifyingQuestion(text: string): boolean {
 
 function detectRefusal(text: string): boolean {
     return REFUSAL_RE.test(text);
+}
+
+// Find the explore the agent's most recent query-producing tool call hit.
+// Returns a compact slice of its fields (labels) so the suggestion prompt can
+// stay grounded in fields the agent JUST used instead of the full catalogue.
+function extractLatestQueryExplore(
+    toolCalls: ReadonlyArray<{ toolArgs: object }>,
+    availableExplores: Explore[],
+): NonNullable<
+    SuggestionPromptContext['thread']
+>['latestAssistantTurn']['latestQueryExplore'] {
+    for (let i = toolCalls.length - 1; i >= 0; i -= 1) {
+        const args = toolCalls[i]?.toolArgs as
+            | { exploreName?: unknown }
+            | undefined;
+        if (args && typeof args.exploreName === 'string') {
+            const explore = availableExplores.find(
+                (e) => e.name === args.exploreName,
+            );
+            if (explore) {
+                const baseTable = explore.tables[explore.baseTable];
+                return {
+                    name: explore.name,
+                    label: explore.label,
+                    description: baseTable.description ?? null,
+                    dimensions: Object.values(baseTable.dimensions).map(
+                        (d) => d.label,
+                    ),
+                    metrics: Object.values(baseTable.metrics).map(
+                        (m) => m.label,
+                    ),
+                };
+            }
+        }
+    }
+    return null;
 }
 
 export class AiAgentService extends BaseService {
@@ -692,8 +730,13 @@ export class AiAgentService extends BaseService {
                   organizationUuid,
                   threadUuid,
                   afterMessageUuid,
+                  availableExplores,
               })
             : null;
+
+        const validationCatalog: SuggestionValidationCatalog = {
+            exploreNames: new Set(availableExplores.map((e) => e.name)),
+        };
 
         const startedAt = Date.now();
         let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
@@ -727,8 +770,27 @@ export class AiAgentService extends BaseService {
                 },
             );
 
-            chips = generated.chips;
-            usingFallback = false;
+            const dropped: string[] = [];
+            const validated = generated.chips.filter((chip) => {
+                const result = validateAgentSuggestion(chip, validationCatalog);
+                if (!result.valid) {
+                    dropped.push(`${chip.label} (${result.reason})`);
+                    return false;
+                }
+                return true;
+            });
+            if (dropped.length > 0) {
+                Logger.warn(
+                    `[AiAgentService] Dropped ${dropped.length} suggestion chip(s): ${dropped.join('; ')}`,
+                );
+            }
+            if (validated.length === 0) {
+                chips = SUGGESTION_FALLBACK_CHIPS;
+                usingFallback = true;
+            } else {
+                chips = validated;
+                usingFallback = false;
+            }
             modelId = String(modelOptions.model.modelId ?? 'unknown');
         } catch (error) {
             Logger.warn(
@@ -764,10 +826,12 @@ export class AiAgentService extends BaseService {
         organizationUuid,
         threadUuid,
         afterMessageUuid,
+        availableExplores,
     }: {
         organizationUuid: string;
         threadUuid: string;
         afterMessageUuid?: string;
+        availableExplores: Explore[];
     }): Promise<NonNullable<SuggestionPromptContext['thread']> | null> {
         const messages = await this.aiAgentModel.findThreadMessages({
             organizationUuid,
@@ -796,6 +860,11 @@ export class AiAgentService extends BaseService {
             detectClarifyingQuestion(latestAssistantText);
         const refused = detectRefusal(latestAssistantText);
 
+        const latestQueryExplore = extractLatestQueryExplore(
+            latestAssistant.toolCalls ?? [],
+            availableExplores,
+        );
+
         const recentMessages = messages.slice(-6).map((m) => ({
             role: m.role,
             text: (m.message ?? '').slice(0, 600),
@@ -807,6 +876,7 @@ export class AiAgentService extends BaseService {
                 text: latestAssistantText,
                 askedClarifyingQuestion,
                 refused,
+                latestQueryExplore,
             },
         };
     }

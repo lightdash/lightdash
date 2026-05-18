@@ -40,10 +40,14 @@ Two modes:
 
 1. ANSWER mode — when <thread.latestAssistantTurn.askedClarifyingQuestion> is true, the chips ARE the user's likely answers to the agent's question. Pull options from the choices the agent presented in its reply. 5-40 chars typically.
 
-2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn> or <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it.
+2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it.
+
+PREFERRED CONTEXT:
+- When <thread.latestAssistantTurn.latestQueryExplore> is present, lean on its dimensions and metrics first. These are the fields the agent just touched — the user is almost certainly thinking in that explore's frame.
+- defaults.explore for CONTINUE chips SHOULD match latestQueryExplore.name unless you are deliberately pivoting.
 
 HARD RULES:
-- Never reference a field name, segment, tier, or metric that does not appear in <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
+- Never reference a field name, segment, tier, or metric that does not appear in <thread.latestAssistantTurn.latestQueryExplore>, <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
 - If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore, a related verified question, or an adjacent angle the data actually supports.
 - 3 chips is ideal. 5 is the maximum.
 - Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Open the {name}") via \`findContent\` is often stronger than a new query.
@@ -112,6 +116,16 @@ export type SuggestionPromptContext = {
             text: string;
             askedClarifyingQuestion: boolean;
             refused: boolean;
+            // The explore the agent actually queried on this turn. When
+            // present, post-response chips should stay grounded in these
+            // fields — much tighter than the full explore catalogue.
+            latestQueryExplore: {
+                name: string;
+                label: string;
+                description: string | null;
+                dimensions: string[];
+                metrics: string[];
+            } | null;
         };
     };
 };
