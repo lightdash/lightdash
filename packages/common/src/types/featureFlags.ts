@@ -157,6 +157,14 @@ export enum FeatureFlags {
      * partners before announcing GA.
      */
     PivotColumnSort = 'pivot-column-sort',
+
+    /**
+     * Gate the "Schedule delivery" entry point for data apps. Disabled by
+     * default while the screenshot pipeline is producing blank pages in
+     * production. Enable per-org once the underlying rendering issue is
+     * fixed.
+     */
+    DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
 }
 
 export type FeatureFlag = {
