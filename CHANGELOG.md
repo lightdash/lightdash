@@ -1,3 +1,10 @@
+# [0.2966.0](https://github.com/lightdash/lightdash/compare/0.2965.1...0.2966.0) (2026-05-18)
+
+
+### Features
+
+* **pivot-sort:** add pivot-column-sort feature flag ([#23230](https://github.com/lightdash/lightdash/issues/23230)) ([d384ce6](https://github.com/lightdash/lightdash/commit/d384ce6653d65c2e281c4530fe6ef84182683c56))
+
 ## [0.2965.1](https://github.com/lightdash/lightdash/compare/0.2965.0...0.2965.1) (2026-05-18)
 
 
