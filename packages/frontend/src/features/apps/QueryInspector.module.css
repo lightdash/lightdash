@@ -25,6 +25,14 @@
     }
 }
 
+/* Collapsed: only take 1/3 of the available width, anchored bottom-left. */
+.containerCollapsed {
+    right: auto;
+    width: calc(
+        (100% - var(--mantine-spacing-sm) - var(--mantine-spacing-sm)) / 3
+    );
+}
+
 .titleBar {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     cursor: pointer;

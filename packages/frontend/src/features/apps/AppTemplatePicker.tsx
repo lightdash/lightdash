@@ -20,7 +20,11 @@ const AppTemplatePicker: FC<Props> = ({ onSelect }) => (
                 generating.
             </Text>
         </Stack>
-        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
+        <SimpleGrid
+            type="container"
+            cols={{ base: 1, '340px': 2 }}
+            spacing="sm"
+        >
             {TEMPLATES.map((template) => {
                 const Icon = template.icon;
                 return (

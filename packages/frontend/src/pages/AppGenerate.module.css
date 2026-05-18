@@ -3,6 +3,15 @@
     overflow: hidden;
 }
 
+/* Hard pixel floor for the chat panel — react-resizable-panels' minSize is
+   a percent of the group width, so on wide viewports a low percent still
+   produces a sidebar too narrow for the prompt UI to render legibly.
+   Applied on the Panel element (not the inner chatPanel) so the flex item
+   itself stops shrinking instead of letting content overflow. */
+.chatPanelOuter {
+    min-width: 300px;
+}
+
 .chatPanel {
     display: flex;
     flex-direction: column;
