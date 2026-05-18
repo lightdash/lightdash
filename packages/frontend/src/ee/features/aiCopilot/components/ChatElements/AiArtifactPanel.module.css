@@ -20,6 +20,13 @@
     }
 }
 
+/* Snap variant bypasses view transitions, so the CSS keyframe runs
+ * on mount. Faster than the default fallback to match snap's feel. */
+:global(html[data-artifact-morph='snap']) .floatingPanel {
+    animation: floatingPanelEnter 160ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top right;
+}
+
 @mixin dark {
     .floatingPanel {
         background: var(--mantine-color-ldDark-3);

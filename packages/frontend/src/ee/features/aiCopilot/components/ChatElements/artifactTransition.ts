@@ -166,7 +166,14 @@ export function useArtifactTransitionMode(): TransitionMode {
 
 function withTransition(next: TransitionState, update: () => void) {
     const doc = document as DocumentWithViewTransition;
-    if (typeof doc.startViewTransition !== 'function') {
+    // Snap variant intentionally skips view transitions: the morph
+    // stretches snapshots to fill the interpolating group rect, which
+    // squishes the panel into the button on close at fast durations.
+    // Plain CSS entrance on the panel is cleaner for this style.
+    if (
+        currentMorphStyle === 'snap' ||
+        typeof doc.startViewTransition !== 'function'
+    ) {
         update();
         return;
     }
