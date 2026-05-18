@@ -4,6 +4,7 @@ import {
     toolGetDashboardChartsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import moment from 'moment';
 import type { GetDashboardChartsFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -23,6 +24,12 @@ const renderChart = (chart: DashboardSearchResult['charts'][number]) => (
     >
         <name>{chart.name}</name>
         {chart.description && <description>{chart.description}</description>}
+        {chart.verification && (
+            <verified
+                by={`${chart.verification.verifiedBy.firstName} ${chart.verification.verifiedBy.lastName}`}
+                at={moment(chart.verification.verifiedAt).fromNow()}
+            />
+        )}
     </chart>
 );
 
@@ -45,6 +52,12 @@ export const getGetDashboardCharts = ({
                         pageSize,
                     });
 
+                const sortedCharts = [...charts].sort(
+                    (a, b) =>
+                        Number(b.verification !== null) -
+                        Number(a.verification !== null),
+                );
+
                 return {
                     result: (
                         <dashboardCharts
@@ -55,7 +68,7 @@ export const getGetDashboardCharts = ({
                             totalPageCount={pagination.totalPageCount}
                             totalResults={pagination.totalResults}
                         >
-                            {charts.map((chart) => renderChart(chart))}
+                            {sortedCharts.map((chart) => renderChart(chart))}
                         </dashboardCharts>
                     ).toString(),
                     metadata: {

@@ -24,6 +24,7 @@ import {
     WarehouseTablesCatalog,
 } from '@lightdash/common';
 import {
+    AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
@@ -157,7 +158,10 @@ export type StoreReasoningFn = (
 ) => Promise<void>;
 
 export type TrackEventFn = (
-    event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+    event:
+        | AiAgentResponseStreamed
+        | AiAgentToolCallEvent
+        | AiAgentFindContentCoverageEvent,
 ) => void;
 
 export type SearchFieldValuesFn = (args: {

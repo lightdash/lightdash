@@ -46,6 +46,7 @@ export type DashboardSearchResult = Pick<
         description?: string;
         chartType: ChartKind;
         viewsCount: number;
+        verification: ContentVerificationInfo | null;
     }[];
     verification: ContentVerificationInfo | null;
 } & RankedItem;

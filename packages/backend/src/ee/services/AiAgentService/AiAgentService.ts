@@ -90,6 +90,7 @@ import {
     AiAgentEvalAppendedEvent,
     AiAgentEvalCreatedEvent,
     AiAgentEvalRunEvent,
+    AiAgentFindContentCoverageEvent,
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
@@ -3975,7 +3976,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => this.aiAgentModel.updateModelResponse(update),
             trackEvent: (
-                event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+                event:
+                    | AiAgentResponseStreamed
+                    | AiAgentToolCallEvent
+                    | AiAgentFindContentCoverageEvent,
             ) => this.analytics.track(event),
 
             createOrUpdateArtifact: async (data) => {
