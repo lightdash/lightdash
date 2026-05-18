@@ -287,7 +287,26 @@ export default class SchedulerTask {
         schedulerUuid: string | undefined,
         context: DownloadCsv['properties']['context'],
         selectedTabs: string[] | null,
+        appUuid: string | null = null,
     ) {
+        if (appUuid) {
+            const app =
+                await this.schedulerService.appModel.findAppByUuid(appUuid);
+            if (!app) {
+                throw new Error(`App not found: ${appUuid}`);
+            }
+            return {
+                url: `${this.lightdashConfig.siteUrl}/projects/${app.project_uuid}/apps/${appUuid}/preview`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${app.project_uuid}/apps/${appUuid}`,
+                details: {
+                    name: app.name,
+                    description: app.description,
+                },
+                pageType: LightdashPage.APP,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+            };
+        }
         if (chartUuid) {
             const chart =
                 await this.schedulerService.savedChartModel.getSummary(
@@ -349,6 +368,7 @@ export default class SchedulerTask {
             createdBy: userUuid,
             savedChartUuid,
             dashboardUuid,
+            appUuid,
             format,
             options,
         } = scheduler;
@@ -399,15 +419,21 @@ export default class SchedulerTask {
             schedulerUuid,
             context,
             selectedTabs,
+            appUuid,
         );
 
         const schedulerUuidParam = setUuidParam(
             'scheduler_uuid',
             schedulerUuid,
         );
-        const deliveryUrl = savedChartUuid
-            ? `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}`
-            : `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboardUuid}/view?${schedulerUuidParam}`;
+        let deliveryUrl: string;
+        if (appUuid) {
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/apps/${appUuid}/preview?${schedulerUuidParam}`;
+        } else if (savedChartUuid) {
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}`;
+        } else {
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboardUuid}/view?${schedulerUuidParam}`;
+        }
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
