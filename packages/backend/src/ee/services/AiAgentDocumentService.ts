@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgentDocument,
-    AiAgentDocumentContent,
     AiAgentDocumentSummary,
     ApiCreateAiAgentDocument,
-    ApiUpdateAiAgentDocument,
     CommercialFeatureFlags,
+    Explore,
     ForbiddenError,
     ParameterError,
     PayloadTooLargeError,
@@ -19,6 +19,7 @@ import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import { generateDocumentSummary } from './ai/agents/documentSummaryGenerator';
 import { getModel } from './ai/models';
+import type { AiAgentService } from './AiAgentService/AiAgentService';
 
 const ALLOWED_MIME_TYPES = new Set([
     'text/markdown',
@@ -55,6 +56,7 @@ const normalizeMimeType = (mimeType: string, filename: string): string => {
 type AiAgentDocumentServiceDependencies = {
     aiAgentDocumentModel: AiAgentDocumentModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    aiAgentService: AiAgentService;
     lightdashConfig: LightdashConfig;
 };
 
@@ -63,6 +65,8 @@ export class AiAgentDocumentService extends BaseService {
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
+    private readonly aiAgentService: AiAgentService;
+
     private readonly lightdashConfig: LightdashConfig;
 
     constructor(dependencies: AiAgentDocumentServiceDependencies) {
@@ -70,7 +74,49 @@ export class AiAgentDocumentService extends BaseService {
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
+        this.aiAgentService = dependencies.aiAgentService;
         this.lightdashConfig = dependencies.lightdashConfig;
+    }
+
+    /**
+     * Build the explore context used to ground the summary generator. Mirrors
+     * what the agent itself sees at conversation time: filtered by the
+     * agent's tags AND the user's attributes via
+     * AiAgentService.getAvailableExplores. If the upload isn't bound to an
+     * agent, falls back to all explores in the project.
+     */
+    private async getProjectExploresForSummarization(
+        user: SessionUser,
+        body: ApiCreateAiAgentDocument,
+    ): Promise<Explore[]> {
+        const primaryAgentUuid = body.agentAccess?.[0];
+        try {
+            if (primaryAgentUuid) {
+                const agent = await this.aiAgentService.getAgent(
+                    user,
+                    primaryAgentUuid,
+                );
+                return await this.aiAgentService.getAvailableExplores(
+                    user,
+                    agent.projectUuid,
+                    agent.tags,
+                );
+            }
+            if (body.projectUuid) {
+                return await this.aiAgentService.getAvailableExplores(
+                    user,
+                    body.projectUuid,
+                    null,
+                );
+            }
+            return [];
+        } catch (e) {
+            this.logger.warn(
+                'Failed to fetch project explores for document summarization',
+                { error: e },
+            );
+            return [];
+        }
     }
 
     private async assertCopilotEnabled(user: SessionUser): Promise<void> {
@@ -138,7 +184,7 @@ export class AiAgentDocumentService extends BaseService {
         });
     }
 
-    async getDocument(
+    private async getDocument(
         user: SessionUser,
         documentUuid: string,
     ): Promise<AiAgentDocument> {
@@ -154,14 +200,6 @@ export class AiAgentDocumentService extends BaseService {
             document.projectUuid,
         );
         return document;
-    }
-
-    async getDocumentContent(
-        user: SessionUser,
-        documentUuid: string,
-    ): Promise<AiAgentDocumentContent> {
-        await this.getDocument(user, documentUuid);
-        return this.aiAgentDocumentModel.getContent(documentUuid);
     }
 
     async createDocument(
@@ -187,11 +225,30 @@ export class AiAgentDocumentService extends BaseService {
             );
         }
 
+        const existingTotal =
+            await this.aiAgentDocumentModel.getOrganizationContentSize(
+                organizationUuid,
+            );
+        if (existingTotal + contentBytes > AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES) {
+            throw new PayloadTooLargeError(
+                `Organization document quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes would be exceeded`,
+                {
+                    currentBytes: existingTotal,
+                    incomingBytes: contentBytes,
+                    quotaBytes: AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
+                },
+            );
+        }
+
         const mimeType = normalizeMimeType(
             body.mimeType,
             body.originalFilename,
         );
 
+        const projectExplores = await this.getProjectExploresForSummarization(
+            user,
+            body,
+        );
         const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: false,
             useFastModel: true,
@@ -199,6 +256,7 @@ export class AiAgentDocumentService extends BaseService {
         const summary = await generateDocumentSummary(modelOptions, {
             name: body.name,
             content: body.content,
+            projectExplores,
         });
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
@@ -216,38 +274,6 @@ export class AiAgentDocumentService extends BaseService {
             storageKey,
             agentUuids: body.agentAccess ?? [],
             createdByUserUuid: user.userUuid,
-        });
-    }
-
-    async updateDocument(
-        user: SessionUser,
-        documentUuid: string,
-        body: ApiUpdateAiAgentDocument,
-    ): Promise<AiAgentDocument> {
-        const existing = await this.getDocument(user, documentUuid);
-        await this.assertCopilotEnabled(user);
-        this.assertCanManageDocuments(
-            user,
-            existing.organizationUuid,
-            existing.projectUuid,
-        );
-        if (
-            body.projectUuid !== undefined &&
-            body.projectUuid !== existing.projectUuid
-        ) {
-            this.assertCanManageDocuments(
-                user,
-                existing.organizationUuid,
-                body.projectUuid ?? null,
-            );
-        }
-
-        return this.aiAgentDocumentModel.update({
-            uuid: documentUuid,
-            name: body.name,
-            projectUuid: body.projectUuid,
-            agentUuids: body.agentAccess,
-            updatedByUserUuid: user.userUuid,
         });
     }
 

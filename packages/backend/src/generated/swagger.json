@@ -11338,6 +11338,48 @@
                 "required": ["fieldsContext", "prompt"],
                 "type": "object"
             },
+            "AiAgentDocumentRelevance": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "none"]
+            },
+            "AiAgentDocumentStructuredSummary": {
+                "properties": {
+                    "warning": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "relevance": {
+                        "$ref": "#/components/schemas/AiAgentDocumentRelevance"
+                    },
+                    "useWhen": {
+                        "type": "string"
+                    },
+                    "relatedExploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "definedTerms": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "warning",
+                    "relevance",
+                    "useWhen",
+                    "relatedExploreNames",
+                    "definedTerms",
+                    "description"
+                ],
+                "type": "object"
+            },
             "Pick_AiAgentDocument.Exclude_keyofAiAgentDocument.storageKey__": {
                 "properties": {
                     "name": {
@@ -11368,7 +11410,7 @@
                         "format": "double"
                     },
                     "summary": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
                     },
                     "agentAccess": {
                         "items": {
@@ -11459,7 +11501,7 @@
                         "type": "string"
                     },
                     "summary": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
                     },
                     "contentSizeBytes": {
                         "type": "number",
@@ -11517,52 +11559,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgentDocument.uuid-or-name-or-mimeType_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "mimeType": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "uuid", "mimeType"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "AiAgentDocumentContent": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_AiAgentDocument.uuid-or-name-or-mimeType_"
-                    },
-                    {
-                        "properties": {
-                            "content": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["content"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiAiAgentDocumentContentResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiAgentDocumentContent"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiCreateAiAgentDocument": {
                 "properties": {
                     "agentAccess": {
@@ -11574,9 +11570,6 @@
                     "projectUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "summary": {
-                        "type": "string"
                     },
                     "content": {
                         "type": "string"
@@ -11591,31 +11584,7 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "summary",
-                    "content",
-                    "mimeType",
-                    "originalFilename",
-                    "name"
-                ],
-                "type": "object"
-            },
-            "ApiUpdateAiAgentDocument": {
-                "properties": {
-                    "agentAccess": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "projectUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
+                "required": ["content", "mimeType", "originalFilename", "name"],
                 "type": "object"
             },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
@@ -35009,6 +34978,119 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/documents": {
+            "get": {
+                "operationId": "listAiAgentDocuments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentDocumentSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createAiAgentDocument",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAiAgentDocument"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/documents/{documentUuid}": {
+            "delete": {
+                "operationId": "deleteAiAgentDocument",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents": {

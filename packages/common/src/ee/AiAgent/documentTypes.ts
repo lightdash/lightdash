@@ -1,6 +1,17 @@
 export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 20 * 1024;
 export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
 
+export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
+
+export type AiAgentDocumentStructuredSummary = {
+    description: string;
+    definedTerms: string[];
+    relatedExploreNames: string[];
+    useWhen: string;
+    relevance: AiAgentDocumentRelevance;
+    warning: string | null;
+};
+
 export type AiAgentDocument = {
     uuid: string;
     organizationUuid: string;
@@ -9,7 +20,7 @@ export type AiAgentDocument = {
     originalFilename: string;
     mimeType: string;
     contentSizeBytes: number;
-    summary: string;
+    summary: AiAgentDocumentStructuredSummary;
     storageKey: string;
     agentAccess: string[];
     createdByUserUuid: string | null;
@@ -32,7 +43,6 @@ export type ApiCreateAiAgentDocument = {
     originalFilename: string;
     mimeType: string;
     content: string;
-    summary: string;
     projectUuid?: string | null;
     agentAccess?: string[];
 };
