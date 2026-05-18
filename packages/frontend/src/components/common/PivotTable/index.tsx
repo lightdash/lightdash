@@ -22,11 +22,11 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
 import {
     Box,
     Button,
     Group,
-    Menu,
     Text,
     useMantineColorScheme,
     type BoxProps,
@@ -64,6 +64,10 @@ import {
     getColorFromRange,
     transformColorsForDarkMode,
 } from '../../../utils/colorUtils';
+import {
+    getMetricLabelHeaderRowIndex,
+    getPivotColumnIdentities,
+} from '../../../utils/pivotColumnIdentity';
 import { getSortIcon } from '../../../utils/sortUtils';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
@@ -164,8 +168,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         onColumnWidthChange?: (fieldId: string, width: number) => void;
         parameters?: ParametersValuesMap;
         sortBy?: SortField[];
-        // Header click handler. Consumer renders Menu.Item children inside
-        // the Mantine Menu. Absent → headers are non-interactive.
+        /** Renders inside a Mantine Menu opened by clicking sortable headers. */
         renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
     };
 
@@ -263,56 +266,14 @@ const PivotTable: FC<PivotTableProps> = ({
         [data],
     );
 
-    // -1 when metricsAsRows is true. Clicks and sort indicators belong on
-    // this row; dim rows above are ambiguous with more than one value column.
-    const metricLabelHeaderRowIndex = useMemo(() => {
-        for (let i = data.headerValueTypes.length - 1; i >= 0; i -= 1) {
-            if (data.headerValueTypes[i].type === FieldType.METRIC) {
-                return i;
-            }
-        }
-        return -1;
-    }, [data.headerValueTypes]);
-
-    const metricRefByDataColIndex = useMemo(() => {
-        const dataColumnCount = data.dataColumnCount ?? 0;
-        const result: (string | undefined)[] = Array.from(
-            { length: dataColumnCount },
-            () => undefined,
-        );
-        if (metricLabelHeaderRowIndex < 0) return result;
-        const labelRow = data.headerValues[metricLabelHeaderRowIndex];
-        if (!labelRow) return result;
-        const limit = Math.min(labelRow.length, dataColumnCount);
-        for (let colIdx = 0; colIdx < limit; colIdx += 1) {
-            const cell = labelRow[colIdx];
-            if (cell.type === 'label') {
-                result[colIdx] = cell.fieldId;
-            }
-        }
-        return result;
-    }, [data.headerValues, data.dataColumnCount, metricLabelHeaderRowIndex]);
-
-    // Each header-row cell maps 1:1 with a data column (merged cells carry
-    // the owner's payload with colSpan=0) — index directly, never by colSpan
-    // cursor or merged slots get double-counted.
-    const pivotValuesByDataColIndex = useMemo(() => {
-        const dataColumnCount = data.dataColumnCount ?? 0;
-        const cumulative: Array<Record<string, unknown>> = Array.from(
-            { length: dataColumnCount },
-            () => ({}),
-        );
-        for (const headerRow of data.headerValues) {
-            const limit = Math.min(headerRow.length, dataColumnCount);
-            for (let colIdx = 0; colIdx < limit; colIdx += 1) {
-                const cell = headerRow[colIdx];
-                if (cell.type === 'value') {
-                    cumulative[colIdx][cell.fieldId] = cell.value?.raw;
-                }
-            }
-        }
-        return cumulative;
-    }, [data.headerValues, data.dataColumnCount]);
+    const metricLabelHeaderRowIndex = useMemo(
+        () => getMetricLabelHeaderRowIndex(data),
+        [data],
+    );
+    const pivotColumnIdentities = useMemo(
+        () => getPivotColumnIdentities(data),
+        [data],
+    );
 
     // Data-column index → matching sort entry. Built once so header render is O(1).
     const sortMatchByDataColIndex = useMemo(() => {
@@ -327,17 +288,20 @@ const PivotTable: FC<PivotTableProps> = ({
                 // — distinguishes per-metric sorts under the same pin.
                 for (
                     let colIdx = 0;
-                    colIdx < pivotValuesByDataColIndex.length;
+                    colIdx < pivotColumnIdentities.length;
                     colIdx += 1
                 ) {
-                    const info = pivotValuesByDataColIndex[colIdx];
-                    const allMatch = pivots.every(
-                        (pv) =>
-                            pv.reference in info &&
-                            info[pv.reference] === pv.value,
-                    );
+                    const identity = pivotColumnIdentities[colIdx];
+                    const allMatch = pivots.every((pv) => {
+                        const found = identity.pivotValues.find(
+                            (p) => p.reference === pv.reference,
+                        );
+                        return (
+                            found !== undefined && found.rawValue === pv.value
+                        );
+                    });
                     if (!allMatch) continue;
-                    const colMetric = metricRefByDataColIndex[colIdx];
+                    const colMetric = identity.metricFieldId;
                     const metricMatches =
                         colMetric === undefined || colMetric === sort.fieldId;
                     if (metricMatches && !result.has(colIdx)) {
@@ -356,7 +320,7 @@ const PivotTable: FC<PivotTableProps> = ({
             if (!isValueColumnSort) continue;
 
             if (metricLabelHeaderRowIndex < 0) {
-                if (pivotValuesByDataColIndex.length > 0 && !result.has(0)) {
+                if (pivotColumnIdentities.length > 0 && !result.has(0)) {
                     result.set(0, sort);
                 }
                 continue;
@@ -364,11 +328,12 @@ const PivotTable: FC<PivotTableProps> = ({
 
             for (
                 let colIdx = 0;
-                colIdx < metricRefByDataColIndex.length;
+                colIdx < pivotColumnIdentities.length;
                 colIdx += 1
             ) {
                 if (
-                    metricRefByDataColIndex[colIdx] === sort.fieldId &&
+                    pivotColumnIdentities[colIdx].metricFieldId ===
+                        sort.fieldId &&
                     !result.has(colIdx)
                 ) {
                     result.set(colIdx, sort);
@@ -377,13 +342,7 @@ const PivotTable: FC<PivotTableProps> = ({
             }
         }
         return result;
-    }, [
-        getField,
-        sortBy,
-        pivotValuesByDataColIndex,
-        metricRefByDataColIndex,
-        metricLabelHeaderRowIndex,
-    ]);
+    }, [getField, sortBy, pivotColumnIdentities, metricLabelHeaderRowIndex]);
 
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
@@ -1091,6 +1050,28 @@ const PivotTable: FC<PivotTableProps> = ({
                                           )
                                         : undefined;
 
+                                const titleInnerContent =
+                                    titleField?.fieldId ? (
+                                        titleSortIcon ? (
+                                            <Group
+                                                display="inline-flex"
+                                                spacing={4}
+                                                noWrap
+                                                align="center"
+                                            >
+                                                {getFieldLabel(
+                                                    titleField.fieldId,
+                                                )}
+                                                <MantineIcon
+                                                    icon={titleSortIcon}
+                                                    size={14}
+                                                />
+                                            </Group>
+                                        ) : (
+                                            getFieldLabel(titleField.fieldId)
+                                        )
+                                    ) : undefined;
+
                                 const titleWidthKey = titleField?.fieldId;
                                 const titleWidth = titleWidthKey
                                     ? columnProperties[titleWidthKey]?.width
@@ -1180,28 +1161,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                         role="button"
                                                         tabIndex={0}
                                                     >
-                                                        {titleSortIcon ? (
-                                                            <Group
-                                                                display="inline-flex"
-                                                                spacing={4}
-                                                                noWrap
-                                                                align="center"
-                                                            >
-                                                                {getFieldLabel(
-                                                                    titleField.fieldId,
-                                                                )}
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        titleSortIcon
-                                                                    }
-                                                                    size={14}
-                                                                />
-                                                            </Group>
-                                                        ) : (
-                                                            getFieldLabel(
-                                                                titleField.fieldId,
-                                                            )
-                                                        )}
+                                                        {titleInnerContent}
                                                     </Box>
                                                 </Menu.Target>
                                                 <Menu.Dropdown>
@@ -1210,9 +1170,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     )}
                                                 </Menu.Dropdown>
                                             </Menu>
-                                        ) : titleField?.fieldId ? (
-                                            getFieldLabel(titleField?.fieldId)
-                                        ) : undefined}
+                                        ) : (
+                                            titleInnerContent
+                                        )}
                                         {canResizeTitle && (
                                             <div
                                                 className={
@@ -1279,8 +1239,10 @@ const PivotTable: FC<PivotTableProps> = ({
                             const isMetricLabelRow =
                                 metricLabelHeaderRowIndex >= 0 &&
                                 headerRowIndex === metricLabelHeaderRowIndex;
+                            const columnIdentity =
+                                pivotColumnIdentities[headerColIndex];
                             const columnMetricRef =
-                                metricRefByDataColIndex[headerColIndex];
+                                columnIdentity?.metricFieldId;
                             const isClickableHeader =
                                 isMetricLabelRow &&
                                 isLabel &&
@@ -1331,19 +1293,18 @@ const PivotTable: FC<PivotTableProps> = ({
                             );
 
                             const pivotMenuTarget: PivotSortMenuTarget | null =
-                                columnMetricRef
+                                columnMetricRef && columnIdentity
                                     ? {
                                           kind: 'pivotColumn',
                                           dataColIndex: headerColIndex,
                                           metricReference: columnMetricRef,
-                                          pivotValues: Object.entries(
-                                              pivotValuesByDataColIndex[
-                                                  headerColIndex
-                                              ] ?? {},
-                                          ).map(([reference, value]) => ({
-                                              reference,
-                                              value,
-                                          })),
+                                          pivotValues:
+                                              columnIdentity.pivotValues.map(
+                                                  (p) => ({
+                                                      reference: p.reference,
+                                                      value: p.rawValue,
+                                                  }),
+                                              ),
                                       }
                                     : null;
 
@@ -1365,7 +1326,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                     maw={effectiveWidth}
                                 >
                                     {isClickableHeader && pivotMenuTarget ? (
-                                        // BaseCell drops onClick — bind via Menu.Target instead.
                                         <Menu
                                             shadow="md"
                                             position="bottom-start"
