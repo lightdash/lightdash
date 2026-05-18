@@ -9,28 +9,33 @@ import { GeneratorModelOptions } from '../models/types';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
-Each chip is a concrete, executable question or task that a new user could click to get value from the agent immediately. Chips are not autocomplete — they are billboards for what the agent can do.
+Every chip MUST be a data question or task the agent can act on by running a query, building a chart, or finding existing content. When the user clicks a chip its label is sent verbatim as their next message — so the label has to read as a complete prompt the agent can answer immediately.
 
 Hard rules:
 - Each label is 5-120 characters, imperative or interrogative, no trailing punctuation.
 - Each chip MUST pick exactly one of these tools: ${AGENT_SUGGESTION_TOOLS.join(', ')}.
-- Use real explore and dimension names from the catalogue. Never invent fields.
+- Use real explore and dimension/metric labels from the catalogue. Never invent fields.
 - Mix tools when possible — avoid producing only \`runQuery\` chips.
 
-Priority of context (use top-down, falling through when each is empty or doesn't fit):
-1. <recentUserConversations> — threads this user has worked on recently with this agent. Lead with chips that let them pick up where they left off ("Continue the {topic} analysis", "Update the {dashboard title} from last week"). Reference the thread topic; do NOT replay the same exact prompt.
-2. <verifiedContent> — admin-verified charts/dashboards this user can see. Chips that surface these read as authoritative ("Open the {name}", "Refresh the {name} for this week").
-3. <verifiedQuestions> and <verifiedContentTags> — agent-level curated context.
-4. <explores> — fall back to catalog-driven chips when no recent/verified signal applies.
+FORBIDDEN PATTERNS — clicking these does NOT actually navigate or update anything, so the chip would frustrate the user:
+- "Continue the {topic}" / "Pick up where you left off" — there is no back-link to the prior thread.
+- "Update the {dashboard}" / "Refresh the {chart}" — the agent can run queries and build artifacts, but it cannot edit a dashboard the user already saved.
+- "Open the {name}" / "Show me the {chart}" — there is no navigation chip; we cannot deep-link to verified content.
+
+Instead, treat recent conversations and verified content as TOPIC SIGNALS — they tell you what the user cares about. Use that to propose NEW, adjacent data questions in those topic areas:
+- recentUserConversations: if the user has been digging into "product events", propose a NEW angle ("Compare conversion rate across product surfaces") rather than asking them to continue.
+- verifiedContent: if there is a "Revenue Summary" verified chart, propose a fresh angle on revenue ("Break down revenue by month", "Compare revenue across regions") rather than asking them to open it.
+- verifiedQuestions: these ARE complete prompts the agent can answer. Use them verbatim when they fit — they're the highest-quality chip you can produce.
+- explores: catalog-driven question chips when no curated signal applies.
 
 Tool guide:
 - \`runQuery\`: factual data questions answerable from the semantic layer ("Show revenue by week for last 90 days").
 - \`runSql\`: anything that needs warehouse-direct SQL (rare; only when the question can't be expressed in the semantic layer).
 - \`generateDashboard\`: when the value is a multi-chart overview ("Build me an executive summary").
-- \`findContent\`: when an existing chart or dashboard likely already answers it ("Find the weekly sales report"). Prefer this for chips that reference verifiedContent.
+- \`findContent\`: when an existing chart or dashboard likely already answers a question the user might pose ("Is there already a chart for monthly revenue?").
 - \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change.
 
-If the project has zero explores AND no recent threads, return three generic chips that prompt the user to set up data.`;
+If the project has zero explores AND no verified questions, return three generic chips that prompt the user to set up data.`;
 
 const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
 
