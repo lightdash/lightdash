@@ -687,6 +687,37 @@ export class ProjectController extends BaseController {
         };
     }
 
+    /**
+     * Replace project-level table-group definitions. Sent by the CLI on
+     * deploy/preview so labels & descriptions from `table_groups` in
+     * `lightdash.config.yml` are applied. Pass an empty object to clear.
+     * @summary Replace project table groups
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('{projectUuid}/table-groups')
+    @OperationId('replaceProjectTableGroups')
+    async replaceProjectTableGroups(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() tableGroups: ApiTableGroupsResults,
+    ): Promise<ApiSuccess<undefined>> {
+        assertRegisteredAccount(req.account);
+        await this.services.getProjectService().replaceProjectTableGroups({
+            user: toSessionUser(req.account),
+            projectUuid,
+            tableGroups,
+        });
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/colorPalette')
