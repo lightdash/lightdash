@@ -120,7 +120,97 @@ describe('SQL fanout deduplication', () => {
         });
     });
 
-    it('sum_distinct should return the same global deduplicated total on every dimension row (SPK-450)', () => {
+    it('sum_distinct should INNER JOIN on distinct_keys when the user selects them as dimensions (SPK-450)', () => {
+        // Multi-key sum_distinct: distinct_keys = [order_id, payment_method].
+        // Selecting both keys as dimensions should produce one (correct) value per
+        // (order_id, payment_method), via INNER JOIN on the dedup CTE.
+        const groundTruthQuery = {
+            exploreName: 'payments',
+            dimensions: ['payments_order_id', 'payments_payment_method'],
+            metrics: ['payments_total_revenue'],
+            filters: {},
+            sorts: [
+                { fieldId: 'payments_order_id', descending: false },
+                { fieldId: 'payments_payment_method', descending: false },
+            ],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        const dedupedQuery = {
+            exploreName: 'customer_order_payments',
+            dimensions: [
+                'customer_order_payments_order_id',
+                'customer_order_payments_payment_method',
+            ],
+            metrics: [
+                'customer_order_payments_total_payment_by_method_per_order',
+            ],
+            filters: {},
+            sorts: [
+                {
+                    fieldId: 'customer_order_payments_order_id',
+                    descending: false,
+                },
+                {
+                    fieldId: 'customer_order_payments_payment_method',
+                    descending: false,
+                },
+            ],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        runMetricQuery(projectUuid, groundTruthQuery).then(
+            (groundTruthRows) => {
+                expect(groundTruthRows.length).to.be.greaterThan(1);
+
+                const expected: Record<string, number> = {};
+                groundTruthRows.forEach((row) => {
+                    const key = `${String(row.payments_order_id)}|${String(
+                        row.payments_payment_method,
+                    )}`;
+                    expected[key] = Number(row.payments_total_revenue);
+                });
+
+                runMetricQuery(projectUuid, dedupedQuery).then(
+                    (dedupedRows) => {
+                        expect(dedupedRows.length).to.eq(
+                            groundTruthRows.length,
+                        );
+
+                        // Distinct values across rows confirms it's NOT a global scalar CROSS JOIN.
+                        const distinctValues = new Set(
+                            dedupedRows.map((r) =>
+                                Number(
+                                    r.customer_order_payments_total_payment_by_method_per_order,
+                                ),
+                            ),
+                        );
+                        expect(distinctValues.size).to.be.greaterThan(1);
+
+                        dedupedRows.forEach((row) => {
+                            const key = `${String(
+                                row.customer_order_payments_order_id,
+                            )}|${String(
+                                row.customer_order_payments_payment_method,
+                            )}`;
+                            const deduped = Number(
+                                row.customer_order_payments_total_payment_by_method_per_order,
+                            );
+                            expect(deduped, `key=${key}`).to.eq(expected[key]);
+                        });
+                    },
+                );
+            },
+        );
+    });
+
+    it('sum_distinct should return the same global deduplicated total when the selected dimension is not a distinct_key (SPK-450)', () => {
         // Ground truth: direct SUM on payments table without grouping (no fan-out)
         const paymentsTotalQuery = {
             exploreName: 'payments',
