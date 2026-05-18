@@ -1932,6 +1932,57 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
     };
 };
 
+export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
+    event: 'ai_agent.suggestions_generated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+        exploreCount: number;
+        verifiedQuestionsCount: number;
+        latencyMs: number;
+        modelId: string;
+        usingFallback: boolean;
+    };
+};
+
+export type AiAgentSuggestionImpressionEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_impression';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+    };
+};
+
+export type AiAgentSuggestionClickEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_click';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipLabel: string;
+        chipTool: string;
+        chipIndex: number;
+    };
+};
+
+export type AiAgentSuggestionSubmitEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_submit';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        toolHints: string[];
+    };
+};
+
 export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     event: 'scheduler.ownership_reassigned';
     properties: {
@@ -2070,6 +2121,10 @@ type TypedEvent =
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent
+    | AiAgentSuggestionsGeneratedEvent
+    | AiAgentSuggestionImpressionEvent
+    | AiAgentSuggestionClickEvent
+    | AiAgentSuggestionSubmitEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;

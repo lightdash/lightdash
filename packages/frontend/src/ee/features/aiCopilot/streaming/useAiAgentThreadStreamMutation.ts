@@ -33,6 +33,7 @@ export interface AiAgentThreadStreamOptions {
     threadUuid: string;
     messageUuid: string;
     enableSqlMode?: boolean;
+    toolHints?: string[];
     onFinish?: () => void;
     onError?: (error: string) => void;
     refetchThread?: () => void;
@@ -43,12 +44,13 @@ const getAgentThreadReadableStream = async (
     agentUuid: string,
     threadUuid: string,
     enableSqlMode: boolean,
+    toolHints: string[],
     { signal }: { signal: AbortSignal },
 ) => {
     const res = await lightdashApiStream({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
-        body: JSON.stringify({ enableSqlMode }),
+        body: JSON.stringify({ enableSqlMode, toolHints }),
         signal,
     });
 
@@ -98,6 +100,7 @@ export function useAiAgentThreadStreamMutation() {
             threadUuid,
             messageUuid,
             enableSqlMode = false,
+            toolHints = [],
             onFinish,
             onError,
             refetchThread,
@@ -113,6 +116,7 @@ export function useAiAgentThreadStreamMutation() {
                     agentUuid,
                     threadUuid,
                     enableSqlMode,
+                    toolHints,
                     {
                         signal: abortController.signal,
                     },

@@ -147,6 +147,14 @@ export enum FeatureFlags {
      * if the flag is later turned off.
      */
     LockDashboardFilters = 'lock-dashboard-filters',
+
+    /**
+     * Show empty-state suggestion chips above the AI agent chat input. Each
+     * chip carries a tool hint that biases the agent toward the implied tool
+     * on the first turn. Gated for staged rollout while we tune the Haiku
+     * prompt and measure click-through.
+     */
+    AiAgentSuggestions = 'ai-agent-suggestions',
 }
 
 export type FeatureFlag = {

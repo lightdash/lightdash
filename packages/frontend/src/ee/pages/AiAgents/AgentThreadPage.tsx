@@ -71,7 +71,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
-    const handleSubmit = (prompt: string) => {
+    const handleSubmit = ({
+        message,
+        toolHints,
+    }: {
+        message: string;
+        toolHints: string[];
+    }) => {
         // Use modelConfig from first assistant message for follow-up messages
         const firstAssistantMessage = thread?.messages?.find(
             (m) => m.role === 'assistant',
@@ -79,9 +85,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
 
         void createAgentThreadMessage({
-            prompt,
+            prompt: message,
             modelConfig,
             enableSqlMode: sqlModeAvailable && sqlMode,
+            toolHints,
         });
     };
 

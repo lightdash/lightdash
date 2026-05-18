@@ -34,6 +34,7 @@ export * from './followUpTools';
 export * from './requestTypes';
 export * from './schemas';
 export * from './schemas/agentReadiness';
+export * from './schemas/agentSuggestions';
 export * from './types';
 export * from './utils';
 export * from './validators';
@@ -344,6 +345,13 @@ export type ApiAiAgentThreadStreamRequest = {
      * API callers) so the safer "semantic layer only" mode is the default.
      */
     enableSqlMode?: boolean;
+    /**
+     * Tool names hinted by the user when they composed the message (via
+     * suggestion chips that carry a tool id). agentV2 appends a soft hint
+     * to the user message before sending it to the LLM. Transient — never
+     * persisted.
+     */
+    toolHints?: string[];
 };
 
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{

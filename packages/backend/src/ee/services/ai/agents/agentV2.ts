@@ -7,6 +7,7 @@ import {
     stepCountIs,
     streamText,
     StreamTextResult,
+    type ModelMessage,
     type Output,
     type ToolSet,
 } from 'ai';
@@ -45,6 +46,29 @@ const createAiAgentLogger =
     };
 
 const STEP_CAP = 40;
+
+const withToolHints = (
+    messageHistory: ModelMessage[],
+    toolHints: string[],
+): ModelMessage[] => {
+    if (toolHints.length === 0) return messageHistory;
+    const hint = `\n\n(User hinted at using: ${toolHints.join(', ')})`;
+    const lastUserIndex = messageHistory.findLastIndex(
+        (m) => m.role === 'user',
+    );
+    if (lastUserIndex === -1) return messageHistory;
+    const lastUser = messageHistory[lastUserIndex];
+    if (lastUser.role !== 'user') return messageHistory;
+    const updatedContent =
+        typeof lastUser.content === 'string'
+            ? `${lastUser.content}${hint}`
+            : [...lastUser.content, { type: 'text' as const, text: hint }];
+    return [
+        ...messageHistory.slice(0, lastUserIndex),
+        { ...lastUser, content: updatedContent } as ModelMessage,
+        ...messageHistory.slice(lastUserIndex + 1),
+    ];
+};
 
 type AgentToolSetup = {
     tools: ToolSet;
@@ -319,6 +343,8 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
+    const messageHistory = withToolHints(args.messageHistory, args.toolHints);
+
     const messages = [
         getSystemPromptV2({
             agentName: args.agentSettings.name,
@@ -330,7 +356,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
         }),
-        ...args.messageHistory,
+        ...messageHistory,
     ];
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);

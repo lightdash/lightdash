@@ -10472,6 +10472,74 @@
             "ApiAiAgentModelOptionsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiModelOption-Array_"
             },
+            "AgentSuggestionTool": {
+                "type": "string",
+                "enum": [
+                    "generateDashboard",
+                    "runQuery",
+                    "runSql",
+                    "proposeChange",
+                    "findContent"
+                ]
+            },
+            "AgentSuggestion": {
+                "properties": {
+                    "defaults": {
+                        "properties": {
+                            "timeframe": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dimensions": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "explore": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["timeframe", "dimensions", "explore"],
+                        "type": "object"
+                    },
+                    "tool": {
+                        "$ref": "#/components/schemas/AgentSuggestionTool"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaults", "tool", "label"],
+                "type": "object"
+            },
+            "ApiSuccess__chips-AgentSuggestion-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "chips": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AgentSuggestion"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["chips"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentSuggestionsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__chips-AgentSuggestion-Array__"
+            },
             "ReadinessScoreEvaluation": {
                 "properties": {
                     "recommendations": {
@@ -11294,11 +11362,13 @@
             "Exclude_ToolName.proposeChange_": {
                 "type": "string",
                 "enum": [
+                    "generateDashboard",
+                    "runQuery",
+                    "runSql",
+                    "findContent",
                     "generateBarVizConfig",
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
-                    "generateDashboard",
-                    "findContent",
                     "findExplores",
                     "findFields",
                     "discoverFields",
@@ -11307,9 +11377,7 @@
                     "findCharts",
                     "getDashboardCharts",
                     "improveContext",
-                    "runQuery",
                     "runSavedChart",
-                    "runSql",
                     "listWarehouseTables",
                     "describeWarehouseTable"
                 ],
@@ -11425,19 +11493,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -11453,6 +11508,11 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "verifiedChartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
@@ -11463,10 +11523,10 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
@@ -11477,8 +11537,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
+                                                                        "fieldType",
                                                                         "label",
                                                                         "name"
                                                                     ],
@@ -11528,8 +11588,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -11573,6 +11633,11 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "verifiedChartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
@@ -11583,10 +11648,10 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
@@ -11597,8 +11662,8 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
+                                                                                    "fieldType",
                                                                                     "label",
                                                                                     "name"
                                                                                 ],
@@ -11627,8 +11692,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -12066,6 +12131,13 @@
             },
             "ApiAiAgentThreadStreamRequest": {
                 "properties": {
+                    "toolHints": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Tool names hinted by the user when they composed the message (via\nsuggestion chips that carry a tool id). agentV2 appends a soft hint\nto the user message before sending it to the LLM. Transient — never\npersisted."
+                    },
                     "enableSqlMode": {
                         "type": "boolean",
                         "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
@@ -28928,6 +29000,10 @@
                                 ],
                                 "nullable": true
                             },
+                            "verifiedChartUsage": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "chartUsage": {
                                 "type": "number",
                                 "format": "double"
@@ -32994,7 +33070,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2960.1",
+        "version": "0.2960.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

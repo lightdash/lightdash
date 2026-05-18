@@ -469,6 +469,26 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentSuggestionImpressionEvent = {
+    name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
+    properties: {
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+    };
+};
+
+type AiAgentSuggestionClickEvent = {
+    name: EventName.AI_AGENT_SUGGESTION_CLICK;
+    properties: {
+        projectId: string;
+        agentId: string;
+        chipLabel: string;
+        chipTool: string;
+        chipIndex: number;
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -563,6 +583,8 @@ export type EventData =
     | AiAgentChartExploredEvent
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
+    | AiAgentSuggestionImpressionEvent
+    | AiAgentSuggestionClickEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
