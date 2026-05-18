@@ -145,7 +145,7 @@ export const AgentChatInput = ({
             scrollEl = scrollEl.parentElement;
         }
         if (!scrollEl) return undefined;
-        const HIDE_AFTER_PX = 240;
+        const HIDE_AFTER_PX = 80;
         let raf: number | null = null;
         const measure = () => {
             raf = null;
