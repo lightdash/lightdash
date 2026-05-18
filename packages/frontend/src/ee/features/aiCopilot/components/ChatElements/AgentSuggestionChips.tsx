@@ -1,6 +1,8 @@
 import type { AgentSuggestion } from '@lightdash/common';
 import { Box, Button, Skeleton } from '@mantine-8/core';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AgentSuggestionChips.module.css';
 
 type Props = {
@@ -13,7 +15,14 @@ type Props = {
 const SKELETON_COUNT = 4;
 
 const chipKey = (chip: AgentSuggestion, idx: number) =>
-    `${chip.tool}-${chip.label}-${idx}`;
+    chip.kind === 'navigate'
+        ? `nav-${chip.url}-${chip.label}-${idx}`
+        : `prom-${chip.tool}-${chip.label}-${idx}`;
+
+const renderLeftIcon = (chip: AgentSuggestion) => {
+    if (chip.kind !== 'navigate') return undefined;
+    return <MantineIcon icon={IconArrowUpRight} size={13} stroke={1.75} />;
+};
 
 export const AgentSuggestionChips = ({
     chips,
@@ -51,18 +60,23 @@ export const AgentSuggestionChips = ({
 
     return (
         <Box className={styles.row}>
-            {chips.map((chip, idx) => (
-                <Button
-                    key={chipKey(chip, idx)}
-                    variant="default"
-                    size="xs"
-                    className={`${styles.chip} ${styles.fadeIn}`}
-                    style={{ ['--chip-idx' as string]: idx }}
-                    onClick={() => onChipClick(chip, idx)}
-                >
-                    {chip.label}
-                </Button>
-            ))}
+            {chips.map((chip, idx) => {
+                const classes = [styles.chip, styles.fadeIn];
+                if (chip.kind === 'navigate') classes.push(styles.navigateChip);
+                return (
+                    <Button
+                        key={chipKey(chip, idx)}
+                        variant="default"
+                        size="xs"
+                        className={classes.join(' ')}
+                        style={{ ['--chip-idx' as string]: idx }}
+                        leftSection={renderLeftIcon(chip)}
+                        onClick={() => onChipClick(chip, idx)}
+                    >
+                        {chip.label}
+                    </Button>
+                );
+            })}
         </Box>
     );
 };

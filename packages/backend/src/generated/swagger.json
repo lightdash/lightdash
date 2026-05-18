@@ -10482,7 +10482,7 @@
                     "findContent"
                 ]
             },
-            "AgentSuggestion": {
+            "AgentSuggestionPromptChip": {
                 "properties": {
                     "defaults": {
                         "properties": {
@@ -10509,10 +10509,42 @@
                     },
                     "label": {
                         "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["prompt"],
+                        "nullable": false
                     }
                 },
-                "required": ["defaults", "tool", "label"],
+                "required": ["defaults", "tool", "label", "kind"],
                 "type": "object"
+            },
+            "AgentSuggestionNavigateChip": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["navigate"],
+                        "nullable": false
+                    }
+                },
+                "required": ["url", "label", "kind"],
+                "type": "object"
+            },
+            "AgentSuggestion": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionPromptChip"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AgentSuggestionNavigateChip"
+                    }
+                ]
             },
             "ApiSuccess__chips-AgentSuggestion-Array__": {
                 "properties": {
