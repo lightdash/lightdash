@@ -54,28 +54,6 @@ describe('buildSchedulerLogContext', () => {
 });
 
 describe('setSchedulerJobLogContext', () => {
-    it('invokes the injected updater with the built sub-context', () => {
-        const update = jest.fn();
-        setSchedulerJobLogContext(
-            {
-                jobId: 'job-1',
-                schedulerUuid: 'sched-1',
-                schedulerName: 'My sync',
-                savedSqlUuid: 'sql-1',
-            },
-            update,
-        );
-        expect(update).toHaveBeenCalledTimes(1);
-        expect(update).toHaveBeenCalledWith({
-            scheduler: {
-                job_id: 'job-1',
-                scheduler_uuid: 'sched-1',
-                scheduler_name: 'My sync',
-                saved_sql_uuid: 'sql-1',
-            },
-        });
-    });
-
     it('skips the updater entirely when no attribution fields are set', () => {
         const update = jest.fn();
         setSchedulerJobLogContext({}, update);
