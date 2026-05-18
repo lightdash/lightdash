@@ -144,34 +144,15 @@ Read the diff and check whether any API our codebase calls has changed signature
 
 ### 5a. Decide: worktree or in-place checkout?
 
-Before checking out, check whether the user prefers worktrees for Lightdash work. Search **both**:
+Check your Claude memory (and any project- or user-level instruction files you've been given) for a stated preference about **worktrees** for this project. The lookup is environment-agnostic — use whatever memory or instructions surface for you in this session.
+
+**If a worktree preference is found**, follow whatever workflow that preference describes. The branch name to use is the PR's `headRefName`:
 
 ```bash
-# User-level memory (per-project)
-grep -ril "worktree" /Users/charlie/.claude/projects/-Users-charlie-projects-lightdash/memory/ 2>/dev/null
-
-# Global instructions
-grep -n "worktree" /Users/charlie/.claude/CLAUDE.md 2>/dev/null | head -20
+gh pr view $PR_NUMBER --json headRefName -q .headRefName
 ```
 
-**If a worktree preference is found** (e.g. global CLAUDE.md says "ALWAYS create a fresh worktree first" or memory has a feedback entry pinning the same):
-
-```bash
-# Get the PR branch name (extracted in Phase 0)
-BRANCH=$(gh pr view $PR_NUMBER --json headRefName -q .headRefName)
-
-# Create/enter the worktree from ~/projects (where `w` must be run)
-cd ~/projects
-w lightdash "$BRANCH" pwd   # `w ... <command>` runs in the worktree and returns
-```
-
-The `w` command auto-detects `origin/<branch>` and creates the worktree tracking it. Then `cd` into the worktree path for the remaining phases:
-
-```bash
-cd ~/projects/worktrees/lightdash/"$BRANCH"
-```
-
-Note: Renovate branches contain a `/` (e.g. `renovate/npm-nodemailer-vulnerability`). The `w` command handles this by creating a nested subdirectory under `~/projects/worktrees/lightdash/`. That's expected — don't try to sanitize the name.
+After the worktree is created/entered, `cd` into it before continuing with the rest of Phase 5. Renovate branches usually contain a `/` (e.g. `renovate/npm-foo-vulnerability`) — preserve the name as-is; don't sanitize it.
 
 **If no worktree preference is found**, stay in the current directory and check out the branch in place:
 
@@ -179,7 +160,7 @@ Note: Renovate branches contain a `/` (e.g. `renovate/npm-nodemailer-vulnerabili
 gh pr checkout $PR_NUMBER
 ```
 
-Report to the user which mode you picked and why — e.g. `"Using worktree (preference found in ~/.claude/CLAUDE.md)"` or `"Checking out in place (no worktree preference)"`.
+Report to the user which mode you picked and the source of the preference (or that none was found).
 
 ### 5b. Regenerate lockfile if missing
 
@@ -283,7 +264,7 @@ Recommendation:  <merge / merge with quick review / fix code first / do not merg
 
 Leave the app running unless the user asks otherwise — they may want to poke at it further.
 
-- **If you used a worktree** (Phase 5a): leave it in place. The user can return to it with `w lightdash <branch>` or remove it later via `w --rm lightdash <branch>`. Do not delete it automatically — that destroys evidence the user may want to inspect.
+- **If you used a worktree** (Phase 5a): leave it in place. Do not delete it automatically — that destroys evidence the user may want to inspect. Tell them where the worktree lives so they can return to it or clean it up later.
 - **If you checked out in place**: return to the original branch with `git checkout -`.
 
 If you regenerated `pnpm-lock.yaml` and committed it during Phase 5, note that in the final report so the user knows there's a new commit on the PR branch.
