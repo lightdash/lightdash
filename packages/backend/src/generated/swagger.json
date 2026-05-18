@@ -11335,6 +11335,286 @@
                 "required": ["fieldsContext", "prompt"],
                 "type": "object"
             },
+            "Pick_AiAgentDocument.Exclude_keyofAiAgentDocument.storageKey__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "contentSizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "createdAt",
+                    "organizationUuid",
+                    "uuid",
+                    "originalFilename",
+                    "mimeType",
+                    "contentSizeBytes",
+                    "summary",
+                    "agentAccess",
+                    "createdByUserUuid",
+                    "updatedByUserUuid",
+                    "updatedAt"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_AiAgentDocument.storageKey_": {
+                "$ref": "#/components/schemas/Pick_AiAgentDocument.Exclude_keyofAiAgentDocument.storageKey__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AiAgentDocumentSummary": {
+                "$ref": "#/components/schemas/Omit_AiAgentDocument.storageKey_"
+            },
+            "ApiAiAgentDocumentSummaryListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentDocumentSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentDocument": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "storageKey": {
+                        "type": "string"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "contentSizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "agentAccess",
+                    "storageKey",
+                    "summary",
+                    "contentSizeBytes",
+                    "mimeType",
+                    "originalFilename",
+                    "name",
+                    "projectUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiAgentDocumentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentDocument"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_AiAgentDocument.uuid-or-name-or-mimeType_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid", "mimeType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentDocumentContent": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_AiAgentDocument.uuid-or-name-or-mimeType_"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentDocumentContentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentDocumentContent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateAiAgentDocument": {
+                "properties": {
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "summary",
+                    "content",
+                    "mimeType",
+                    "originalFilename",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ApiUpdateAiAgentDocument": {
+                "properties": {
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
                     "description": {
@@ -11363,6 +11643,10 @@
                         },
                         "type": "array"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -11386,10 +11670,6 @@
                         },
                         "type": "array",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "instruction": {
                         "type": "string",
@@ -11430,9 +11710,9 @@
                     "organizationUuid",
                     "uuid",
                     "userAccess",
+                    "updatedAt",
                     "integrations",
                     "tags",
-                    "updatedAt",
                     "instruction",
                     "imageUrl",
                     "groupAccess",
@@ -11700,6 +11980,10 @@
                         },
                         "type": "array"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -11723,10 +12007,6 @@
                         },
                         "type": "array",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "instruction": {
                         "type": "string",
@@ -11767,9 +12047,9 @@
                     "organizationUuid",
                     "uuid",
                     "userAccess",
+                    "updatedAt",
                     "integrations",
                     "tags",
-                    "updatedAt",
                     "instruction",
                     "imageUrl",
                     "groupAccess",
@@ -12926,6 +13206,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -12941,17 +13234,17 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -12982,16 +13275,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -13066,17 +13359,17 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
                                                                                     "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -33315,7 +33608,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2984.4",
+        "version": "0.2989.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
