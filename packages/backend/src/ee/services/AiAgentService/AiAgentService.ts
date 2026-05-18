@@ -39,7 +39,9 @@ import {
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    isAggregationCustomMetric,
     isExploreError,
+    isPeriodComparisonCustomMetric,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
@@ -175,6 +177,7 @@ import {
     UpdateProgressFn,
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
+import { buildPopAdditionalMetricsFromAiInput } from '../ai/utils/buildPopAdditionalMetrics';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     getAgentConfirmationBlocks,
@@ -613,6 +616,11 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
+        periodComparisons?:
+            | NonNullable<
+                  ReturnType<typeof parseVizConfig>
+              >['periodComparisons']
+            | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -632,16 +640,41 @@ export class AiAgentService extends BaseService {
             metricQuery.additionalMetrics,
         );
 
+        const populatedAggregations = populateCustomMetricsSQL(
+            metricQuery.additionalMetrics,
+            explore,
+        );
+
+        // Saved tool args store PoP custom metrics separately from the
+        // aggregation customMetrics; the agent's customMetrics array is
+        // unified but split here for SQL expansion (PoP needs the explore).
+        const { popAdditionalMetrics, popMetricIdsByBase } =
+            buildPopAdditionalMetricsFromAiInput({
+                periodComparisons: periodComparisons ?? null,
+                explore,
+                customMetrics: populatedAggregations,
+            });
+        const expandWithPop = (ids: string[]): string[] => {
+            const out: string[] = [];
+            for (const id of ids) {
+                out.push(id);
+                const pops = popMetricIdsByBase.get(id);
+                if (pops?.length) out.push(...pops);
+            }
+            return out;
+        };
+
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
                 account: fromSession(user),
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
-                    additionalMetrics: populateCustomMetricsSQL(
-                        metricQuery.additionalMetrics,
-                        explore,
-                    ),
+                    metrics: expandWithPop(metricQuery.metrics),
+                    additionalMetrics: [
+                        ...populatedAggregations,
+                        ...popAdditionalMetrics,
+                    ],
                 },
                 context: QueryExecutionContext.AI,
             },
@@ -2068,6 +2101,9 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.type === AiResultType.QUERY_RESULT
+                ? parsedVizConfig.periodComparisons
+                : null,
         );
 
         const metadata = {
@@ -2202,6 +2238,9 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.type === AiResultType.QUERY_RESULT
+                ? parsedVizConfig.periodComparisons
+                : null,
         );
 
         const metadata = {

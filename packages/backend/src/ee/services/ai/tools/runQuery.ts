@@ -5,6 +5,8 @@ import {
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    isAggregationCustomMetric,
+    isPeriodComparisonCustomMetric,
     isSlackPrompt,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
@@ -67,10 +69,16 @@ export const validateRunQueryTool = (
         tableCalculations,
     } = queryTool;
 
+    const aggregations =
+        customMetrics?.filter(isAggregationCustomMetric) ?? null;
+    const periodComparisons =
+        customMetrics?.filter(isPeriodComparisonCustomMetric) ?? null;
+
     const hasFields =
         dimensions.length > 0 ||
         metrics.length > 0 ||
-        (customMetrics && customMetrics.length > 0) ||
+        (aggregations && aggregations.length > 0) ||
+        (periodComparisons && periodComparisons.length > 0) ||
         (tableCalculations && tableCalculations.length > 0);
 
     if (!hasFields) {
@@ -91,20 +99,20 @@ export const validateRunQueryTool = (
         explore,
         queryTool.queryConfig.metrics,
         'metric',
-        queryTool.customMetrics,
+        aggregations,
     );
 
-    validateCustomMetricsDefinition(explore, queryTool.customMetrics);
-    validateCustomMetricFilters(explore, queryTool.customMetrics);
+    validateCustomMetricsDefinition(explore, aggregations);
+    validateCustomMetricFilters(explore, aggregations);
     validateFilterRules(
         explore,
         filterRules,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
     validateMetricDimensionFilterPlacement(
         explore,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
         queryTool.filters,
     );
@@ -128,7 +136,7 @@ export const validateRunQueryTool = (
     validateSelectedFieldsExistence(
         explore,
         queryTool.queryConfig.sorts.map((sort) => sort.fieldId),
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
 
@@ -136,7 +144,7 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.sorts,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
 
@@ -146,16 +154,16 @@ export const validateRunQueryTool = (
         queryTool.tableCalculations,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.customMetrics,
+        aggregations,
     );
 
-    // Validate period-over-period comparisons
+    // Validate period-over-period comparisons (entries from customMetrics)
     validatePeriodComparisons(
         explore,
-        queryTool.periodComparisons,
+        periodComparisons,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.customMetrics,
+        aggregations,
     );
 };
 
@@ -188,52 +196,34 @@ export const getRunQuery = ({
 
                 const prompt = await getPrompt();
 
-                const createOrUpdateArtifactHook = () =>
-                    createOrUpdateArtifact({
-                        threadUuid: prompt.threadUuid,
-                        promptUuid: prompt.promptUuid,
-                        artifactType: 'chart',
-                        title: toolArgs.title,
-                        description: toolArgs.description,
-                        vizConfig: toolArgs,
-                    });
+                const aggregationCustomMetrics =
+                    queryTool.customMetrics?.filter(
+                        isAggregationCustomMetric,
+                    ) ?? null;
+                const periodComparisonCustomMetrics =
+                    queryTool.customMetrics?.filter(
+                        isPeriodComparisonCustomMetric,
+                    ) ?? null;
 
-                const selfImprovementResultFollowUp =
-                    enableSelfImprovement &&
-                    queryTool.customMetrics &&
-                    queryTool.customMetrics.length > 0
-                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
-                        : '';
-
-                // Early artifact creation for non-data-access mode
-                if (!enableDataAccess && !isSlackPrompt(prompt)) {
-                    await createOrUpdateArtifactHook();
-                    return {
-                        result: `Success`,
-                        metadata: { status: 'success' },
-                    };
-                }
-
-                // Execute query
                 const populatedCustomMetrics = populateCustomMetricsSQL(
-                    queryTool.customMetrics,
+                    aggregationCustomMetrics,
                     explore,
                 );
 
                 const { popAdditionalMetrics, popMetricIdsByBase } =
                     buildPopAdditionalMetricsFromAiInput({
-                        periodComparisons: queryTool.periodComparisons,
+                        periodComparisons: periodComparisonCustomMetrics,
                         explore,
                         customMetrics: populatedCustomMetrics,
                     });
 
-                // Auto-wire for query execution only: place each PoP metric
-                // id immediately after its base in the metrics list so result
-                // columns appear adjacent (matches Explorer). The saved
-                // artifact (vizConfig: toolArgs) keeps periodComparisons as
-                // the source of truth — render-time consumers must call
-                // buildPopAdditionalMetricsFromAiInput to expand.
-                const expandWithPop = (ids: string[]): string[] => {
+                // Each PoP metric id is placed immediately after its base in
+                // any field-id list so result columns and chart series appear
+                // adjacent (matches Explorer behaviour).
+                const expandWithPop = (
+                    ids: readonly string[] | null | undefined,
+                ): string[] => {
+                    if (!ids) return [];
                     const out: string[] = [];
                     for (const id of ids) {
                         out.push(id);
@@ -246,6 +236,50 @@ export const getRunQuery = ({
                 const expandedMetrics = expandWithPop(
                     queryTool.queryConfig.metrics,
                 );
+
+                // Mirror the expansion into the saved tool args so the chart
+                // renders the comparison series on the y-axis. The agent
+                // emits yAxisMetrics with only the base metric id (it can't
+                // know the auto-generated PoP ids); the server fills them
+                // in here before persisting the artifact.
+                const expandedToolArgs =
+                    popAdditionalMetrics.length > 0 && toolArgs.chartConfig
+                        ? {
+                              ...toolArgs,
+                              chartConfig: {
+                                  ...toolArgs.chartConfig,
+                                  yAxisMetrics: expandWithPop(
+                                      toolArgs.chartConfig.yAxisMetrics,
+                                  ),
+                              },
+                          }
+                        : toolArgs;
+
+                const createOrUpdateArtifactHook = () =>
+                    createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: toolArgs.title,
+                        description: toolArgs.description,
+                        vizConfig: expandedToolArgs,
+                    });
+
+                const selfImprovementResultFollowUp =
+                    enableSelfImprovement &&
+                    aggregationCustomMetrics &&
+                    aggregationCustomMetrics.length > 0
+                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
+                        : '';
+
+                // Early artifact creation for non-data-access mode
+                if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    await createOrUpdateArtifactHook();
+                    return {
+                        result: `Success`,
+                        metadata: { status: 'success' },
+                    };
+                }
 
                 const allAdditionalMetrics: typeof populatedCustomMetrics = [
                     ...populatedCustomMetrics,
