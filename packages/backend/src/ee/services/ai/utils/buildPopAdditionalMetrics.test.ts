@@ -101,9 +101,9 @@ describe('buildPopAdditionalMetricsFromAiInput', () => {
         });
 
         expect(result.popAdditionalMetrics).toHaveLength(1);
-        expect(result.popMetricIdsByBase.get('orders_total_revenue')).toHaveLength(
-            1,
-        );
+        expect(
+            result.popMetricIdsByBase.get('orders_total_revenue'),
+        ).toHaveLength(1);
     });
 
     it('keeps distinct entries with different granularity or offset', () => {
@@ -133,9 +133,9 @@ describe('buildPopAdditionalMetricsFromAiInput', () => {
         });
 
         expect(result.popAdditionalMetrics).toHaveLength(3);
-        expect(result.popMetricIdsByBase.get('orders_total_revenue')).toHaveLength(
-            3,
-        );
+        expect(
+            result.popMetricIdsByBase.get('orders_total_revenue'),
+        ).toHaveLength(3);
     });
 
     it('throws AiAgentValidatorError when baseMetricId is unknown', () => {
