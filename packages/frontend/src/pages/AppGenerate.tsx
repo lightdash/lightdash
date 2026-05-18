@@ -81,10 +81,8 @@ import AppPromptEditor, {
     type ElementRef,
 } from '../features/apps/AppPromptEditor';
 import {
-    DashboardButton,
-    ImageButton,
+    AttachButton,
     InspectButton,
-    QueryButton,
     ScreenshotButton,
     SelectedDashboardSection,
     SelectedImageSection,
@@ -1944,108 +1942,28 @@ const AppGenerate: FC = () => {
                                 {displayTemplate && (
                                     <TemplateChip template={displayTemplate} />
                                 )}
-                                <Box className={classes.inputWrapper}>
-                                    <Box className={classes.textareaColumn}>
-                                        <AppPromptEditor
-                                            ref={promptEditorRef}
-                                            placeholder="Describe the app you want to build..."
-                                            autoFocus
-                                            disabled={isLoading}
-                                            onEmptyChange={setIsPromptEmpty}
-                                            onSubmit={() => void handleSubmit()}
-                                            onPaste={handlePaste}
-                                        />
-                                    </Box>
-                                    {isBuilding ? (
-                                        <ActionIcon
-                                            size="sm"
-                                            radius="xl"
-                                            variant="filled"
-                                            color="red"
-                                            onClick={handleCancel}
-                                            loading={isCancelling}
-                                            className={classes.submitButton}
-                                        >
-                                            <IconPlayerStop size={14} />
-                                        </ActionIcon>
-                                    ) : (
-                                        <ActionIcon
-                                            size="sm"
-                                            radius="xl"
-                                            variant="filled"
-                                            color="violet"
-                                            onClick={() => void handleSubmit()}
-                                            disabled={
-                                                isPromptEmpty || isLoading
-                                            }
-                                            loading={
-                                                isSubmitting ||
-                                                isGenerating ||
-                                                isIterating
-                                            }
-                                            className={classes.submitButton}
-                                        >
-                                            <IconArrowUp size={14} />
-                                        </ActionIcon>
-                                    )}
-                                </Box>
-                                <Group gap="xs" pt="xs">
-                                    <QueryButton
-                                        selectedCharts={selectedCharts}
-                                        onSelect={(chart) =>
-                                            setSelectedCharts((prev) => [
-                                                ...prev,
-                                                chart,
-                                            ])
-                                        }
-                                        disabled={isLoading}
-                                    />
-                                    <DashboardButton
-                                        selected={selectedDashboard}
-                                        onSelect={setSelectedDashboard}
-                                        disabled={isLoading}
-                                    />
-                                    <ImageButton
-                                        onClick={() =>
-                                            fileInputRef.current?.click()
-                                        }
-                                        disabled={
-                                            isLoading ||
-                                            imageAttachments.length >=
-                                                MAX_IMAGES_PER_VERSION
-                                        }
-                                    />
-                                    {previewApp && screenshotAvailable && (
-                                        <ScreenshotButton
-                                            onClick={() =>
-                                                void handleCaptureScreenshot()
-                                            }
-                                            disabled={
-                                                isLoading ||
-                                                imageAttachments.length >=
-                                                    MAX_IMAGES_PER_VERSION
-                                            }
-                                            loading={isCapturingScreenshot}
-                                        />
-                                    )}
-                                    {inspectorAvailable && (
-                                        <InspectButton
-                                            enabled={inspectorEnabled}
-                                            onToggle={() =>
-                                                setInspectorEnabled((v) => !v)
-                                            }
-                                        />
-                                    )}
-                                </Group>
                                 <Box
-                                    className={classes.resourceSections}
+                                    className={classes.inputWrapper}
                                     onDragOver={handleDragOver}
                                     onDrop={handleDrop}
                                 >
-                                    {selectedCharts.length > 0 ||
-                                    selectedDashboard ||
-                                    imageAttachments.length > 0 ? (
-                                        <>
+                                    <AppPromptEditor
+                                        ref={promptEditorRef}
+                                        placeholder="Describe the app you want to build..."
+                                        autoFocus
+                                        disabled={isLoading}
+                                        onEmptyChange={setIsPromptEmpty}
+                                        onSubmit={() => void handleSubmit()}
+                                        onPaste={handlePaste}
+                                    />
+                                    {(selectedCharts.length > 0 ||
+                                        selectedDashboard ||
+                                        imageAttachments.length > 0) && (
+                                        <Box
+                                            className={
+                                                classes.attachedResources
+                                            }
+                                        >
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
                                                     charts={selectedCharts}
@@ -2119,14 +2037,112 @@ const AppGenerate: FC = () => {
                                                     loading={isSubmitting}
                                                 />
                                             )}
-                                        </>
-                                    ) : (
-                                        <Box className={classes.resourceEmpty}>
-                                            <Text size="xs" c="dimmed">
-                                                Resources
-                                            </Text>
                                         </Box>
                                     )}
+                                    <Group
+                                        className={classes.inputBottomRow}
+                                        justify="space-between"
+                                        gap="xs"
+                                    >
+                                        <AttachButton
+                                            selectedCharts={selectedCharts}
+                                            onSelectChart={(chart) =>
+                                                setSelectedCharts((prev) => [
+                                                    ...prev,
+                                                    chart,
+                                                ])
+                                            }
+                                            selectedDashboard={
+                                                selectedDashboard
+                                            }
+                                            onSelectDashboard={
+                                                setSelectedDashboard
+                                            }
+                                            onAddImages={() =>
+                                                fileInputRef.current?.click()
+                                            }
+                                            disabled={isLoading}
+                                            imagesDisabled={
+                                                imageAttachments.length >=
+                                                MAX_IMAGES_PER_VERSION
+                                            }
+                                        />
+                                        <Group gap="xs">
+                                            {previewApp &&
+                                                screenshotAvailable && (
+                                                    <ScreenshotButton
+                                                        onClick={() =>
+                                                            void handleCaptureScreenshot()
+                                                        }
+                                                        disabled={
+                                                            isLoading ||
+                                                            imageAttachments.length >=
+                                                                MAX_IMAGES_PER_VERSION
+                                                        }
+                                                        loading={
+                                                            isCapturingScreenshot
+                                                        }
+                                                    />
+                                                )}
+                                            {inspectorAvailable && (
+                                                <InspectButton
+                                                    enabled={inspectorEnabled}
+                                                    onToggle={() =>
+                                                        setInspectorEnabled(
+                                                            (v) => !v,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                            {isBuilding ? (
+                                                <ActionIcon
+                                                    size="lg"
+                                                    variant="filled"
+                                                    onClick={handleCancel}
+                                                    loading={isCancelling}
+                                                    className={
+                                                        classes.submitButton
+                                                    }
+                                                    aria-label="Stop generation"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconPlayerStop}
+                                                        color="ldGray.0"
+                                                        size={18}
+                                                        stroke={2}
+                                                    />
+                                                </ActionIcon>
+                                            ) : (
+                                                <ActionIcon
+                                                    size="lg"
+                                                    variant="filled"
+                                                    onClick={() =>
+                                                        void handleSubmit()
+                                                    }
+                                                    disabled={
+                                                        isPromptEmpty ||
+                                                        isLoading
+                                                    }
+                                                    loading={
+                                                        isSubmitting ||
+                                                        isGenerating ||
+                                                        isIterating
+                                                    }
+                                                    className={
+                                                        classes.submitButton
+                                                    }
+                                                    aria-label="Send message"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconArrowUp}
+                                                        color="ldGray.0"
+                                                        size={20}
+                                                        stroke={2}
+                                                    />
+                                                </ActionIcon>
+                                            )}
+                                        </Group>
+                                    </Group>
                                 </Box>
                             </Box>
                         )}
