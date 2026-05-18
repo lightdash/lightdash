@@ -335,8 +335,6 @@ export const AgentChatInput = ({
     if (isMinimalMode) {
         return (
             <Box className={styles.minimalContainer}>
-                {chipRow}
-
                 {showWarningBanner && (
                     <Paper className={styles.warningBanner}>
                         <Text size="xs" c="ldGray.7" ta="center">
@@ -364,36 +362,40 @@ export const AgentChatInput = ({
                     className={`${styles.minimalInputWrapper} ${
                         sqlMode ? styles.sqlModeActive : ''
                     }`}
-                    pos="relative"
                 >
-                    <RichTextEditor
-                        editor={editor}
-                        classNames={{
-                            root: styles.editorRoot,
-                            content: styles.minimalEditorContent,
-                        }}
-                    >
-                        <RichTextEditor.Content />
-                    </RichTextEditor>
+                    {chipRow && (
+                        <Box className={styles.chipStrip}>{chipRow}</Box>
+                    )}
+                    <Box className={styles.minimalInputRow} pos="relative">
+                        <RichTextEditor
+                            editor={editor}
+                            classNames={{
+                                root: styles.editorRoot,
+                                content: styles.minimalEditorContent,
+                            }}
+                        >
+                            <RichTextEditor.Content />
+                        </RichTextEditor>
 
-                    <ActionIcon
-                        right={12}
-                        bottom={10}
-                        variant="filled"
-                        size="md"
-                        className={styles.minimalSubmitButton}
-                        disabled={disabled || !hasValue}
-                        loading={loading}
-                        onClick={handleSubmit}
-                        aria-label="Send message"
-                    >
-                        <MantineIcon
-                            icon={IconArrowUp}
-                            color="ldGray.0"
-                            size={18}
-                            stroke={2}
-                        />
-                    </ActionIcon>
+                        <ActionIcon
+                            right={12}
+                            bottom={10}
+                            variant="filled"
+                            size="md"
+                            className={styles.minimalSubmitButton}
+                            disabled={disabled || !hasValue}
+                            loading={loading}
+                            onClick={handleSubmit}
+                            aria-label="Send message"
+                        >
+                            <MantineIcon
+                                icon={IconArrowUp}
+                                color="ldGray.0"
+                                size={18}
+                                stroke={2}
+                            />
+                        </ActionIcon>
+                    </Box>
                 </Box>
 
                 {onSqlModeChange && !disabled && (
@@ -447,13 +449,13 @@ export const AgentChatInput = ({
                 showWarningBanner ? styles.warningBannerVisible : ''
             } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
         >
-            {chipRow}
-
             <Box
                 className={`${styles.inputCard} ${
                     sqlMode ? styles.sqlModeActive : ''
                 }`}
             >
+                {chipRow && <Box className={styles.chipStrip}>{chipRow}</Box>}
+
                 <RichTextEditor
                     editor={editor}
                     classNames={{
