@@ -42,7 +42,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
         ])(
             '%s user without roleUuid uses the system role path (unchanged)',
             (role) => {
-                const builder = getUserAbilityBuilder({
+                const { builder } = getUserAbilityBuilder({
                     user: {
                         role,
                         organizationUuid: ORG_UUID,
@@ -59,7 +59,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
 
     describe('Custom-roles feature flag', () => {
         it('falls through to the system role path when customRolesEnabled=false (even if roleUuid is set)', () => {
-            const builder = getUserAbilityBuilder({
+            const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.ADMIN,
                     organizationUuid: ORG_UUID,
@@ -78,7 +78,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
         });
 
         it('falls through to the system role path when customRolesEnabled=true but the role has no scopes loaded', () => {
-            const builder = getUserAbilityBuilder({
+            const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.ADMIN,
                     organizationUuid: ORG_UUID,
@@ -101,7 +101,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
         it('uses the scope-derived path when roleUuid + customRolesEnabled + scopes are all present', () => {
             // A custom role granting only view:Dashboard. Admin's normal
             // abilities should NOT appear (e.g. manage:InviteLink).
-            const builder = getUserAbilityBuilder({
+            const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.ADMIN, // ignored — custom role wins
                     organizationUuid: ORG_UUID,
@@ -131,7 +131,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             const READ_ONLY_UUID = '22222222-2222-4222-a222-222222222222';
             const EDIT_UUID = '33333333-3333-4333-a333-333333333333';
 
-            const readOnlyBuilder = getUserAbilityBuilder({
+            const { builder: readOnlyBuilder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.MEMBER,
                     organizationUuid: ORG_UUID,
@@ -147,7 +147,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                 customRolesEnabled: true,
             });
 
-            const editBuilder = getUserAbilityBuilder({
+            const { builder: editBuilder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.MEMBER,
                     organizationUuid: ORG_UUID,
@@ -176,7 +176,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
     describe('Project profile resolution still works alongside org-level custom roles', () => {
         it('combines org system role with project-level system role', () => {
             const PROJECT_UUID = 'test-project-uuid';
-            const builder = getUserAbilityBuilder({
+            const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.MEMBER,
                     organizationUuid: ORG_UUID,

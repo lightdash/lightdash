@@ -81,24 +81,28 @@ type BuilderOptions = {
 } & OptionalIdContext;
 
 /**
- * Apply CASL abilities from scopes to a builder
- * @param context - Context containing organization, project, user, and space access information
- * @param builder - CASL ability builder to add permissions to
+ * Apply CASL abilities from scopes to a builder. Returns the list of scope
+ * names that were rejected because they are not in the runtime vocabulary so
+ * the caller can log or report them with whatever logger it has on hand
+ * (`parseScopes` itself is side-effect free — `common` can't depend on the
+ * backend Winston logger).
  */
 export const buildAbilityFromScopes = (
     context: BuilderOptions,
     builder: AbilityBuilder<MemberAbility>,
-): void => {
+): string[] => {
     const isEnterprise = context.isEnterprise ?? false;
-    const scopes = parseScopes({
+    const { valid, invalid } = parseScopes({
         scopes: context.scopes,
         isEnterprise,
     });
     const parsedContext = {
         ...context,
-        scopes,
+        scopes: valid,
         isEnterprise,
     };
 
     applyScopeAbilities(parsedContext, builder);
+
+    return invalid;
 };

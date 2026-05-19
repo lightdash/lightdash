@@ -577,7 +577,7 @@ describe('roleToScopeMapping', () => {
                 ];
 
                 // Build ability using the combined role-based system
-                const roleBasedBuilder = getUserAbilityBuilder({
+                const { builder: roleBasedBuilder } = getUserAbilityBuilder({
                     user,
                     projectProfiles,
                     permissionsConfig: {
