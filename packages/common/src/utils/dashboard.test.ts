@@ -1,6 +1,6 @@
 import { type DashboardTile } from '../types/dashboard';
 import { ParameterError } from '../types/errors';
-import { validateSelectedTabs } from './dashboard';
+import { isTileInSelectedTabs, validateSelectedTabs } from './dashboard';
 
 describe('validateSelectedTabs', () => {
     // Simple mock that focuses on just the tabUuid property
@@ -50,5 +50,36 @@ describe('validateSelectedTabs', () => {
         expect(() =>
             validateSelectedTabs(['any-tab'], tilesWithoutTabUuid),
         ).toThrow('None of the selected tabs exist in the dashboard');
+    });
+});
+
+describe('isTileInSelectedTabs', () => {
+    it('includes every tile when selectedTabs is null', () => {
+        expect(isTileInSelectedTabs({ tabUuid: 'tab1' }, null)).toBe(true);
+        expect(isTileInSelectedTabs({ tabUuid: null }, null)).toBe(true);
+        expect(isTileInSelectedTabs({ tabUuid: undefined }, null)).toBe(true);
+    });
+
+    it('includes orphan tiles regardless of selectedTabs (PROD-2505)', () => {
+        expect(isTileInSelectedTabs({ tabUuid: null }, ['tab1'])).toBe(true);
+        expect(isTileInSelectedTabs({ tabUuid: undefined }, ['tab1'])).toBe(
+            true,
+        );
+    });
+
+    it('includes a tile whose tab is in selectedTabs', () => {
+        expect(isTileInSelectedTabs({ tabUuid: 'tab1' }, ['tab1'])).toBe(true);
+        expect(
+            isTileInSelectedTabs({ tabUuid: 'tab2' }, ['tab1', 'tab2']),
+        ).toBe(true);
+    });
+
+    it('excludes a tile whose tab is not in selectedTabs', () => {
+        expect(isTileInSelectedTabs({ tabUuid: 'tab3' }, ['tab1'])).toBe(false);
+    });
+
+    it('excludes non-orphan tiles when selectedTabs is empty', () => {
+        expect(isTileInSelectedTabs({ tabUuid: 'tab1' }, [])).toBe(false);
+        expect(isTileInSelectedTabs({ tabUuid: null }, [])).toBe(true);
     });
 });

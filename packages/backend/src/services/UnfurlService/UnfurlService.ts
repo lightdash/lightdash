@@ -11,6 +11,7 @@ import {
     HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInSelectedTabs,
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
@@ -399,12 +400,12 @@ export class UnfurlService extends BaseService {
 
                 validateSelectedTabs(selectedTabs, dashboard.tiles);
 
-                // Filter tiles based on selected tabs if they exist
-                const filteredTiles = selectedTabs
-                    ? dashboard.tiles.filter((tile) =>
-                          selectedTabs.includes(tile.tabUuid || ''),
-                      )
-                    : dashboard.tiles;
+                // Filter tiles based on selected tabs if they exist.
+                // Orphan tiles (tabUuid=null) are always included to match the
+                // frontend behaviour that renders them on the first tab.
+                const filteredTiles = dashboard.tiles.filter((tile) =>
+                    isTileInSelectedTabs(tile, selectedTabs),
+                );
 
                 return {
                     title: dashboard.name,
@@ -685,15 +686,15 @@ export class UnfurlService extends BaseService {
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
-        // Create a new URLSearchParams object for query filters
+        // Create a new URLSearchParams object for query filters.
+        // When selectedTabs is null we forward every tab UUID present on the
+        // dashboard (and `null` for orphan tiles) so the frontend's
+        // `schedulerTabsSelected.includes(tile.tabUuid)` filter keeps orphans
+        // in the aggregated screenshot. See PROD-2505.
         const selectedTabsParams = new URLSearchParams();
-        const selectedTabsList =
+        const selectedTabsList: (string | null)[] =
             selectedTabs ??
-            uniq(
-                dashboard.tiles
-                    .map((tile) => tile.tabUuid)
-                    .filter((tabUuid) => !!tabUuid),
-            );
+            uniq(dashboard.tiles.map((tile) => tile.tabUuid ?? null));
 
         if (selectedTabsList.length > 0)
             selectedTabsParams.set(
