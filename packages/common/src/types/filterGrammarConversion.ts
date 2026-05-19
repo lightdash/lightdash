@@ -8,7 +8,6 @@ import {
     type DateFilterSettings,
     type MetricFilterRule,
 } from './filter';
-import filterGrammar from './filterGrammar';
 
 const isValidMetricFilterRule = (filter: MetricFilterRule): boolean => {
     const { values, operator } = filter;
@@ -121,5 +120,3 @@ export const convertMetricFilterToDbt = (
         [],
     );
 };
-
-export default filterGrammar;

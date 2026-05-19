@@ -180,6 +180,7 @@ COPY tsconfig.json .
 COPY .eslintrc.js .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
+COPY packages/filter-parser/package.json ./packages/filter-parser/
 COPY packages/formula/package.json ./packages/formula/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
@@ -205,11 +206,13 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
 
 # Build common package
 FROM prod-builder AS build-common
+COPY packages/filter-parser/tsconfig*.json ./packages/filter-parser/
+COPY packages/filter-parser/src/ ./packages/filter-parser/src/
 COPY packages/common/tsconfig*.json ./packages/common/
 COPY packages/common/src/ ./packages/common/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build --filter=@lightdash/common
+    turbo build --filter=@lightdash/common...
 
 # Build formula package
 FROM prod-builder AS build-formula
@@ -221,6 +224,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 
 # Build warehouses package
 FROM prod-builder AS build-warehouses
+COPY --from=build-common /usr/app/packages/filter-parser/ ./packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/warehouses/tsconfig.json ./packages/warehouses/
 COPY packages/warehouses/src/ ./packages/warehouses/src/
@@ -230,6 +234,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 
 # Build backend package
 FROM prod-builder AS build-backend
+COPY --from=build-common /usr/app/packages/filter-parser/ ./packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
@@ -260,6 +265,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 
 # Build frontend package
 FROM prod-builder AS build-frontend
+COPY --from=build-common /usr/app/packages/filter-parser/ ./packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
@@ -284,6 +290,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # -----------------------------
 
 FROM prod-builder AS build-final
+COPY --from=build-common /usr/app/packages/filter-parser/dist/ ./packages/filter-parser/dist/
 COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
 COPY --from=build-formula /usr/app/packages/formula/dist/ ./packages/formula/dist/
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/

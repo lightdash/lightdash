@@ -177,6 +177,7 @@ COPY .pnpmfile.cjs .
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY packages/common/package.json packages/common/
+COPY packages/filter-parser/package.json packages/filter-parser/
 COPY packages/formula/package.json packages/formula/
 COPY packages/warehouses/package.json packages/warehouses/
 COPY packages/backend/package.json packages/backend/
@@ -194,11 +195,13 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Build: common
 ############################
 FROM prod-builder AS build-common
+COPY packages/filter-parser/tsconfig*.json packages/filter-parser/
+COPY packages/filter-parser/src/ packages/filter-parser/src/
 COPY packages/common/tsconfig*.json packages/common/
 COPY packages/common/src/ packages/common/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build --filter=@lightdash/common
+    turbo build --filter=@lightdash/common...
 # output: /usr/app/packages/common/dist
 
 ############################
@@ -217,6 +220,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 ############################
 FROM prod-builder AS build-warehouses
 
+COPY --from=build-common /usr/app/packages/filter-parser/ packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ packages/common/
 
 COPY packages/warehouses/tsconfig.json packages/warehouses/
@@ -230,6 +234,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # Build: backend
 ############################
 FROM prod-builder AS build-backend
+COPY --from=build-common /usr/app/packages/filter-parser/ packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ packages/warehouses/
@@ -261,6 +266,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # Build: frontend
 ############################
 FROM prod-builder AS build-frontend
+COPY --from=build-common /usr/app/packages/filter-parser/ packages/filter-parser/
 COPY --from=build-common /usr/app/packages/common/ packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 
@@ -299,6 +305,7 @@ ARG SENTRY_ENVIRONMENT=""
 # Copy built artifacts, not sources
 COPY --from=build-backend  /usr/app/packages/backend/dist  packages/backend/dist
 COPY --from=build-frontend /usr/app/packages/frontend/build packages/frontend/build
+COPY --from=build-common   /usr/app/packages/filter-parser/dist packages/filter-parser/dist
 COPY --from=build-common   /usr/app/packages/common/dist   packages/common/dist
 COPY --from=build-formula  /usr/app/packages/formula/dist  packages/formula/dist
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist packages/warehouses/dist

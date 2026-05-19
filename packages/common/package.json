@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@casl/ability": "6.8.0",
+    "@lightdash/filter-parser": "workspace:*",
     "@types/lodash": "4.14.202",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
@@ -48,7 +49,6 @@
     "moment": "2.29.4",
     "moment-timezone": "0.5.45",
     "numfmt": "3.2.1",
-    "pegjs": "0.10.0",
     "sanitize-html": "2.17.4",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
@@ -59,7 +59,6 @@
   "devDependencies": {
     "@types/handlebars": "4.1.0",
     "@types/js-yaml": "4.0.9",
-    "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
     "typescript": "6.0.3"

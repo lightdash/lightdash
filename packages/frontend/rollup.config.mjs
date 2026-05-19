@@ -121,7 +121,7 @@ const mainBuild = {
         }),
         stripSvgrQuery(),
         svgr({ exportType: 'default' }),
-        // Some transitive deps (pegjs, ajv, others) reference Node built-ins
+        // Some transitive deps (ajv and others) reference Node built-ins
         // like fs/path/url. These code paths are dead in a browser bundle,
         // but @rollup/plugin-commonjs preserves the imports. Shim them with
         // browser-safe empty/polyfilled versions so consumer bundlers don't
