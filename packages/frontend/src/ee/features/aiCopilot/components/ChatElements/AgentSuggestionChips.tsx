@@ -1,5 +1,5 @@
 import type { AgentSuggestion } from '@lightdash/common';
-import { Box, Button, Skeleton } from '@mantine-8/core';
+import { Box, Button, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -8,6 +8,7 @@ import styles from './AgentSuggestionChips.module.css';
 type Props = {
     chips: AgentSuggestion[];
     isLoading: boolean;
+    loadingVariant?: 'skeleton' | 'follow-up';
     onChipClick: (chip: AgentSuggestion, index: number) => void;
     onImpression?: (chipCount: number) => void;
 };
@@ -27,6 +28,7 @@ const renderLeftIcon = (chip: AgentSuggestion) => {
 export const AgentSuggestionChips = ({
     chips,
     isLoading,
+    loadingVariant = 'skeleton',
     onChipClick,
     onImpression,
 }: Props) => {
@@ -42,6 +44,25 @@ export const AgentSuggestionChips = ({
     }, [chips, isLoading, onImpression]);
 
     if (isLoading) {
+        if (loadingVariant === 'follow-up') {
+            return (
+                <Box className={styles.followUpLoader}>
+                    <Text
+                        component="span"
+                        size="xs"
+                        className={styles.loaderText}
+                    >
+                        Finding good follow-ups
+                    </Text>
+                    <Box className={styles.loaderDots} aria-hidden>
+                        <span />
+                        <span />
+                        <span />
+                    </Box>
+                </Box>
+            );
+        }
+
         return (
             <Box className={styles.row}>
                 {Array.from({ length: SKELETON_COUNT }).map((_, idx) => (

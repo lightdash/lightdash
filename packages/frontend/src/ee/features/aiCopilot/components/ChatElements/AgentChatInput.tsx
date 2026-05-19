@@ -390,6 +390,7 @@ export const AgentChatInput = ({
             <AgentSuggestionChips
                 chips={chips}
                 isLoading={suggestionsQuery.isLoading}
+                loadingVariant={postResponseMode ? 'follow-up' : 'skeleton'}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
             />
