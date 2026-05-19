@@ -60,4 +60,112 @@ describe('getPivotConfig', () => {
             expect(result?.visibleMetricFieldIds).toBeUndefined();
         });
     });
+
+    describe('hidden field splitting for table charts', () => {
+        it('splits hidden fields into hiddenDimensionFieldIds and hiddenMetricFieldIds when metricQuery is provided', () => {
+            // Chart config has both a hidden dim (orders_status) and a hidden metric (payments_total_revenue)
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            orders_status: { visible: false },
+                            payments_total_revenue: { visible: false },
+                        },
+                    },
+                },
+                pivotConfig: { columns: ['payments_payment_method'] },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: ['payments_payment_method', 'orders_status'],
+                },
+            });
+
+            expect(result).toBeDefined();
+            // orders_status is a dimension → hiddenDimensionFieldIds
+            expect(result?.hiddenDimensionFieldIds).toEqual(['orders_status']);
+            // payments_total_revenue is NOT in dimensions → hiddenMetricFieldIds
+            expect(result?.hiddenMetricFieldIds).toEqual([
+                'payments_total_revenue',
+            ]);
+        });
+
+        it('only populates hiddenDimensionFieldIds when all hidden fields are dimensions', () => {
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            orders_status: { visible: false },
+                        },
+                    },
+                },
+                pivotConfig: { columns: ['payments_payment_method'] },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: ['payments_payment_method', 'orders_status'],
+                },
+            });
+
+            expect(result).toBeDefined();
+            expect(result?.hiddenDimensionFieldIds).toEqual(['orders_status']);
+            // No hidden metrics → should be absent (not an empty array)
+            expect(result?.hiddenMetricFieldIds).toBeUndefined();
+        });
+
+        it('only populates hiddenMetricFieldIds when all hidden fields are metrics', () => {
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            payments_total_revenue: { visible: false },
+                        },
+                    },
+                },
+                pivotConfig: { columns: ['payments_payment_method'] },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: ['payments_payment_method', 'orders_status'],
+                },
+            });
+
+            expect(result).toBeDefined();
+            // payments_total_revenue is not a dimension → hiddenMetricFieldIds
+            expect(result?.hiddenMetricFieldIds).toEqual([
+                'payments_total_revenue',
+            ]);
+            // No hidden dims → should be absent
+            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
+        });
+
+        it('falls back to hiddenMetricFieldIds for all hidden fields when metricQuery is absent', () => {
+            // Backward-compat: callers that cannot provide metricQuery (e.g. ChartDownloadMenu)
+            // get the legacy flat list in hiddenMetricFieldIds.
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            orders_status: { visible: false },
+                            payments_total_revenue: { visible: false },
+                        },
+                    },
+                },
+                pivotConfig: { columns: ['payments_payment_method'] },
+                tableConfig: { columnOrder: [] },
+                // No metricQuery provided
+            });
+
+            expect(result).toBeDefined();
+            // Both fields land in hiddenMetricFieldIds (legacy behaviour)
+            expect(result?.hiddenMetricFieldIds).toEqual(
+                expect.arrayContaining([
+                    'orders_status',
+                    'payments_total_revenue',
+                ]),
+            );
+            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
+        });
+    });
 });

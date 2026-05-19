@@ -1408,5 +1408,66 @@ describe('derivePivotConfigurationFromChart', () => {
             // sortOnlyColumns should be empty or undefined (no hidden sort dim)
             expect(result?.sortOnlyColumns ?? []).toEqual([]);
         });
+
+        it('drops a hidden dimension from indexColumn even when it is NOT in sorts', () => {
+            // Hidden + not sorted → just dropped (not added to sortOnlyColumns either).
+            // orders_status is hidden (visible: false) and NOT in sorts.
+            // payments_payment_method is the pivot dimension (groupByColumn).
+            // Result: orders_status must NOT appear in indexColumn or sortOnlyColumns.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: {
+                        orders_status: { visible: false },
+                    },
+                    pivotDimensions: ['payments_payment_method'],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: { columns: ['payments_payment_method'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: ['payments_payment_method', 'orders_status'],
+                metrics: ['payments_total_revenue'],
+                // No sort on orders_status — it is purely hidden with no sort role.
+                sorts: [],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+
+            // orders_status must NOT appear in indexColumn
+            let indexRefs: string[];
+            if (Array.isArray(result?.indexColumn)) {
+                indexRefs = result!.indexColumn.map((c) => c.reference);
+            } else if (result?.indexColumn) {
+                indexRefs = [result.indexColumn.reference];
+            } else {
+                indexRefs = [];
+            }
+            expect(indexRefs).not.toContain('orders_status');
+
+            // orders_status must NOT appear in sortOnlyColumns (it's not sorted)
+            const sortOnlyRefs = (result?.sortOnlyColumns ?? []).map(
+                (c) => c.reference,
+            );
+            expect(sortOnlyRefs).not.toContain('orders_status');
+
+            // sortOnlyColumns should be empty (no hidden sort dim)
+            expect(result?.sortOnlyColumns ?? []).toEqual([]);
+        });
     });
 });
