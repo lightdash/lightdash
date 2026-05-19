@@ -28,8 +28,6 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'improveContext',
     'proposeChange',
     'runSavedChart',
-    'listWarehouseTables',
-    'describeWarehouseTable',
 ]);
 
 // Tools whose description renders something tall (e.g. a code block) and can't

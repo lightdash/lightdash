@@ -6,6 +6,7 @@ import type {
 import {
     assertUnreachable,
     type ToolDashboardArgs,
+    type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
     type ToolFindContentArgs,
     type ToolFindDashboardsArgs,
@@ -14,6 +15,7 @@ import {
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
     type ToolGetDashboardChartsArgs,
+    type ToolListWarehouseTablesArgs,
     type ToolName,
     type ToolRunQueryArgs,
     type ToolRunSqlArgs,
@@ -25,9 +27,11 @@ import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCal
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
+import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
@@ -156,9 +160,25 @@ export const ToolCallDescription: FC<{
                     limit={sqlToolArgs.limit}
                 />
             );
-        case 'discoverFields':
         case 'listWarehouseTables':
+            const listWarehouseTablesArgs =
+                toolCall.toolArgs as ToolListWarehouseTablesArgs;
+            return (
+                <ListWarehouseTablesToolCallDescription
+                    schema={listWarehouseTablesArgs.schema ?? null}
+                    search={listWarehouseTablesArgs.search ?? null}
+                />
+            );
         case 'describeWarehouseTable':
+            const describeWarehouseTableArgs =
+                toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
+            return (
+                <DescribeWarehouseTableToolCallDescription
+                    table={describeWarehouseTableArgs.table}
+                    schema={describeWarehouseTableArgs.schema ?? null}
+                />
+            );
+        case 'discoverFields':
         case 'improveContext':
         case 'proposeChange':
         case 'runSavedChart':
