@@ -1,3 +1,10 @@
+# [0.2984.0](https://github.com/lightdash/lightdash/compare/0.2983.0...0.2984.0) (2026-05-19)
+
+
+### Features
+
+* **ai-agents:** expose AiAgentController in OpenAPI spec ([#23283](https://github.com/lightdash/lightdash/issues/23283)) ([b62f1cc](https://github.com/lightdash/lightdash/commit/b62f1ccd509a8149fa1d37d51173be6808546cf2))
+
 # [0.2983.0](https://github.com/lightdash/lightdash/compare/0.2982.0...0.2983.0) (2026-05-19)
 
 
