@@ -69,6 +69,7 @@ export type AgentSuggestionPromptChip = {
     defaults: {
         explore: string | null;
         dimensions: string[];
+        metrics: string[];
         timeframe: string | null;
     };
 };

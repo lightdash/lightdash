@@ -203,6 +203,7 @@ export const AgentChatInput = ({
     const suggestionsQuery = useAgentSuggestions({
         projectUuid,
         agentUuid,
+        enableSqlMode: sqlMode,
         threadUuid: postResponseMode ? threadUuid : undefined,
         afterMessageUuid: postResponseMode
             ? latestAssistantMessageUuid
