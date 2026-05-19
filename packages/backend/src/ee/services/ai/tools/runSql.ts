@@ -28,6 +28,8 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    autoApproveSql?: boolean;
+    autoApproveSqlUserUuid?: string | null;
 };
 
 // Strip --line and /* block */ comments + string literals so subsequent
@@ -73,6 +75,8 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    autoApproveSql = false,
+    autoApproveSqlUserUuid = null,
 }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
@@ -93,6 +97,7 @@ export const getRunSql = ({
             const isSlack = isSlackPrompt(prompt);
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
+            const shouldAutoApprove = autoApproveSql || slackAutoApproved;
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -110,8 +115,15 @@ export const getRunSql = ({
             };
 
             try {
-                if (slackAutoApproved) {
-                    await renderState({ kind: 'approved', sql });
+                if (shouldAutoApprove) {
+                    if (isSlack) {
+                        await renderState({ kind: 'approved', sql });
+                    }
+                    await recordSqlApproval(
+                        toolCallId,
+                        'approved',
+                        autoApproveSql ? autoApproveSqlUserUuid : null,
+                    );
                 } else if (isSlack) {
                     await renderState({
                         kind: 'pending',
@@ -123,14 +135,9 @@ export const getRunSql = ({
                     await updateProgress('Awaiting approval to run SQL...');
                 }
 
-                // Auto-approval: pre-record the decision so the poller in
-                // waitForSqlApproval picks it up on its first poll. Approvals
-                // are DB-backed (ai_sql_approval) so this works across pods
-                // and survives restarts.
-                if (slackAutoApproved) {
-                    await recordSqlApproval(toolCallId, 'approved', null);
-                }
-                const decision = await waitForSqlApproval(toolCallId);
+                const decision = shouldAutoApprove
+                    ? 'approved'
+                    : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {

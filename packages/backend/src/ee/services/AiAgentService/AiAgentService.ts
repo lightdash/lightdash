@@ -2388,9 +2388,11 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            autoApproveSql = false,
         }: {
             agentUuid: string;
             threadUuid: string;
+            autoApproveSql?: boolean;
         },
     ): Promise<string> {
         try {
@@ -2427,6 +2429,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     // Non-stream callers (eval, etc.) preserve flag-only gating.
                     enableSqlMode: true,
+                    autoApproveSql,
                 },
             );
             return response;
@@ -4463,6 +4466,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         },
     ): Promise<AgentResponseStream>;
@@ -4474,6 +4478,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         },
     ): Promise<string>;
@@ -4485,6 +4490,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         },
     ): Promise<string>;
@@ -4495,6 +4501,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         } & (
             | {
@@ -4650,6 +4657,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             canRunSql,
+            autoApproveSql: options.autoApproveSql ?? false,
+            autoApproveSqlUserUuid: options.autoApproveSql
+                ? user.userUuid
+                : null,
             warehouseType,
             warehouseSchema,
             availableSkills,
@@ -7758,6 +7769,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.generateAgentThreadResponse(sessionUser, {
                 agentUuid,
                 threadUuid,
+                autoApproveSql: true,
             });
 
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
