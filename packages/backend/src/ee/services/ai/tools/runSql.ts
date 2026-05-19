@@ -29,6 +29,7 @@ type Dependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     autoApproveSql?: boolean;
+    autoApproveSqlUserUuid?: string | null;
 };
 
 // Strip --line and /* block */ comments + string literals so subsequent
@@ -75,6 +76,7 @@ export const getRunSql = ({
     waitForSqlApproval,
     recordSqlApproval,
     autoApproveSql = false,
+    autoApproveSqlUserUuid = null,
 }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
@@ -117,7 +119,11 @@ export const getRunSql = ({
                     if (isSlack) {
                         await renderState({ kind: 'approved', sql });
                     }
-                    await recordSqlApproval(toolCallId, 'approved', null);
+                    await recordSqlApproval(
+                        toolCallId,
+                        'approved',
+                        autoApproveSql ? autoApproveSqlUserUuid : null,
+                    );
                 } else if (isSlack) {
                     await renderState({
                         kind: 'pending',

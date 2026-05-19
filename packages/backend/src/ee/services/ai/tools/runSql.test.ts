@@ -6,6 +6,12 @@ type RunSqlOutput = {
     result: string;
     metadata?: { status: string };
 };
+type MakeToolOptions = {
+    autoApproveSql?: boolean;
+    autoApproveSqlUserUuid?: string | null;
+    waitForSqlApproval?: jest.Mock;
+    recordSqlApproval?: jest.Mock;
+};
 
 const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
     tool.execute!(
@@ -37,9 +43,10 @@ const makePrompt = (): AiWebAppPrompt => ({
 
 const makeTool = ({
     autoApproveSql = false,
+    autoApproveSqlUserUuid = null,
     waitForSqlApproval = jest.fn().mockResolvedValue('approved'),
     recordSqlApproval = jest.fn().mockResolvedValue(true),
-} = {}) => {
+}: MakeToolOptions = {}) => {
     const dependencies = {
         updateProgress: jest.fn().mockResolvedValue(undefined),
         runSqlJob: jest.fn().mockResolvedValue({
@@ -54,6 +61,7 @@ const makeTool = ({
         waitForSqlApproval,
         recordSqlApproval,
         autoApproveSql,
+        autoApproveSqlUserUuid,
     };
 
     return {
@@ -64,14 +72,17 @@ const makeTool = ({
 
 describe('getRunSql', () => {
     it('auto-approves SQL without waiting for human approval', async () => {
-        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            autoApproveSqlUserUuid: 'user-uuid',
+        });
 
         const output = await executeRunSql(tool);
 
         expect(dependencies.recordSqlApproval).toHaveBeenCalledWith(
             'tool-call-1',
             'approved',
-            null,
+            'user-uuid',
         );
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runSqlJob).toHaveBeenCalledWith({

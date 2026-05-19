@@ -4658,6 +4658,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
+            autoApproveSqlUserUuid: options.autoApproveSql
+                ? user.userUuid
+                : null,
             warehouseType,
             warehouseSchema,
             availableSkills,
