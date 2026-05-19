@@ -136,3 +136,6 @@ agent-harness/cloud/credentials.env
 .codex
 .claude/*.lock
 AGENTS.md
+
+# octarine
+.octarine/properties.json
