@@ -4846,7 +4846,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             mcpToolSetup,
         });
         const streamWithMcpNotices = createUIMessageStream({
-            execute: ({ writer }) => {
+            execute: async ({ writer }) => {
                 for (const unavailableMcpServer of mcpToolSetup.unavailableMcpServers) {
                     writer.write({
                         type: 'data-mcp-unavailable',
@@ -4855,44 +4855,54 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     });
                 }
 
-                writer.merge(
-                    result.toUIMessageStream({
-                        onFinish: async ({ responseMessage }) => {
-                            try {
-                                const chips =
-                                    await this.generateStreamAgentSuggestions({
-                                        user,
-                                        projectUuid: prompt.projectUuid,
-                                        agent: agentSettings,
-                                        canRunSql,
-                                        canManageAgent: options.canManageAgent,
-                                        messageHistory,
-                                        responseMessage,
-                                    });
+                const suggestionsWritten = new Promise<void>((resolve) => {
+                    const resolveAfterSuggestions = async (
+                        responseMessage: UIMessage,
+                    ) => {
+                        try {
+                            const chips =
+                                await this.generateStreamAgentSuggestions({
+                                    user,
+                                    projectUuid: prompt.projectUuid,
+                                    agent: agentSettings,
+                                    canRunSql,
+                                    canManageAgent: options.canManageAgent,
+                                    messageHistory,
+                                    responseMessage,
+                                });
 
-                                if (chips.length === 0) return;
-
+                            if (chips.length > 0) {
                                 writer.write({
                                     type: 'data-agent-suggestions',
                                     data: { chips },
                                     transient: true,
                                 } as AnyType);
-                            } catch (error) {
-                                Logger.warn(
-                                    `[AiAgentService] Failed to stream agent suggestions: ${String(
-                                        error,
-                                    )}`,
-                                );
-                                Sentry.captureException(error, {
-                                    tags: {
-                                        errorType:
-                                            'AiAgentStreamSuggestionsFailed',
-                                    },
-                                });
                             }
-                        },
-                    }),
-                );
+                        } catch (error) {
+                            Logger.warn(
+                                `[AiAgentService] Failed to stream agent suggestions: ${String(
+                                    error,
+                                )}`,
+                            );
+                            Sentry.captureException(error, {
+                                tags: {
+                                    errorType: 'AiAgentStreamSuggestionsFailed',
+                                },
+                            });
+                        } finally {
+                            resolve();
+                        }
+                    };
+
+                    writer.merge(
+                        result.toUIMessageStream({
+                            onFinish: ({ responseMessage }) =>
+                                resolveAfterSuggestions(responseMessage),
+                        }),
+                    );
+                });
+
+                await suggestionsWritten;
             },
         });
 
