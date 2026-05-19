@@ -2052,11 +2052,21 @@ const AppGenerate: FC = () => {
                                                     chart,
                                                 ])
                                             }
+                                            onDeselectChart={(uuid) =>
+                                                setSelectedCharts((prev) =>
+                                                    prev.filter(
+                                                        (c) => c.uuid !== uuid,
+                                                    ),
+                                                )
+                                            }
                                             selectedDashboard={
                                                 selectedDashboard
                                             }
                                             onSelectDashboard={
                                                 setSelectedDashboard
+                                            }
+                                            onDeselectDashboard={() =>
+                                                setSelectedDashboard(null)
                                             }
                                             onAddImages={() =>
                                                 fileInputRef.current?.click()

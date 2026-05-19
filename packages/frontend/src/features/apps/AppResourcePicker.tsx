@@ -20,9 +20,10 @@ import {
     IconArrowLeft,
     IconCamera,
     IconChartBar,
+    IconCheck,
     IconClick,
     IconDatabase,
-    IconDatabaseOff,
+    IconDatabasePlus,
     IconLayoutDashboard,
     IconPhoto,
     IconPlus,
@@ -34,6 +35,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
+import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import classes from './AppResourcePicker.module.css';
@@ -130,8 +132,9 @@ export const InspectButton: FC<{
 const QueryPickerView: FC<{
     selectedCharts: SelectedChart[];
     onSelect: (chart: SelectedChart) => void;
+    onDeselect: (uuid: string) => void;
     enabled: boolean;
-}> = ({ selectedCharts, onSelect, enabled }) => {
+}> = ({ selectedCharts, onSelect, onDeselect, enabled }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -162,32 +165,31 @@ const QueryPickerView: FC<{
         [selectedCharts],
     );
 
-    const availableCharts = useMemo(
-        () => allCharts.filter((c) => !selectedUuids.has(c.uuid)),
-        [allCharts, selectedUuids],
-    );
-
     const groupedCharts = useMemo(() => {
         const groups = new Map<string, ChartContent[]>();
-        for (const chart of availableCharts) {
+        for (const chart of allCharts) {
             const spaceName = chart.space.name;
             const group = groups.get(spaceName) ?? [];
             group.push(chart);
             groups.set(spaceName, group);
         }
         return groups;
-    }, [availableCharts]);
+    }, [allCharts]);
 
-    const handleSelect = useCallback(
+    const handleToggle = useCallback(
         (chart: ChartContent) => {
-            onSelect({
-                uuid: chart.uuid,
-                name: chart.name,
-                chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
-                includeSampleData: false,
-            });
+            if (selectedUuids.has(chart.uuid)) {
+                onDeselect(chart.uuid);
+            } else {
+                onSelect({
+                    uuid: chart.uuid,
+                    name: chart.name,
+                    chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
+                    includeSampleData: false,
+                });
+            }
         },
-        [onSelect],
+        [onSelect, onDeselect, selectedUuids],
     );
 
     return (
@@ -212,11 +214,9 @@ const QueryPickerView: FC<{
                     <Group justify="center" p="sm">
                         <Loader size="sm" />
                     </Group>
-                ) : availableCharts.length === 0 ? (
+                ) : allCharts.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
-                        {allCharts.length > 0
-                            ? 'All matching charts selected'
-                            : 'No charts found'}
+                        No charts found
                     </Text>
                 ) : (
                     <>
@@ -228,28 +228,51 @@ const QueryPickerView: FC<{
                                             {spaceName}
                                         </Text>
                                     </Box>
-                                    {charts.map((chart) => (
-                                        <Box
-                                            key={chart.uuid}
-                                            className={classes.chartItem}
-                                            onClick={() => handleSelect(chart)}
-                                        >
-                                            <ChartIcon
-                                                chartKind={
-                                                    chart.chartKind ??
-                                                    ChartKind.VERTICAL_BAR
+                                    {charts.map((chart) => {
+                                        const isSelected = selectedUuids.has(
+                                            chart.uuid,
+                                        );
+                                        return (
+                                            <Box
+                                                key={chart.uuid}
+                                                className={`${classes.chartItem} ${
+                                                    isSelected
+                                                        ? classes.chartItemSelected
+                                                        : ''
+                                                }`}
+                                                onClick={() =>
+                                                    handleToggle(chart)
                                                 }
-                                            />
-                                            <Text
-                                                size="xs"
-                                                fw={500}
-                                                truncate
-                                                flex={1}
                                             >
-                                                {chart.name}
-                                            </Text>
-                                        </Box>
-                                    ))}
+                                                <ChartIcon
+                                                    chartKind={
+                                                        chart.chartKind ??
+                                                        ChartKind.VERTICAL_BAR
+                                                    }
+                                                />
+                                                <Text
+                                                    size="xs"
+                                                    fw={500}
+                                                    truncate
+                                                    flex={1}
+                                                >
+                                                    {chart.name}
+                                                </Text>
+                                                {isSelected && (
+                                                    <Box
+                                                        className={
+                                                            classes.chartItemSelectedIcon
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconCheck}
+                                                            size={14}
+                                                        />
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        );
+                                    })}
                                 </Box>
                             ),
                         )}
@@ -315,6 +338,62 @@ export const SelectedImageSection: FC<{
 };
 
 /**
+ * Dashed circular button rendered after a pill when sample data is off.
+ * Click → enables sample data; the pill then shows an inline database icon
+ * (via `InlineDataToggle`) and this button disappears.
+ */
+const AddDataButton: FC<{
+    onClick: () => void;
+    disabled?: boolean;
+    tooltipSuffix?: string;
+}> = ({ onClick, disabled, tooltipSuffix }) => (
+    <Tooltip
+        label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`}
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.addDataButton}
+            aria-label="Include sample data"
+        >
+            <MantineIcon icon={IconDatabasePlus} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
+/**
+ * Inline database icon button inside the pill when sample data is on.
+ * Click → disables sample data; the pill reverts to plain and the
+ * `AddDataButton` reappears next to it.
+ */
+const InlineDataToggle: FC<{
+    onClick: () => void;
+    disabled?: boolean;
+    tooltipSuffix?: string;
+}> = ({ onClick, disabled, tooltipSuffix }) => (
+    <Tooltip
+        label={`Sample data included — click to remove.${tooltipSuffix ?? ''}`}
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.inlineDataToggle}
+            aria-label="Sample data: on"
+        >
+            <MantineIcon icon={IconDatabase} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
+/**
  * Renders selected queries as a list using the same visual as the picker.
  * Each row carries a per-chart sample-data toggle; off by default because
  * sample rows can include sensitive values.
@@ -330,52 +409,53 @@ export const SelectedQuerySection: FC<{
     return (
         <Box className={classes.selectedQueryList}>
             {charts.map((chart) => (
-                <Box key={chart.uuid} className={classes.selectedQueryItem}>
-                    <ChartIcon
-                        chartKind={chart.chartKind ?? ChartKind.VERTICAL_BAR}
-                    />
-                    <Text size="xs" fw={500} truncate flex={1}>
-                        {chart.name}
-                    </Text>
-                    <Tooltip
-                        label={SAMPLE_DATA_TOOLTIP}
-                        multiline
-                        w={260}
-                        withArrow
+                <Box key={chart.uuid} className={classes.selectedQueryItemRow}>
+                    <Box
+                        className={`${classes.selectedQueryItem} ${
+                            chart.includeSampleData
+                                ? classes.selectedQueryItemActive
+                                : ''
+                        }`}
                     >
+                        <Box className={classes.selectedQueryItemIcon}>
+                            <MantineIcon
+                                icon={getChartIcon(
+                                    chart.chartKind ?? ChartKind.VERTICAL_BAR,
+                                )}
+                                size={12}
+                                color="blue.6"
+                            />
+                        </Box>
+                        <Text
+                            fw={500}
+                            truncate
+                            className={classes.selectedQueryItemName}
+                        >
+                            {chart.name}
+                        </Text>
+                        {chart.includeSampleData && (
+                            <InlineDataToggle
+                                onClick={() => onToggleSampleData(chart.uuid)}
+                                disabled={disabled}
+                            />
+                        )}
                         <ActionIcon
                             size="xs"
-                            variant={
-                                chart.includeSampleData ? 'filled' : 'default'
-                            }
-                            color={chart.includeSampleData ? 'blue' : 'gray'}
+                            variant="subtle"
+                            color="gray"
+                            radius="xl"
+                            onClick={() => onRemove(chart.uuid)}
+                            disabled={disabled}
+                        >
+                            <MantineIcon icon={IconX} size={10} />
+                        </ActionIcon>
+                    </Box>
+                    {!chart.includeSampleData && (
+                        <AddDataButton
                             onClick={() => onToggleSampleData(chart.uuid)}
                             disabled={disabled}
-                            aria-label={
-                                chart.includeSampleData
-                                    ? 'Sample data: on'
-                                    : 'Sample data: off'
-                            }
-                        >
-                            <MantineIcon
-                                icon={
-                                    chart.includeSampleData
-                                        ? IconDatabase
-                                        : IconDatabaseOff
-                                }
-                                size={12}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
-                    <ActionIcon
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => onRemove(chart.uuid)}
-                        disabled={disabled}
-                    >
-                        <MantineIcon icon={IconX} size={12} />
-                    </ActionIcon>
+                        />
+                    )}
                 </Box>
             ))}
         </Box>
@@ -384,13 +464,16 @@ export const SelectedQuerySection: FC<{
 
 /**
  * Internal: dashboard list with search. Used inside `AttachButton`'s
- * popover. Selecting a dashboard sends it up via `onSelect` — the parent
- * is responsible for closing the popover (single-dashboard semantics).
+ * popover. Single-select: clicking a different dashboard replaces the
+ * current one (and tells the parent to close the popover); clicking the
+ * already-selected dashboard deselects and keeps the popover open.
  */
 const DashboardPickerView: FC<{
+    selectedDashboard: SelectedDashboard | null;
     onSelect: (dashboard: SelectedDashboard) => void;
+    onDeselect: () => void;
     enabled: boolean;
-}> = ({ onSelect, enabled }) => {
+}> = ({ selectedDashboard, onSelect, onDeselect, enabled }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -406,15 +489,19 @@ const DashboardPickerView: FC<{
         return dashboards.filter((d) => d.name.toLowerCase().includes(term));
     }, [dashboards, debouncedSearch]);
 
-    const handleSelect = useCallback(
+    const handleToggle = useCallback(
         (dashboard: { uuid: string; name: string }) => {
-            onSelect({
-                uuid: dashboard.uuid,
-                name: dashboard.name,
-                includeSampleData: false,
-            });
+            if (selectedDashboard?.uuid === dashboard.uuid) {
+                onDeselect();
+            } else {
+                onSelect({
+                    uuid: dashboard.uuid,
+                    name: dashboard.name,
+                    includeSampleData: false,
+                });
+            }
         },
-        [onSelect],
+        [onSelect, onDeselect, selectedDashboard],
     );
 
     return (
@@ -439,21 +526,39 @@ const DashboardPickerView: FC<{
                         No dashboards found
                     </Text>
                 ) : (
-                    filteredDashboards.map((dashboard) => (
-                        <Box
-                            key={dashboard.uuid}
-                            className={classes.chartItem}
-                            onClick={() => handleSelect(dashboard)}
-                        >
-                            <IconBox
-                                icon={IconLayoutDashboard}
-                                color="green.6"
-                            />
-                            <Text size="xs" fw={500} truncate flex={1}>
-                                {dashboard.name}
-                            </Text>
-                        </Box>
-                    ))
+                    filteredDashboards.map((dashboard) => {
+                        const isSelected =
+                            selectedDashboard?.uuid === dashboard.uuid;
+                        return (
+                            <Box
+                                key={dashboard.uuid}
+                                className={`${classes.chartItem} ${
+                                    isSelected ? classes.chartItemSelected : ''
+                                }`}
+                                onClick={() => handleToggle(dashboard)}
+                            >
+                                <IconBox
+                                    icon={IconLayoutDashboard}
+                                    color="green.6"
+                                />
+                                <Text size="xs" fw={500} truncate flex={1}>
+                                    {dashboard.name}
+                                </Text>
+                                {isSelected && (
+                                    <Box
+                                        className={
+                                            classes.chartItemSelectedIcon
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={14}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+                        );
+                    })
                 )}
             </ScrollArea.Autosize>
         </>
@@ -472,16 +577,20 @@ type AttachView = 'menu' | 'queries' | 'dashboard';
 export const AttachButton: FC<{
     selectedCharts: SelectedChart[];
     onSelectChart: (chart: SelectedChart) => void;
+    onDeselectChart: (uuid: string) => void;
     selectedDashboard: SelectedDashboard | null;
     onSelectDashboard: (dashboard: SelectedDashboard) => void;
+    onDeselectDashboard: () => void;
     onAddImages: () => void;
     disabled: boolean;
     imagesDisabled: boolean;
 }> = ({
     selectedCharts,
     onSelectChart,
+    onDeselectChart,
     selectedDashboard,
     onSelectDashboard,
+    onDeselectDashboard,
     onAddImages,
     disabled,
     imagesDisabled,
@@ -508,8 +617,6 @@ export const AttachButton: FC<{
         setView('menu');
         onAddImages();
     }, [onAddImages]);
-
-    const dashboardDisabled = selectedDashboard !== null;
 
     const headerTitle = view === 'queries' ? 'Add queries' : 'Add a dashboard';
     const headerSubtitle =
@@ -559,13 +666,7 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
-                            onClick={
-                                dashboardDisabled
-                                    ? undefined
-                                    : () => setView('dashboard')
-                            }
-                            disabled={dashboardDisabled}
-                            data-disabled={dashboardDisabled || undefined}
+                            onClick={() => setView('dashboard')}
                         >
                             <MantineIcon icon={IconLayoutDashboard} />
                             <Box flex={1}>
@@ -573,9 +674,7 @@ export const AttachButton: FC<{
                                     Dashboard
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {dashboardDisabled
-                                        ? 'A dashboard is already attached'
-                                        : 'Attach all tiles from a dashboard'}
+                                    Attach all tiles from a dashboard
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -626,11 +725,14 @@ export const AttachButton: FC<{
                             <QueryPickerView
                                 selectedCharts={selectedCharts}
                                 onSelect={onSelectChart}
+                                onDeselect={onDeselectChart}
                                 enabled={opened}
                             />
                         ) : (
                             <DashboardPickerView
+                                selectedDashboard={selectedDashboard}
                                 onSelect={handleSelectDashboard}
+                                onDeselect={onDeselectDashboard}
                                 enabled={opened}
                             />
                         )}
@@ -652,48 +754,53 @@ export const SelectedDashboardSection: FC<{
     disabled?: boolean;
 }> = ({ dashboard, onRemove, onToggleSampleData, disabled }) => (
     <Box className={classes.selectedQueryList}>
-        <Box className={classes.selectedQueryItem}>
-            <IconBox icon={IconLayoutDashboard} color="green.6" />
-            <Text size="xs" fw={500} truncate flex={1}>
-                {dashboard.name}
-            </Text>
-            <Tooltip
-                label={`${SAMPLE_DATA_TOOLTIP} Applies to every chart in this dashboard.`}
-                multiline
-                w={260}
-                withArrow
+        <Box className={classes.selectedQueryItemRow}>
+            <Box
+                className={`${classes.selectedQueryItem} ${
+                    dashboard.includeSampleData
+                        ? classes.selectedQueryItemActive
+                        : ''
+                }`}
             >
+                <Box className={classes.selectedQueryItemIcon}>
+                    <MantineIcon
+                        icon={IconLayoutDashboard}
+                        size={12}
+                        color="green.6"
+                    />
+                </Box>
+                <Text
+                    fw={500}
+                    truncate
+                    className={classes.selectedQueryItemName}
+                >
+                    {dashboard.name}
+                </Text>
+                {dashboard.includeSampleData && (
+                    <InlineDataToggle
+                        onClick={onToggleSampleData}
+                        disabled={disabled}
+                        tooltipSuffix=" Applies to every chart in this dashboard."
+                    />
+                )}
                 <ActionIcon
                     size="xs"
-                    variant={dashboard.includeSampleData ? 'filled' : 'default'}
-                    color={dashboard.includeSampleData ? 'blue' : 'gray'}
+                    variant="subtle"
+                    color="gray"
+                    radius="xl"
+                    onClick={onRemove}
+                    disabled={disabled}
+                >
+                    <MantineIcon icon={IconX} size={10} />
+                </ActionIcon>
+            </Box>
+            {!dashboard.includeSampleData && (
+                <AddDataButton
                     onClick={onToggleSampleData}
                     disabled={disabled}
-                    aria-label={
-                        dashboard.includeSampleData
-                            ? 'Sample data: on'
-                            : 'Sample data: off'
-                    }
-                >
-                    <MantineIcon
-                        icon={
-                            dashboard.includeSampleData
-                                ? IconDatabase
-                                : IconDatabaseOff
-                        }
-                        size={12}
-                    />
-                </ActionIcon>
-            </Tooltip>
-            <ActionIcon
-                size="xs"
-                variant="subtle"
-                color="gray"
-                onClick={onRemove}
-                disabled={disabled}
-            >
-                <MantineIcon icon={IconX} size={12} />
-            </ActionIcon>
+                    tooltipSuffix=" Applies to every chart in this dashboard."
+                />
+            )}
         </Box>
     </Box>
 );
