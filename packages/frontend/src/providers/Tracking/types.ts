@@ -483,6 +483,8 @@ type AiAgentSuggestionClickEvent = {
     properties: {
         projectId: string;
         agentId: string;
+        threadId?: string;
+        afterMessageId?: string;
         chipLabel: string;
         chipKind: 'prompt' | 'navigate';
         chipTool?: string;
