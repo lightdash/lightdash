@@ -1,3 +1,15 @@
+# [0.2980.0](https://github.com/lightdash/lightdash/compare/0.2979.0...0.2980.0) (2026-05-19)
+
+
+### Bug Fixes
+
+* copy group-level custom roles to preview projects ([#23272](https://github.com/lightdash/lightdash/issues/23272)) ([f46cd8f](https://github.com/lightdash/lightdash/commit/f46cd8f1c426722ad3f906a779d511d676997221))
+
+
+### Features
+
+* **ai-agents:** disable chat input when thread model is no longer available ([#23278](https://github.com/lightdash/lightdash/issues/23278)) ([3e1248e](https://github.com/lightdash/lightdash/commit/3e1248e843953b0e2e249b17f8ae86272a462921))
+
 # [0.2979.0](https://github.com/lightdash/lightdash/compare/0.2978.0...0.2979.0) (2026-05-19)
 
 
