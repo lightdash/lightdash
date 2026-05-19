@@ -27,6 +27,11 @@ type UserAbilityBuilderArgs = {
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
 
+export type UserAbilityBuilderResult = {
+    builder: AbilityBuilder<MemberAbility>;
+    invalidScopes: string[];
+};
+
 export const getUserAbilityBuilder = ({
     user,
     projectProfiles,
@@ -34,8 +39,9 @@ export const getUserAbilityBuilder = ({
     customRoleScopes,
     customRolesEnabled,
     isEnterprise,
-}: UserAbilityBuilderArgs) => {
+}: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
+    const invalidScopes: string[] = [];
     if (user.role && user.organizationUuid) {
         // Org-level custom role: if the user's organization_memberships row
         // points at a role_uuid AND custom roles are enabled AND we have the
@@ -48,16 +54,18 @@ export const getUserAbilityBuilder = ({
                 : undefined;
 
         if (orgCustomRoleScopes) {
-            buildAbilityFromScopes(
-                {
-                    organizationUuid: user.organizationUuid,
-                    userUuid: user.userUuid,
-                    scopes: orgCustomRoleScopes,
-                    isEnterprise,
-                    organizationRole: user.role,
-                    permissionsConfig,
-                },
-                builder,
+            invalidScopes.push(
+                ...buildAbilityFromScopes(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                        scopes: orgCustomRoleScopes,
+                        isEnterprise,
+                        organizationRole: user.role,
+                        permissionsConfig,
+                    },
+                    builder,
+                ),
             );
         } else {
             applyOrganizationMemberAbilities({
@@ -88,16 +96,18 @@ export const getUserAbilityBuilder = ({
                     return;
                 }
 
-                buildAbilityFromScopes(
-                    {
-                        projectUuid: projectProfile.projectUuid,
-                        userUuid: user.userUuid,
-                        scopes,
-                        isEnterprise,
-                        organizationRole: user.role,
-                        permissionsConfig,
-                    },
-                    builder,
+                invalidScopes.push(
+                    ...buildAbilityFromScopes(
+                        {
+                            projectUuid: projectProfile.projectUuid,
+                            userUuid: user.userUuid,
+                            scopes,
+                            isEnterprise,
+                            organizationRole: user.role,
+                            permissionsConfig,
+                        },
+                        builder,
+                    ),
                 );
             } else {
                 projectMemberAbilities[projectProfile.role](
@@ -107,7 +117,7 @@ export const getUserAbilityBuilder = ({
             }
         });
     }
-    return builder;
+    return { builder, invalidScopes };
 };
 
 // Defines user ability for test purposes
@@ -122,7 +132,7 @@ export const defineUserAbility = (
     >[],
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>,
 ): MemberAbility => {
-    const builder = getUserAbilityBuilder({
+    const { builder } = getUserAbilityBuilder({
         user,
         projectProfiles,
         permissionsConfig: {

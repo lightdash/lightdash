@@ -60,6 +60,7 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
+import Logger from '../logging/logger';
 import { deprecatedHash, hash } from '../utils/hash';
 import {
     CachedPatSessionUser,
@@ -667,7 +668,7 @@ export class UserModel {
                 const scopes = customRoleScopes[user.role_uuid];
                 if (scopes) {
                     const builder = new AbilityBuilder<MemberAbility>(Ability);
-                    buildAbilityFromScopes(
+                    const invalid = buildAbilityFromScopes(
                         {
                             organizationUuid: user.organization_uuid as string,
                             userUuid: user.user_uuid,
@@ -682,6 +683,15 @@ export class UserModel {
                         },
                         builder,
                     );
+                    if (invalid.length > 0) {
+                        Logger.warn(
+                            `Service account ${
+                                user.user_uuid
+                            } custom role references scopes not in the runtime vocabulary: ${invalid.join(
+                                ', ',
+                            )}`,
+                        );
+                    }
                     await this.applyServiceAccountProjectMemberships(
                         user.user_id,
                         user.user_uuid,
@@ -731,18 +741,30 @@ export class UserModel {
                 featureFlagId: CommercialFeatureFlags.CustomRoles,
             }),
         ]);
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-            customRoleScopes,
-            customRolesEnabled:
-                this.lightdashConfig.customRoles.enabled ||
-                customRolesFlag.enabled,
-            isEnterprise: this.lightdashConfig.license.licenseKey !== undefined,
-        });
+        const { builder: abilityBuilder, invalidScopes } =
+            getUserAbilityBuilder({
+                user: lightdashUser,
+                projectProfiles: [...projectRoles, ...groupProjectRoles],
+                permissionsConfig: {
+                    pat: this.lightdashConfig.auth.pat,
+                },
+                customRoleScopes,
+                customRolesEnabled:
+                    this.lightdashConfig.customRoles.enabled ||
+                    customRolesFlag.enabled,
+                isEnterprise:
+                    this.lightdashConfig.license.licenseKey !== undefined,
+            });
+
+        if (invalidScopes.length > 0) {
+            Logger.warn(
+                `Custom role(s) for user ${
+                    lightdashUser.userUuid
+                } reference scopes not in the runtime vocabulary: ${[
+                    ...new Set(invalidScopes),
+                ].join(', ')}`,
+            );
+        }
 
         return {
             abilityBuilder,
@@ -799,12 +821,13 @@ export class UserModel {
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
 
+        const aggregatedInvalidScopes = new Set<string>();
         for (const row of rows) {
             const scopes = row.role_uuid
                 ? customRoleScopes[row.role_uuid]
                 : undefined;
             if (scopes) {
-                buildAbilityFromScopes(
+                const invalid = buildAbilityFromScopes(
                     {
                         projectUuid: row.project_uuid,
                         userUuid,
@@ -816,6 +839,7 @@ export class UserModel {
                     },
                     builder,
                 );
+                invalid.forEach((s) => aggregatedInvalidScopes.add(s));
             } else {
                 projectMemberAbilities[row.role](
                     {
@@ -826,6 +850,13 @@ export class UserModel {
                     builder,
                 );
             }
+        }
+        if (aggregatedInvalidScopes.size > 0) {
+            Logger.warn(
+                `Service account ${userUuid} project custom roles reference scopes not in the runtime vocabulary: ${[
+                    ...aggregatedInvalidScopes,
+                ].join(', ')}`,
+            );
         }
     }
 
