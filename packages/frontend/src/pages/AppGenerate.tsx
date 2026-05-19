@@ -2068,32 +2068,28 @@ const AppGenerate: FC = () => {
                                             }
                                         />
                                         <Group gap="xs">
-                                            {previewApp &&
-                                                screenshotAvailable && (
-                                                    <ScreenshotButton
-                                                        onClick={() =>
-                                                            void handleCaptureScreenshot()
-                                                        }
-                                                        disabled={
-                                                            isLoading ||
-                                                            imageAttachments.length >=
-                                                                MAX_IMAGES_PER_VERSION
-                                                        }
-                                                        loading={
-                                                            isCapturingScreenshot
-                                                        }
-                                                    />
-                                                )}
-                                            {inspectorAvailable && (
-                                                <InspectButton
-                                                    enabled={inspectorEnabled}
-                                                    onToggle={() =>
-                                                        setInspectorEnabled(
-                                                            (v) => !v,
-                                                        )
-                                                    }
-                                                />
-                                            )}
+                                            <ScreenshotButton
+                                                onClick={() =>
+                                                    void handleCaptureScreenshot()
+                                                }
+                                                disabled={
+                                                    !previewApp ||
+                                                    !screenshotAvailable ||
+                                                    isLoading ||
+                                                    imageAttachments.length >=
+                                                        MAX_IMAGES_PER_VERSION
+                                                }
+                                                loading={isCapturingScreenshot}
+                                            />
+                                            <InspectButton
+                                                enabled={inspectorEnabled}
+                                                onToggle={() =>
+                                                    setInspectorEnabled(
+                                                        (v) => !v,
+                                                    )
+                                                }
+                                                disabled={!inspectorAvailable}
+                                            />
                                             {isBuilding ? (
                                                 <ActionIcon
                                                     size="lg"

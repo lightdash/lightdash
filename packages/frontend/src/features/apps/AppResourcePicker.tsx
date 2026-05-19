@@ -66,8 +66,8 @@ const SAMPLE_DATA_TOOLTIP =
  * Button that captures a screenshot of the live preview and adds it as an
  * image attachment. Shows a loader while the capture is in flight.
  *
- * The caller is expected to render this only when a capture-capable preview
- * is mounted (i.e. gate on `screenshotAvailable`), mirroring `InspectButton`.
+ * Always rendered so the toolbar shape is stable; pass `disabled` when the
+ * preview isn't mounted or the iframe SDK hasn't announced screenshot support.
  */
 export const ScreenshotButton: FC<{
     onClick: () => void;
@@ -95,14 +95,14 @@ export const ScreenshotButton: FC<{
  * inserted as bracketed references at the textarea cursor (e.g.
  * `[button "Total Revenue"]: `), so the user can compose targeted edits.
  *
- * The caller is expected to render this only when an inspector-capable
- * preview is mounted (i.e. gate on `inspectorAvailable`), so no `disabled`
- * prop is needed.
+ * Always rendered so the toolbar shape is stable; pass `disabled` when the
+ * preview isn't mounted or the iframe SDK hasn't announced inspector support.
  */
 export const InspectButton: FC<{
     enabled: boolean;
     onToggle: () => void;
-}> = ({ enabled, onToggle }) => (
+    disabled?: boolean;
+}> = ({ enabled, onToggle, disabled }) => (
     <Tooltip
         label={enabled ? 'Inspect mode: on' : 'Inspect element'}
         withArrow
@@ -114,6 +114,7 @@ export const InspectButton: FC<{
             size="lg"
             radius="md"
             onClick={onToggle}
+            disabled={disabled}
             aria-label="Toggle element inspector"
         >
             <MantineIcon icon={IconClick} size={16} />
@@ -526,16 +527,18 @@ export const AttachButton: FC<{
             trapFocus
         >
             <Popover.Target>
-                <ActionIcon
-                    variant="default"
-                    size="lg"
-                    radius="md"
-                    onClick={() => setOpened((o) => !o)}
-                    disabled={disabled}
-                    aria-label="Attach resources"
-                >
-                    <MantineIcon icon={IconPlus} size={16} />
-                </ActionIcon>
+                <Tooltip label="Add resources" withArrow position="top">
+                    <ActionIcon
+                        variant="default"
+                        size="lg"
+                        radius="md"
+                        onClick={() => setOpened((o) => !o)}
+                        disabled={disabled}
+                        aria-label="Attach resources"
+                    >
+                        <MantineIcon icon={IconPlus} size={16} />
+                    </ActionIcon>
+                </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
                 {view === 'menu' ? (
@@ -556,7 +559,11 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
-                            onClick={() => setView('dashboard')}
+                            onClick={
+                                dashboardDisabled
+                                    ? undefined
+                                    : () => setView('dashboard')
+                            }
                             disabled={dashboardDisabled}
                             data-disabled={dashboardDisabled || undefined}
                         >
