@@ -2910,6 +2910,13 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
+            setSchedulerJobLogContext({
+                jobId,
+                schedulerUuid,
+                schedulerName: scheduler.name,
+                savedSqlUuid: scheduler.savedSqlUuid,
+            });
+
             const { format, savedChartUuid, dashboardUuid, thresholds } =
                 scheduler;
 

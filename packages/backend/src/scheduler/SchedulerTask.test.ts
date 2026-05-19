@@ -83,6 +83,28 @@ describe('setSchedulerJobLogContext', () => {
             setSchedulerJobLogContext({ jobId: 'job-1' }),
         ).not.toThrow();
     });
+
+    it('replaces (not merges) the scheduler sub-context on a second call', () => {
+        ExecutionContext.run(() => {
+            setSchedulerJobLogContext({
+                jobId: 'job-7',
+                schedulerUuid: 'sched-7',
+            });
+            setSchedulerJobLogContext({
+                jobId: 'job-7',
+                schedulerUuid: 'sched-7',
+                schedulerName: 'Weekly gsheets sync',
+                savedSqlUuid: 'sql-7',
+            });
+            const ctx = ExecutionContext.get<ExecutionContextInfo>();
+            expect(ctx.scheduler).toEqual({
+                job_id: 'job-7',
+                scheduler_uuid: 'sched-7',
+                scheduler_name: 'Weekly gsheets sync',
+                saved_sql_uuid: 'sql-7',
+            });
+        }, {} as ExecutionContextInfo);
+    });
 });
 
 describe('isPositiveThresholdAlert', () => {
