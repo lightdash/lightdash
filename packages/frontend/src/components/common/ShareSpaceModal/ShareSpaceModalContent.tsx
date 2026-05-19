@@ -50,6 +50,7 @@ import MantineModal from '../MantineModal';
 import PaginateControl from '../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import type { ShareSpaceProps } from './index';
+import { ServiceAccountBadge } from './ServiceAccountBadge';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import classes from './ShareSpaceModalContent.module.css';
 import {
@@ -145,6 +146,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.firstName,
                                     user.lastName,
                                     user.email,
+                                    user.isInternal,
                                 )}
                             </Avatar>
                             <Text fw={600} fz="sm" truncate>
@@ -153,6 +155,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.firstName,
                                     user.lastName,
                                     user.email,
+                                    user.isInternal,
                                 )}
                                 {isSessionUser ? (
                                     <Text fw={400} fz="sm" span c="ldGray.6">
@@ -161,6 +164,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     </Text>
                                 ) : null}
                             </Text>
+                            {user.isInternal ? <ServiceAccountBadge /> : null}
                         </Group>
 
                         <Badge
@@ -371,6 +375,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                         u.firstName,
                         u.lastName,
                         u.email,
+                        u.isInternal,
                     ) ?? '';
                 return name.toLowerCase().includes(lower);
             });

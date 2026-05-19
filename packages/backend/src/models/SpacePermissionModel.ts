@@ -436,10 +436,6 @@ export class SpacePermissionModel {
         );
     }
 
-    /**
-     * Fetches user metadata (firstName, lastName, email) for a list of user UUIDs.
-     * Used to enrich SpaceAccess[] into SpaceShare[] for the share modal UI.
-     */
     async getUserMetadataByUuids(
         userUuids: string[],
     ): Promise<Record<string, SpaceAccessUserMetadata>> {
@@ -450,23 +446,33 @@ export class SpacePermissionModel {
                 if (userUuids.length === 0) return {};
 
                 const rows = await this.database(UserTableName)
-                    .innerJoin(
-                        EmailTableName,
-                        `${UserTableName}.user_id`,
-                        `${EmailTableName}.user_id`,
-                    )
-                    .where(`${EmailTableName}.is_primary`, true)
+                    .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                        this.on(
+                            `${UserTableName}.user_id`,
+                            '=',
+                            `${EmailTableName}.user_id`,
+                        ).andOnVal(`${EmailTableName}.is_primary`, true);
+                    })
                     .whereIn(`${UserTableName}.user_uuid`, userUuids)
-                    .select<(SpaceAccessUserMetadata & { userUuid: string })[]>(
-                        {
-                            userUuid: `${UserTableName}.user_uuid`,
-                            firstName: `${UserTableName}.first_name`,
-                            lastName: `${UserTableName}.last_name`,
-                            email: `${EmailTableName}.email`,
-                        },
-                    );
+                    .select<
+                        (SpaceAccessUserMetadata & {
+                            userUuid: string;
+                            email: string | null;
+                        })[]
+                    >({
+                        userUuid: `${UserTableName}.user_uuid`,
+                        firstName: `${UserTableName}.first_name`,
+                        lastName: `${UserTableName}.last_name`,
+                        email: `${EmailTableName}.email`,
+                        isInternal: `${UserTableName}.is_internal`,
+                    });
 
-                return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+                return Object.fromEntries(
+                    rows.map((r) => [
+                        r.userUuid,
+                        { ...r, email: r.email ?? '' },
+                    ]),
+                );
             },
         );
     }

@@ -230,6 +230,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             user.firstName,
                             user.lastName,
                             user.email,
+                            false,
                         ) ?? userUuid,
                 };
             })
@@ -365,6 +366,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 user.firstName,
                                 user.lastName,
                                 user.email,
+                                false,
                             )}
                             size="sm"
                             radius="xl"

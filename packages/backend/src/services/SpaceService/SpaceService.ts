@@ -189,6 +189,7 @@ export class SpaceService
             firstName: userInfoMap[a.userUuid]?.firstName ?? '',
             lastName: userInfoMap[a.userUuid]?.lastName ?? '',
             email: userInfoMap[a.userUuid]?.email ?? '',
+            isInternal: userInfoMap[a.userUuid]?.isInternal ?? false,
         }));
 
         const [queries, dashboards, childSpaces] = await Promise.all([
