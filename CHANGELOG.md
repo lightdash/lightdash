@@ -1,3 +1,10 @@
+## [0.2976.3](https://github.com/lightdash/lightdash/compare/0.2976.2...0.2976.3) (2026-05-19)
+
+
+### Bug Fixes
+
+* scope dashboard editor sessionStorage keys to dashboardUuid ([#23254](https://github.com/lightdash/lightdash/issues/23254)) ([52fe9f0](https://github.com/lightdash/lightdash/commit/52fe9f0b527809296130686068779f167491fe5a))
+
 ## [0.2976.2](https://github.com/lightdash/lightdash/compare/0.2976.1...0.2976.2) (2026-05-19)
 
 
