@@ -53,6 +53,37 @@
     }
 }
 
+.chartItemSelected {
+    @mixin light {
+        background-color: var(--mantine-color-blue-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-blue-9);
+    }
+
+    &:hover {
+        @mixin light {
+            background-color: var(--mantine-color-blue-1);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-blue-8);
+        }
+    }
+}
+
+.chartItemSelectedIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+
+    @mixin light {
+        color: var(--mantine-color-blue-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-blue-3);
+    }
+}
+
 .spaceGroupLabel {
     display: flex;
     align-items: center;
@@ -102,23 +133,144 @@
 
 .selectedQueryList {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
     flex: 1;
     min-width: 0;
 }
 
 .selectedQueryItem {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--mantine-spacing-xs);
-    padding: 4px 6px;
-    border-radius: var(--mantine-radius-sm);
+    gap: 4px;
+    padding: 1px 2px 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    height: 22px;
+    max-width: 100%;
+    min-width: 0;
+    transition:
+        background-color 80ms ease,
+        border-color 80ms ease;
 
     @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
+        background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-3);
     }
     @mixin dark {
         background-color: var(--mantine-color-ldDark-4);
+        border-color: var(--mantine-color-ldDark-6);
+    }
+}
+
+.selectedQueryItemActive {
+    @mixin light {
+        background-color: var(--mantine-color-blue-0);
+        border-color: var(--mantine-color-blue-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-blue-9);
+        border-color: var(--mantine-color-blue-7);
+    }
+}
+
+.selectedQueryItemIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.selectedQueryItemName {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.selectedQueryItemRow {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.addDataButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 1px dashed;
+    cursor: pointer;
+    background: transparent;
+    transition:
+        border-color 80ms ease,
+        background-color 80ms ease,
+        color 80ms ease;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-4);
+        color: var(--mantine-color-ldGray-6);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-5);
+        color: var(--mantine-color-ldDark-2);
+    }
+
+    &:hover:not(:disabled) {
+        @mixin light {
+            border-color: var(--mantine-color-blue-5);
+            background-color: var(--mantine-color-blue-0);
+            color: var(--mantine-color-blue-7);
+        }
+        @mixin dark {
+            border-color: var(--mantine-color-blue-6);
+            background-color: var(--mantine-color-blue-9);
+            color: var(--mantine-color-blue-2);
+        }
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+}
+
+.inlineDataToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    transition: background-color 80ms ease;
+
+    @mixin light {
+        color: var(--mantine-color-blue-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-blue-3);
+    }
+
+    &:hover:not(:disabled) {
+        @mixin light {
+            background-color: var(--mantine-color-blue-2);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-blue-8);
+        }
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
 }
