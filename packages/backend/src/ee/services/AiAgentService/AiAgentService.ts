@@ -42,6 +42,7 @@ import {
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    getItemId,
     isExploreError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -314,16 +315,54 @@ function extractLatestQueryExplore(
                     label: explore.label,
                     description: baseTable.description ?? null,
                     dimensions: Object.values(baseTable.dimensions).map(
-                        (d) => d.label,
+                        (d) => ({
+                            id: getItemId(d),
+                            label: d.label,
+                        }),
                     ),
-                    metrics: Object.values(baseTable.metrics).map(
-                        (m) => m.label,
-                    ),
+                    metrics: Object.values(baseTable.metrics).map((m) => ({
+                        id: getItemId(m),
+                        label: m.label,
+                    })),
                 };
             }
         }
     }
     return null;
+}
+
+function validateGeneratedSuggestion(
+    chip: AgentSuggestion,
+    catalog: SuggestionValidationCatalog,
+    availableExplores: Explore[],
+) {
+    const result = validateAgentSuggestion(chip, catalog);
+    if (!result.valid || chip.kind === 'navigate') {
+        return result;
+    }
+
+    const { explore: exploreName, dimensions } = chip.defaults;
+    if (!exploreName || dimensions.length === 0) {
+        return result;
+    }
+
+    const explore = availableExplores.find((e) => e.name === exploreName);
+    if (!explore) {
+        return result;
+    }
+
+    try {
+        validateSelectedFieldsExistence(explore, dimensions);
+        return result;
+    } catch (error) {
+        return {
+            valid: false as const,
+            reason:
+                error instanceof Error
+                    ? error.message
+                    : `unknown dimensions for explore "${exploreName}"`,
+        };
+    }
 }
 
 export class AiAgentService extends BaseService {
@@ -718,10 +757,16 @@ export class AiAgentService extends BaseService {
                 description: baseTable.description ?? null,
                 dimensions: Object.values(baseTable.dimensions)
                     .slice(0, 8)
-                    .map((d) => d.label),
+                    .map((d) => ({
+                        id: getItemId(d),
+                        label: d.label,
+                    })),
                 metrics: Object.values(baseTable.metrics)
                     .slice(0, 8)
-                    .map((m) => m.label),
+                    .map((m) => ({
+                        id: getItemId(m),
+                        label: m.label,
+                    })),
             };
         });
 
@@ -816,7 +861,11 @@ export class AiAgentService extends BaseService {
             }
 
             const validated = resolved.filter((chip) => {
-                const result = validateAgentSuggestion(chip, validationCatalog);
+                const result = validateGeneratedSuggestion(
+                    chip,
+                    validationCatalog,
+                    availableExplores,
+                );
                 if (!result.valid) {
                     dropped.push(`${chip.label} (${result.reason})`);
                     return false;

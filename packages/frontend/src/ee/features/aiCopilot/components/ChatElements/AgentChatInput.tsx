@@ -284,6 +284,8 @@ export const AgentChatInput = ({
                     properties: {
                         projectId: projectUuid,
                         agentId: agentUuid,
+                        threadId: threadUuid,
+                        afterMessageId: latestAssistantMessageUuid,
                         chipLabel: chip.label,
                         chipKind: chip.kind,
                         chipTool:
@@ -328,7 +330,16 @@ export const AgentChatInput = ({
             setValueState('');
             trackClick();
         },
-        [editor, projectUuid, agentUuid, track, emptyStateMode, navigate],
+        [
+            editor,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            latestAssistantMessageUuid,
+            track,
+            emptyStateMode,
+            navigate,
+        ],
     );
 
     const handleImpression = useCallback(
