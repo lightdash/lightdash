@@ -159,9 +159,7 @@ export const CreateCredentialsModal: FC<Props> = ({
                             size="xs"
                             disabled={isSaving}
                             data={Object.values(WarehouseTypes)
-                                // DuckLake nests its secrets inside
-                                // catalog/dataPath, so the per-user override
-                                // model doesn't apply yet.
+                                // DuckLake has no per-user override surface yet.
                                 .filter(
                                     (type) => type !== WarehouseTypes.DUCKLAKE,
                                 )

@@ -53,10 +53,7 @@ const getCredentialsWithPlaceholders = (
                 token: '',
             };
         case WarehouseTypes.DUCKLAKE:
-            // DuckLake credentials are not user-overridable per-user yet —
-            // user credentials only apply when requireUserCredentials is set,
-            // and the nested catalog/dataPath fields don't fit the per-user
-            // password override pattern.
+            // DuckLake has no per-user override surface yet.
             return credentials;
         default:
             return assertUnreachable(
