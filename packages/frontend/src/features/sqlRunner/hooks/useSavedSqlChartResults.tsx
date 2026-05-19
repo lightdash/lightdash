@@ -259,6 +259,7 @@ export const useSavedSqlChartResults = (
                             dashboardFilters: args.dashboardFilters,
                             dashboardSorts: args.dashboardSorts,
                             limit: limit ?? MAX_SAFE_INTEGER,
+                            parameters,
                         });
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
                     queryForDownload = await getDashboardSqlChartPivotChartData(
@@ -271,6 +272,7 @@ export const useSavedSqlChartResults = (
                             savedSqlUuid,
                             context: args.context as QueryExecutionContext,
                             limit: limit ?? MAX_SAFE_INTEGER,
+                            parameters,
                         },
                     );
                 } else {
@@ -292,6 +294,7 @@ export const useSavedSqlChartResults = (
             context,
             projectUuid,
             savedSqlUuid,
+            parameters,
         ],
     );
 
