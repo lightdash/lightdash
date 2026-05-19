@@ -2,6 +2,14 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+## Iteration mindset
+
+This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
+
+Extended thinking adds latency and should only be used when it will meaningfully improve answer quality. Use it for genuinely load-bearing decisions: modelling a non-obvious query, resolving a semantic-layer ambiguity, picking the right chart type for an unusual data shape. Skip it for everything else — once you've picked a visual direction, don't re-ideate on it; pick reasonable defaults for naming, file structure, and component choice and move on. When in doubt, respond directly.
+
+Don't verify your own output. **After you Write or Edit a file, do not Read it back, do not Grep over it, do not run any shell command to "check" it.** The pipeline runs `pnpm build` after you exit and will surface any compile error in a follow-up turn — that's where fixes happen, not before. Re-reading your own writes catches nothing the build doesn't and burns a tool round-trip every time.
+
 ## Environment Constraints
 
 - **Only write files in `src/`** — config files, `package.json`, and everything outside `src/` is locked.
