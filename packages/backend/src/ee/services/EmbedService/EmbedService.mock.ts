@@ -11,6 +11,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -108,6 +109,7 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     embedModel: embedModelMock,
     dashboardModel: {} as DashboardModel,
     savedChartModel: {} as SavedChartModel,
+    savedSqlModel: {} as SavedSqlModel,
     projectModel: projectModelMock,
     userAttributesModel: {} as UserAttributesModel,
     projectService: {} as ProjectService,

@@ -5,6 +5,7 @@ import {
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiSqlChart,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -79,6 +80,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
@@ -101,6 +103,7 @@ type Dependencies = {
     embedModel: EmbedModel;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
@@ -122,6 +125,8 @@ export class EmbedService extends BaseService {
 
     private readonly savedChartModel: SavedChartModel;
 
+    private readonly savedSqlModel: SavedSqlModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly userAttributesModel: UserAttributesModel;
@@ -141,6 +146,7 @@ export class EmbedService extends BaseService {
         this.embedModel = dependencies.embedModel;
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
+        this.savedSqlModel = dependencies.savedSqlModel;
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
@@ -1209,6 +1215,67 @@ export class EmbedService extends BaseService {
                 `This SQL chart does not belong to dashboard ${dashboardUuid}`,
             );
         }
+    }
+
+    async getDashboardSqlChartTile({
+        account,
+        projectUuid,
+        tileUuid,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+    }): Promise<ApiSqlChart['results']> {
+        const { dashboardUuids, allowAllDashboards, user } =
+            await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid: dashboard.organizationUuid,
+        });
+
+        await this._permissionsGetSqlChartAndResults(
+            { allowAllDashboards, dashboardUuids },
+            projectUuid,
+            savedSqlUuid,
+            dashboardUuid,
+        );
+
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
+        return {
+            ...savedChart,
+            space: {
+                ...savedChart.space,
+                userAccess: undefined,
+            },
+            resolvedColorPalette,
+        };
     }
 
     async executeAsyncDashboardSqlChartTileQuery({

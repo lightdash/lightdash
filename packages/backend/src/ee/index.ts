@@ -108,6 +108,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
+                    savedSqlModel: models.getSavedSqlModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),

@@ -7,6 +7,7 @@ import {
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiSqlChart,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
     assertSessionAuth,
@@ -344,6 +345,30 @@ export class EmbedController extends BaseController {
                 pivotResults: body.pivotResults,
                 limit: body.limit,
             });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Get('/sql-chart-tile/{tileUuid}')
+    @OperationId('getEmbedDashboardSqlChartTile')
+    async getEmbedDashboardSqlChartTile(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() tileUuid: string,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const results = await this.getEmbedService().getDashboardSqlChartTile({
+            account: req.account,
+            projectUuid,
+            tileUuid,
+        });
 
         return {
             status: 'ok',
