@@ -53,6 +53,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
     return (
         <chart
             chartUuid={chart.uuid}
+            slug={chart.slug}
             searchRank={chart.search_rank}
             chartType={chart.chartType}
             chartSource={chart.chartSource}
@@ -94,6 +95,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
 const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
     <dashboard
         dashboardUuid={dashboard.uuid}
+        slug={dashboard.slug}
         spaceUuid={dashboard.spaceUuid}
         viewCount={dashboard.viewsCount}
         href={`${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view#dashboard-link`}

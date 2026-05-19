@@ -20,7 +20,7 @@ export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'> &
     RankedItem;
 export type DashboardSearchResult = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'
 > & {
     validationErrors: {
         validationUuid: ValidationErrorDashboardResponse['validationUuid'];
@@ -53,7 +53,7 @@ export type DashboardSearchResult = Pick<
 
 export type SavedChartSearchResult = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'
 > & {
     chartType: ChartKind;
     validationErrors: {
@@ -105,26 +105,25 @@ export type SqlChartSearchResult = Pick<
 
 export type AllChartsSearchResult = Pick<
     SavedChartSearchResult,
-    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
-> &
-    Partial<Pick<SqlChartSearchResult, 'slug'>> & {
-        chartType: ChartKind;
-        chartSource: 'saved' | 'sql';
-        viewsCount: number;
-        firstViewedAt: string | null;
-        lastModified: string | null;
-        createdBy: {
-            firstName: string;
-            lastName: string;
-            userUuid: string;
-        } | null;
-        lastUpdatedBy: {
-            firstName: string;
-            lastName: string;
-            userUuid: string;
-        } | null;
-        verification: ContentVerificationInfo | null;
-    } & RankedItem;
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'
+> & {
+    chartType: ChartKind;
+    chartSource: 'saved' | 'sql';
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    verification: ContentVerificationInfo | null;
+} & RankedItem;
 
 export type TableSearchResult = Pick<
     Table,
