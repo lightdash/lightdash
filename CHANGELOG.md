@@ -1,3 +1,16 @@
+# [0.2982.0](https://github.com/lightdash/lightdash/compare/0.2981.3...0.2982.0) (2026-05-19)
+
+
+### Bug Fixes
+
+* **embed:** send JWT on streamed result reads ([#23282](https://github.com/lightdash/lightdash/issues/23282)) ([e709ccf](https://github.com/lightdash/lightdash/commit/e709ccf50217a15015aa0353a0c8404dbfe4d6af))
+
+
+### Features
+
+* **embed:** add SQL chart routes for embedded dashboards ([#23284](https://github.com/lightdash/lightdash/issues/23284)) ([d5a3151](https://github.com/lightdash/lightdash/commit/d5a315103e64b326c77cdd35cb2fcc966725052c)), closes [#23285](https://github.com/lightdash/lightdash/issues/23285)
+* **embed:** render SQL chart tiles in embedded dashboards ([#23285](https://github.com/lightdash/lightdash/issues/23285)) ([86d5d9a](https://github.com/lightdash/lightdash/commit/86d5d9a04c9c7705abaad0453bd0830e527b9761))
+
 ## [0.2981.3](https://github.com/lightdash/lightdash/compare/0.2981.2...0.2981.3) (2026-05-19)
 
 
