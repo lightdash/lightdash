@@ -20,6 +20,7 @@ import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentCon
 import { getImproveContext } from '../tools/improveContext';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
@@ -249,6 +250,13 @@ const getAgentTools = (
         getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
     });
 
+    const loadSkill =
+        args.availableSkills.length > 0
+            ? getLoadSkill({
+                  loadSkill: dependencies.loadSkill,
+              })
+            : null;
+
     const tools: ToolSet = {
         findContent,
         getDashboardCharts,
@@ -263,6 +271,7 @@ const getAgentTools = (
             ? { proposeChange }
             : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(loadSkill ? { loadSkill } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),

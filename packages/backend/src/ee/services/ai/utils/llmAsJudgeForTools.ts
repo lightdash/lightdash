@@ -52,7 +52,6 @@ const toolEditContentArgsSchema = z
         patch: z.unknown(),
     })
     .describe('Edit a dashboard or chart by applying a patch.');
-
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',

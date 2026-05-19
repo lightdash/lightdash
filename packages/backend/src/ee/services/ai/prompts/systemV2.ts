@@ -132,6 +132,8 @@ export const getSystemPromptV2 = (args: {
 
     const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
 
+    const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
+
     return {
         role: 'system',
         content: skillsSection ? `${content}\n\n${skillsSection}` : content,
