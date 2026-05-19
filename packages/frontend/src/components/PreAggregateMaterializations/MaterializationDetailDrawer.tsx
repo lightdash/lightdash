@@ -36,11 +36,11 @@ import {
 import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
+import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
 import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
-import { formatDuration, formatFileSize } from './formatters';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
