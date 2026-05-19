@@ -93,6 +93,7 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import * as JsonPatch from 'fast-json-patch';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
@@ -133,6 +134,7 @@ import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { CoderService } from '../../../services/CoderService/CoderService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -171,6 +173,7 @@ import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
     DescribeWarehouseTableFn,
+    EditContentFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -180,6 +183,7 @@ import {
     GetSavedChartFn,
     ListExploresFn,
     ListWarehouseTablesFn,
+    ReadContentFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
@@ -247,6 +251,7 @@ type AiAgentServiceDependencies = {
     userModel: UserModel;
     spaceService: SpaceService;
     projectModel: ProjectModel;
+    coderService: CoderService;
     savedChartService: SavedChartService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
@@ -417,6 +422,8 @@ export class AiAgentService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly coderService: CoderService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -472,6 +479,7 @@ export class AiAgentService extends BaseService {
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
         this.projectModel = dependencies.projectModel;
+        this.coderService = dependencies.coderService;
         this.savedChartService = dependencies.savedChartService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
@@ -3893,6 +3901,121 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid,
             });
 
+        const readContent: ReadContentFn = ({ slug, type }) =>
+            wrapSentryTransaction(
+                'AiAgent.readContent',
+                { slug, type },
+                async () => {
+                    switch (type) {
+                        case 'dashboard': {
+                            const { dashboards } =
+                                await this.coderService.getDashboards(
+                                    user,
+                                    projectUuid,
+                                    [slug],
+                                );
+
+                            const dashboard = dashboards[0];
+                            if (!dashboard) {
+                                throw new NotFoundError(
+                                    `Dashboard "${slug}" was not found`,
+                                );
+                            }
+
+                            return {
+                                type: 'dashboard',
+                                content: dashboard,
+                            };
+                        }
+                        case 'chart': {
+                            const { charts } =
+                                await this.coderService.getCharts(
+                                    user,
+                                    projectUuid,
+                                    [slug],
+                                );
+
+                            const chart = charts[0];
+                            if (!chart) {
+                                throw new NotFoundError(
+                                    `Chart "${slug}" was not found`,
+                                );
+                            }
+
+                            return {
+                                type: 'chart',
+                                content: chart,
+                            };
+                        }
+                        default:
+                            return assertUnreachable(
+                                type,
+                                'Invalid content type',
+                            );
+                    }
+                },
+            );
+
+        const editContent: EditContentFn = ({ slug, type, patch }) =>
+            wrapSentryTransaction(
+                'AiAgent.editContent',
+                { slug, type },
+                async () => {
+                    if (!Array.isArray(patch)) {
+                        throw new ParameterError(
+                            'Patch must be an RFC6902 patch array',
+                        );
+                    }
+
+                    const currentContent = await readContent({ slug, type });
+                    const patchedContent = JsonPatch.applyPatch(
+                        structuredClone(currentContent.content),
+                        patch,
+                    ).newDocument;
+
+                    const patchedSlug =
+                        typeof patchedContent.slug === 'string' &&
+                        patchedContent.slug.length > 0
+                            ? patchedContent.slug
+                            : slug;
+
+                    switch (currentContent.type) {
+                        case 'dashboard':
+                            await this.coderService.upsertDashboard(
+                                user,
+                                projectUuid,
+                                slug,
+                                patchedContent as typeof currentContent.content,
+                                undefined,
+                                undefined,
+                                true,
+                            );
+                            break;
+                        case 'chart':
+                            await this.coderService.upsertChart(
+                                user,
+                                projectUuid,
+                                slug,
+                                patchedContent as typeof currentContent.content,
+                                undefined,
+                                undefined,
+                                true,
+                            );
+                            break;
+                        default:
+                            return assertUnreachable(
+                                currentContent,
+                                'Invalid content type',
+                            );
+                    }
+
+                    return readContent({
+                        slug: patchedSlug,
+                        type,
+                    });
+                },
+            );
+
         const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
             wrapSentryTransaction(
                 'AiAgent.runAsyncQuery',
@@ -4308,6 +4431,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores,
             getExplore,
             findContent,
+            readContent,
+            editContent,
             getDashboardCharts,
             findFields,
             findExplores,
@@ -4400,6 +4525,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores,
             getExplore,
             findContent,
+            readContent,
+            editContent,
             getDashboardCharts,
             findFields,
             findExplores,
@@ -4493,6 +4620,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const availableSkills = builtInSkillsEnabled
             ? await BuiltInSkills.getAiAgentSkills()
             : [];
+        const { enabled: agentRevampEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentRevamp,
+            });
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
@@ -4521,6 +4653,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             warehouseType,
             warehouseSchema,
             availableSkills,
+            enableAgentRevamp: agentRevampEnabled,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
@@ -4542,6 +4675,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores,
             getExplore,
             findContent,
+            readContent,
+            editContent,
             getDashboardCharts,
             findFields,
             findExplores,

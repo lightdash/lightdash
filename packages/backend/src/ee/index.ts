@@ -153,6 +153,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
                     projectModel: models.getProjectModel(),
+                    coderService: repository.getCoderService(),
                     savedChartService: repository.getSavedChartService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),

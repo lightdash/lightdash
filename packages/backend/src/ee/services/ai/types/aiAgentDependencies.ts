@@ -8,7 +8,9 @@ import {
     AnyType,
     CacheMetadata,
     CatalogField,
+    ChartAsCode,
     CreateChangeParams,
+    DashboardAsCode,
     DashboardSearchResult,
     Explore,
     ExploreCompiler,
@@ -95,6 +97,35 @@ export type GetDashboardChartsFn = (args: {
         totalPageCount: number;
     };
 }>;
+
+export type ReadContentFn = (args: {
+    slug: string;
+    type: 'dashboard' | 'chart';
+}) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+      }
+>;
+
+export type EditContentFn = (args: {
+    slug: string;
+    type: 'dashboard' | 'chart';
+    patch: unknown;
+}) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+      }
+>;
 
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 
