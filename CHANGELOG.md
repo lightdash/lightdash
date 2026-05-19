@@ -1,3 +1,10 @@
+# [0.2971.0](https://github.com/lightdash/lightdash/compare/0.2970.0...0.2971.0) (2026-05-19)
+
+
+### Features
+
+* **ai:** add period-over-period to runQuery tool ([#23229](https://github.com/lightdash/lightdash/issues/23229)) ([3e73eb1](https://github.com/lightdash/lightdash/commit/3e73eb123b1b05861eb9524613febef68a64ca5c))
+
 # [0.2970.0](https://github.com/lightdash/lightdash/compare/0.2969.0...0.2970.0) (2026-05-18)
 
 
