@@ -1,4 +1,9 @@
-import { AnyType, deepEqual } from '@lightdash/common';
+import {
+    AnyType,
+    CustomFormatType,
+    deepEqual,
+    MetricType,
+} from '@lightdash/common';
 import knex from 'knex';
 import {
     FunctionQueryMatcher,
@@ -8,7 +13,10 @@ import {
     Tracker,
 } from 'knex-mock-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    SavedChartsTableName,
+    type DBFilteredAdditionalMetrics,
+} from '../database/entities/savedCharts';
 import { SavedChartModel } from './SavedChartModel';
 import { chartSummary } from './SavedChartModel.mock';
 
@@ -132,11 +140,12 @@ describe('getLatestVersionSummaries', () => {
 
 describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOptions', () => {
     it('preserves formatOptions when loaded as parsed jsonb object', () => {
-        const dbRow: AnyType = {
+        const dbRow: DBFilteredAdditionalMetrics = {
+            saved_queries_version_additional_metric_id: 1,
             uuid: 'uuid-1',
             name: 'total_revenue__pop__week_1__abc',
             table: 'orders',
-            type: 'sum',
+            type: MetricType.SUM,
             sql: '${TABLE}.amount',
             label: 'Revenue (Previous week)',
             hidden: true,
@@ -147,7 +156,7 @@ describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOp
             period_offset: 1,
             // jsonb auto-parsed by node-pg
             format_options: {
-                type: 'currency',
+                type: CustomFormatType.CURRENCY,
                 currency: 'USD',
             },
         };
@@ -158,7 +167,7 @@ describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOp
             );
 
         expect(result.formatOptions).toEqual({
-            type: 'currency',
+            type: CustomFormatType.CURRENCY,
             currency: 'USD',
         });
         expect(result.generationType).toBe('periodOverPeriod');
@@ -167,11 +176,12 @@ describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOp
 
     it('preserves formatOptions when jsonb is returned as a JSON string', () => {
         // Defensive: some pg/knex configurations return jsonb as a string
-        const dbRow: AnyType = {
+        const dbRow: DBFilteredAdditionalMetrics = {
+            saved_queries_version_additional_metric_id: 1,
             uuid: 'uuid-1',
             name: 'total_revenue__pop__week_1__abc',
             table: 'orders',
-            type: 'sum',
+            type: MetricType.SUM,
             sql: '${TABLE}.amount',
             label: 'Revenue (Previous week)',
             hidden: true,
@@ -192,7 +202,7 @@ describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOp
         // seriesValueFormatter reads item.formatOptions.type which is undefined
         // on a string.
         expect(result.formatOptions).toEqual({
-            type: 'currency',
+            type: CustomFormatType.CURRENCY,
             currency: 'USD',
         });
     });
