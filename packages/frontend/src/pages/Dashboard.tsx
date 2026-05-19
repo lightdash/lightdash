@@ -256,14 +256,15 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles === undefined) return;
+        if (!dashboardUuid) return;
 
         clearIsEditingDashboardChart();
 
-        const unsavedDashboardTilesRaw = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
+        const tilesStorageKey = `unsavedDashboardTiles:${dashboardUuid}`;
+        const unsavedDashboardTilesRaw =
+            sessionStorage.getItem(tilesStorageKey);
         if (unsavedDashboardTilesRaw) {
-            sessionStorage.removeItem('unsavedDashboardTiles');
+            sessionStorage.removeItem(tilesStorageKey);
 
             try {
                 const unsavedDashboardTiles = JSON.parse(
@@ -284,9 +285,10 @@ const Dashboard: FC = () => {
             }
         }
 
-        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
+        const tabsStorageKey = `dashboardTabs:${dashboardUuid}`;
+        const unsavedDashboardTabsRaw = sessionStorage.getItem(tabsStorageKey);
 
-        sessionStorage.removeItem('dashboardTabs');
+        sessionStorage.removeItem(tabsStorageKey);
 
         if (unsavedDashboardTabsRaw) {
             try {
@@ -308,6 +310,7 @@ const Dashboard: FC = () => {
     }, [
         isDashboardLoading,
         dashboardTiles,
+        dashboardUuid,
         activeTab,
         setHaveTilesChanged,
         setDashboardTiles,
@@ -626,7 +629,7 @@ const Dashboard: FC = () => {
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
             ) &&
             // Allow user to add a new table
-            !sessionStorage.getItem('unsavedDashboardTiles')
+            !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
             return true; //blocks navigation
         }
