@@ -1,3 +1,11 @@
+# [0.2981.0](https://github.com/lightdash/lightdash/compare/0.2980.0...0.2981.0) (2026-05-19)
+
+
+### Features
+
+* add ai agent content tools ([#23261](https://github.com/lightdash/lightdash/issues/23261)) ([e7b46dc](https://github.com/lightdash/lightdash/commit/e7b46dc51fe1ea84afa59a89fcfff32b34c84b2a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add built-in AI agent skills with loadSkill and loadSkillResource tools ([#23234](https://github.com/lightdash/lightdash/issues/23234)) ([8877ac1](https://github.com/lightdash/lightdash/commit/8877ac1cc36d063c5aaa5efd47c44ab1f821dcfb))
+
 # [0.2980.0](https://github.com/lightdash/lightdash/compare/0.2979.0...0.2980.0) (2026-05-19)
 
 
