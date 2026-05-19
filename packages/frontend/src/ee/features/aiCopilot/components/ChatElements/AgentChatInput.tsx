@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -118,6 +119,7 @@ export const AgentChatInput = ({
     defaultValue,
     onValueChange,
 }: AgentChatInputProps) => {
+    const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
@@ -278,10 +280,12 @@ export const AgentChatInput = ({
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
             const trackClick = () => {
-                if (!projectUuid || !agentUuid) return;
+                const organizationId = user.data?.organizationUuid;
+                if (!organizationId || !projectUuid || !agentUuid) return;
                 track({
                     name: EventName.AI_AGENT_SUGGESTION_CLICK,
                     properties: {
+                        organizationId,
                         projectId: projectUuid,
                         agentId: agentUuid,
                         threadId: threadUuid,
@@ -336,6 +340,7 @@ export const AgentChatInput = ({
             agentUuid,
             threadUuid,
             latestAssistantMessageUuid,
+            user.data?.organizationUuid,
             track,
             emptyStateMode,
             navigate,
