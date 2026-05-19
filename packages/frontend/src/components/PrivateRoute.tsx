@@ -32,10 +32,20 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (!health.data?.isAuthenticated) {
+        // Also pass the original URL as a query param. State.from is the
+        // primary mechanism, but it can be lost across hard redirects
+        // (window.location.href = '/login'), server-issued res.redirect, and
+        // some browser refresh paths — the query param survives all of those.
+        const originalUrl = `${location.pathname}${location.search}${location.hash}`;
+        const search =
+            originalUrl && originalUrl !== '/'
+                ? `?redirect=${encodeURIComponent(originalUrl)}`
+                : '';
         return (
             <Navigate
                 to={{
                     pathname: '/login',
+                    search,
                 }}
                 state={{ from: location }}
             />

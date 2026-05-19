@@ -97,10 +97,17 @@ const Login: FC<{}> = () => {
     useEffect(() => {
         if (loginOptions && loginOptionsSuccess) {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
-                window.location.href = loginOptions.redirectUri;
+                // Forward the redirect target so the backend can store it as
+                // returnTo and bring the user back to the original page after
+                // SSO completes (otherwise they'd land on `/`).
+                const ssoUrl = new URL(loginOptions.redirectUri);
+                if (redirectUrl && redirectUrl !== '/') {
+                    ssoUrl.searchParams.set('redirect', redirectUrl);
+                }
+                window.location.href = ssoUrl.href;
             }
         }
-    }, [loginOptionsSuccess, loginOptions]);
+    }, [loginOptionsSuccess, loginOptions, redirectUrl]);
 
     const ssoOptions = loginOptions
         ? (loginOptions.showOptions.filter(
