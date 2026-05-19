@@ -58,6 +58,10 @@ export type UnavailableMcpServer = {
     status: AiMcpServerConnectionStatus;
 };
 
+export type SqlApprovalMode =
+    | { type: 'manual' }
+    | { type: 'auto'; decidedByUserUuid: string | null };
+
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     mcpServers: AiAgentMcpServer[];
@@ -71,8 +75,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     canRunSql: boolean;
-    autoApproveSql: boolean;
-    autoApproveSqlUserUuid: string | null;
+    sqlApprovalMode: SqlApprovalMode;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];

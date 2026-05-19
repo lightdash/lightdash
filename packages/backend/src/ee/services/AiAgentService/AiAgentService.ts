@@ -169,7 +169,11 @@ import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
-import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
+import {
+    AiAgentArgs,
+    AiAgentDependencies,
+    type SqlApprovalMode,
+} from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
     DescribeWarehouseTableFn,
@@ -2388,11 +2392,11 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
-            autoApproveSql = false,
+            sqlApprovalMode = { type: 'manual' },
         }: {
             agentUuid: string;
             threadUuid: string;
-            autoApproveSql?: boolean;
+            sqlApprovalMode?: SqlApprovalMode;
         },
     ): Promise<string> {
         try {
@@ -2429,7 +2433,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     // Non-stream callers (eval, etc.) preserve flag-only gating.
                     enableSqlMode: true,
-                    autoApproveSql,
+                    sqlApprovalMode,
                 },
             );
             return response;
@@ -4466,7 +4470,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
-            autoApproveSql?: boolean;
+            sqlApprovalMode?: SqlApprovalMode;
             toolHints?: string[];
         },
     ): Promise<AgentResponseStream>;
@@ -4478,7 +4482,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
-            autoApproveSql?: boolean;
+            sqlApprovalMode?: SqlApprovalMode;
             toolHints?: string[];
         },
     ): Promise<string>;
@@ -4490,7 +4494,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
-            autoApproveSql?: boolean;
+            sqlApprovalMode?: SqlApprovalMode;
             toolHints?: string[];
         },
     ): Promise<string>;
@@ -4501,7 +4505,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
-            autoApproveSql?: boolean;
+            sqlApprovalMode?: SqlApprovalMode;
             toolHints?: string[];
         } & (
             | {
@@ -4657,10 +4661,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             canRunSql,
-            autoApproveSql: options.autoApproveSql ?? false,
-            autoApproveSqlUserUuid: options.autoApproveSql
-                ? user.userUuid
-                : null,
+            sqlApprovalMode: options.sqlApprovalMode ?? { type: 'manual' },
             warehouseType,
             warehouseSchema,
             availableSkills,
@@ -7769,7 +7770,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.generateAgentThreadResponse(sessionUser, {
                 agentUuid,
                 threadUuid,
-                autoApproveSql: true,
+                sqlApprovalMode: {
+                    type: 'auto',
+                    decidedByUserUuid: sessionUser.userUuid,
+                },
             });
 
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {

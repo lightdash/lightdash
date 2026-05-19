@@ -7,8 +7,7 @@ type RunSqlOutput = {
     metadata?: { status: string };
 };
 type MakeToolOptions = {
-    autoApproveSql?: boolean;
-    autoApproveSqlUserUuid?: string | null;
+    sqlApprovalMode?: Parameters<typeof getRunSql>[0]['sqlApprovalMode'];
     waitForSqlApproval?: jest.Mock;
     recordSqlApproval?: jest.Mock;
 };
@@ -42,8 +41,7 @@ const makePrompt = (): AiWebAppPrompt => ({
 });
 
 const makeTool = ({
-    autoApproveSql = false,
-    autoApproveSqlUserUuid = null,
+    sqlApprovalMode = { type: 'manual' },
     waitForSqlApproval = jest.fn().mockResolvedValue('approved'),
     recordSqlApproval = jest.fn().mockResolvedValue(true),
 }: MakeToolOptions = {}) => {
@@ -60,8 +58,7 @@ const makeTool = ({
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval,
-        autoApproveSql,
-        autoApproveSqlUserUuid,
+        sqlApprovalMode,
     };
 
     return {
@@ -73,8 +70,10 @@ const makeTool = ({
 describe('getRunSql', () => {
     it('auto-approves SQL without waiting for human approval', async () => {
         const { tool, dependencies } = makeTool({
-            autoApproveSql: true,
-            autoApproveSqlUserUuid: 'user-uuid',
+            sqlApprovalMode: {
+                type: 'auto',
+                decidedByUserUuid: 'user-uuid',
+            },
         });
 
         const output = await executeRunSql(tool);

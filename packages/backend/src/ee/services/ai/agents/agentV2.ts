@@ -215,8 +215,7 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              autoApproveSql: args.autoApproveSql,
-              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+              sqlApprovalMode: args.sqlApprovalMode,
           })
         : null;
 

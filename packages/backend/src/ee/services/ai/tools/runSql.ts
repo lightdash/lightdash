@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
+import type { SqlApprovalMode } from '../types/aiAgent';
 import type {
     GetPromptFn,
     RecordSqlApprovalFn,
@@ -28,8 +29,7 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
-    autoApproveSql?: boolean;
-    autoApproveSqlUserUuid?: string | null;
+    sqlApprovalMode?: SqlApprovalMode;
 };
 
 // Strip --line and /* block */ comments + string literals so subsequent
@@ -75,8 +75,7 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
-    autoApproveSql = false,
-    autoApproveSqlUserUuid = null,
+    sqlApprovalMode = { type: 'manual' },
 }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
@@ -97,7 +96,8 @@ export const getRunSql = ({
             const isSlack = isSlackPrompt(prompt);
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
-            const shouldAutoApprove = autoApproveSql || slackAutoApproved;
+            const shouldAutoApprove =
+                sqlApprovalMode.type === 'auto' || slackAutoApproved;
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -122,7 +122,9 @@ export const getRunSql = ({
                     await recordSqlApproval(
                         toolCallId,
                         'approved',
-                        autoApproveSql ? autoApproveSqlUserUuid : null,
+                        sqlApprovalMode.type === 'auto'
+                            ? sqlApprovalMode.decidedByUserUuid
+                            : null,
                     );
                 } else if (isSlack) {
                     await renderState({
