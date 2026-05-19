@@ -141,10 +141,13 @@ const replaceProjectTableGroups = async (
     projectUuid: string,
     lightdashProjectConfig: LightdashProjectConfig,
 ) => {
+    if (!lightdashProjectConfig.table_groups) {
+        return;
+    }
     await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v1/projects/${projectUuid}/table-groups`,
-        body: JSON.stringify(lightdashProjectConfig.table_groups ?? {}),
+        body: JSON.stringify(lightdashProjectConfig.table_groups),
     });
 };
 
