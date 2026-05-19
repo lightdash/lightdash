@@ -239,10 +239,12 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
 
                 const handoff = extractHandoffFromSubmitResult(currentMessage);
                 if ('error' in handoff) {
+                    // Soft, parent-recoverable model-output anomaly; parent retries on tool-error.
                     yield {
                         result: toolErrorHandler(
                             new Error(handoff.error),
                             'Error discovering fields.',
+                            { captureToSentry: false },
                         ),
                         metadata: { status: 'error' as const },
                     };
