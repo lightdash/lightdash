@@ -37,6 +37,8 @@ export const warehouseClientFromCredentials = (
             return new AthenaWarehouseClient(credentials);
         case WarehouseTypes.DUCKDB:
             return new DuckdbWarehouseClient(credentials);
+        case WarehouseTypes.DUCKLAKE:
+            return new DuckdbWarehouseClient(credentials);
         default:
             return assertUnreachable(
                 credentials,

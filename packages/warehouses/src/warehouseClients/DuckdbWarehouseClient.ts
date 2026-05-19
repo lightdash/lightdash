@@ -2,7 +2,10 @@ import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
 import {
     AnyType,
     CreateDuckdbCredentials,
+    CreateDucklakeCredentials,
     DimensionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     formatMilliseconds,
     getErrorMessage,
     Metric,
@@ -288,6 +291,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
+    private readonly ducklakeConfig?: CreateDucklakeCredentials;
+
     private readonly resourceLimits?: DuckdbResourceLimits;
 
     private readonly sharedResourceLimits?: DuckdbResourceLimits;
@@ -301,34 +306,64 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ) => void;
 
     constructor(
-        credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
+        credentials?:
+            | CreateDuckdbCredentials
+            | CreateDucklakeCredentials
+            | DuckdbConnectionCredentials,
         options?: DuckdbWarehouseClientOptions,
     ) {
-        const effectiveCredentials: CreateDuckdbCredentials =
+        const isDucklake =
             credentials &&
             'type' in credentials &&
-            credentials.type === 'duckdb_s3'
-                ? DUCKDB_INTERNAL_CREDENTIALS
-                : ((credentials as CreateDuckdbCredentials) ??
-                  DUCKDB_INTERNAL_CREDENTIALS);
+            credentials.type === WarehouseTypes.DUCKLAKE;
+        const isS3Only =
+            credentials &&
+            'type' in credentials &&
+            credentials.type === 'duckdb_s3';
+
+        let effectiveCredentials: CreateDuckdbCredentials;
+        if (isS3Only) {
+            effectiveCredentials = DUCKDB_INTERNAL_CREDENTIALS;
+        } else if (isDucklake) {
+            const ducklake = credentials as CreateDucklakeCredentials;
+            // DuckLake is attached on top of an in-memory base instance.
+            // Surface the catalog alias as the DuckDB database name so the
+            // existing information_schema queries line up.
+            effectiveCredentials = {
+                type: WarehouseTypes.DUCKDB,
+                database: ducklake.catalogAlias ?? 'ducklake',
+                schema: ducklake.schema,
+                token: '',
+                threads: ducklake.threads,
+                requireUserCredentials: ducklake.requireUserCredentials,
+                startOfWeek: ducklake.startOfWeek,
+                dataTimezone: ducklake.dataTimezone,
+            };
+        } else {
+            effectiveCredentials =
+                (credentials as CreateDuckdbCredentials) ??
+                DUCKDB_INTERNAL_CREDENTIALS;
+        }
 
         super(
             effectiveCredentials,
             new DuckdbSqlBuilder(effectiveCredentials.startOfWeek),
         );
 
-        // Determine s3Config from either the old DuckdbConnectionCredentials or options
-        if (
-            credentials &&
-            'type' in credentials &&
-            credentials.type === 'duckdb_s3'
-        ) {
+        if (isS3Only) {
             this.s3Config = (credentials as DuckdbS3Credentials).s3Config;
+        }
+
+        if (isDucklake) {
+            this.ducklakeConfig = credentials as CreateDucklakeCredentials;
         }
 
         // Project DuckDB credentials map to MotherDuck only. The in-memory
         // internal credentials remain available for pre-aggregate helper flows.
-        if (effectiveCredentials.database === ':memory:') {
+        if (
+            this.ducklakeConfig ||
+            effectiveCredentials.database === ':memory:'
+        ) {
             this.databasePath = ':memory:';
         } else {
             const token = effectiveCredentials.token.trim();
@@ -392,10 +427,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         return `${sql}\n-- ${JSON.stringify(tags)}`;
     }
 
-    private static async hardenInstance(db: DuckdbConnection): Promise<void> {
+    private static async hardenInstance(
+        db: DuckdbConnection,
+        options?: { allowKnownExtensionAutoload?: boolean },
+    ): Promise<void> {
         await db.run('SET allow_community_extensions = false;');
-        await db.run('SET autoinstall_known_extensions = false;');
-        await db.run('SET autoload_known_extensions = false;');
+        const autoload = options?.allowKnownExtensionAutoload ?? false;
+        await db.run(`SET autoinstall_known_extensions = ${autoload};`);
+        await db.run(`SET autoload_known_extensions = ${autoload};`);
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
@@ -421,19 +460,25 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ): Promise<DuckdbBootstrapTiming> {
         const bootstrapStart = performance.now();
         const httpfsStart = performance.now();
-        await db.run('INSTALL httpfs;');
-        await db.run('LOAD httpfs;');
-        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-            db,
-            client.s3Config,
-        );
+        if (!client.ducklakeConfig) {
+            // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
+            // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
+            await db.run('INSTALL httpfs;');
+            await db.run('LOAD httpfs;');
+            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+                db,
+                client.s3Config,
+            );
+        }
         const httpfsMs = performance.now() - httpfsStart;
 
         await db.run('SET enable_http_metadata_cache = true;');
         await db.run('SET enable_external_file_cache = true;');
         await db.run('SET parquet_metadata_cache = true;');
 
-        await DuckdbWarehouseClient.hardenInstance(db);
+        await DuckdbWarehouseClient.hardenInstance(db, {
+            allowKnownExtensionAutoload: !!client.ducklakeConfig,
+        });
 
         if (client.sharedResourceLimits?.memoryLimit) {
             await db.run(
@@ -453,9 +498,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
             );
         }
 
+        if (client.ducklakeConfig) {
+            const stmts = DuckdbWarehouseClient.buildDucklakeAttachSql(
+                client.ducklakeConfig,
+            );
+            // eslint-disable-next-line no-restricted-syntax
+            for (const stmt of stmts) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.run(stmt);
+            }
+        }
+
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
-            `DuckDB query bootstrap complete: cacheKey=${client.instanceCacheKey ?? 'none'} bootstrap=${formatMilliseconds(bootstrapMs)}ms httpfs=${formatMilliseconds(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'} shared=${client.instanceCacheKey ? 'true' : 'false'}`,
+            `DuckDB query bootstrap complete: cacheKey=${client.instanceCacheKey ?? 'none'} bootstrap=${formatMilliseconds(bootstrapMs)}ms httpfs=${formatMilliseconds(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'} ducklake=${client.ducklakeConfig ? 'configured' : 'none'} shared=${client.instanceCacheKey ? 'true' : 'false'}`,
             {
                 shared: !!client.instanceCacheKey,
                 instanceCacheKey: client.instanceCacheKey,
@@ -465,6 +521,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
                     client.sharedResourceLimits?.memoryLimit ?? 'default',
                 threads: client.sharedResourceLimits?.threads ?? 'default',
                 s3Configured: !!client.s3Config,
+                ducklakeConfigured: !!client.ducklakeConfig,
             },
         );
 
@@ -602,6 +659,214 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         }
     }
 
+    private static readonly DUCKLAKE_CATALOG_SECRET =
+        '__lightdash_ducklake_catalog';
+
+    private static readonly DUCKLAKE_DATA_SECRET = '__lightdash_ducklake_data';
+
+    private static readonly DUCKLAKE_SECRET = '__lightdash_ducklake';
+
+    private static escapeDuckdbString(v: string): string {
+        return DuckdbWarehouseClient.sqlBuilder.escapeString(v);
+    }
+
+    private static quoteIdent(name: string): string {
+        return `"${name.replace(/"/g, '""')}"`;
+    }
+
+    private static buildDucklakeCatalogSecretSql(
+        ducklake: CreateDucklakeCredentials,
+    ): string | null {
+        const e = DuckdbWarehouseClient.escapeDuckdbString;
+        const { catalog } = ducklake;
+        switch (catalog.type) {
+            case DucklakeCatalogType.POSTGRES:
+                return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_CATALOG_SECRET} (
+                    TYPE postgres,
+                    HOST '${e(catalog.host)}',
+                    PORT ${catalog.port},
+                    DATABASE '${e(catalog.database)}',
+                    USER '${e(catalog.user)}',
+                    PASSWORD '${e(catalog.password)}'
+                );`;
+            case DucklakeCatalogType.SQLITE:
+            case DucklakeCatalogType.DUCKDB:
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private static buildDucklakeDataSecretSql(
+        ducklake: CreateDucklakeCredentials,
+    ): string | null {
+        const e = DuckdbWarehouseClient.escapeDuckdbString;
+        const { dataPath } = ducklake;
+        switch (dataPath.type) {
+            case DucklakeDataPathType.S3: {
+                const hasStaticCreds = !!(
+                    dataPath.accessKeyId && dataPath.secretAccessKey
+                );
+                const providerClause = hasStaticCreds
+                    ? ''
+                    : `PROVIDER credential_chain, REFRESH auto, VALIDATION 'none',`;
+                const keyIdClause = dataPath.accessKeyId
+                    ? `KEY_ID '${e(dataPath.accessKeyId)}',`
+                    : '';
+                const secretClause = dataPath.secretAccessKey
+                    ? `SECRET '${e(dataPath.secretAccessKey)}',`
+                    : '';
+                const endpointClause = dataPath.endpoint
+                    ? `ENDPOINT '${e(dataPath.endpoint)}',`
+                    : '';
+                const regionClause = dataPath.region
+                    ? `REGION '${e(dataPath.region)}',`
+                    : '';
+                const urlStyleClause =
+                    dataPath.forcePathStyle === undefined
+                        ? ''
+                        : `URL_STYLE '${
+                              dataPath.forcePathStyle ? 'path' : 'vhost'
+                          }',`;
+                const useSslClause =
+                    dataPath.useSsl === undefined
+                        ? ''
+                        : `USE_SSL ${dataPath.useSsl},`;
+                return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_DATA_SECRET} (
+                    TYPE s3,
+                    ${providerClause}
+                    ${keyIdClause}
+                    ${secretClause}
+                    ${endpointClause}
+                    ${regionClause}
+                    ${urlStyleClause}
+                    ${useSslClause}
+                    SCOPE '${e(dataPath.url)}'
+                );`;
+            }
+            case DucklakeDataPathType.GCS: {
+                const hasStaticCreds = !!(
+                    dataPath.hmacKeyId && dataPath.hmacSecret
+                );
+                const providerClause = hasStaticCreds
+                    ? ''
+                    : `PROVIDER credential_chain,`;
+                const keyIdClause = dataPath.hmacKeyId
+                    ? `KEY_ID '${e(dataPath.hmacKeyId)}',`
+                    : '';
+                const secretClause = dataPath.hmacSecret
+                    ? `SECRET '${e(dataPath.hmacSecret)}',`
+                    : '';
+                return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_DATA_SECRET} (
+                    TYPE gcs,
+                    ${providerClause}
+                    ${keyIdClause}
+                    ${secretClause}
+                    SCOPE '${e(dataPath.url)}'
+                );`;
+            }
+            case DucklakeDataPathType.AZURE: {
+                if (dataPath.connectionString) {
+                    return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_DATA_SECRET} (
+                        TYPE azure,
+                        CONNECTION_STRING '${e(dataPath.connectionString)}',
+                        SCOPE '${e(dataPath.url)}'
+                    );`;
+                }
+                if (dataPath.accountName && dataPath.accountKey) {
+                    return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_DATA_SECRET} (
+                        TYPE azure,
+                        ACCOUNT_NAME '${e(dataPath.accountName)}',
+                        ACCOUNT_KEY '${e(dataPath.accountKey)}',
+                        SCOPE '${e(dataPath.url)}'
+                    );`;
+                }
+                if (dataPath.accountName) {
+                    return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_DATA_SECRET} (
+                        TYPE azure,
+                        PROVIDER credential_chain,
+                        ACCOUNT_NAME '${e(dataPath.accountName)}',
+                        SCOPE '${e(dataPath.url)}'
+                    );`;
+                }
+                return null;
+            }
+            case DucklakeDataPathType.LOCAL:
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private static catalogUsesSecret(
+        ducklake: CreateDucklakeCredentials,
+    ): boolean {
+        return ducklake.catalog.type === DucklakeCatalogType.POSTGRES;
+    }
+
+    private static buildDucklakeSecretSql(
+        ducklake: CreateDucklakeCredentials,
+    ): string | null {
+        if (!DuckdbWarehouseClient.catalogUsesSecret(ducklake)) return null;
+        const e = DuckdbWarehouseClient.escapeDuckdbString;
+        const dataPathUrl =
+            ducklake.dataPath.type === DucklakeDataPathType.LOCAL
+                ? ducklake.dataPath.path
+                : ducklake.dataPath.url;
+        return `CREATE OR REPLACE SECRET ${DuckdbWarehouseClient.DUCKLAKE_SECRET} (
+            TYPE ducklake,
+            METADATA_PATH '',
+            DATA_PATH '${e(dataPathUrl)}',
+            METADATA_PARAMETERS MAP {'TYPE': 'postgres', 'SECRET': '${
+                DuckdbWarehouseClient.DUCKLAKE_CATALOG_SECRET
+            }'}
+        );`;
+    }
+
+    private static buildDucklakeAttachSql(
+        ducklake: CreateDucklakeCredentials,
+    ): string[] {
+        const e = DuckdbWarehouseClient.escapeDuckdbString;
+        const alias = ducklake.catalogAlias ?? 'ducklake';
+        const quotedAlias = DuckdbWarehouseClient.quoteIdent(alias);
+        const stmts: string[] = [];
+
+        const catalogSecret =
+            DuckdbWarehouseClient.buildDucklakeCatalogSecretSql(ducklake);
+        if (catalogSecret) stmts.push(catalogSecret);
+
+        const dataSecret =
+            DuckdbWarehouseClient.buildDucklakeDataSecretSql(ducklake);
+        if (dataSecret) stmts.push(dataSecret);
+
+        if (DuckdbWarehouseClient.catalogUsesSecret(ducklake)) {
+            const ducklakeSecret =
+                DuckdbWarehouseClient.buildDucklakeSecretSql(ducklake);
+            if (ducklakeSecret) stmts.push(ducklakeSecret);
+            stmts.push(
+                `ATTACH 'ducklake:${DuckdbWarehouseClient.DUCKLAKE_SECRET}' AS ${quotedAlias} (READ_ONLY);`,
+            );
+        } else {
+            const { catalog } = ducklake;
+            const catalogTarget =
+                catalog.type === DucklakeCatalogType.SQLITE
+                    ? `ducklake:sqlite:${e(catalog.path)}`
+                    : `ducklake:${e((catalog as { path: string }).path)}`;
+            const dataPathUrl =
+                ducklake.dataPath.type === DucklakeDataPathType.LOCAL
+                    ? ducklake.dataPath.path
+                    : ducklake.dataPath.url;
+            stmts.push(
+                `ATTACH '${catalogTarget}' AS ${quotedAlias} (DATA_PATH '${e(
+                    dataPathUrl,
+                )}', READ_ONLY);`,
+            );
+        }
+        stmts.push(`USE ${quotedAlias};`);
+
+        return stmts;
+    }
+
     private static buildS3SecretSql(s3Config: DuckdbS3SessionConfig): string {
         const escape = (v: string) =>
             DuckdbWarehouseClient.sqlBuilder.escapeString(v);
@@ -725,14 +990,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         db: DuckdbConnection,
         tempDir: string,
     ): Promise<void> {
-        await db.run('INSTALL httpfs;');
-        await db.run('LOAD httpfs;');
-        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-            db,
-            this.s3Config,
-        );
+        if (!this.ducklakeConfig) {
+            await db.run('INSTALL httpfs;');
+            await db.run('LOAD httpfs;');
+            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+                db,
+                this.s3Config,
+            );
+        }
 
-        await DuckdbWarehouseClient.hardenInstance(db);
+        await DuckdbWarehouseClient.hardenInstance(db, {
+            allowKnownExtensionAutoload: !!this.ducklakeConfig,
+        });
 
         await db.run(`SET temp_directory = '${tempDir}';`);
 
@@ -750,8 +1019,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
             await db.run(DuckdbWarehouseClient.buildS3SecretSql(this.s3Config));
         }
 
+        if (this.ducklakeConfig) {
+            const stmts = DuckdbWarehouseClient.buildDucklakeAttachSql(
+                this.ducklakeConfig,
+            );
+            // eslint-disable-next-line no-restricted-syntax
+            for (const stmt of stmts) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.run(stmt);
+            }
+        }
+
         this.logger?.info(
-            `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits?.memoryLimit ?? 'default'} threads=${this.resourceLimits?.threads ?? 'default'} s3=${this.s3Config ? 'configured' : 'none'}`,
+            `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits?.memoryLimit ?? 'default'} threads=${this.resourceLimits?.threads ?? 'default'} s3=${this.s3Config ? 'configured' : 'none'} ducklake=${this.ducklakeConfig ? 'configured' : 'none'}`,
         );
     }
 
