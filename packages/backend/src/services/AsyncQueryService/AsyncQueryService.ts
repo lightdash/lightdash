@@ -5371,7 +5371,14 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        await this.assertSavedChartAccess(account, 'view', savedChart);
+        if (isJwtUser(account)) {
+            await this.permissionsService.checkEmbedSqlChartPermissions(
+                account,
+                savedChart.savedSqlUuid,
+            );
+        } else {
+            await this.assertSavedChartAccess(account, 'view', savedChart);
+        }
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);

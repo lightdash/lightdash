@@ -1603,6 +1603,70 @@ export class DashboardModel {
         return !!result;
     }
 
+    async savedSqlChartExistsInDashboard(
+        projectUuid: string,
+        dashboardUuid: string,
+        savedSqlUuid: string,
+    ): Promise<boolean> {
+        const cteName = 'latest_dashboard_version_cte';
+
+        const result = await this.database
+            .with(cteName, (qb) => {
+                void qb
+                    .select({
+                        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        dashboard_version_id: this.database.raw(
+                            `MAX(${DashboardVersionsTableName}.dashboard_version_id)`,
+                        ),
+                    })
+                    .from(DashboardsTableName)
+                    .innerJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .innerJoin(
+                        SpaceTableName,
+                        `${DashboardsTableName}.space_id`,
+                        `${SpaceTableName}.space_id`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuid,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .groupBy(`${DashboardsTableName}.dashboard_uuid`);
+            })
+            .select<
+                {
+                    dashboard_uuid: string;
+                }[]
+            >(`${cteName}.dashboard_uuid`)
+            .from(cteName)
+            .innerJoin(
+                DashboardTileSqlChartTableName,
+                `${cteName}.dashboard_version_id`,
+                `${DashboardTileSqlChartTableName}.dashboard_version_id`,
+            )
+            .innerJoin(SavedSqlTableName, function savedSqlJoin() {
+                this.on(
+                    `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
+            })
+            .where(`${SavedSqlTableName}.saved_sql_uuid`, savedSqlUuid)
+            .first();
+
+        return !!result;
+    }
+
     async findInfoForDbtExposures(projectUuid: string): Promise<
         Array<
             Pick<DashboardDAO, 'uuid' | 'name' | 'description'> &

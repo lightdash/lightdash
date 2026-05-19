@@ -4,6 +4,7 @@ import {
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -1153,6 +1154,141 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: combinedParameters,
             pivotResults,
+        });
+    }
+
+    private static _getSqlChartUuidFromDashboardTiles(
+        dashboard: DashboardDAO,
+        tileUuid: string,
+    ): string {
+        const tile = dashboard.tiles.find(({ uuid }) => uuid === tileUuid);
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile ${tileUuid} not found in dashboard ${dashboard.uuid}`,
+            );
+        }
+
+        if (!isDashboardSqlChartTile(tile)) {
+            throw new ParameterError(
+                `Tile ${tileUuid} is not a SQL chart tile`,
+            );
+        }
+
+        const { savedSqlUuid } = tile.properties;
+        if (!savedSqlUuid) {
+            throw new ParameterError(
+                `Tile ${tileUuid} does not have a saved SQL chart uuid`,
+            );
+        }
+
+        return savedSqlUuid;
+    }
+
+    private async _permissionsGetSqlChartAndResults(
+        embed: Pick<Embed, 'dashboardUuids' | 'allowAllDashboards'>,
+        projectUuid: string,
+        savedSqlUuid: string,
+        dashboardUuid: string,
+    ) {
+        const { allowAllDashboards, dashboardUuids } = embed;
+        if (!allowAllDashboards && !dashboardUuids.includes(dashboardUuid)) {
+            throw new ForbiddenError(
+                `Dashboard ${dashboardUuid} is not embedded`,
+            );
+        }
+
+        const sqlChartExists =
+            await this.dashboardModel.savedSqlChartExistsInDashboard(
+                projectUuid,
+                dashboardUuid,
+                savedSqlUuid,
+            );
+        if (!sqlChartExists) {
+            throw new ForbiddenError(
+                `This SQL chart does not belong to dashboard ${dashboardUuid}`,
+            );
+        }
+    }
+
+    async executeAsyncDashboardSqlChartTileQuery({
+        account,
+        projectUuid,
+        tileUuid,
+        dashboardFilters,
+        dashboardSorts,
+        invalidateCache,
+        parameters,
+        limit,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        invalidateCache?: boolean;
+        parameters?: ParametersValuesMap;
+        limit?: number;
+    }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        const { dashboardUuids, allowAllDashboards, user } =
+            await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        const { organizationUuid } = dashboard;
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid,
+        });
+
+        await this._permissionsGetSqlChartAndResults(
+            { allowAllDashboards, dashboardUuids },
+            projectUuid,
+            savedSqlUuid,
+            dashboardUuid,
+        );
+
+        this.analytics.trackAccount<EmbedQueryViewed>(account, {
+            event: 'embed_query.executed',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: savedSqlUuid,
+            },
+        });
+
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            parameters
+                ? parameters
+                : {};
+
+        return this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
+            account,
+            projectUuid,
+            savedSqlUuid,
+            tileUuid,
+            dashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            invalidateCache,
+            limit,
+            context: QueryExecutionContext.EMBED,
+            parameters: acceptedUserParameters,
         });
     }
 
