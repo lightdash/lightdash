@@ -1,12 +1,16 @@
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
+    generateObject,
     generateText,
+    jsonSchema,
+    NoSuchToolError,
     smoothStream,
     stepCountIs,
     streamText,
     StreamTextResult,
     type Output,
+    type ToolCallRepairFunction,
     type ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
@@ -87,6 +91,40 @@ export const defaultAgentOptions = {
     stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
+
+export const buildRepairToolCall =
+    (args: AiAgentArgs): ToolCallRepairFunction<ToolSet> =>
+    async ({ toolCall, inputSchema, error }) => {
+        if (NoSuchToolError.isInstance(error)) {
+            return null;
+        }
+        try {
+            const schema = await inputSchema({
+                toolName: toolCall.toolName,
+            });
+            const { object: repaired } = await generateObject({
+                model: args.model,
+                providerOptions: args.providerOptions,
+                schema: jsonSchema(schema),
+                prompt: [
+                    `The previous tool call to "${toolCall.toolName}" produced invalid arguments.`,
+                    `Original (invalid) arguments:`,
+                    toolCall.input,
+                    `Validation error: ${error.message}`,
+                    `Return a corrected JSON object matching the tool's input schema.`,
+                ].join('\n'),
+            });
+            return {
+                ...toolCall,
+                input: JSON.stringify(repaired),
+            };
+        } catch (repairError) {
+            Sentry.captureException(repairError, {
+                tags: { errorType: 'AiAgentRepairToolCall' },
+            });
+            return null;
+        }
+    };
 
 const getAgentTools = (
     args: AiAgentArgs,
@@ -327,6 +365,7 @@ export const generateAgentResponse = async ({
             model: args.model,
             tools,
             messages,
+            experimental_repairToolCall: buildRepairToolCall(args),
             experimental_context: new AgentContext(availableExplores),
             onStepFinish: async (step) => {
                 for (const toolCall of step.toolCalls) {
@@ -524,6 +563,7 @@ export const streamAgentResponse = async ({
             model: args.model,
             tools,
             messages,
+            experimental_repairToolCall: buildRepairToolCall(args),
             experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
                 // Track time to first chunk (any type) - only once
