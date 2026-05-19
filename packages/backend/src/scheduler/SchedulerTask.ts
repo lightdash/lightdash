@@ -47,6 +47,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
+    isTileInSelectedTabs,
     isVizTableConfig,
     LightdashPage,
     MAX_SAFE_INTEGER,
@@ -761,10 +762,8 @@ export default class SchedulerTask {
                         const chartTiles = dashboard.tiles
                             .filter(isDashboardChartTileType)
                             .filter((tile) => tile.properties.savedChartUuid)
-                            .filter(
-                                (tile) =>
-                                    !selectedTabs ||
-                                    selectedTabs.includes(tile.tabUuid || ''),
+                            .filter((tile) =>
+                                isTileInSelectedTabs(tile, selectedTabs),
                             )
                             .map((tile) => ({
                                 tileUuid: tile.uuid,
@@ -4240,9 +4239,7 @@ export default class SchedulerTask {
                 const limit = pLimit(5);
 
                 const isInSelectedTab = (tile: { tabUuid?: string | null }) =>
-                    !selectedTabs ||
-                    !tile.tabUuid ||
-                    selectedTabs.includes(tile.tabUuid);
+                    isTileInSelectedTabs(tile, selectedTabs);
 
                 const chartTilePromises = dashboard.tiles
                     .filter(isDashboardChartTileType)
