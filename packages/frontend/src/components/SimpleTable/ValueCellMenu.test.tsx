@@ -1,3 +1,5 @@
+import { describe, it } from 'vitest';
+
 /**
  * Regression tests for ValueCellMenu drill-down behavior with hidden pivot
  * dimensions.
@@ -31,6 +33,8 @@
  * backend test suites). The concern here is limited to the interactive
  * drill-down path.
  */
-
-// Intentionally empty — see comment above.
-export {};
+describe('ValueCellMenu — drill-down with hidden pivot dims', () => {
+    it.todo(
+        'getUnderlyingFieldValues includes hidden index dim values (follow-up ticket)',
+    );
+});

@@ -155,13 +155,11 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 label={
                     isSubtotalGroupingLevel
                         ? "Cannot hide while it's a subtotal grouping level"
-                        : isPivotingDimension && !allowHidePivotDimension
+                        : disableHidingDimensions
                           ? 'Cannot hide dimensions when pivoting'
-                          : disableHidingDimensions
-                            ? 'Cannot hide dimensions when pivoting'
-                            : isColumnVisible(fieldId)
-                              ? 'Hide column'
-                              : 'Show column'
+                          : isColumnVisible(fieldId)
+                            ? 'Hide column'
+                            : 'Show column'
                 }
             >
                 <Box
@@ -170,9 +168,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 >
                     <ActionIcon
                         disabled={
-                            disableHidingDimensions ||
-                            isSubtotalGroupingLevel ||
-                            (isPivotingDimension && !allowHidePivotDimension)
+                            disableHidingDimensions || isSubtotalGroupingLevel
                         }
                         variant="light"
                         onClick={() => {
