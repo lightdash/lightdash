@@ -3,6 +3,7 @@ import {
     isDateFilterRule,
     isWithValueFilter,
     type CompiledMetric,
+    type Dimension,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -28,6 +29,7 @@ import {
     useExplorerDispatch,
 } from '../../../../features/explorer/store';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
+import FieldIcon from '../../../common/Filters/FieldIcon';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
 import classes from './ItemDetailPreview.module.css';
@@ -82,6 +84,7 @@ export const ItemDetailPreview: FC<{
         compiledSql: string;
         name: string;
         filters?: CompiledMetric['filters'];
+        baseDimension?: Dimension;
     };
 }> = ({ description, onViewDescription, metricInfo }) => {
     /**
@@ -118,6 +121,29 @@ export const ItemDetailPreview: FC<{
                             {friendlyName(metricInfo.type)}
                         </Badge>
                     </Group>
+                    {metricInfo.baseDimension && (
+                        <>
+                            <Divider color="ldGray.2" />
+                            <Stack gap={4}>
+                                <Text fz="xs" fw={500} c="ldDark.7">
+                                    Source field
+                                </Text>
+                                <Group gap="xs" wrap="nowrap">
+                                    <FieldIcon
+                                        item={metricInfo.baseDimension}
+                                        size="sm"
+                                    />
+                                    <Text fz="xs" c="ldGray.7">
+                                        {metricInfo.baseDimension.tableLabel}
+                                    </Text>
+                                    <Text fz="xs" fw={500} c="ldDark.7">
+                                        {metricInfo.baseDimension.label ||
+                                            metricInfo.baseDimension.name}
+                                    </Text>
+                                </Group>
+                            </Stack>
+                        </>
+                    )}
                 </>
             )}
             {description && (

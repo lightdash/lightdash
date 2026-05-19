@@ -2,6 +2,7 @@ import {
     canApplyFormattingToCustomMetric,
     CustomFormatType,
     friendlyName,
+    getCustomMetricType,
     getFilterableDimensionsFromItemsMap,
     getItemId,
     getMetrics,
@@ -19,7 +20,9 @@ import {
 import {
     Accordion,
     Button,
+    Group,
     NumberInput,
+    Select,
     Stack,
     Text,
     TextInput,
@@ -38,6 +41,8 @@ import {
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
+import Callout from '../../common/Callout';
+import FieldIcon from '../../common/Filters/FieldIcon';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineModal from '../../common/MantineModal';
 import { FormatForm } from '../FormatForm';
@@ -81,6 +86,75 @@ export const CustomMetricModal = memo(() => {
         dimensionToCheck =
             exploreData?.tables[item.table]?.dimensions[item.baseDimensionName];
     }
+
+    const originalBaseDimensionName = useMemo(() => {
+        if (isEditing && isAdditionalMetric(item) && item.baseDimensionName) {
+            return item.baseDimensionName;
+        }
+        if (!isEditing && isDimension(item)) {
+            return item.name;
+        }
+        return null;
+    }, [isEditing, item]);
+
+    const [selectedBaseDimensionName, setSelectedBaseDimensionName] = useState<
+        string | null
+    >(originalBaseDimensionName);
+
+    useEffect(() => {
+        setSelectedBaseDimensionName(originalBaseDimensionName);
+    }, [originalBaseDimensionName]);
+
+    const baseDimensionOptions = useMemo(() => {
+        if (!exploreData || !item || !customMetricType) return [];
+        const table = exploreData.tables[item.table];
+        if (!table) return [];
+        return Object.values(table.dimensions)
+            .filter((dim) => !dim.hidden)
+            .filter((dim) =>
+                getCustomMetricType(dim.type).includes(customMetricType),
+            )
+            .map((dim) => ({
+                value: dim.name,
+                label: dim.label || dim.name,
+                dim,
+            }));
+    }, [exploreData, item, customMetricType]);
+
+    const baseDimensionByName = useMemo(() => {
+        const map: Record<string, Dimension> = {};
+        baseDimensionOptions.forEach(({ value, dim }) => {
+            map[value] = dim;
+        });
+        return map;
+    }, [baseDimensionOptions]);
+
+    const selectedBaseDimension = useMemo(() => {
+        if (!selectedBaseDimensionName) return null;
+        return baseDimensionByName[selectedBaseDimensionName] ?? null;
+    }, [baseDimensionByName, selectedBaseDimensionName]);
+
+    const showBaseDimensionPicker =
+        isDimension(item) ||
+        (isEditing && isAdditionalMetric(item) && !!item.baseDimensionName);
+
+    const baseDimensionChanged =
+        isEditing &&
+        !!originalBaseDimensionName &&
+        !!selectedBaseDimensionName &&
+        originalBaseDimensionName !== selectedBaseDimensionName;
+
+    const renderBaseDimensionOption: React.ComponentProps<
+        typeof Select
+    >['renderOption'] = ({ option }) => {
+        const dim = baseDimensionByName[option.value];
+        return (
+            <Group gap="xs" wrap="nowrap">
+                {dim ? <FieldIcon item={dim} size="sm" /> : null}
+                <Text size="sm">{option.label}</Text>
+            </Group>
+        );
+    };
 
     const canApplyFormatting = useMemo(
         () =>
@@ -223,8 +297,25 @@ export const CustomMetricModal = memo(() => {
         ({ customMetricLabel, percentile, format }) => {
             if (!item || !customMetricType) return;
 
+            // When the user picked a different source field on edit, swap
+            // sql + table on the item handed to prepareCustomMetricData so the
+            // resulting metric aggregates the new column. The metric's internal
+            // `name` stays stable because prepareCustomMetricData derives it
+            // from item.baseDimensionName, which we leave untouched here.
+            const effectiveItem =
+                isEditing &&
+                isAdditionalMetric(item) &&
+                baseDimensionChanged &&
+                selectedBaseDimension
+                    ? {
+                          ...item,
+                          sql: selectedBaseDimension.sql,
+                          table: selectedBaseDimension.table,
+                      }
+                    : item;
+
             const data = prepareCustomMetricData({
-                item,
+                item: effectiveItem,
                 type: customMetricType,
                 customMetricLabel,
                 customMetricFiltersWithIds,
@@ -235,14 +326,28 @@ export const CustomMetricModal = memo(() => {
             });
 
             if (isEditing && isAdditionalMetric(item)) {
+                const updatedBaseDimensionName =
+                    baseDimensionChanged && selectedBaseDimension
+                        ? { baseDimensionName: selectedBaseDimension.name }
+                        : {};
                 dispatch(
                     explorerActions.editAdditionalMetric({
-                        additionalMetric: { ...item, ...data },
+                        additionalMetric: {
+                            ...item,
+                            ...data,
+                            ...updatedBaseDimensionName,
+                        },
                         previousAdditionalMetricName: getItemId(item),
                     }),
                 );
                 showToastSuccess({
-                    title: 'Custom metric edited successfully',
+                    title:
+                        baseDimensionChanged && selectedBaseDimension
+                            ? `Custom metric rebuilt on ${
+                                  selectedBaseDimension.label ||
+                                  selectedBaseDimension.name
+                              }`
+                            : 'Custom metric edited successfully',
                 });
             } else if (isDimension(item) && form.values.customMetricLabel) {
                 dispatch(
@@ -328,6 +433,52 @@ export const CustomMetricModal = memo(() => {
                         placeholder="Enter custom metric label"
                         {...form.getInputProps('customMetricLabel')}
                     />
+                    {showBaseDimensionPicker && customMetricType && (
+                        <Stack gap="xs">
+                            <Select
+                                label="Source field"
+                                description={
+                                    isEditing
+                                        ? `The field this metric aggregates over. Pick a different one to rebuild it without recreating it.`
+                                        : 'The field this metric aggregates over.'
+                                }
+                                data={baseDimensionOptions.map(
+                                    ({ value, label }) => ({ value, label }),
+                                )}
+                                value={selectedBaseDimensionName}
+                                onChange={setSelectedBaseDimensionName}
+                                readOnly={!isEditing}
+                                searchable={isEditing}
+                                allowDeselect={false}
+                                renderOption={renderBaseDimensionOption}
+                                leftSection={
+                                    selectedBaseDimension ? (
+                                        <FieldIcon
+                                            item={selectedBaseDimension}
+                                            size="sm"
+                                        />
+                                    ) : null
+                                }
+                                nothingFoundMessage="No compatible fields on this table"
+                                comboboxProps={{ withinPortal: true }}
+                            />
+                            {baseDimensionChanged && selectedBaseDimension ? (
+                                <Callout
+                                    variant="info"
+                                    title="Source field will change"
+                                >
+                                    This metric will be rebuilt to aggregate{' '}
+                                    <Text span fw={600}>
+                                        {selectedBaseDimension.label ||
+                                            selectedBaseDimension.name}
+                                    </Text>
+                                    . Filters and format options are preserved,
+                                    and the metric ID stays the same so saved
+                                    charts and dashboards keep working.
+                                </Callout>
+                            ) : null}
+                        </Stack>
+                    )}
                     {customMetricType && (
                         <TextInput
                             label="Type"

@@ -7,8 +7,10 @@ import {
     isField,
     isFilterableField,
     isTimeInterval,
+    MetricType,
     timeFrameConfigs,
     type AdditionalMetric,
+    type Dimension,
     type FilterableField,
     type Item,
 } from '@lightdash/common';
@@ -37,6 +39,7 @@ import {
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
+import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -67,6 +70,30 @@ const NavItemIcon = ({
 };
 
 NavItemIcon.displayName = 'NavItemIcon';
+
+/**
+ * Mirrors `getDefaultMetricSql` from the warehouse package so we can show the
+ * aggregated form of a custom metric in the hover preview without pulling in
+ * a warehouse client on the frontend.
+ */
+const renderAggregatedSql = (sql: string, type: MetricType): string => {
+    switch (type) {
+        case MetricType.AVERAGE:
+            return `AVG(${sql})`;
+        case MetricType.COUNT:
+            return `COUNT(${sql})`;
+        case MetricType.COUNT_DISTINCT:
+            return `COUNT(DISTINCT ${sql})`;
+        case MetricType.MAX:
+            return `MAX(${sql})`;
+        case MetricType.MIN:
+            return `MIN(${sql})`;
+        case MetricType.SUM:
+            return `SUM(${sql})`;
+        default:
+            return sql;
+    }
+};
 
 type Props = {
     node: Node;
@@ -121,6 +148,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     );
     const isSelected = useExplorerSelector(selectIsActive, (a, b) => a === b);
 
+    const exploreTableName = useTableTree((context) => context.tableName);
+    const { data: exploreData } = useExplore(exploreTableName);
+
     const metricInfo = useMemo(() => {
         if (isCompiledMetric(item)) {
             return {
@@ -132,10 +162,35 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                 name: item.name,
             };
         }
+        if (isAdditionalMetric(item)) {
+            const baseDimensionCandidate =
+                item.baseDimensionName && exploreData
+                    ? exploreData.tables[item.table]?.dimensions[
+                          item.baseDimensionName
+                      ]
+                    : undefined;
+            const baseDimension: Dimension | undefined =
+                baseDimensionCandidate && isDimension(baseDimensionCandidate)
+                    ? baseDimensionCandidate
+                    : undefined;
+            const baseSql = item.sql ?? '';
+            return {
+                type: item.type,
+                sql: baseSql,
+                compiledSql: renderAggregatedSql(baseSql, item.type),
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
+                baseDimension,
+            };
+        }
         return undefined;
-    }, [item]);
+    }, [item, exploreData]);
 
-    const description = isField(item) ? item.description : undefined;
+    const description =
+        isField(item) || isAdditionalMetric(item)
+            ? item.description
+            : undefined;
 
     const isMissing =
         (isAdditionalMetric(item) &&
@@ -147,7 +202,10 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const isHoverCardDisabled = useMemo(() => {
         // Show metric info if either metric info or description is present
-        if (isCompiledMetric(item) && (!!metricInfo || !!description)) {
+        if (
+            (isCompiledMetric(item) || isAdditionalMetric(item)) &&
+            (!!metricInfo || !!description)
+        ) {
             return false;
         }
         // Show description if it's not missing
@@ -312,7 +370,19 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         disabled={isHoverCardDisabled}
                         position="right"
                         radius="md"
-                        offset={70}
+                        /**
+                         * Regular fields show a filter ActionIcon on hover that
+                         * eats ~28px of the row, narrowing the HoverCard target.
+                         * Custom metrics and custom dimensions never render that
+                         * icon, so their target is wider and the popover ends up
+                         * further right at the same offset. Shave ~28px off to
+                         * align both.
+                         */
+                        offset={
+                            isAdditionalMetric(item) || isCustomDimension(item)
+                                ? 36
+                                : 70
+                        }
                     >
                         <HoverCard.Target>
                             <Highlight
