@@ -1,3 +1,10 @@
+## [0.2981.2](https://github.com/lightdash/lightdash/compare/0.2981.1...0.2981.2) (2026-05-19)
+
+
+### Bug Fixes
+
+* **ai:** auto-approve sql in eval runs ([#23297](https://github.com/lightdash/lightdash/issues/23297)) ([2018d83](https://github.com/lightdash/lightdash/commit/2018d8363354454a2d99d0223d727c2867ea3aaa))
+
 ## [0.2981.1](https://github.com/lightdash/lightdash/compare/0.2981.0...0.2981.1) (2026-05-19)
 
 
