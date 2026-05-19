@@ -1,9 +1,7 @@
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    generateObject,
     generateText,
-    jsonSchema,
     NoSuchToolError,
     smoothStream,
     stepCountIs,
@@ -94,29 +92,55 @@ export const defaultAgentOptions = {
 
 export const buildRepairToolCall =
     (args: AiAgentArgs): ToolCallRepairFunction<ToolSet> =>
-    async ({ toolCall, inputSchema, error }) => {
+    async ({ toolCall, tools, error, messages, system }) => {
         if (NoSuchToolError.isInstance(error)) {
             return null;
         }
         try {
-            const schema = await inputSchema({
-                toolName: toolCall.toolName,
-            });
-            const { object: repaired } = await generateObject({
+            const reaskResult = await generateText({
                 model: args.model,
                 providerOptions: args.providerOptions,
-                schema: jsonSchema(schema),
-                prompt: [
-                    `The previous tool call to "${toolCall.toolName}" produced invalid arguments.`,
-                    `Original (invalid) arguments:`,
-                    toolCall.input,
-                    `Validation error: ${error.message}`,
-                    `Return a corrected JSON object matching the tool's input schema.`,
-                ].join('\n'),
+                system,
+                tools,
+                messages: [
+                    ...messages,
+                    {
+                        role: 'assistant',
+                        content: [
+                            {
+                                type: 'tool-call',
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                input: toolCall.input,
+                            },
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                output: {
+                                    type: 'error-text',
+                                    value: error.message,
+                                },
+                            },
+                        ],
+                    },
+                ],
             });
+
+            const repaired = reaskResult.toolCalls.find(
+                (tc) => tc.toolName === toolCall.toolName,
+            );
+            if (!repaired) {
+                return null;
+            }
             return {
                 ...toolCall,
-                input: JSON.stringify(repaired),
+                input: JSON.stringify(repaired.input),
             };
         } catch (repairError) {
             Sentry.captureException(repairError, {
