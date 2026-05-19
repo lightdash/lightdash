@@ -186,4 +186,107 @@ describe('pivotResultsAsCsv', () => {
             expect(csvRow.length).toBe(dataResult.dataRows[i].length);
         });
     });
+
+    describe('hidden dimension filtering', () => {
+        it('omits a hidden pivot-column-header dimension from CSV headers', () => {
+            // METRIC_QUERY_2DIM_2METRIC has dimensions ['page', 'site'].
+            // When both are in pivotDimensions, 'site' becomes a pivot-column-header.
+            // Hiding 'site' via hiddenDimensionFieldIds must remove it from the output.
+            const result = pivotResultsAsCsv({
+                pivotConfig: {
+                    pivotDimensions: ['page', 'site'],
+                    metricsAsRows: false,
+                    hiddenDimensionFieldIds: ['site'],
+                },
+                rows: RESULT_ROWS_2DIM_2METRIC,
+                itemMap: buildItemsMap(),
+                metricQuery: {
+                    exploreName: 'test',
+                    ...METRIC_QUERY_2DIM_2METRIC,
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    customDimensions: [],
+                    metricOverrides: {},
+                    dimensionOverrides: {},
+                },
+                customLabels: undefined,
+                onlyRaw: false,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const allValues = result.flat();
+            // The hidden dim's field id must not appear anywhere in the output
+            expect(allValues).not.toContain('site');
+            // The visible dim should still appear
+            expect(allValues).toContain('/home');
+        });
+
+        it('omits a hidden row-index dimension from CSV row values', () => {
+            // With pivotDimensions: ['page'], 'site' is a row-index dimension.
+            // Hiding 'site' via hiddenDimensionFieldIds must remove it from row cells.
+            const result = pivotResultsAsCsv({
+                pivotConfig: {
+                    pivotDimensions: ['page'],
+                    metricsAsRows: false,
+                    hiddenDimensionFieldIds: ['site'],
+                },
+                rows: RESULT_ROWS_2DIM_2METRIC,
+                itemMap: buildItemsMap(),
+                metricQuery: {
+                    exploreName: 'test',
+                    ...METRIC_QUERY_2DIM_2METRIC,
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    customDimensions: [],
+                    metricOverrides: {},
+                    dimensionOverrides: {},
+                },
+                customLabels: undefined,
+                onlyRaw: false,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const allValues = result.flat();
+            // 'site' field values ('Blog', 'Docs') must not appear in the output
+            expect(allValues).not.toContain('Blog');
+            expect(allValues).not.toContain('Docs');
+            // Metric values should still be present
+            expect(allValues.some((v) => v !== '')).toBe(true);
+        });
+
+        it('shows all dimensions when hiddenDimensionFieldIds is empty', () => {
+            const result = pivotResultsAsCsv({
+                pivotConfig: {
+                    pivotDimensions: ['page'],
+                    metricsAsRows: false,
+                    hiddenDimensionFieldIds: [],
+                },
+                rows: RESULT_ROWS_2DIM_2METRIC,
+                itemMap: buildItemsMap(),
+                metricQuery: {
+                    exploreName: 'test',
+                    ...METRIC_QUERY_2DIM_2METRIC,
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    customDimensions: [],
+                    metricOverrides: {},
+                    dimensionOverrides: {},
+                },
+                customLabels: undefined,
+                onlyRaw: false,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const allValues = result.flat();
+            // With no hidden dims, the row-index dimension values should appear
+            expect(allValues).toContain('Blog');
+            expect(allValues).toContain('Docs');
+        });
+    });
 });

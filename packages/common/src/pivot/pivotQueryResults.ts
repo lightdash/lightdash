@@ -786,11 +786,19 @@ export const pivotQueryResults = ({
             ),
         ) ?? [];
 
+    // hasIndex: for rendering/display — true when there are visible index
+    // dimension columns (display-only filter applied).
     const hasIndex = indexValueTypes.length > 0;
     const hasHeader = headerValueTypes.length > 0;
 
+    // hasIndexForGrouping: true when there are row-grouping dimensions
+    // regardless of whether they're hidden from display. Used to correctly
+    // size dataValues and look up row indices even when all row dims are hidden.
+    const hasIndexForGrouping =
+        indexDimensions.length > 0 || pivotConfig.metricsAsRows;
+
     // Compute the size of the data values
-    const N_DATA_ROWS = hasIndex ? rowCount : 1;
+    const N_DATA_ROWS = hasIndexForGrouping ? rowCount : 1;
     const N_DATA_COLUMNS = hasHeader ? columnCount : 1;
 
     // Compute the data values
@@ -828,7 +836,7 @@ export const pivotQueryResults = ({
             const rowKeysString = rowKeys.map(String);
             const columnKeysString = columnKeys.map(String);
 
-            const rowIndex = hasIndex
+            const rowIndex = hasIndexForGrouping
                 ? getIndexByKey(rowIndices, rowKeysString)
                 : 0;
             const columnIndex = hasHeader

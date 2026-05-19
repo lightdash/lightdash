@@ -1544,6 +1544,127 @@ describe('ExcelService', () => {
             // returns null → no date conversion should happen
             expect(dateCells).toHaveLength(0);
         });
+
+        it('omits a hidden row-index dimension from the XLSX pivot output (regression guard for hiddenDimensionFieldIds)', async () => {
+            // Regression guard: PivotConfig.hiddenDimensionFieldIds must cause the
+            // hidden dimension to be absent from the rendered headers and body cells.
+            // This mirrors the CSV regression guard in pivotResultsAsCsv.test.ts.
+            const pivotDimension = 'payments_payment_method';
+            const indexDimension = 'customers_created_month'; // will be hidden
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [indexDimension]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-01',
+                    [metric]: 200,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-02',
+                    [metric]: 150,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-02',
+                    [metric]: 250,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, indexDimension],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: indexDimension, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            // Hide the row-index dimension via hiddenDimensionFieldIds
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: [indexDimension],
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+                enableImprovedExcelDates: true,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore - Buffer type mismatch between exceljs and Node 20
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const allCellValues: unknown[] = [];
+            worksheet!.eachRow((row) => {
+                row.eachCell({ includeEmpty: false }, (cell) => {
+                    allCellValues.push(cell.value);
+                });
+            });
+
+            // The hidden dimension's field values must not appear anywhere
+            expect(allCellValues).not.toContain('2023-01');
+            expect(allCellValues).not.toContain('2023-02');
+            // The hidden dimension's label must not appear in headers
+            expect(allCellValues).not.toContain('Created month');
+
+            // The pivot-column-header and metric values should still be present
+            expect(allCellValues).toContain('credit_card');
+            expect(allCellValues).toContain('bank_transfer');
+        });
     });
 
     describe('format expression integration', () => {
