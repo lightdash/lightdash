@@ -66,6 +66,7 @@ import {
     WarehouseQueryError,
     type AiPromptContextInput,
     type SessionUser,
+    type TransformedCustomMetric,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -190,7 +191,10 @@ import {
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
-import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
@@ -613,6 +617,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
+        customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -632,16 +637,22 @@ export class AiAgentService extends BaseService {
             metricQuery.additionalMetrics,
         );
 
+        const populatedCustomMetrics = populateCustomMetricsSQL(
+            customMetrics ?? metricQuery.additionalMetrics,
+            explore,
+        );
+
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
                 account: fromSession(user),
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
-                    additionalMetrics: populateCustomMetricsSQL(
-                        metricQuery.additionalMetrics,
-                        explore,
+                    metrics: expandMetricsWithPopAdditionalMetrics(
+                        metricQuery.metrics,
+                        populatedCustomMetrics,
                     ),
+                    additionalMetrics: populatedCustomMetrics,
                 },
                 context: QueryExecutionContext.AI,
             },
@@ -2068,6 +2079,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {
@@ -2202,6 +2214,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {

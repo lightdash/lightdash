@@ -1,4 +1,5 @@
 import {
+    AiAgentValidatorError,
     assertUnreachable,
     ChangeBase,
     convertAdditionalMetric,
@@ -58,6 +59,11 @@ export const translateToolProposeChangeArgs = async (
                 payload: { patches },
             };
         case 'create':
+            if (value.value.metric.kind !== 'aggregation') {
+                throw new AiAgentValidatorError(
+                    'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside runQuery for time comparisons.',
+                );
+            }
             const exploreCompiler = await getExploreCompiler();
             const transformedMetric = customMetricBaseSchemaTransformed.parse(
                 value.value.metric,
@@ -138,6 +144,14 @@ export const getProposeChange = ({
                         switch (change.value.type) {
                             case 'create':
                                 validateTableNames(explore, [entityTableName]);
+                                if (
+                                    change.value.value.metric.kind !==
+                                    'aggregation'
+                                ) {
+                                    throw new AiAgentValidatorError(
+                                        'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside runQuery for time comparisons.',
+                                    );
+                                }
                                 validateFieldEntityType(
                                     explore,
                                     [
