@@ -1,3 +1,11 @@
+## [0.2976.2](https://github.com/lightdash/lightdash/compare/0.2976.1...0.2976.2) (2026-05-19)
+
+
+### Bug Fixes
+
+* **cli:** skip table-groups call when key absent from config ([#23269](https://github.com/lightdash/lightdash/issues/23269)) ([07d37b0](https://github.com/lightdash/lightdash/commit/07d37b052b88e5edf2d496a35bf583a1197a1010)), closes [#23228](https://github.com/lightdash/lightdash/issues/23228)
+* **spaces:** show org and project admins in space access list ([#23236](https://github.com/lightdash/lightdash/issues/23236)) ([f674d6d](https://github.com/lightdash/lightdash/commit/f674d6da4899190d918e2067d4d58d17821d3f53))
+
 ## [0.2976.1](https://github.com/lightdash/lightdash/compare/0.2976.0...0.2976.1) (2026-05-19)
 
 
