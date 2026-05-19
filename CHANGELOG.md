@@ -1,3 +1,10 @@
+# [0.2974.0](https://github.com/lightdash/lightdash/compare/0.2973.0...0.2974.0) (2026-05-19)
+
+
+### Features
+
+* apply dashboard filters to data app tiles ([#23225](https://github.com/lightdash/lightdash/issues/23225)) ([5ccf230](https://github.com/lightdash/lightdash/commit/5ccf23025ef385f615e62491dbc99856f1913d32))
+
 # [0.2973.0](https://github.com/lightdash/lightdash/compare/0.2972.0...0.2973.0) (2026-05-19)
 
 
