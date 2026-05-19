@@ -6,6 +6,7 @@ import {
     ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
     assertSessionAuth,
@@ -23,6 +24,7 @@ import {
     DecodedEmbed,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
+    ExecuteAsyncDashboardSqlChartRequestParams,
     Explore,
     FieldValueSearchResult,
     GetEmbedDashboardRequest,
@@ -342,6 +344,51 @@ export class EmbedController extends BaseController {
                 pivotResults: body.pivotResults,
                 limit: body.limit,
             });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/query/dashboard-sql-chart')
+    @OperationId('executeAsyncDashboardSqlChartTileQuery')
+    async executeAsyncDashboardSqlChartTileQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            tileUuid: string;
+        } & Pick<
+            ExecuteAsyncDashboardSqlChartRequestParams,
+            | 'dashboardFilters'
+            | 'dashboardSorts'
+            | 'invalidateCache'
+            | 'parameters'
+            | 'limit'
+        >,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncDashboardSqlChartQueryResults;
+    }> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const results =
+            await this.getEmbedService().executeAsyncDashboardSqlChartTileQuery(
+                {
+                    account: req.account,
+                    projectUuid,
+                    tileUuid: body.tileUuid,
+                    dashboardFilters: body.dashboardFilters,
+                    dashboardSorts: body.dashboardSorts,
+                    invalidateCache: body.invalidateCache,
+                    parameters: body.parameters,
+                    limit: body.limit,
+                },
+            );
 
         return {
             status: 'ok',
