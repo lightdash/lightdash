@@ -29,7 +29,7 @@ import {
     fetchSavedSqlChart,
 } from './useSavedSqlCharts';
 
-type SavedSqlChartArgs = {
+type SavedSqlChartBaseArgs = {
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
@@ -37,25 +37,43 @@ type SavedSqlChartArgs = {
     parameters?: ParametersValuesMap;
 };
 
-type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
-    dashboardUuid: string;
+type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
-    parameters?: ParametersValuesMap;
-    // When true, the chart and its results are fetched via the /embed/*
-    // routes, which authorize JWT users via dashboard membership instead
-    // of requiring a registered account.
-    isEmbed?: boolean;
 };
 
+type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
+    dashboardUuid: string;
+    isEmbed?: false;
+};
+
+// Embed callers don't pass dashboardUuid — the JWT carries it server-side.
+type SavedSqlChartEmbedDashboardArgs = SavedSqlChartDashboardCommonArgs & {
+    isEmbed: true;
+};
+
+type SavedSqlChartDashboardArgs =
+    | SavedSqlChartRegisteredDashboardArgs
+    | SavedSqlChartEmbedDashboardArgs;
+
 type UseSavedSqlChartResultsArguments =
-    | SavedSqlChartArgs
+    | SavedSqlChartBaseArgs
     | SavedSqlChartDashboardArgs;
 
 const isDashboardArgs = (
     args: UseSavedSqlChartResultsArguments,
-): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
+): args is SavedSqlChartDashboardArgs => 'tileUuid' in args;
+
+const isEmbedDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartEmbedDashboardArgs =>
+    isDashboardArgs(args) && args.isEmbed === true;
+
+const isRegisteredDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartRegisteredDashboardArgs =>
+    isDashboardArgs(args) && !args.isEmbed;
 
 type UseSavedSqlChartResults = {
     queryUuid: string;
@@ -75,10 +93,13 @@ export const useSavedSqlChartResults = (
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        dashboardUuid: isDashboardArgs(args) ? args.dashboardUuid : undefined,
+        dashboardUuid:
+            isDashboardArgs(args) && !args.isEmbed
+                ? args.dashboardUuid
+                : undefined,
     });
 
-    const isEmbedDashboard = isDashboardArgs(args) && args.isEmbed === true;
+    const embedDashboard = isEmbedDashboardArgs(args);
 
     // Step 1: Get the chart. Embed dashboards must use the embed-only
     // endpoint, which authorizes via dashboard tile membership; the
@@ -87,13 +108,11 @@ export const useSavedSqlChartResults = (
         [
             'savedSqlChart',
             savedSqlUuid ?? slug,
-            isEmbedDashboard ? 'embed' : 'registered',
-            isEmbedDashboard && isDashboardArgs(args)
-                ? args.tileUuid
-                : undefined,
+            embedDashboard ? 'embed' : 'registered',
+            embedDashboard ? args.tileUuid : undefined,
         ],
         async () => {
-            if (isEmbedDashboard && isDashboardArgs(args)) {
+            if (isEmbedDashboardArgs(args)) {
                 return fetchEmbedDashboardSqlChartTile({
                     projectUuid: projectUuid!,
                     tileUuid: args.tileUuid,
@@ -107,9 +126,8 @@ export const useSavedSqlChartResults = (
         },
         {
             enabled:
-                (isEmbedDashboard
-                    ? isDashboardArgs(args) && !!args.tileUuid
-                    : !!savedSqlUuid || !!slug) && !!projectUuid,
+                (embedDashboard ? !!args.tileUuid : !!savedSqlUuid || !!slug) &&
+                !!projectUuid,
             ...retryConfig,
         },
     );
@@ -125,40 +143,37 @@ export const useSavedSqlChartResults = (
                 // Safe to assume these are defined because of the enabled flag
                 const chart = chartQuery.data!;
 
-                let { originalColumns, ...pivotChartData } = isDashboardArgs(
-                    args,
-                )
-                    ? args.isEmbed
-                        ? await getEmbedDashboardSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              tileUuid: args.tileUuid,
-                              dashboardFilters: args.dashboardFilters,
-                              dashboardSorts: args.dashboardSorts,
-                              parameters,
-                          })
-                        : savedSqlUuid
-                          ? await getDashboardSqlChartPivotChartData({
-                                projectUuid: projectUuid!,
-                                dashboardUuid: args.dashboardUuid,
-                                tileUuid: args.tileUuid,
-                                dashboardFilters: args.dashboardFilters,
-                                dashboardSorts: args.dashboardSorts,
-                                savedSqlUuid,
-                                context: args.context as QueryExecutionContext,
-                                parameters,
-                            })
-                          : await getSqlChartPivotChartData({
-                                projectUuid: projectUuid!,
-                                savedSqlUuid: chart.savedSqlUuid,
-                                context: context as QueryExecutionContext,
-                                parameters,
-                            })
-                    : await getSqlChartPivotChartData({
-                          projectUuid: projectUuid!,
-                          savedSqlUuid: chart.savedSqlUuid,
-                          context: context as QueryExecutionContext,
-                          parameters,
-                      });
+                let pivotResult;
+                if (isEmbedDashboardArgs(args)) {
+                    pivotResult = await getEmbedDashboardSqlChartPivotChartData(
+                        {
+                            projectUuid: projectUuid!,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            parameters,
+                        },
+                    );
+                } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
+                    pivotResult = await getDashboardSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        dashboardUuid: args.dashboardUuid,
+                        tileUuid: args.tileUuid,
+                        dashboardFilters: args.dashboardFilters,
+                        dashboardSorts: args.dashboardSorts,
+                        savedSqlUuid,
+                        context: args.context as QueryExecutionContext,
+                        parameters,
+                    });
+                } else {
+                    pivotResult = await getSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        savedSqlUuid: chart.savedSqlUuid,
+                        context: context as QueryExecutionContext,
+                        parameters,
+                    });
+                }
+                const { originalColumns, ...pivotChartData } = pivotResult;
 
                 const vizConfig = isVizTableConfig(chart.config)
                     ? chart.config.columns
@@ -217,7 +232,7 @@ export const useSavedSqlChartResults = (
             enabled:
                 !!chartQuery.data &&
                 !!projectUuid &&
-                (isEmbedDashboard || !!savedSqlUuid || !!slug),
+                (embedDashboard || !!savedSqlUuid || !!slug),
             ...retryConfig,
         },
     );
@@ -235,38 +250,37 @@ export const useSavedSqlChartResults = (
             // 1. limit is null (meaning "all results" - should ignore existing query limits)
             // 2. limit is different from current query
             if (limit === null || limit !== chartQuery.data.limit) {
-                const queryForDownload = isDashboardArgs(args)
-                    ? args.isEmbed
-                        ? await getEmbedDashboardSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              tileUuid: args.tileUuid,
-                              dashboardFilters: args.dashboardFilters,
-                              dashboardSorts: args.dashboardSorts,
-                              limit: limit ?? MAX_SAFE_INTEGER,
-                          })
-                        : savedSqlUuid
-                          ? await getDashboardSqlChartPivotChartData({
-                                projectUuid: projectUuid!,
-                                dashboardUuid: args.dashboardUuid,
-                                tileUuid: args.tileUuid,
-                                dashboardFilters: args.dashboardFilters,
-                                dashboardSorts: args.dashboardSorts,
-                                savedSqlUuid,
-                                context: args.context as QueryExecutionContext,
-                                limit: limit ?? MAX_SAFE_INTEGER,
-                            })
-                          : await getSqlChartPivotChartData({
-                                projectUuid: projectUuid!,
-                                savedSqlUuid: chartQuery.data.savedSqlUuid,
-                                context: context as QueryExecutionContext,
-                                limit: limit ?? MAX_SAFE_INTEGER,
-                            })
-                    : await getSqlChartPivotChartData({
-                          projectUuid: projectUuid!,
-                          savedSqlUuid: chartQuery.data.savedSqlUuid,
-                          context: context as QueryExecutionContext,
-                          limit: limit ?? MAX_SAFE_INTEGER,
-                      });
+                let queryForDownload;
+                if (isEmbedDashboardArgs(args)) {
+                    queryForDownload =
+                        await getEmbedDashboardSqlChartPivotChartData({
+                            projectUuid: projectUuid!,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            limit: limit ?? MAX_SAFE_INTEGER,
+                        });
+                } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
+                    queryForDownload = await getDashboardSqlChartPivotChartData(
+                        {
+                            projectUuid: projectUuid!,
+                            dashboardUuid: args.dashboardUuid,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            savedSqlUuid,
+                            context: args.context as QueryExecutionContext,
+                            limit: limit ?? MAX_SAFE_INTEGER,
+                        },
+                    );
+                } else {
+                    queryForDownload = await getSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        savedSqlUuid: chartQuery.data.savedSqlUuid,
+                        context: context as QueryExecutionContext,
+                        limit: limit ?? MAX_SAFE_INTEGER,
+                    });
+                }
                 queryUuidToDownload = queryForDownload.queryUuid;
             }
             return queryUuidToDownload;

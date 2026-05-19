@@ -120,17 +120,29 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
             isFetching: isChartResultsFetching,
         },
         getDownloadQueryUuid,
-    } = useSavedSqlChartResults({
-        projectUuid,
-        savedSqlUuid,
-        context,
-        dashboardUuid: dashboardUuid ?? '',
-        tileUuid: tile.uuid,
-        dashboardFilters,
-        dashboardSorts: [],
-        parameters,
-        isEmbed,
-    });
+    } = useSavedSqlChartResults(
+        isEmbed
+            ? {
+                  projectUuid,
+                  savedSqlUuid,
+                  context,
+                  tileUuid: tile.uuid,
+                  dashboardFilters,
+                  dashboardSorts: [],
+                  parameters,
+                  isEmbed: true,
+              }
+            : {
+                  projectUuid,
+                  savedSqlUuid,
+                  context,
+                  dashboardUuid: dashboardUuid!,
+                  tileUuid: tile.uuid,
+                  dashboardFilters,
+                  dashboardSorts: [],
+                  parameters,
+              },
+    );
 
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
