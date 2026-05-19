@@ -1,3 +1,18 @@
+# [0.2979.0](https://github.com/lightdash/lightdash/compare/0.2978.0...0.2979.0) (2026-05-19)
+
+
+### Bug Fixes
+
+* add slug to dashboard and chart search results ([#23260](https://github.com/lightdash/lightdash/issues/23260)) ([428c7b3](https://github.com/lightdash/lightdash/commit/428c7b37c1a6b8d5dec69d7714cf8c1289781135)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* flag dashboard filters referencing deleted explores as TableDoesNotExist ([#23281](https://github.com/lightdash/lightdash/issues/23281)) ([89f46d3](https://github.com/lightdash/lightdash/commit/89f46d3e9d189dd77193f15a0009c642037a886c)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* **ai:** add ai suggestions in ai agents web with hardening ([#23266](https://github.com/lightdash/lightdash/issues/23266)) ([1d95bf2](https://github.com/lightdash/lightdash/commit/1d95bf28d4c47fe3e1c3c9d9d57963380f66ab05))
+* imrove app resource picker ([#23271](https://github.com/lightdash/lightdash/issues/23271)) ([db58224](https://github.com/lightdash/lightdash/commit/db58224f5bd0cc89bcd45e241676b284c1ea503e))
+* use slugs instead of uuids for chart and dashboard context items ([#23259](https://github.com/lightdash/lightdash/issues/23259)) ([3485966](https://github.com/lightdash/lightdash/commit/34859665f3f258f539cb84a87daeec071bdd2277)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2978.0](https://github.com/lightdash/lightdash/compare/0.2977.0...0.2978.0) (2026-05-19)
 
 
