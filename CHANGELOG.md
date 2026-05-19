@@ -1,3 +1,10 @@
+# [0.2983.0](https://github.com/lightdash/lightdash/compare/0.2982.0...0.2983.0) (2026-05-19)
+
+
+### Features
+
+* add `HidePivotDimensions` feature flag ([#23289](https://github.com/lightdash/lightdash/issues/23289)) ([c9cc197](https://github.com/lightdash/lightdash/commit/c9cc1972ec8dc17489541a9237d1a04241b93245))
+
 # [0.2982.0](https://github.com/lightdash/lightdash/compare/0.2981.3...0.2982.0) (2026-05-19)
 
 
