@@ -12,6 +12,7 @@ export const warehouseTypes = [
     'clickhouse',
     'athena',
     'duckdb',
+    'ducklake',
 ] as const;
 export type WarehouseType = (typeof warehouseTypes)[number];
 type DbWarehouseCredentials = {

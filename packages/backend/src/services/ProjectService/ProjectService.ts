@@ -1365,6 +1365,38 @@ export class ProjectService extends BaseService {
                     token: '',
                 };
             }
+            case WarehouseTypes.DUCKLAKE: {
+                const { catalog, dataPath } = credentials;
+                const clearedCatalog =
+                    catalog.type === 'postgres'
+                        ? { ...catalog, user: '', password: '' }
+                        : catalog;
+                let clearedDataPath: typeof dataPath = dataPath;
+                if (dataPath.type === 's3') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        accessKeyId: '',
+                        secretAccessKey: '',
+                    };
+                } else if (dataPath.type === 'gcs') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        hmacKeyId: '',
+                        hmacSecret: '',
+                    };
+                } else if (dataPath.type === 'azure') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        connectionString: '',
+                        accountKey: '',
+                    };
+                }
+                return {
+                    ...credentials,
+                    catalog: clearedCatalog,
+                    dataPath: clearedDataPath,
+                };
+            }
 
             default:
                 return assertUnreachable(
@@ -1627,6 +1659,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
             case WarehouseTypes.DUCKDB:
+            case WarehouseTypes.DUCKLAKE:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -2158,6 +2191,7 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.ATHENA:
                     case WarehouseTypes.DUCKDB:
+                    case WarehouseTypes.DUCKLAKE:
                         break;
                     default:
                         assertUnreachable(
@@ -6165,6 +6199,8 @@ export class ProjectService extends BaseService {
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
                 return credentials.database;
+            case WarehouseTypes.DUCKLAKE:
+                return credentials.catalogAlias ?? 'ducklake';
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }

@@ -37,6 +37,7 @@ import {
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
+    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -235,6 +236,51 @@ export class ProjectModel {
                     AthenaAuthenticationType.IAM_ROLE)
         ) {
             return incompleteConfig;
+        }
+        // DuckLake stores secrets nested inside catalog/dataPath, which the
+        // flat sensitiveCredentialsFieldNames loop below cannot reach. Merge
+        // missing nested secrets here when both sides agree on the discriminator.
+        if (
+            incompleteConfig.type === WarehouseTypes.DUCKLAKE &&
+            completeConfig.type === WarehouseTypes.DUCKLAKE
+        ) {
+            const mergeNested = (
+                incomplete: Record<string, AnyType>,
+                complete: Record<string, AnyType>,
+                fields: readonly string[],
+            ): Record<string, AnyType> => {
+                if (incomplete.type !== complete.type) return incomplete;
+                const result = { ...incomplete };
+                fields.forEach((f) => {
+                    const cur = result[f];
+                    if ((cur === undefined || cur === '') && complete[f]) {
+                        result[f] = complete[f];
+                    }
+                });
+                return result;
+            };
+            const mergedCatalog = mergeNested(
+                incompleteConfig.catalog as Record<string, AnyType>,
+                completeConfig.catalog as Record<string, AnyType>,
+                ['user', 'password'],
+            );
+            const mergedDataPath = mergeNested(
+                incompleteConfig.dataPath as Record<string, AnyType>,
+                completeConfig.dataPath as Record<string, AnyType>,
+                [
+                    'accessKeyId',
+                    'secretAccessKey',
+                    'hmacKeyId',
+                    'hmacSecret',
+                    'connectionString',
+                    'accountKey',
+                ],
+            );
+            return {
+                ...incompleteConfig,
+                catalog: mergedCatalog,
+                dataPath: mergedDataPath,
+            } as T;
         }
         return {
             ...incompleteConfig,
@@ -1099,10 +1145,21 @@ export class ProjectModel {
               ) as WarehouseCredentials)
             : undefined;
 
+        // DuckLake nests sensitive fields inside catalog/dataPath, which the
+        // top-level filter above does not reach.
+        const scrubbedCredentials =
+            nonSensitiveCredentials &&
+            sensitiveCredentials &&
+            sensitiveCredentials.type === 'ducklake'
+                ? (stripDucklakeNestedSensitive(
+                      sensitiveCredentials,
+                  ) as WarehouseCredentials)
+                : nonSensitiveCredentials;
+
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                nonSensitiveCredentials,
+                scrubbedCredentials,
             );
 
         return {

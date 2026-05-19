@@ -91,6 +91,7 @@ export class UserWarehouseCredentialsModel {
                 case WarehouseTypes.DATABRICKS:
                 case WarehouseTypes.ATHENA:
                 case WarehouseTypes.DUCKDB:
+                case WarehouseTypes.DUCKLAKE:
                     credentials = {
                         type: credentialsWithSecrets.type,
                     };
