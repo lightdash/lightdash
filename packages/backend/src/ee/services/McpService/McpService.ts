@@ -316,6 +316,7 @@ export class McpService extends BaseService {
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
+        structuredContent?: Record<string, unknown>,
     ) {
         const metadata = await this.getActiveContextMetadata(context);
 
@@ -337,7 +338,9 @@ export class McpService extends BaseService {
             });
         }
 
-        return { content };
+        return structuredContent !== undefined
+            ? { content, structuredContent }
+            : { content };
     }
 
     static async streamToolResult<T extends { result: string }>(
@@ -1388,6 +1391,25 @@ export class McpService extends BaseService {
             {
                 description: toolRunSqlArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
+                outputSchema: {
+                    rows: z
+                        .array(z.record(z.unknown()))
+                        .describe(
+                            'Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).',
+                        ),
+                    columns: z
+                        .array(z.string())
+                        .describe(
+                            'Ordered list of column names matching the keys in each row of `rows`.',
+                        ),
+                    rowCount: z
+                        .number()
+                        .int()
+                        .nonnegative()
+                        .describe(
+                            'Total number of rows returned. May be less than the requested limit.',
+                        ),
+                },
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1433,6 +1455,7 @@ export class McpService extends BaseService {
                         return await this.buildScopedResponse(
                             ctx,
                             `Query returned 0 rows.${header ? ` ${header}` : ''}`,
+                            { rows: [], columns, rowCount: 0 },
                         );
                     }
 
@@ -1441,7 +1464,11 @@ export class McpService extends BaseService {
                         columns,
                     });
 
-                    return await this.buildScopedResponse(ctx, csv);
+                    return await this.buildScopedResponse(ctx, csv, {
+                        rows,
+                        columns,
+                        rowCount: rows.length,
+                    });
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
