@@ -40,6 +40,19 @@ export const fetchSavedSqlChart = async ({
         body: undefined,
     });
 
+export const fetchEmbedDashboardSqlChartTile = async ({
+    projectUuid,
+    tileUuid,
+}: {
+    projectUuid: string;
+    tileUuid: string;
+}) =>
+    lightdashApi<SqlChart>({
+        url: `/embed/${projectUuid}/sql-chart-tile/${tileUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
 const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
     lightdashApi<ApiCreateSqlChart['results']>({
         url: `/projects/${projectUuid}/sqlRunner/saved`,

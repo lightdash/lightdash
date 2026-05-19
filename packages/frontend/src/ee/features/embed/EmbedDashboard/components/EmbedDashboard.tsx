@@ -118,6 +118,7 @@ const EmbedDashboardGrid: FC<{
                                 isEditMode={false}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
+                                isEmbed
                             />
                         ) : tile.type === DashboardTileTypes.HEADING ? (
                             <EmbedHeadingTile
