@@ -1,3 +1,10 @@
+# [0.2972.0](https://github.com/lightdash/lightdash/compare/0.2971.0...0.2972.0) (2026-05-19)
+
+
+### Features
+
+* add source field picker to custom metric modal with hover preview support ([#23256](https://github.com/lightdash/lightdash/issues/23256)) ([6a2a8c8](https://github.com/lightdash/lightdash/commit/6a2a8c806918203d8965ba266c9a2edb095512c1))
+
 # [0.2971.0](https://github.com/lightdash/lightdash/compare/0.2970.0...0.2971.0) (2026-05-19)
 
 
