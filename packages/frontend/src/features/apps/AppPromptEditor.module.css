@@ -3,8 +3,8 @@
  * as inline pills; everything else is plain text. */
 
 .editorContent {
-    min-height: 24px;
-    max-height: 144px;
+    min-height: 48px;
+    max-height: 200px;
     overflow-y: auto;
     font-size: var(--mantine-font-size-sm);
     padding: 0;
@@ -13,7 +13,7 @@
      * matches the old textarea's vertical rhythm. */
     & :global(.ProseMirror) {
         outline: none;
-        min-height: 24px;
+        min-height: 48px;
     }
     & :global(.ProseMirror p) {
         margin: 0;
