@@ -1,8 +1,8 @@
 import {
-    AnyType,
     CustomFormatType,
     deepEqual,
     MetricType,
+    type AnyType,
 } from '@lightdash/common';
 import knex from 'knex';
 import {
