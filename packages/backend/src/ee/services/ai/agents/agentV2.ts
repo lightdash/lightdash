@@ -493,6 +493,14 @@ export const generateAgentResponse = async ({
             throw new AiAgentStepCapReachedError(result.steps.length);
         }
 
+        await dependencies.updatePrompt({
+            promptUuid: args.promptUuid,
+            response: result.text,
+            tokenUsage: {
+                totalTokens: result.usage.totalTokens ?? 0,
+            },
+        });
+
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
         dependencies.perf.measureTTFT(totalTime, modelName, 'generate');
@@ -747,11 +755,17 @@ export const streamAgentResponse = async ({
                         errorMessage: getUserFacingErrorMessage(
                             new AiAgentStepCapReachedError(steps.length),
                         ),
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
+                        },
                     });
                 } else {
                     void dependencies.updatePrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
+                        },
                     });
                 }
 
