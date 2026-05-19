@@ -180,6 +180,7 @@ export const ToolCallDescription: FC<{
             );
         case 'discoverFields':
         case 'improveContext':
+        case 'loadSkill':
         case 'proposeChange':
         case 'runSavedChart':
             return <> </>;

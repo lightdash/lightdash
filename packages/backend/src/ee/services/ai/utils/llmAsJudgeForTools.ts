@@ -29,6 +29,13 @@ import { defaultAgentOptions } from '../agents/agentV2';
 import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 
+const toolLoadSkillArgsSchema = z
+    .object({
+        name: z.string(),
+        resourceName: z.string().optional(),
+    })
+    .describe('Load a built-in skill by name.');
+
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
@@ -41,6 +48,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
+    loadSkill: 'load_skill',
     runQuery: 'query_result',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
@@ -67,6 +75,7 @@ const TOOL_SCHEMAS = {
     findCharts: toolFindChartsArgsSchema,
     getDashboardCharts: toolGetDashboardChartsArgsSchema,
     improveContext: toolImproveContextArgsSchema,
+    loadSkill: toolLoadSkillArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
     runQuery: toolRunQueryArgsSchema,
     runSavedChart: toolRunSavedChartArgsSchema,
