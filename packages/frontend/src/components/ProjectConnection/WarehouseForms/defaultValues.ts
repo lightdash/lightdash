@@ -2,6 +2,8 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     WarehouseTypes,
 } from '@lightdash/common';
 import type {
@@ -10,6 +12,7 @@ import type {
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
     CreateDuckdbCredentials,
+    CreateDucklakeCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
@@ -177,6 +180,28 @@ const DuckdbDefaultValues: CreateDuckdbCredentials = {
     startOfWeek: undefined,
 };
 
+const DucklakeDefaultValues: CreateDucklakeCredentials = {
+    type: WarehouseTypes.DUCKLAKE,
+    schema: 'main',
+    catalogAlias: 'ducklake',
+    catalog: {
+        type: DucklakeCatalogType.POSTGRES,
+        host: '',
+        port: 5432,
+        database: '',
+        user: '',
+        password: '',
+    },
+    dataPath: {
+        type: DucklakeDataPathType.S3,
+        url: '',
+        accessKeyId: '',
+        secretAccessKey: '',
+    },
+    threads: 1,
+    startOfWeek: undefined,
+};
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -187,4 +212,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
+    [WarehouseTypes.DUCKLAKE]: DucklakeDefaultValues,
 };

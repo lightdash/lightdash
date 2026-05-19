@@ -133,6 +133,9 @@ export const WarehouseFormInputs: FC<{
                     {...form.getInputProps('credentials.token')}
                 />
             );
+        case WarehouseTypes.DUCKLAKE:
+            // No per-user override surface yet — DuckLake nests its secrets.
+            return null;
         default:
             return null;
     }
