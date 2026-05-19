@@ -1,3 +1,10 @@
+# [0.2973.0](https://github.com/lightdash/lightdash/compare/0.2972.0...0.2973.0) (2026-05-19)
+
+
+### Features
+
+* **ai:** show table detail for warehouse tool calls ([#23257](https://github.com/lightdash/lightdash/issues/23257)) ([c77b4ad](https://github.com/lightdash/lightdash/commit/c77b4ad78c5155f7943d83aa5d94c0130f25903b))
+
 # [0.2972.0](https://github.com/lightdash/lightdash/compare/0.2971.0...0.2972.0) (2026-05-19)
 
 
