@@ -139,6 +139,27 @@ export class ValidationService extends BaseService {
         return existingFields;
     }
 
+    private static buildExistingTableNames(
+        compiledExplores: (Explore | ExploreError)[],
+    ): Set<string> {
+        // Includes baseTable for every explore (even those that failed to
+        // compile, so a broken-but-present model is not falsely reported
+        // as deleted) plus every joined table from non-error explores —
+        // dashboard filter targets can reference joined tables too.
+        const tableNames = new Set<string>();
+        compiledExplores.forEach((explore) => {
+            if (explore.baseTable) {
+                tableNames.add(explore.baseTable);
+            }
+            if (!isExploreError(explore) && explore.tables) {
+                Object.keys(explore.tables).forEach((name) =>
+                    tableNames.add(name),
+                );
+            }
+        });
+        return tableNames;
+    }
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -597,6 +618,7 @@ export class ValidationService extends BaseService {
     private async validateDashboards(
         projectUuid: string,
         existingFields: CompiledField[],
+        existingTableNames: Set<string>,
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
         dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
@@ -666,6 +688,27 @@ export class ValidationService extends BaseService {
                         return undefined;
                     };
 
+                    // Without this check a deleted dbt model's dimensions
+                    // stay silently in the filter dropdown — the existing
+                    // fieldId check only catches renamed/removed fields
+                    // within an existing table. The parser in
+                    // ValidationModel.parseDashboardFilterError keys off the
+                    // exact "Table 'X' no longer exists" wording.
+                    const checkTableExists = (
+                        fieldId: string,
+                        tableName: string | undefined,
+                    ): CreateDashboardValidation | undefined => {
+                        if (tableName && !existingTableNames.has(tableName)) {
+                            return {
+                                ...commonValidation,
+                                errorType: ValidationErrorType.Filter,
+                                error: `Table '${tableName}' no longer exists`,
+                                fieldName: fieldId,
+                            };
+                        }
+                        return undefined;
+                    };
+
                     const dashboardFilterRules = [
                         ...filters.dimensions,
                         ...filters.metrics,
@@ -694,6 +737,14 @@ export class ValidationService extends BaseService {
                             );
                             if (consistencyError) {
                                 return [...acc, consistencyError];
+                            }
+
+                            const tableMissingError = checkTableExists(
+                                fieldId,
+                                tableName,
+                            );
+                            if (tableMissingError) {
+                                return [...acc, tableMissingError];
                             }
 
                             return containsFieldId({
@@ -743,6 +794,14 @@ export class ValidationService extends BaseService {
                                     );
                                 if (consistencyError) {
                                     return [...acc, consistencyError];
+                                }
+
+                                const tableMissingError = checkTableExists(
+                                    fieldId,
+                                    tableName,
+                                );
+                                if (tableMissingError) {
+                                    return [...acc, tableMissingError];
                                 }
 
                                 return containsFieldId({
@@ -983,12 +1042,17 @@ export class ValidationService extends BaseService {
                 error.errorType !== ValidationErrorType.ChartConfiguration,
         );
 
+        const existingTableNames = explores
+            ? ValidationService.buildExistingTableNames(explores)
+            : new Set<string>();
+
         const dashboardErrors =
             !hasValidationTargets ||
             validationTargets.has(ValidationTarget.DASHBOARDS)
                 ? await this.validateDashboards(
                       projectUuid,
                       existingFields,
+                      existingTableNames,
                       blockingChartErrors,
                   )
                 : [];
@@ -1529,6 +1593,8 @@ export class ValidationService extends BaseService {
         // Get existing fields for validation
         const existingFields =
             ValidationService.buildExistingFields(compiledExplores);
+        const existingTableNames =
+            ValidationService.buildExistingTableNames(compiledExplores);
 
         // Get existing chart validation errors from database
         const validations = await this.validationModel.get(projectUuid);
@@ -1553,6 +1619,7 @@ export class ValidationService extends BaseService {
         const validationErrors = await this.validateDashboards(
             projectUuid,
             existingFields,
+            existingTableNames,
             blockingChartErrors,
             dashboardUuid,
         );
