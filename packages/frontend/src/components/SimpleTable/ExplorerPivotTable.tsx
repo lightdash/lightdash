@@ -1,14 +1,17 @@
-import { FieldType, type SortField } from '@lightdash/common';
+import { FeatureFlags, FieldType, type SortField } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { useCallback, useMemo, type ComponentProps, type FC } from 'react';
 import {
     explorerActions,
+    selectDimensions,
     selectIsEditMode,
     selectMetrics,
+    selectPivotConfig,
     selectSorts,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     matchesIdentity,
     normalizePivotValues,
@@ -17,6 +20,8 @@ import {
 import { SortDirection } from '../../utils/sortUtils';
 import PivotTable, { type PivotSortMenuTarget } from '../common/PivotTable';
 import ColumnHeaderSortMenuOptions from '../Explorer/ResultsCard/ColumnHeaderSortMenuOptions';
+import { isTableVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 type ExplorerPivotTableProps = Omit<
     ComponentProps<typeof PivotTable>,
@@ -39,6 +44,31 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     const sorts = useExplorerSelector(selectSorts);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const metrics = useExplorerSelector(selectMetrics);
+    const dimensions = useExplorerSelector(selectDimensions);
+    const pivotConfig = useExplorerSelector(selectPivotConfig);
+
+    const { visualizationConfig } = useVisualizationContext();
+    const chartConfig = isTableVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig
+        : null;
+
+    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
+        FeatureFlags.HidePivotDimensions,
+    );
+    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
+
+    const showSubtotals = chartConfig?.showSubtotals ?? false;
+    const rowDims = useMemo(
+        () => dimensions.filter((d) => !pivotConfig?.columns?.includes(d)),
+        [dimensions, pivotConfig],
+    );
+    const isSubtotalGroupingLevel = useCallback(
+        (fieldId: string) =>
+            showSubtotals &&
+            rowDims.includes(fieldId) &&
+            rowDims.indexOf(fieldId) < rowDims.length - 1,
+        [showSubtotals, rowDims],
+    );
 
     // Sort axes:
     //   valueColumn — metric or pinned: drives row order
@@ -154,16 +184,50 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
                     : SortDirection.ASC
                 : undefined;
 
+            const isDimTarget =
+                menuTarget.kind === 'indexDim' ||
+                menuTarget.kind === 'groupByDim';
+
             return (
-                <ColumnHeaderSortMenuOptions
-                    item={item}
-                    selectedDirection={selectedDirection}
-                    onSelect={(direction) => applySort(target, direction)}
-                    onRemove={() => removeSort(target)}
-                />
+                <>
+                    <ColumnHeaderSortMenuOptions
+                        item={item}
+                        selectedDirection={selectedDirection}
+                        onSelect={(direction) => applySort(target, direction)}
+                        onRemove={() => removeSort(target)}
+                    />
+                    {isHidePivotDimsEnabled && chartConfig && isDimTarget && (
+                        <>
+                            <Menu.Divider />
+                            <Menu.Item
+                                color="red"
+                                disabled={isSubtotalGroupingLevel(
+                                    menuTarget.reference,
+                                )}
+                                onClick={() => {
+                                    chartConfig.updateColumnProperty(
+                                        menuTarget.reference,
+                                        { visible: false },
+                                    );
+                                }}
+                            >
+                                Hide column
+                            </Menu.Item>
+                        </>
+                    )}
+                </>
             );
         },
-        [applySort, getField, removeSort, sorts, targetFromMenuTarget],
+        [
+            applySort,
+            chartConfig,
+            getField,
+            isHidePivotDimsEnabled,
+            isSubtotalGroupingLevel,
+            removeSort,
+            sorts,
+            targetFromMenuTarget,
+        ],
     );
 
     return (
