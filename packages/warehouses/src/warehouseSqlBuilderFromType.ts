@@ -18,8 +18,6 @@ export const warehouseSqlBuilderFromType = (
     adapterType: string | SupportedDbtAdapter,
     ...args: ConstructorParameters<typeof WarehouseBaseSqlBuilder>
 ) => {
-    // DuckLake reuses the DuckDB SQL dialect; callers that pass the warehouse
-    // type get mapped to the right dbt adapter here.
     const normalizedAdapterType =
         adapterType === WarehouseTypes.DUCKLAKE
             ? SupportedDbtAdapter.DUCKDB

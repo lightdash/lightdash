@@ -237,9 +237,7 @@ export class ProjectModel {
         ) {
             return incompleteConfig;
         }
-        // DuckLake stores secrets nested inside catalog/dataPath, which the
-        // flat sensitiveCredentialsFieldNames loop below cannot reach. Merge
-        // missing nested secrets here when both sides agree on the discriminator.
+        // DuckLake nests secrets inside catalog/dataPath — see stripDucklakeNestedSensitive.
         if (
             incompleteConfig.type === WarehouseTypes.DUCKLAKE &&
             completeConfig.type === WarehouseTypes.DUCKLAKE
@@ -1145,8 +1143,6 @@ export class ProjectModel {
               ) as WarehouseCredentials)
             : undefined;
 
-        // DuckLake nests sensitive fields inside catalog/dataPath, which the
-        // top-level filter above does not reach.
         const scrubbedCredentials =
             nonSensitiveCredentials &&
             sensitiveCredentials &&
