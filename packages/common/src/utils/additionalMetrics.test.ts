@@ -1,6 +1,6 @@
-import { buildPopAdditionalMetric } from '../types/periodOverPeriodComparison';
 import { type CompiledTable } from '../types/explore';
 import { CustomFormatType, MetricType } from '../types/field';
+import { buildPopAdditionalMetric } from '../types/periodOverPeriodComparison';
 import { TimeFrames } from '../types/timeFrames';
 import { convertAdditionalMetric } from './additionalMetrics';
 
