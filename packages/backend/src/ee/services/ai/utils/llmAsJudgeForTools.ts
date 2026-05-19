@@ -36,6 +36,21 @@ const toolLoadSkillArgsSchema = z
     })
     .describe('Load a built-in skill by name.');
 
+const toolReadContentArgsSchema = z
+    .object({
+        slug: z.string(),
+        type: z.enum(['dashboard', 'chart']),
+    })
+    .describe('Read a dashboard or chart by slug.');
+
+const toolEditContentArgsSchema = z
+    .object({
+        slug: z.string(),
+        type: z.enum(['dashboard', 'chart']),
+        patch: z.unknown(),
+    })
+    .describe('Edit a dashboard or chart by applying a patch.');
+
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
@@ -45,6 +60,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
+    readContent: 'read_content',
+    editContent: 'edit_content',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
@@ -74,6 +91,8 @@ const TOOL_SCHEMAS = {
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,
     getDashboardCharts: toolGetDashboardChartsArgsSchema,
+    readContent: toolReadContentArgsSchema,
+    editContent: toolEditContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
     loadSkill: toolLoadSkillArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,

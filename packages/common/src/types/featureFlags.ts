@@ -112,6 +112,13 @@ export enum FeatureFlags {
     AiBuiltInSkills = 'ai-built-in-skills',
 
     /**
+     * Enable AI agent content editing tools like readContent/editContent.
+     * When enabled, these replace older dashboard-specific content lookup
+     * tools in the agent tool surface.
+     */
+    AiAgentRevamp = 'ai-agent-revamp',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.

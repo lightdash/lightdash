@@ -14,6 +14,7 @@ import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
+    EditContentFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -25,6 +26,7 @@ import {
     ListExploresFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
+    ReadContentFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
@@ -72,6 +74,7 @@ export type AiAgentArgs = AnyAiModel & {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];
+    enableAgentRevamp: boolean;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -96,6 +99,8 @@ export type PerformanceMetrics = {
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     findContent: FindContentFn;
+    readContent: ReadContentFn;
+    editContent: EditContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;

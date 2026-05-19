@@ -19,6 +19,10 @@ import type {
 } from '@lightdash/common';
 import { type ToolCallSummary } from './types';
 
+type ContentEditorToolArgs = {
+    slug?: string;
+};
+
 /**
  * Returns a short label representing a single tool call. Used to render each
  * call as a chip when the same tool is invoked multiple times in a row, and
@@ -93,6 +97,11 @@ export const getToolCallChipLabel = (
         case 'listWarehouseTables': {
             const args = toolArgs as ToolListWarehouseTablesArgs;
             return args.schema ?? args.search ?? null;
+        }
+        case 'readContent':
+        case 'editContent': {
+            const args = toolArgs as ContentEditorToolArgs;
+            return args.slug ?? null;
         }
         case 'runSql':
         case 'runSavedChart':

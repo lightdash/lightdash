@@ -24,6 +24,7 @@ import {
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
@@ -34,6 +35,11 @@ import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCal
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
+
+type ContentEditorToolArgs = {
+    slug?: string;
+    type?: 'dashboard' | 'chart';
+};
 
 export const ToolCallDescription: FC<{
     toolName: ToolName;
@@ -159,6 +165,19 @@ export const ToolCallDescription: FC<{
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
                 />
+            );
+        case 'readContent':
+        case 'editContent':
+            const contentEditorToolArgs =
+                toolCall.toolArgs as ContentEditorToolArgs;
+            return contentEditorToolArgs.slug && contentEditorToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action={toolName === 'readContent' ? 'read' : 'edit'}
+                    slug={contentEditorToolArgs.slug}
+                    type={contentEditorToolArgs.type}
+                />
+            ) : (
+                <> </>
             );
         case 'listWarehouseTables':
             const listWarehouseTablesArgs =

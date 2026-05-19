@@ -36,6 +36,8 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             findDashboards: IconLayoutDashboard,
             findCharts: IconChartDots3,
             getDashboardCharts: IconLayoutDashboard,
+            readContent: IconBook2,
+            editContent: IconPencil,
             improveContext: IconSchool,
             loadSkill: IconBook2,
             proposeChange: IconPencil,
