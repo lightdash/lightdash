@@ -11,7 +11,7 @@ const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an e
 
 There are TWO chip kinds:
 
-1. PROMPT chips (kind="prompt") — a complete data question the agent can act on by running a query, building a chart, or finding existing content. When clicked, the label is sent verbatim as the user's next message. Use a real tool from: ${AGENT_SUGGESTION_TOOLS.join(', ')}. Reference only real explore and dimension/metric labels from the catalogue.
+1. PROMPT chips (kind="prompt") — a complete data question the agent can act on by running a query, building a chart, or finding existing content. When clicked, the label is sent verbatim as the user's next message. Use only tools listed in <enabledTools>. Reference only real explore and dimension/metric labels from the catalogue. In defaults.dimensions and defaults.metrics, use field IDs from the catalogue, not labels.
 
 2. NAVIGATE chips (kind="navigate") — open one of the user's own recent threads. ONLY emit these when <recentUserConversations> contains a thread the user might want to resume. Set recentConversationIndex to the array index (0 = most recent). The server resolves the URL. Label should make it clear the chip resumes a conversation, e.g. "Continue your funnel conversion analysis" or "Resume the visit analytics dashboard build". Don't write more than ONE navigate chip per response — keep the rest as fresh PROMPT chips.
 
@@ -32,7 +32,7 @@ How to use the context (PROMPT chips):
 
 Tool guide (PROMPT chips):
 - \`runQuery\`: factual data questions answerable from the semantic layer.
-- \`runSql\`: rare; only when the question can't be expressed in the semantic layer.
+- \`runSql\`: rare; only when present in <enabledTools> and the question can't be expressed in the semantic layer.
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
 - \`proposeChange\`: implicit metric/dimension definition change.
@@ -47,7 +47,7 @@ Two modes:
 
 1. ANSWER mode — when <thread.latestAssistantTurn.askedClarifyingQuestion> is true, the chips ARE the user's likely answers to the agent's question. Pull options from the choices the agent presented in its reply. 5-40 chars typically.
 
-2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it.
+2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it. In defaults.dimensions and defaults.metrics, use field IDs from the catalogue, not labels.
 
 PREFERRED CONTEXT:
 - When <thread.latestAssistantTurn.latestQueryExplore> is present, lean on its dimensions and metrics first. These are the fields the agent just touched — the user is almost certainly thinking in that explore's frame.
@@ -57,14 +57,14 @@ HARD RULES:
 - Never reference a field name, segment, tier, or metric that does not appear in <thread.latestAssistantTurn.latestQueryExplore>, <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
 - If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore, a related verified question, or an adjacent angle the data actually supports.
 - 3 chips is ideal. 5 is the maximum.
-- Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Open the {name}") via \`findContent\` is often stronger than a new query.
+- Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Find the {name} chart") via \`findContent\` is often stronger than a new query.
 - No trailing punctuation on labels. Imperative or interrogative tense.
 
-For each chip, set defaults.explore, defaults.dimensions, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable. Set tool to the best-fit value: ${AGENT_SUGGESTION_TOOLS.join(', ')}.
+For each chip, set defaults.explore, defaults.dimensions, defaults.metrics, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable. Set tool to the best-fit enabled tool from <enabledTools>.
 
 Tool guide:
 - \`runQuery\`: drill-ins, breakdowns, refinements of the data
-- \`runSql\`: rare; only when semantic layer can't express what's being asked
+- \`runSql\`: rare; only when present in <enabledTools> and semantic layer can't express what's being asked
 - \`generateDashboard\`: "build me an overview" or multi-chart
 - \`findContent\`: "is there already a saved chart for this", or to surface a verified chart
 - \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change`;
@@ -74,19 +74,34 @@ export const SUGGESTION_FALLBACK_CHIPS: AgentSuggestion[] = [
         kind: 'prompt',
         label: 'Show me what data is available',
         tool: 'findContent',
-        defaults: { explore: null, dimensions: [], timeframe: null },
+        defaults: {
+            explore: null,
+            dimensions: [],
+            metrics: [],
+            timeframe: null,
+        },
     },
     {
         kind: 'prompt',
         label: 'Summarise activity from the last 30 days',
         tool: 'runQuery',
-        defaults: { explore: null, dimensions: [], timeframe: 'last 30 days' },
+        defaults: {
+            explore: null,
+            dimensions: [],
+            metrics: [],
+            timeframe: 'last 30 days',
+        },
     },
     {
         kind: 'prompt',
         label: 'Build a quick overview dashboard',
         tool: 'generateDashboard',
-        defaults: { explore: null, dimensions: [], timeframe: null },
+        defaults: {
+            explore: null,
+            dimensions: [],
+            metrics: [],
+            timeframe: null,
+        },
     },
 ];
 
@@ -105,6 +120,11 @@ export type VerifiedContentItem = {
     description: string | null;
 };
 
+type SuggestionFieldContext = {
+    id: string;
+    label: string;
+};
+
 export type SuggestionPromptContext = {
     agentName: string;
     agentInstruction: string | null;
@@ -113,8 +133,8 @@ export type SuggestionPromptContext = {
         name: string;
         label: string;
         description: string | null;
-        dimensions: string[];
-        metrics: string[];
+        dimensions: SuggestionFieldContext[];
+        metrics: SuggestionFieldContext[];
     }>;
     verifiedQuestions: string[];
     verifiedContentTags: string[];
@@ -136,8 +156,8 @@ export type SuggestionPromptContext = {
                 name: string;
                 label: string;
                 description: string | null;
-                dimensions: string[];
-                metrics: string[];
+                dimensions: SuggestionFieldContext[];
+                metrics: SuggestionFieldContext[];
             } | null;
         };
     };

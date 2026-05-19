@@ -100,6 +100,57 @@
     border-radius: 6px;
 }
 
+.followUpLoader {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    min-height: 30px;
+    animation: chipFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.loaderText {
+    font-weight: 500;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-2);
+    }
+}
+
+.loaderDots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-top: 1px;
+
+    span {
+        width: 3px;
+        height: 3px;
+        border-radius: 999px;
+        animation: loaderDotPulse 950ms ease-in-out infinite;
+
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-5);
+        }
+
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-2);
+        }
+    }
+
+    span:nth-child(2) {
+        animation-delay: 120ms;
+    }
+
+    span:nth-child(3) {
+        animation-delay: 240ms;
+    }
+}
+
 .fadeIn {
     animation: chipFadeIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: calc(var(--chip-idx, 0) * 40ms);
@@ -116,6 +167,19 @@
     }
 }
 
+@keyframes loaderDotPulse {
+    0%,
+    70%,
+    100% {
+        opacity: 0.35;
+        transform: translateY(0);
+    }
+    35% {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .chip {
         transition-duration: 0ms;
@@ -124,6 +188,14 @@
     .fadeIn {
         animation: chipFadeInReduced 120ms ease-out both;
         animation-delay: 0ms;
+    }
+
+    .followUpLoader {
+        animation: none;
+    }
+
+    .loaderDots span {
+        animation: none;
     }
 
     @keyframes chipFadeInReduced {

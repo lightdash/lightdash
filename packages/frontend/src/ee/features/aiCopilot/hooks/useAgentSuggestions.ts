@@ -7,10 +7,12 @@ const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 const getAgentSuggestions = (
     projectUuid: string,
     agentUuid: string,
+    enableSqlMode: boolean,
     threadUuid?: string,
     afterMessageUuid?: string,
 ) => {
     const search = new URLSearchParams();
+    if (enableSqlMode) search.set('enableSqlMode', 'true');
     if (threadUuid) search.set('threadUuid', threadUuid);
     if (afterMessageUuid) search.set('afterMessageUuid', afterMessageUuid);
     const qs = search.toString();
@@ -27,12 +29,14 @@ const getAgentSuggestions = (
 export const useAgentSuggestions = ({
     projectUuid,
     agentUuid,
+    enableSqlMode,
     threadUuid,
     afterMessageUuid,
     enabled,
 }: {
     projectUuid: string | undefined;
     agentUuid: string | undefined;
+    enableSqlMode: boolean;
     threadUuid?: string;
     afterMessageUuid?: string;
     enabled: boolean;
@@ -42,6 +46,7 @@ export const useAgentSuggestions = ({
             AGENT_SUGGESTIONS_KEY,
             projectUuid,
             agentUuid,
+            enableSqlMode,
             threadUuid ?? null,
             afterMessageUuid ?? null,
         ],
@@ -49,6 +54,7 @@ export const useAgentSuggestions = ({
             getAgentSuggestions(
                 projectUuid!,
                 agentUuid!,
+                enableSqlMode,
                 threadUuid,
                 afterMessageUuid,
             ),

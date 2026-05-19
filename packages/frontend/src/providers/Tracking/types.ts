@@ -481,8 +481,11 @@ type AiAgentSuggestionImpressionEvent = {
 type AiAgentSuggestionClickEvent = {
     name: EventName.AI_AGENT_SUGGESTION_CLICK;
     properties: {
+        organizationId: string;
         projectId: string;
         agentId: string;
+        threadId?: string;
+        afterMessageId?: string;
         chipLabel: string;
         chipKind: 'prompt' | 'navigate';
         chipTool?: string;

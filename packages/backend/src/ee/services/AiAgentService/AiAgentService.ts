@@ -42,6 +42,7 @@ import {
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    getItemId,
     isExploreError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -68,6 +69,7 @@ import {
     UpdateWebAppResponse,
     validateAgentSuggestion,
     WarehouseQueryError,
+    type AgentSuggestionTool,
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
@@ -314,16 +316,63 @@ function extractLatestQueryExplore(
                     label: explore.label,
                     description: baseTable.description ?? null,
                     dimensions: Object.values(baseTable.dimensions).map(
-                        (d) => d.label,
+                        (d) => ({
+                            id: getItemId(d),
+                            label: d.label,
+                        }),
                     ),
-                    metrics: Object.values(baseTable.metrics).map(
-                        (m) => m.label,
-                    ),
+                    metrics: Object.values(baseTable.metrics).map((m) => ({
+                        id: getItemId(m),
+                        label: m.label,
+                    })),
                 };
             }
         }
     }
     return null;
+}
+
+function validateGeneratedSuggestion(
+    chip: AgentSuggestion,
+    catalog: SuggestionValidationCatalog,
+    availableExplores: Explore[],
+    enabledTools: AgentSuggestionTool[],
+) {
+    const result = validateAgentSuggestion(chip, catalog);
+    if (!result.valid || chip.kind === 'navigate') {
+        return result;
+    }
+
+    if (!enabledTools.includes(chip.tool)) {
+        return {
+            valid: false as const,
+            reason: `disabled tool "${chip.tool}"`,
+        };
+    }
+
+    const { explore: exploreName, dimensions, metrics } = chip.defaults;
+    const selectedFields = [...dimensions, ...metrics];
+    if (!exploreName || selectedFields.length === 0) {
+        return result;
+    }
+
+    const explore = availableExplores.find((e) => e.name === exploreName);
+    if (!explore) {
+        return result;
+    }
+
+    try {
+        validateSelectedFieldsExistence(explore, selectedFields);
+        return result;
+    } catch (error) {
+        return {
+            valid: false as const,
+            reason:
+                error instanceof Error
+                    ? error.message
+                    : `unknown dimensions for explore "${exploreName}"`,
+        };
+    }
 }
 
 export class AiAgentService extends BaseService {
@@ -682,11 +731,13 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             afterMessageUuid,
+            enableSqlMode = false,
         }: {
             projectUuid: string;
             agentUuid: string;
             threadUuid?: string;
             afterMessageUuid?: string;
+            enableSqlMode?: boolean;
         },
     ): Promise<{ chips: AgentSuggestion[] }> {
         const { organizationUuid } = user;
@@ -704,6 +755,35 @@ export class AiAgentService extends BaseService {
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
+        const canRunSql =
+            enableSqlMode &&
+            auditedAbility.can(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
+        const canManageAgent = auditedAbility.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid,
+                projectUuid,
+                metadata: {
+                    agentUuid,
+                    agentName: agent.name,
+                },
+            }),
+        );
+        const enabledTools = AGENT_SUGGESTION_TOOLS.filter((tool) => {
+            if (tool === 'runSql') return canRunSql;
+            if (tool === 'proposeChange') {
+                return agent.enableSelfImprovement && canManageAgent;
+            }
+            return true;
+        });
+
         const availableExplores = await this.getAvailableExplores(
             user,
             projectUuid,
@@ -718,10 +798,16 @@ export class AiAgentService extends BaseService {
                 description: baseTable.description ?? null,
                 dimensions: Object.values(baseTable.dimensions)
                     .slice(0, 8)
-                    .map((d) => d.label),
+                    .map((d) => ({
+                        id: getItemId(d),
+                        label: d.label,
+                    })),
                 metrics: Object.values(baseTable.metrics)
                     .slice(0, 8)
-                    .map((m) => m.label),
+                    .map((m) => ({
+                        id: getItemId(m),
+                        label: m.label,
+                    })),
             };
         });
 
@@ -773,7 +859,7 @@ export class AiAgentService extends BaseService {
                 {
                     agentName: agent.name,
                     agentInstruction: agent.instruction,
-                    enabledTools: AGENT_SUGGESTION_TOOLS,
+                    enabledTools,
                     explores,
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
@@ -816,7 +902,12 @@ export class AiAgentService extends BaseService {
             }
 
             const validated = resolved.filter((chip) => {
-                const result = validateAgentSuggestion(chip, validationCatalog);
+                const result = validateGeneratedSuggestion(
+                    chip,
+                    validationCatalog,
+                    availableExplores,
+                    enabledTools,
+                );
                 if (!result.valid) {
                     dropped.push(`${chip.label} (${result.reason})`);
                     return false;
