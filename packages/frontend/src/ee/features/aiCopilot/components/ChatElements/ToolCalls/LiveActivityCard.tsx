@@ -66,8 +66,6 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'improveContext',
     'proposeChange',
     'runSavedChart',
-    'listWarehouseTables',
-    'describeWarehouseTable',
 ]);
 
 const getMcpDisplayName = (toolName: string) => {

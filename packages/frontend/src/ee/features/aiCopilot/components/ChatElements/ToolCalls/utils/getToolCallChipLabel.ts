@@ -1,5 +1,6 @@
 import type {
     ToolDashboardArgs,
+    ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
     ToolFindContentArgs,
     ToolFindDashboardsArgs,
@@ -8,6 +9,7 @@ import type {
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     ToolGetDashboardChartsArgs,
+    ToolListWarehouseTablesArgs,
     ToolName,
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
@@ -83,10 +85,17 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolGetDashboardChartsArgs;
             return args.dashboardName ?? args.dashboardUuid ?? null;
         }
+        case 'describeWarehouseTable': {
+            const args = toolArgs as ToolDescribeWarehouseTableArgs;
+            if (!args.table) return null;
+            return args.schema ? `${args.schema}.${args.table}` : args.table;
+        }
+        case 'listWarehouseTables': {
+            const args = toolArgs as ToolListWarehouseTablesArgs;
+            return args.schema ?? args.search ?? null;
+        }
         case 'runSql':
         case 'runSavedChart':
-        case 'listWarehouseTables':
-        case 'describeWarehouseTable':
         case 'improveContext':
         case 'proposeChange':
             return null;
