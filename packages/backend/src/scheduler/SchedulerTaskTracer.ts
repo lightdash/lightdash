@@ -11,6 +11,10 @@ import { JobHelpers, Task, TaskList } from 'graphile-worker';
 import moment from 'moment';
 import ExecutionContext from 'node-execution-context';
 import { ExecutionContextInfo } from '../logging/winston';
+import {
+    noopOrganizationNameResolver,
+    type OrganizationNameResolver,
+} from '../sentry/organizationNameResolver';
 import { TypedTask, type TypedTaskList } from './types';
 
 const getTagsForTask: {
@@ -203,16 +207,24 @@ const getTagsFromPayload = <T extends SchedulerTaskName>(
     return typeof tagFn === 'function' ? tagFn(payload) : {};
 };
 
+type TraceTaskOptions = {
+    resolveOrganizationName?: OrganizationNameResolver;
+};
+
 /**
  * Traces a task and adds tags to the Sentry span
  * @param taskName - The name of the task to trace
  * @param task - The task to trace
+ * @param options - Options including an optional org-name resolver
  * @returns A function that can be used to trace a task
  */
 export const traceTask = <T extends SchedulerTaskName>(
     taskName: T,
     task: TypedTask<TaskPayloadMap[T]>,
+    options: TraceTaskOptions = {},
 ) => {
+    const resolveOrganizationName =
+        options.resolveOrganizationName ?? noopOrganizationNameResolver;
     const tracedTask: (
         payload: TaskPayloadMap[T] & QueueTraceProperties,
         helpers: JobHelpers,
@@ -241,10 +253,19 @@ export const traceTask = <T extends SchedulerTaskName>(
                             payload,
                         );
 
+                        const organizationUuid =
+                            payloadTags['organization.uuid'];
+
+                        const organizationName = organizationUuid
+                            ? await resolveOrganizationName(
+                                  organizationUuid,
+                              ).catch(() => undefined)
+                            : undefined;
+
                         if ('user.uuid' in payloadTags) {
                             Sentry.setUser({
                                 id: payloadTags['user.uuid'],
-                                organization: payloadTags['organization.uuid'],
+                                organization: organizationUuid,
                             });
                         }
 
@@ -279,6 +300,9 @@ export const traceTask = <T extends SchedulerTaskName>(
                                         payloadTags.organizationUuid,
                                 }),
                             ...payloadTags,
+                            ...(organizationName && {
+                                'organization.name': organizationName,
+                            }),
                         });
 
                         try {
@@ -293,6 +317,12 @@ export const traceTask = <T extends SchedulerTaskName>(
                                     priority: job.priority,
                                     attempts: job.attempts,
                                 },
+                                ...(organizationUuid && {
+                                    organization_uuid: organizationUuid,
+                                }),
+                                ...(organizationName && {
+                                    organization_name: organizationName,
+                                }),
                             };
                             await ExecutionContext.run(
                                 () => task(payload, helpers),
@@ -352,9 +382,13 @@ export const traceTask = <T extends SchedulerTaskName>(
 /**
  * Traces a list of tasks and converts them to a Graphile Worker TaskList
  * @param tasks - The list of tasks to trace
+ * @param options - Options including an optional org-name resolver
  * @returns A list of traced tasks that can be used in a Graphile Worker
  */
-export const traceTasks = (tasks: Partial<TypedTaskList>) => {
+export const traceTasks = (
+    tasks: Partial<TypedTaskList>,
+    options: TraceTaskOptions = {},
+) => {
     const tracedTasks = Object.keys(tasks).reduce<TaskList>(
         (accTasks, taskName) => {
             const handler = tasks[
@@ -366,6 +400,7 @@ export const traceTasks = (tasks: Partial<TypedTaskList>) => {
                 [taskName]: traceTask(
                     taskName as SchedulerTaskName,
                     handler,
+                    options,
                 ) as Task,
             };
         },

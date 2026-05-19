@@ -1,5 +1,6 @@
 import {
     ConditionalFormattingColorApplyTo,
+    FieldType,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -15,11 +16,15 @@ import {
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotData,
     type ResultRow,
     type ResultValue,
+    type SortField,
 } from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
 import {
+    Box,
     Button,
     Group,
     Text,
@@ -59,6 +64,11 @@ import {
     getColorFromRange,
     transformColorsForDarkMode,
 } from '../../../utils/colorUtils';
+import {
+    getMetricLabelHeaderRowIndex,
+    getPivotColumnIdentities,
+} from '../../../utils/pivotColumnIdentity';
+import { getSortIcon } from '../../../utils/sortUtils';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
@@ -156,7 +166,21 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isMinimal: boolean;
         isDashboard?: boolean;
         onColumnWidthChange?: (fieldId: string, width: number) => void;
+        parameters?: ParametersValuesMap;
+        sortBy?: SortField[];
+        /** Renders inside a Mantine Menu opened by clicking sortable headers. */
+        renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
     };
+
+export type PivotSortMenuTarget =
+    | {
+          kind: 'pivotColumn';
+          dataColIndex: number;
+          metricReference: string;
+          pivotValues: Array<{ reference: string; value: unknown }>;
+      }
+    | { kind: 'indexDim'; reference: string }
+    | { kind: 'groupByDim'; reference: string };
 
 const PivotTable: FC<PivotTableProps> = ({
     data,
@@ -171,6 +195,9 @@ const PivotTable: FC<PivotTableProps> = ({
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
+    parameters,
+    sortBy,
+    renderSortMenu,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -238,6 +265,84 @@ const PivotTable: FC<PivotTableProps> = ({
             ).length,
         [data],
     );
+
+    const metricLabelHeaderRowIndex = useMemo(
+        () => getMetricLabelHeaderRowIndex(data),
+        [data],
+    );
+    const pivotColumnIdentities = useMemo(
+        () => getPivotColumnIdentities(data),
+        [data],
+    );
+
+    // Data-column index → matching sort entry. Built once so header render is O(1).
+    const sortMatchByDataColIndex = useMemo(() => {
+        const result = new Map<number, SortField>();
+        if (!sortBy?.length) return result;
+
+        for (const sort of sortBy) {
+            const pivots = sort.pivotValues ?? [];
+
+            if (pivots.length > 0) {
+                // Pinned: pivot values must match, plus metric (when known)
+                // — distinguishes per-metric sorts under the same pin.
+                for (
+                    let colIdx = 0;
+                    colIdx < pivotColumnIdentities.length;
+                    colIdx += 1
+                ) {
+                    const identity = pivotColumnIdentities[colIdx];
+                    const allMatch = pivots.every((pv) => {
+                        const found = identity.pivotValues.find(
+                            (p) => p.reference === pv.reference,
+                        );
+                        return (
+                            found !== undefined && found.rawValue === pv.value
+                        );
+                    });
+                    if (!allMatch) continue;
+                    const colMetric = identity.metricFieldId;
+                    const metricMatches =
+                        colMetric === undefined || colMetric === sort.fieldId;
+                    if (metricMatches && !result.has(colIdx)) {
+                        result.set(colIdx, sort);
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // Unpinned: surface on leftmost matching column, or col 0 when
+            // there's no metric-label row (metricsAsRows: true).
+            const item = getField?.(sort.fieldId);
+            const isValueColumnSort =
+                item && isField(item) && item.fieldType === FieldType.METRIC;
+            if (!isValueColumnSort) continue;
+
+            if (metricLabelHeaderRowIndex < 0) {
+                if (pivotColumnIdentities.length > 0 && !result.has(0)) {
+                    result.set(0, sort);
+                }
+                continue;
+            }
+
+            for (
+                let colIdx = 0;
+                colIdx < pivotColumnIdentities.length;
+                colIdx += 1
+            ) {
+                if (
+                    pivotColumnIdentities[colIdx].metricFieldId ===
+                        sort.fieldId &&
+                    !result.has(colIdx)
+                ) {
+                    result.set(colIdx, sort);
+                    break;
+                }
+            }
+        }
+        return result;
+    }, [getField, sortBy, pivotColumnIdentities, metricLabelHeaderRowIndex]);
 
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
@@ -434,7 +539,12 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return (
                                     <Text span fw={600}>
-                                        {formatItemValue(item, subtotalValue)}
+                                        {formatItemValue(
+                                            item,
+                                            subtotalValue,
+                                            false,
+                                            parameters,
+                                        )}
                                     </Text>
                                 );
                             }
@@ -461,6 +571,7 @@ const PivotTable: FC<PivotTableProps> = ({
         columnProperties,
         frozenLayout,
         rowNumberWidth,
+        parameters,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -511,14 +622,19 @@ const PivotTable: FC<PivotTableProps> = ({
             if (!isSummable(item)) {
                 return null;
             }
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.headerValues, getField],
+        [data.headerValues, getField, parameters],
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
@@ -528,14 +644,19 @@ const PivotTable: FC<PivotTableProps> = ({
 
             const item = getField(value.fieldId);
 
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.columnTotalFields, getField],
+        [data.columnTotalFields, getField, parameters],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -882,9 +1003,74 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const isHeaderTitle =
                                     titleField?.direction === 'header';
 
+                                const isIndexTitle =
+                                    titleField?.direction === 'index';
+
+                                const isGroupByTitle =
+                                    titleField?.direction === 'header';
+
                                 const isLastHeaderRow =
                                     headerRowIndex ===
                                     data.headerValues.length - 1;
+
+                                const titleMenuTarget:
+                                    | PivotSortMenuTarget
+                                    | undefined =
+                                    isIndexTitle && titleField?.fieldId
+                                        ? {
+                                              kind: 'indexDim',
+                                              reference: titleField.fieldId,
+                                          }
+                                        : isGroupByTitle && titleField?.fieldId
+                                          ? {
+                                                kind: 'groupByDim',
+                                                reference: titleField.fieldId,
+                                            }
+                                          : undefined;
+                                const titleIsClickable =
+                                    !!titleMenuTarget && !!renderSortMenu;
+                                const titleSortMatch =
+                                    (isIndexTitle || isGroupByTitle) &&
+                                    titleField?.fieldId
+                                        ? sortBy?.find(
+                                              (s) =>
+                                                  s.fieldId ===
+                                                      titleField.fieldId &&
+                                                  !s.pivotValues?.length,
+                                          )
+                                        : undefined;
+                                const titleSortField = titleSortMatch
+                                    ? getField(titleSortMatch.fieldId)
+                                    : undefined;
+                                const titleSortIcon =
+                                    titleSortMatch && titleSortField
+                                        ? getSortIcon(
+                                              titleSortField,
+                                              titleSortMatch.descending,
+                                          )
+                                        : undefined;
+
+                                const titleInnerContent =
+                                    titleField?.fieldId ? (
+                                        titleSortIcon ? (
+                                            <Group
+                                                display="inline-flex"
+                                                spacing={4}
+                                                noWrap
+                                                align="center"
+                                            >
+                                                {getFieldLabel(
+                                                    titleField.fieldId,
+                                                )}
+                                                <MantineIcon
+                                                    icon={titleSortIcon}
+                                                    size={14}
+                                                />
+                                            </Group>
+                                        ) : (
+                                            getFieldLabel(titleField.fieldId)
+                                        )
+                                    ) : undefined;
 
                                 const titleWidthKey = titleField?.fieldId;
                                 const titleWidth = titleWidthKey
@@ -921,7 +1107,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
-                                        className={titleStickyProps.className}
+                                        className={
+                                            [
+                                                titleStickyProps.className,
+                                                titleIsClickable
+                                                    ? pivotStyles.clickableHeader
+                                                    : undefined,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' ') || undefined
+                                        }
                                         style={titleStickyProps.style}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
@@ -951,9 +1146,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 : undefined
                                         }
                                     >
-                                        {titleField?.fieldId
-                                            ? getFieldLabel(titleField?.fieldId)
-                                            : undefined}
+                                        {titleIsClickable &&
+                                        titleField &&
+                                        titleMenuTarget &&
+                                        renderSortMenu ? (
+                                            <Menu
+                                                shadow="md"
+                                                position="bottom-start"
+                                                withinPortal
+                                            >
+                                                <Menu.Target>
+                                                    <Box
+                                                        component="span"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                    >
+                                                        {titleInnerContent}
+                                                    </Box>
+                                                </Menu.Target>
+                                                <Menu.Dropdown>
+                                                    {renderSortMenu(
+                                                        titleMenuTarget,
+                                                    )}
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        ) : (
+                                            titleInnerContent
+                                        )}
                                         {canResizeTitle && (
                                             <div
                                                 className={
@@ -1017,10 +1236,82 @@ const PivotTable: FC<PivotTableProps> = ({
                                   )
                                 : {};
 
+                            const isMetricLabelRow =
+                                metricLabelHeaderRowIndex >= 0 &&
+                                headerRowIndex === metricLabelHeaderRowIndex;
+                            const columnIdentity =
+                                pivotColumnIdentities[headerColIndex];
+                            const columnMetricRef =
+                                columnIdentity?.metricFieldId;
+                            const isClickableHeader =
+                                isMetricLabelRow &&
+                                isLabel &&
+                                !!renderSortMenu &&
+                                !!columnMetricRef;
+                            const sortMatch =
+                                isMetricLabelRow && isLabel
+                                    ? sortMatchByDataColIndex.get(
+                                          headerColIndex,
+                                      )
+                                    : undefined;
+                            const sortMatchItem = sortMatch
+                                ? getField(sortMatch.fieldId)
+                                : undefined;
+                            const sortIcon =
+                                sortMatch && sortMatchItem
+                                    ? getSortIcon(
+                                          sortMatchItem,
+                                          sortMatch.descending,
+                                      )
+                                    : undefined;
+
+                            const cellClassName = [
+                                headerValueStickyProps.className,
+                                isClickableHeader
+                                    ? pivotStyles.clickableHeader
+                                    : undefined,
+                            ]
+                                .filter(Boolean)
+                                .join(' ');
+
+                            const headerInnerContent = sortIcon ? (
+                                <Group
+                                    display="inline-flex"
+                                    spacing={4}
+                                    noWrap
+                                    align="center"
+                                >
+                                    {isLabel
+                                        ? getFieldLabel(headerValue.fieldId)
+                                        : formatCellContent(headerValue)}
+                                    <MantineIcon icon={sortIcon} size={14} />
+                                </Group>
+                            ) : isLabel ? (
+                                getFieldLabel(headerValue.fieldId)
+                            ) : (
+                                formatCellContent(headerValue)
+                            );
+
+                            const pivotMenuTarget: PivotSortMenuTarget | null =
+                                columnMetricRef && columnIdentity
+                                    ? {
+                                          kind: 'pivotColumn',
+                                          dataColIndex: headerColIndex,
+                                          metricReference: columnMetricRef,
+                                          pivotValues:
+                                              columnIdentity.pivotValues.map(
+                                                  (p) => ({
+                                                      reference: p.reference,
+                                                      value: p.rawValue,
+                                                  }),
+                                              ),
+                                      }
+                                    : null;
+
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
-                                    className={headerValueStickyProps.className}
+                                    className={cellClassName || undefined}
                                     style={headerValueStickyProps.style}
                                     isMinimal={isMinimal}
                                     withBoldFont={isLabel}
@@ -1034,9 +1325,30 @@ const PivotTable: FC<PivotTableProps> = ({
                                     miw={effectiveWidth}
                                     maw={effectiveWidth}
                                 >
-                                    {isLabel
-                                        ? getFieldLabel(headerValue.fieldId)
-                                        : formatCellContent(headerValue)}
+                                    {isClickableHeader && pivotMenuTarget ? (
+                                        <Menu
+                                            shadow="md"
+                                            position="bottom-start"
+                                            withinPortal
+                                        >
+                                            <Menu.Target>
+                                                <Box
+                                                    component="span"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                >
+                                                    {headerInnerContent}
+                                                </Box>
+                                            </Menu.Target>
+                                            <Menu.Dropdown>
+                                                {renderSortMenu?.(
+                                                    pivotMenuTarget,
+                                                )}
+                                            </Menu.Dropdown>
+                                        </Menu>
+                                    ) : (
+                                        headerInnerContent
+                                    )}
                                     {canResize && (
                                         <div
                                             className={resizeHandleClassName}

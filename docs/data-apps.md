@@ -235,6 +235,30 @@ Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates 
 `permanentDeleteApp`, which each enforce the appropriate manage scope (see [Permissions](#permissions) below) and
 handle sandbox/S3 cleanup.
 
+### Preview environments and promotion
+
+Data apps are **not yet duplicated** when a project is copied to a preview environment, and **not yet remapped**
+during cross-project promotion. The preview-copy step in `ProjectModel.duplicateContent` does copy
+`dashboard_tile_data_apps` rows — but it leaves their `app_uuid` pointing at the source project's app rather than
+creating a fresh `apps` row in the preview. The preview project ends up with zero `apps` rows of its own; any data
+app dashboard tile in the preview is a read-through window to the source project's app.
+
+What this means in practice:
+
+- **Preview rendering.** If the user opening the preview has view access to the source project's app, the tile
+  renders normally. Otherwise the existing `DashboardDataAppTile` error states show a "Data app not found" or
+  "No access" placeholder; the rest of the dashboard renders fine.
+- **Iterating inside the preview.** Not supported — the preview project has no `apps` row, so the AppGenerate page
+  isn't reachable from within the preview. Iteration still happens on the source project's app.
+- **Promote-back from preview to source.** Works: the tile's `app_uuid` is the source app's UUID, so the upstream
+  insert succeeds.
+- **Cross-project promotion between unrelated projects.** Data app tiles can be promoted but the tile's `app_uuid`
+  is not remapped — it stays pointing at the downstream project's app. Effectively the same read-through behavior
+  as previews.
+
+Full preview/promote support (copying `apps` + `app_versions` + S3 artifacts and remapping `app_uuid` during
+promotion) is tracked in [PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
+
 ---
 
 ## Data Model

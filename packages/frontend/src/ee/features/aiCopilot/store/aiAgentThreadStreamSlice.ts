@@ -1,4 +1,7 @@
-import { type AiAgentToolName } from '@lightdash/common';
+import {
+    type AiAgentToolName,
+    type AiMcpServerConnectionStatus,
+} from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type ToolCall = {
@@ -10,6 +13,13 @@ type ToolCall = {
 type Reasoning = {
     reasoningId: string;
     parts: string[];
+};
+
+export type McpUnavailableNotice = {
+    serverUuid: string;
+    serverName: string;
+    message: string;
+    status: AiMcpServerConnectionStatus;
 };
 
 export type StreamPart =
@@ -44,6 +54,7 @@ export interface AiAgentThreadStreamingState {
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
+    mcpUnavailableNotices: McpUnavailableNotice[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -64,6 +75,7 @@ const initialThread: Omit<
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
+    mcpUnavailableNotices: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -245,6 +257,25 @@ export const aiAgentThreadStreamSlice = createSlice({
                 }
             }
         },
+        addMcpUnavailableNotice: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                notice: McpUnavailableNotice;
+            }>,
+        ) => {
+            const { threadUuid, notice } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (
+                streamingThread &&
+                !streamingThread.mcpUnavailableNotices.some(
+                    (existingNotice) =>
+                        existingNotice.serverUuid === notice.serverUuid,
+                )
+            ) {
+                streamingThread.mcpUnavailableNotices.push(notice);
+            }
+        },
     },
 });
 
@@ -257,6 +288,7 @@ export const {
     setError,
     addToolCall,
     addReasoning,
+    addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

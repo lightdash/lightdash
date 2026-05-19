@@ -61,6 +61,7 @@ import Logger from './logging/logger';
 import {
     expressWinstonMiddleware,
     expressWinstonPreResponseMiddleware,
+    requestExecutionContextMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
@@ -74,6 +75,7 @@ import {
 } from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
+import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import {
     OperationContext,
@@ -146,6 +148,9 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        resolveOrganizationName: createOrganizationNameResolver(
+            context.models.getOrganizationModel(),
+        ),
     });
 
 export type AppArguments = {
@@ -365,6 +370,12 @@ export default class App {
         this.customExpressMiddlewares.forEach((middleware) =>
             middleware(expressApp),
         );
+
+        if (this.lightdashConfig.prometheus.extendedMetricsEnabled) {
+            expressApp.use(
+                this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
+            );
+        }
 
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
@@ -606,6 +617,9 @@ export default class App {
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
         expressApp.use(sessionAccountMiddleware);
+        // Must run after auth so req.user is populated. Stamps every downstream
+        // log line with organization_uuid + organization_name via ExecutionContext.
+        expressApp.use(requestExecutionContextMiddleware);
 
         expressApp.use((req, res, next) => {
             if (req.user) {
@@ -615,6 +629,18 @@ export default class App {
                     email: req.user.email,
                     username: req.user.email,
                 });
+                if (req.user.organizationUuid) {
+                    Sentry.setTag(
+                        'organization.uuid',
+                        req.user.organizationUuid,
+                    );
+                }
+                if (req.user.organizationName) {
+                    Sentry.setTag(
+                        'organization.name',
+                        req.user.organizationName,
+                    );
+                }
             }
             next();
         });

@@ -29,6 +29,7 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = ({
                     agentUuid: agentUuid,
                 }}
                 showCloseButton={false}
+                variant="inline"
             />
         </ErrorBoundary>
     );

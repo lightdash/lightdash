@@ -3,6 +3,7 @@ import { type TableCalculation } from '../../../../types/field';
 import type { Filters } from '../../../../types/filter';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
+import { filterAggregationCustomMetrics } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
 import type { ToolTableVizArgsTransformed } from '../tools';
@@ -63,6 +64,6 @@ export const metricQueryTableViz = ({
     })),
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
-    additionalMetrics: customMetrics ?? [],
+    additionalMetrics: filterAggregationCustomMetrics(customMetrics),
     tableCalculations,
 });

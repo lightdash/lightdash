@@ -875,7 +875,16 @@ export class EmbedService extends BaseService {
         explore: Explore;
         queryTags: Omit<
             Required<RunQueryTags>,
-            'user_uuid' | 'chart_uuid' | 'dashboard_uuid'
+            | 'user_uuid'
+            | 'chart_uuid'
+            | 'dashboard_uuid'
+            // Scheduler-attribution tags only apply to scheduler-driven jobs,
+            // never to embed/JWT queries, so they're excluded from the
+            // required-shape enforced here.
+            | 'saved_sql_uuid'
+            | 'scheduler_uuid'
+            | 'scheduler_name'
+            | 'job_id'
         > & {
             embed: 'true';
             external_id: string;
@@ -981,6 +990,7 @@ export class EmbedService extends BaseService {
         // for the right tab. Tiles created before tabs may have null/undefined.
         const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
         const tileTabUuid = tile?.tabUuid ?? undefined;
+        const hasTabs = (dashboard.tabs?.length ?? 0) > 0;
 
         let effectiveFilters: DashboardFilters = dashboard.filters;
 
@@ -993,6 +1003,7 @@ export class EmbedService extends BaseService {
                     dashboard.filters,
                     dashboardFilters,
                     tileTabUuid,
+                    hasTabs,
                 );
 
             if (droppedCount > 0) {
@@ -1002,14 +1013,14 @@ export class EmbedService extends BaseService {
             }
 
             const lockedDimensions = dashboard.filters.dimensions.filter(
-                (rule) => isFilterLockedOnTab(rule, tileTabUuid),
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
             const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
-                isFilterLockedOnTab(rule, tileTabUuid),
+                isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
             const lockedTableCalculations =
                 dashboard.filters.tableCalculations.filter((rule) =>
-                    isFilterLockedOnTab(rule, tileTabUuid),
+                    isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
                 );
 
             effectiveFilters = {

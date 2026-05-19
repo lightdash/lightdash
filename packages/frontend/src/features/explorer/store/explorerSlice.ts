@@ -257,6 +257,19 @@ const explorerSlice = createSlice({
             action: PayloadAction<{ columns: string[] } | undefined>,
         ) => {
             state.unsavedChartVersion.pivotConfig = action.payload;
+            if (!action.payload?.columns.length) {
+                const seen = new Set<string>();
+                state.unsavedChartVersion.metricQuery.sorts =
+                    state.unsavedChartVersion.metricQuery.sorts.reduce<
+                        SortField[]
+                    >((acc, sort) => {
+                        if (seen.has(sort.fieldId)) return acc;
+                        seen.add(sort.fieldId);
+                        const { pivotValues: _pivotValues, ...rest } = sort;
+                        acc.push(rest);
+                        return acc;
+                    }, []);
+            }
         },
 
         setParameter: (

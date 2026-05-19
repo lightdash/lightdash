@@ -278,6 +278,41 @@ export const createAppPreviewRouter = (
         },
     );
 
+    // CORS for asset fetches from the sandboxed iframe.
+    //
+    // The iframe is loaded with `sandbox="allow-scripts allow-modals"` (no
+    // `allow-same-origin`), so its document origin is the opaque value
+    // `null` — regardless of whether the iframe URL is same-origin as the
+    // parent. Vite emits `<script type="module" crossorigin>` and
+    // `<link rel="stylesheet" crossorigin>` tags, which become CORS
+    // requests from that opaque origin and get preflighted. Without these
+    // headers the browser blocks the subsequent GET and the iframe
+    // renders as a blank page.
+    //
+    // Mounted as `router.use` so it runs before the GET handler and
+    // short-circuits OPTIONS preflights.
+    router.use(
+        '/:appUuid/versions/:version/assets/:filename',
+        (req, res, next) => {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            if (req.method === 'OPTIONS') {
+                // GET is the only method these routes accept, but the
+                // headless browser adds a custom `Lightdash-Headless-
+                // Browser-Context` header that propagates to subresource
+                // fetches from inside the sandboxed iframe. The preflight
+                // surfaces that in `Access-Control-Request-Headers`, so
+                // the response needs a permissive `Allow-Headers`.
+                res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+                res.setHeader('Access-Control-Allow-Headers', '*');
+                res.setHeader('Access-Control-Max-Age', '86400');
+                res.status(204).end();
+                return;
+            }
+            next();
+        },
+    );
+
     // Serve static assets (JS, CSS, fonts). Authenticated via ?token query param.
     router.get(
         '/:appUuid/versions/:version/assets/:filename',

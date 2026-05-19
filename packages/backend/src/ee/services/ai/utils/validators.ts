@@ -23,6 +23,7 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
+    isPeriodComparisonCustomMetric,
     isTableCalculation,
     MetricType,
     nullaryWindowFunctions,
@@ -37,6 +38,7 @@ import {
     TableCalculation,
     ToolRunQueryArgsTransformed,
     ToolSortField,
+    TransformedCustomMetric,
     WeekDay,
     WindowFunctionType,
 } from '@lightdash/common';
@@ -1215,6 +1217,81 @@ Remember:
 
         Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
 
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
+/**
+ * Validate period-over-period comparison entries against the query and explore.
+ *
+ * Checks:
+ * - timeDimensionId is present in queryConfig.dimensions
+ * - timeDimensionId refers to a real time-interval dimension in the explore
+ * - granularity matches the time dimension's own timeInterval (matches the
+ *   Explorer modal's invariant — the user picks a dim, granularity follows)
+ * - baseMetricId is either a real metric in queryConfig.metrics or defined in
+ *   customMetrics
+ */
+export function validatePeriodComparisons(
+    explore: Explore,
+    customMetrics: TransformedCustomMetric[] | null,
+    dimensions: string[],
+    metrics: string[],
+    aggregationCustomMetrics: CustomMetricBaseTransformed[] | null,
+) {
+    const periodComparisonMetrics =
+        customMetrics?.filter(isPeriodComparisonCustomMetric) ?? [];
+
+    if (!periodComparisonMetrics.length) return;
+
+    const dimensionSet = new Set(dimensions);
+    const metricSet = new Set(metrics);
+    const customMetricIds = new Set(
+        (aggregationCustomMetrics ?? []).map((cm) => getItemId(cm)),
+    );
+    const exploreFields = getFields(explore);
+    const errors: string[] = [];
+
+    for (const pc of periodComparisonMetrics) {
+        if (!dimensionSet.has(pc.timeDimensionId)) {
+            errors.push(
+                `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" must be present in queryConfig.dimensions.`,
+            );
+        } else {
+            const dimField = exploreFields.find(
+                (f) => getItemId(f) === pc.timeDimensionId,
+            );
+            if (!dimField || !isDimension(dimField)) {
+                errors.push(
+                    `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" is not a dimension in the explore.`,
+                );
+            } else if (!dimField.timeInterval) {
+                errors.push(
+                    `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" is not a time-interval dimension.`,
+                );
+            } else if (dimField.timeInterval !== pc.granularity) {
+                errors.push(
+                    `Error: customMetrics periodComparison granularity "${pc.granularity}" must match the time dimension's granularity "${dimField.timeInterval}" (for "${pc.timeDimensionId}").`,
+                );
+            }
+        }
+
+        const baseInQuery = metricSet.has(pc.baseMetricId);
+        const baseInCustom = customMetricIds.has(pc.baseMetricId);
+        if (!baseInQuery && !baseInCustom) {
+            errors.push(
+                `Error: customMetrics periodComparison baseMetricId "${pc.baseMetricId}" must appear in queryConfig.metrics or in customMetrics.`,
+            );
+        }
+    }
+
+    if (errors.length > 0) {
+        const errorMessage = `The following period comparisons are invalid:
+
+\`\`\`json
+${errors.join('\n')}
+\`\`\``;
+        Logger.error(`[AiAgent][Validate Period Comparisons] ${errorMessage}`);
         throw new AiAgentValidatorError(errorMessage);
     }
 }

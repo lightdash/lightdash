@@ -56,6 +56,20 @@ export function getQueryContextLabel(
     return SCHEDULED_CONTEXTS.has(context) ? 'scheduled' : 'interactive';
 }
 
+export function getHttpUriLabel(req: express.Request): string {
+    const { route } = req;
+    if (route?.path !== undefined) {
+        const base = req.baseUrl ?? '';
+        const pathPart = route.path === '/' ? '' : route.path;
+        const combined = `${base}${pathPart}`;
+        return combined.length > 0 ? combined : '/';
+    }
+    if (req.path?.startsWith('/assets/')) {
+        return '/assets/*';
+    }
+    return 'unmatched';
+}
+
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
@@ -142,8 +156,35 @@ export default class PrometheusMetrics {
 
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
+    private httpServerRequestsDurationSeconds: prometheus.Histogram<
+        'method' | 'uri' | 'status_code'
+    > | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
+    }
+
+    public httpServerRequestMetricsMiddleware(): express.RequestHandler {
+        return (req, res, next) => {
+            const histogram = this.httpServerRequestsDurationSeconds;
+            if (!histogram) {
+                next();
+                return;
+            }
+            const start = process.hrtime.bigint();
+            res.on('finish', () => {
+                const seconds = Number(process.hrtime.bigint() - start) / 1e9;
+                histogram.observe(
+                    {
+                        method: req.method,
+                        uri: getHttpUriLabel(req),
+                        status_code: String(res.statusCode),
+                    },
+                    seconds,
+                );
+            });
+            next();
+        };
     }
 
     public start() {
@@ -212,6 +253,20 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                if (this.config.extendedMetricsEnabled) {
+                    this.httpServerRequestsDurationSeconds =
+                        new prometheus.Histogram({
+                            name: 'http_server_requests_seconds',
+                            help: 'HTTP server request duration in seconds',
+                            labelNames: ['method', 'uri', 'status_code'],
+                            buckets: [
+                                0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                                2.5, 5, 10, 30, 60, 120,
+                            ],
+                            ...rest,
+                        });
+                }
 
                 // Initialize AI Agent response time histograms
                 this.aiAgentGenerateResponseDurationHistogram =

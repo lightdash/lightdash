@@ -71,6 +71,7 @@ import {
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type TransformedCustomMetric,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -80,10 +81,15 @@ import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistor
 import {
     APICallError,
     AssistantModelMessage,
+    createUIMessageStream,
     ModelMessage,
+    pipeUIMessageStreamToResponse,
+    StreamTextResult,
     ToolCallPart,
     ToolModelMessage,
     UserModelMessage,
+    type Output,
+    type ToolSet,
 } from 'ai';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -143,6 +149,7 @@ import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
+    type AgentMcpToolSetup,
 } from '../ai/agents/agentV2';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
@@ -196,13 +203,25 @@ import {
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
-import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
 >;
+
+type AgentResponseStream = {
+    pipeUIMessageStreamToResponse: (
+        response: Parameters<
+            typeof pipeUIMessageStreamToResponse
+        >[0]['response'],
+    ) => void;
+    consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
+};
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
@@ -988,6 +1007,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
+        customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -1007,16 +1027,22 @@ export class AiAgentService extends BaseService {
             metricQuery.additionalMetrics,
         );
 
+        const populatedCustomMetrics = populateCustomMetricsSQL(
+            customMetrics ?? metricQuery.additionalMetrics,
+            explore,
+        );
+
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
                 account: fromSession(user),
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
-                    additionalMetrics: populateCustomMetricsSQL(
-                        metricQuery.additionalMetrics,
-                        explore,
+                    metrics: expandMetricsWithPopAdditionalMetrics(
+                        metricQuery.metrics,
+                        populatedCustomMetrics,
                     ),
+                    additionalMetrics: populatedCustomMetrics,
                 },
                 context: QueryExecutionContext.AI,
             },
@@ -2199,7 +2225,7 @@ export class AiAgentService extends BaseService {
             enableSqlMode: boolean;
             toolHints: string[];
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>> {
+    ): Promise<AgentResponseStream> {
         try {
             const {
                 user: validatedUser,
@@ -2459,6 +2485,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {
@@ -2593,6 +2620,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {
@@ -4219,7 +4247,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             toolHints?: string[];
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>>;
+    ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: ModelMessage[],
@@ -4264,7 +4292,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   stream: false;
               }
         ),
-    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
+    ): Promise<string | AgentResponseStream> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -4401,6 +4429,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             toolHints: options.toolHints ?? [],
         };
 
+        const mcpToolSetup: AgentMcpToolSetup =
+            await this.aiAgentMcpRuntimeClient.resolveTools({
+                mcpServers,
+                debugLoggingEnabled:
+                    this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            });
+
         const dependencies: AiAgentDependencies = {
             listExplores,
             getExplore,
@@ -4475,9 +4510,42 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             },
         };
 
-        return stream
-            ? streamAgentResponse({ args, dependencies })
-            : generateAgentResponse({ args, dependencies });
+        if (!stream) {
+            return generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup,
+            });
+        }
+
+        const result = await streamAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup,
+        });
+        const streamWithMcpNotices = createUIMessageStream({
+            execute: ({ writer }) => {
+                for (const unavailableMcpServer of mcpToolSetup.unavailableMcpServers) {
+                    writer.write({
+                        type: 'data-mcp-unavailable',
+                        data: unavailableMcpServer,
+                        transient: true,
+                    });
+                }
+
+                writer.merge(result.toUIMessageStream());
+            },
+        });
+
+        return {
+            pipeUIMessageStreamToResponse: (response) => {
+                pipeUIMessageStreamToResponse({
+                    response,
+                    stream: streamWithMcpNotices,
+                });
+            },
+            consumeStream: result.consumeStream.bind(result),
+        };
     }
 
     // TODO: user permissions

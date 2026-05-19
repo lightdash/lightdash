@@ -78,6 +78,7 @@ const Filter: FC<Props> = ({
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const activeTabUuid = activeTab?.uuid;
+    const hasTabs = (dashboardTabs?.length ?? 0) > 0;
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
@@ -86,22 +87,26 @@ const Filter: FC<Props> = ({
     );
     const isLockFilterEnabled =
         lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const isLockedOnActiveTab = isFilterLockedOnTab(filterRule, activeTabUuid);
+    const isLocked = isFilterLockedOnTab(filterRule, activeTabUuid, hasTabs);
     const { track } = useTracking();
     const handleLockToggle = useCallback(
         (e: MouseEvent) => {
             e.stopPropagation();
-            if (!activeTabUuid) return;
+            // On tab-less dashboards we store the dashboard uuid as a sentinel
+            // in lockedTabUuids so the same shape can express "locked
+            // everywhere on this dashboard" without a schema change.
+            const lockKey = hasTabs ? activeTabUuid : dashboard?.uuid;
+            if (!lockKey) return;
             const existing = filterRule.lockedTabUuids ?? [];
-            const nextTabUuids = isLockedOnActiveTab
-                ? existing.filter((uuid) => uuid !== activeTabUuid)
-                : [...existing, activeTabUuid];
+            const nextTabUuids = isLocked
+                ? existing.filter((uuid) => uuid !== lockKey)
+                : [...existing, lockKey];
             track({
                 name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
                 properties: {
-                    action: isLockedOnActiveTab ? 'unlock' : 'lock',
+                    action: isLocked ? 'unlock' : 'lock',
                     dashboardUuid: dashboard?.uuid,
-                    tabUuid: activeTabUuid,
+                    tabUuid: hasTabs ? activeTabUuid : undefined,
                     fieldId: filterRule.target.fieldId,
                     tableName: filterRule.target.tableName,
                 },
@@ -115,8 +120,9 @@ const Filter: FC<Props> = ({
         [
             activeTabUuid,
             dashboard?.uuid,
+            hasTabs,
             filterRule,
-            isLockedOnActiveTab,
+            isLocked,
             onUpdate,
             track,
         ],
@@ -240,7 +246,7 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
-    const isReadOnlyLocked = isLockedOnActiveTab && !isEditMode && !isTemporary;
+    const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -339,10 +345,12 @@ const Filter: FC<Props> = ({
                                         {isLockFilterEnabled &&
                                             isEditMode &&
                                             !isTemporary &&
-                                            activeTabUuid && (
+                                            (hasTabs
+                                                ? activeTabUuid
+                                                : !!dashboard?.uuid) && (
                                                 <span
                                                     className={
-                                                        isLockedOnActiveTab
+                                                        isLocked
                                                             ? classes.lockSlotActive
                                                             : classes.lockSlot
                                                     }
@@ -350,9 +358,13 @@ const Filter: FC<Props> = ({
                                                     <Tooltip
                                                         fz="xs"
                                                         label={
-                                                            isLockedOnActiveTab
-                                                                ? 'Unlock filter on this tab'
-                                                                : 'Lock filter on this tab'
+                                                            isLocked
+                                                                ? hasTabs
+                                                                    ? 'Unlock filter on this tab'
+                                                                    : 'Unlock filter'
+                                                                : hasTabs
+                                                                  ? 'Lock filter on this tab'
+                                                                  : 'Lock filter'
                                                         }
                                                         withinPortal
                                                     >
@@ -365,15 +377,19 @@ const Filter: FC<Props> = ({
                                                             radius="xl"
                                                             variant="subtle"
                                                             aria-label={
-                                                                isLockedOnActiveTab
-                                                                    ? 'Unlock filter on this tab'
-                                                                    : 'Lock filter on this tab'
+                                                                isLocked
+                                                                    ? hasTabs
+                                                                        ? 'Unlock filter on this tab'
+                                                                        : 'Unlock filter'
+                                                                    : hasTabs
+                                                                      ? 'Lock filter on this tab'
+                                                                      : 'Lock filter'
                                                             }
                                                         >
                                                             <MantineIcon
                                                                 size="sm"
                                                                 icon={
-                                                                    isLockedOnActiveTab
+                                                                    isLocked
                                                                         ? IconLock
                                                                         : IconLockOpen
                                                                 }
@@ -382,12 +398,16 @@ const Filter: FC<Props> = ({
                                                     </Tooltip>
                                                 </span>
                                             )}
-                                        {!isEditMode && isLockedOnActiveTab && (
+                                        {!isEditMode && isLocked && (
                                             <span
                                                 className={
                                                     classes.lockSlotActive
                                                 }
-                                                aria-label="Filter is locked on this tab"
+                                                aria-label={
+                                                    hasTabs
+                                                        ? 'Filter is locked on this tab'
+                                                        : 'Filter is locked'
+                                                }
                                             >
                                                 <MantineIcon
                                                     size="sm"

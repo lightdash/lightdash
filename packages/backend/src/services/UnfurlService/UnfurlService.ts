@@ -52,6 +52,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -239,6 +240,7 @@ export type ParsedUrl = {
     projectUuid?: string;
     chartUuid?: string;
     savedSqlUuid?: string;
+    appUuid?: string;
     exploreModel?: string;
 };
 
@@ -274,6 +276,7 @@ type UnfurlServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    appModel: AppModel;
     shareModel: ShareModel;
     fileStorageClient: FileStorageClient;
     slackClient: SlackClient;
@@ -293,6 +296,8 @@ export class UnfurlService extends BaseService {
     savedChartModel: SavedChartModel;
 
     savedSqlModel: SavedSqlModel;
+
+    appModel: AppModel;
 
     shareModel: ShareModel;
 
@@ -317,6 +322,7 @@ export class UnfurlService extends BaseService {
         dashboardModel,
         savedChartModel,
         savedSqlModel,
+        appModel,
         shareModel,
         fileStorageClient,
         projectModel,
@@ -332,6 +338,7 @@ export class UnfurlService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.appModel = appModel;
         this.shareModel = shareModel;
         this.fileStorageClient = fileStorageClient;
         this.slackClient = slackClient;
@@ -454,6 +461,25 @@ export class UnfurlService extends BaseService {
                 return {
                     title: exploreName,
                     organizationUuid: project.organizationUuid,
+                };
+            case LightdashPage.APP:
+                if (!parsedUrl.appUuid)
+                    throw new ParameterError(
+                        `Missing appUuid when unfurling App URL ${parsedUrl.url}`,
+                    );
+                const app = await this.appModel.findAppByUuid(
+                    parsedUrl.appUuid,
+                );
+                if (!app) {
+                    throw new ParameterError(
+                        `App not found when unfurling URL ${parsedUrl.url}`,
+                    );
+                }
+                return {
+                    title: app.name,
+                    description: app.description,
+                    organizationUuid: app.organization_uuid,
+                    resourceUuid: app.app_id,
                 };
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
@@ -1382,27 +1408,119 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    this.logger.info(
-                        `Waiting for screenshot ready indicator - unfurlId: ${imageId}`,
-                    );
-                    try {
-                        await page.waitForSelector(
-                            SCREENSHOT_SELECTORS.READY_INDICATOR,
-                            {
-                                state: 'attached',
-                                timeout: RESPONSE_TIMEOUT_MS,
-                            },
-                        );
+                    if (lightdashPage === LightdashPage.APP) {
+                        // Apps render inside a sandboxed cross-origin iframe;
+                        // no DOM-level readiness signal bubbles up to the
+                        // parent page. Use a fixed wall-clock wait while we
+                        // get the postMessage→indicator handshake plumbed.
+                        // TODO: replace with a real readiness signal.
+                        //
+                        // Implementation note: we poll a heartbeat selector
+                        // on a short interval instead of a single long
+                        // `waitForTimeout`. A long quiet wait can let the
+                        // CDP connection to a remote Chromium drop on idle,
+                        // which surfaces as `Target page, context or
+                        // browser has been closed` and fails the screenshot.
+                        // Short polling keeps CDP traffic alive without
+                        // requiring a real readiness signal.
+                        const APP_SCREENSHOT_WAIT_MS = 30_000;
                         this.logger.info(
-                            `Screenshot ready indicator found - page is ready - unfurlId: ${imageId}`,
+                            `Waiting ${APP_SCREENSHOT_WAIT_MS}ms for app to render - unfurlId: ${imageId}`,
                         );
-                    } catch (waitError) {
-                        // Probe the always-mounted progress indicator to find
-                        // out which tiles never reported ready/errored. Logged
-                        // before re-throwing so callers (and retries) can see
-                        // exactly which tile is blocking the indicator.
-                        await this.logUnreadyTilesOnTimeout(page, url, imageId);
-                        throw waitError;
+                        const APP_POLL_INTERVAL_MS = 1_000;
+                        const deadline = Date.now() + APP_SCREENSHOT_WAIT_MS;
+                        while (Date.now() < deadline) {
+                            const remaining = deadline - Date.now();
+                            const sleepMs = Math.min(
+                                APP_POLL_INTERVAL_MS,
+                                remaining,
+                            );
+                            // page.evaluate keeps CDP traffic flowing.
+                            // eslint-disable-next-line no-await-in-loop
+                            await page.evaluate(
+                                (ms) =>
+                                    new Promise((resolve) => {
+                                        setTimeout(resolve, ms);
+                                    }),
+                                sleepMs,
+                            );
+                        }
+                    } else {
+                        this.logger.info(
+                            `Waiting for screenshot ready indicator - unfurlId: ${imageId}`,
+                        );
+                        try {
+                            await page.waitForSelector(
+                                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                                {
+                                    state: 'attached',
+                                    timeout: RESPONSE_TIMEOUT_MS,
+                                },
+                            );
+                            this.logger.info(
+                                `Screenshot ready indicator found - page is ready - unfurlId: ${imageId}`,
+                            );
+                        } catch (waitError) {
+                            // Probe the always-mounted progress indicator to
+                            // find out which tiles never reported
+                            // ready/errored. Logged before re-throwing so
+                            // callers (and retries) can see exactly which
+                            // tile is blocking the indicator.
+                            await this.logUnreadyTilesOnTimeout(
+                                page,
+                                url,
+                                imageId,
+                            );
+                            throw waitError;
+                        }
+                    }
+
+                    if (lightdashPage === LightdashPage.APP) {
+                        // The app is rendered inside a sandboxed iframe sized
+                        // to 100vh on the parent. The browser doesn't expose
+                        // the iframe's internal scroll height to the parent
+                        // body's boundingBox, so a normal screenshot only
+                        // captures the visible portion. Reach into the
+                        // iframe (Playwright bypasses sandbox same-origin
+                        // restrictions via CDP), measure its content height,
+                        // and stretch the iframe element on the parent so
+                        // the parent body grows to match — then the existing
+                        // boundingBox + setViewportSize path captures it
+                        // all.
+                        try {
+                            const frames = page!.frames();
+                            const mainFrame = page!.mainFrame();
+                            const appFrame = frames.find(
+                                (f) => f !== mainFrame,
+                            );
+                            if (appFrame) {
+                                const contentHeight = await appFrame.evaluate(
+                                    () =>
+                                        Math.max(
+                                            document.documentElement
+                                                .scrollHeight,
+                                            document.body?.scrollHeight ?? 0,
+                                        ),
+                                );
+                                if (contentHeight > 0) {
+                                    await page!.evaluate((h) => {
+                                        const iframe =
+                                            document.querySelector('iframe');
+                                        if (iframe) {
+                                            iframe.style.height = `${h}px`;
+                                        }
+                                    }, contentHeight);
+                                    // Layout settle.
+                                    await page!.waitForTimeout(150);
+                                }
+                            }
+                        } catch (err) {
+                            this.logger.warn(
+                                `App full-content stretch failed; falling back to viewport capture - unfurlId: ${imageId}, err: ${getErrorMessage(
+                                    err,
+                                )}`,
+                            );
+                        }
                     }
 
                     // Auto-detect CJK language from page content and set
@@ -1728,7 +1846,22 @@ export class UnfurlService extends BaseService {
         const sqlChartUrl = new RegExp(
             `/projects/(${uuid})/sql-runner/([^/?#]+)`,
         );
+        const appUrl = new RegExp(`/projects/${uuid}/apps/${uuid}`);
 
+        if (url.match(appUrl) !== null) {
+            const [projectUuid, appUuid] = url.match(uuidRegex) || [];
+            return {
+                isValid: true,
+                lightdashPage: LightdashPage.APP,
+                url,
+                minimalUrl: new URL(
+                    `/minimal/projects/${projectUuid}/apps/${appUuid}`,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                ).href,
+                projectUuid,
+                appUuid,
+            };
+        }
         if (url.match(dashboardUrl) !== null) {
             const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
 

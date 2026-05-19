@@ -143,10 +143,17 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const defaultSort = useDefaultSortField(chartVersionForSort as any);
 
+        // Seed the default sort once per explore; without this guard, clearing
+        // all sorts would re-seed and override the user's intent.
+        const lastSeededTableRef = useRef<string | null>(null);
         useEffect(() => {
-            if (tableName && !sorts.length && defaultSort) {
+            if (!tableName) return;
+            if (lastSeededTableRef.current === tableName) return;
+            if (sorts.length === 0 && !defaultSort) return;
+            if (sorts.length === 0 && defaultSort) {
                 dispatch(explorerActions.setSortFields([defaultSort]));
             }
+            lastSeededTableRef.current = tableName;
         }, [tableName, sorts.length, defaultSort, dispatch]);
 
         useEffect(() => {

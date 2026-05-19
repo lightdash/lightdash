@@ -25,6 +25,7 @@ import {
     IconCopy,
     IconExclamationCircle,
     IconMessageX,
+    IconPlug,
     IconRefresh,
     IconTestPipe,
     IconThumbDown,
@@ -33,6 +34,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import { memo, useCallback, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 // streamdown is a streaming-aware drop-in for react-markdown — used for the
@@ -41,12 +43,13 @@ import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useMdEditorStyle } from '../../../../../utils/markdownUtils';
+import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
-import { setArtifact } from '../../store/aiArtifactSlice';
+import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -172,6 +175,10 @@ const AssistantBubbleContent: FC<{
     projectUuid: string;
     agentUuid: string;
 }> = ({ message, projectUuid, agentUuid }) => {
+    const canManageAgents = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
     const threadStreamingState = useAiAgentThreadStreamQuery(
         message.threadUuid,
     );
@@ -225,6 +232,7 @@ const AssistantBubbleContent: FC<{
     const proposeChangeToolResult = message.toolResults.find(
         isToolProposeChangeResult,
     );
+    const mcpUnavailableNotices = streamingState?.mcpUnavailableNotices ?? [];
 
     return (
         <>
@@ -287,6 +295,68 @@ const AssistantBubbleContent: FC<{
                 </Paper>
             )}
 
+            {mcpUnavailableNotices.map((notice) => (
+                <Box
+                    key={notice.serverUuid}
+                    className={styles.mcpUnavailableNotice}
+                >
+                    <Group
+                        gap={8}
+                        align="flex-start"
+                        wrap="nowrap"
+                        className={styles.mcpUnavailableNoticeHeader}
+                    >
+                        <Box className={styles.mcpUnavailableNoticeIconChip}>
+                            <MantineIcon
+                                icon={IconPlug}
+                                size={12}
+                                stroke={1.7}
+                                className={styles.mcpUnavailableNoticeIcon}
+                            />
+                        </Box>
+                        <Stack
+                            gap={2}
+                            className={styles.mcpUnavailableNoticeBody}
+                        >
+                            <Text
+                                size="xs"
+                                fw={500}
+                                className={styles.mcpUnavailableNoticeLabel}
+                            >
+                                Couldn&apos;t connect to {notice.serverName} MCP
+                            </Text>
+                            <Group gap={8} align="center" wrap="wrap">
+                                <Text
+                                    size="xs"
+                                    className={
+                                        styles.mcpUnavailableNoticeMessage
+                                    }
+                                >
+                                    {canManageAgents
+                                        ? 'Check connection settings.'
+                                        : 'Reach out to an agent administrator to update this MCP connection.'}
+                                </Text>
+                                {canManageAgents && (
+                                    <Button
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/ai-agents/${agentUuid}/edit`}
+                                        variant="subtle"
+                                        color="gray"
+                                        size="compact-xs"
+                                        px={0}
+                                        className={
+                                            styles.mcpUnavailableNoticeAction
+                                        }
+                                    >
+                                        Open settings
+                                    </Button>
+                                )}
+                            </Group>
+                        </Stack>
+                    </Group>
+                </Box>
+            ))}
+
             {/* Reasoning lives inside the LiveActivityCard at all times, so
              *  there is one unified bento for the agent's process. */}
             {(() => {
@@ -322,6 +392,11 @@ const AssistantBubbleContent: FC<{
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
+                    // bridges the gap between artifact landing and closing text.
+                    const showFinishingUp =
+                        isStreaming &&
+                        !!message.artifacts?.length &&
+                        segments[segments.length - 1]?.kind !== 'text';
                     const finalAnswerMd = latestTextSeg ? (
                         <Box
                             className={`${styles.aiMarkdown} ${
@@ -421,6 +496,9 @@ const AssistantBubbleContent: FC<{
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
+                            {showFinishingUp && (
+                                <TypingDots label="Finishing up" />
+                            )}
                         </Stack>
                     );
                 }
@@ -619,8 +697,10 @@ export const AssistantBubble: FC<Props> = memo(
                 message.uuid,
             ) || isPending;
 
-        const isArtifactAvailable =
-            !!(message.artifacts && message.artifacts.length > 0) && !isPending;
+        // status flips to 'idle' only at stream end; artifacts land earlier.
+        const isArtifactAvailable = !!(
+            message.artifacts && message.artifacts.length > 0
+        );
 
         return (
             <Stack
@@ -657,12 +737,13 @@ export const AssistantBubble: FC<Props> = memo(
                                   <AiArtifactButton
                                       key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
                                       onClick={() => {
-                                          if (
+                                          const isThisArtifactOpen =
                                               artifact?.artifactUuid ===
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
-                                                  messageArtifact.versionUuid
-                                          ) {
+                                                  messageArtifact.versionUuid;
+                                          if (isThisArtifactOpen) {
+                                              dispatch(clearArtifact());
                                               return;
                                           }
                                           dispatch(

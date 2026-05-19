@@ -20,7 +20,7 @@
     },
     "devDependencies": {
         "@types/js-yaml": "4.0.9",
-        "typescript": "6.0.0-beta",
+        "typescript": "6.0.3",
         "vitest": "3.2.4"
     }
 }

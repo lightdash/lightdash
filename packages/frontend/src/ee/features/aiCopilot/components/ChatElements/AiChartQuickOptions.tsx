@@ -3,8 +3,9 @@ import {
     type AiArtifact,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
+import { Prism } from '@mantine/prism';
 import {
     IconChartBar,
     IconCircleCheck,
@@ -12,6 +13,7 @@ import {
     IconDeviceFloppy,
     IconDots,
     IconExternalLink,
+    IconEye,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -201,9 +203,11 @@ export const AiChartQuickOptions = ({
 
     if (!metricQuery) return null;
 
+    const canVerify = !!artifactData && canManageAgent;
+
     return (
         <Fragment>
-            {artifactData && canManageAgent && (
+            {canVerify && (
                 <Tooltip
                     label={
                         isVerified
@@ -213,9 +217,9 @@ export const AiChartQuickOptions = ({
                     position="bottom"
                 >
                     <ActionIcon
-                        size="xs"
+                        size="sm"
                         variant="subtle"
-                        color={isVerified ? 'green' : 'ldGray.9'}
+                        color={isVerified ? 'green' : 'ldGray.6'}
                         onClick={handleVerifyToggle}
                     >
                         <MantineIcon
@@ -229,7 +233,7 @@ export const AiChartQuickOptions = ({
                     </ActionIcon>
                 </Tooltip>
             )}
-            <Menu withArrow>
+            <Menu withArrow position="bottom-end">
                 <Menu.Target>
                     <ActionIcon size="sm" variant="subtle" color="ldGray.9">
                         <MantineIcon icon={IconDots} size="lg" />
@@ -266,6 +270,39 @@ export const AiChartQuickOptions = ({
                     >
                         Explore from here
                     </Menu.Item>
+
+                    {!!compiledSql && (
+                        <HoverCard
+                            shadow="subtle"
+                            radius="md"
+                            position="left-start"
+                            withinPortal
+                            openDelay={120}
+                        >
+                            <HoverCard.Target>
+                                <Menu.Item
+                                    leftSection={<MantineIcon icon={IconEye} />}
+                                    closeMenuOnClick={false}
+                                >
+                                    View SQL
+                                </Menu.Item>
+                            </HoverCard.Target>
+                            <HoverCard.Dropdown p={0} maw={500}>
+                                <Prism
+                                    language="sql"
+                                    withLineNumbers
+                                    noCopy
+                                    styles={{
+                                        lineContent: {
+                                            fontSize: 10,
+                                        },
+                                    }}
+                                >
+                                    {compiledSql}
+                                </Prism>
+                            </HoverCard.Dropdown>
+                        </HoverCard>
+                    )}
 
                     {!!compiledSql ? (
                         <Menu.Item

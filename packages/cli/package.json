@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "0.2960.2",
+  "version": "0.2970.0",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -71,6 +71,6 @@
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",
     "ts-node": "10.9.2",
-    "typescript": "6.0.0-beta"
+    "typescript": "6.0.3"
   }
 }

@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Box,
     Button,
     Checkbox,
@@ -78,6 +79,7 @@ type Props = {
         TableCalculation | Metric | Field | CustomDimension
     >;
     isDashboardTabsAvailable: boolean;
+    isApp?: boolean;
 };
 
 export const SchedulerFormSetupTab: FC<Props> = ({
@@ -86,6 +88,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
     isThresholdAlertWithNoFields,
     numericMetrics,
     isDashboardTabsAvailable,
+    isApp,
 }) => {
     const form = useSchedulerFormContext();
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -297,37 +300,48 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                 <Stack gap={0}>
                     <Input.Label> Format </Input.Label>
                     <Group gap="xs" wrap="nowrap">
-                        <SegmentedControl
-                            radius="md"
-                            data={[
-                                {
-                                    label: '.csv',
-                                    value: SchedulerFormat.CSV,
-                                },
-                                {
-                                    label: '.xlsx',
-                                    value: SchedulerFormat.XLSX,
-                                },
-                                {
-                                    label: 'Image',
-                                    value: SchedulerFormat.IMAGE,
-                                    disabled: isImageDisabled,
-                                },
-                                {
-                                    label: 'PDF',
-                                    value: SchedulerFormat.PDF,
-                                    disabled:
-                                        isImageDisabled ||
-                                        (form.values.msTeamsTargets?.length ??
-                                            0) > 0 ||
-                                        (form.values.googleChatTargets
-                                            ?.length ?? 0) > 0,
-                                },
-                            ]}
-                            w="50%"
-                            {...form.getInputProps('format')}
-                        />
-                        {isImageDisabled && (
+                        {isApp ? (
+                            <Badge
+                                variant="light"
+                                radius="sm"
+                                size="lg"
+                                px="sm"
+                            >
+                                Image
+                            </Badge>
+                        ) : (
+                            <SegmentedControl
+                                radius="md"
+                                data={[
+                                    {
+                                        label: '.csv',
+                                        value: SchedulerFormat.CSV,
+                                    },
+                                    {
+                                        label: '.xlsx',
+                                        value: SchedulerFormat.XLSX,
+                                    },
+                                    {
+                                        label: 'Image',
+                                        value: SchedulerFormat.IMAGE,
+                                        disabled: isImageDisabled,
+                                    },
+                                    {
+                                        label: 'PDF',
+                                        value: SchedulerFormat.PDF,
+                                        disabled:
+                                            isImageDisabled ||
+                                            (form.values.msTeamsTargets
+                                                ?.length ?? 0) > 0 ||
+                                            (form.values.googleChatTargets
+                                                ?.length ?? 0) > 0,
+                                    },
+                                ]}
+                                w="50%"
+                                {...form.getInputProps('format')}
+                            />
+                        )}
+                        {isImageDisabled && !isApp && (
                             <Text
                                 size="xs"
                                 c="ldGray.6"

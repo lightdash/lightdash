@@ -23,6 +23,6 @@
   },
   "devDependencies": {
     "@types/pg": "8.11.10",
-    "typescript": "6.0.0-beta"
+    "typescript": "6.0.3"
   }
 }

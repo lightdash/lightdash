@@ -4,7 +4,13 @@ import {
     Droppable,
     type DropResult,
 } from '@hello-pangea/dnd';
-import { isField } from '@lightdash/common';
+import {
+    isField,
+    type CustomDimension,
+    type Field,
+    type SortField,
+    type TableCalculation,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -21,9 +27,20 @@ import {
     useExplorerDispatch,
 } from '../../features/explorer/store';
 import { useColumns } from '../../hooks/useColumns';
+import {
+    matchesIdentity,
+    serializeIdentity,
+    type PivotSortIdentity,
+} from '../../utils/pivotSortIdentity';
 import MantineIcon from '../common/MantineIcon';
 import { DraggablePortalHandler } from '../VisualizationConfigs/TreemapConfig/DraggablePortalHandler';
 import SortItem from './SortItem';
+
+type IdentityWithItem = {
+    fieldId: string;
+    item: Field | TableCalculation | CustomDimension;
+    label: string;
+};
 
 const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     const columns = useColumns();
@@ -31,25 +48,27 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     const dispatch = useExplorerDispatch();
 
     const addSortField = useCallback(
-        (fieldId: string, options?: { descending: boolean }) => {
-            const existingSort = sorts.find((s) => s.fieldId === fieldId);
-            const newSort = {
-                fieldId,
+        (identity: PivotSortIdentity, options?: { descending: boolean }) => {
+            const existingSort = sorts.find((s) =>
+                matchesIdentity(s, identity),
+            );
+            const newSort: SortField = {
+                fieldId: identity.fieldId,
                 descending: options?.descending ?? false,
-                // Preserve nullsFirst if it exists
+                ...(identity.pivotValues?.length && {
+                    pivotValues: identity.pivotValues,
+                }),
                 ...(existingSort?.nullsFirst !== undefined && {
                     nullsFirst: existingSort.nullsFirst,
                 }),
             };
 
             if (existingSort) {
-                // Replace in place to preserve order
                 const newSorts = sorts.map((s) =>
-                    s.fieldId === fieldId ? newSort : s,
+                    matchesIdentity(s, identity) ? newSort : s,
                 );
                 dispatch(explorerActions.setSortFields(newSorts));
             } else {
-                // Add new sort at the end
                 dispatch(explorerActions.setSortFields([...sorts, newSort]));
             }
         },
@@ -57,8 +76,8 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     );
 
     const removeSortField = useCallback(
-        (fieldId: string) => {
-            const newSorts = sorts.filter((s) => s.fieldId !== fieldId);
+        (identity: PivotSortIdentity) => {
+            const newSorts = sorts.filter((s) => !matchesIdentity(s, identity));
             dispatch(explorerActions.setSortFields(newSorts));
         },
         [dispatch, sorts],
@@ -75,9 +94,9 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     );
 
     const setSortFieldNullsFirst = useCallback(
-        (fieldId: string, nullsFirst: boolean | undefined) => {
+        (identity: PivotSortIdentity, nullsFirst: boolean | undefined) => {
             const newSorts = sorts.map((s) =>
-                s.fieldId === fieldId ? { ...s, nullsFirst } : s,
+                matchesIdentity(s, identity) ? { ...s, nullsFirst } : s,
             );
             dispatch(explorerActions.setSortFields(newSorts));
         },
@@ -90,20 +109,32 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         moveSortFields(result.source.index, result.destination.index);
     };
 
-    const availableColumnsToAddToSort = columns
-        .filter((c) => !sorts.some((s) => s.fieldId === c.id))
+    const addOptions = columns
         .map((c) => {
             const item = c.meta?.item;
-            return {
-                value: c.id || '',
-                label: item
-                    ? isField(item)
-                        ? item.label || item.name
-                        : item.name
-                    : c.id,
-            };
+            if (!item || !c.id) return null;
+            const label =
+                (isField(item) ? item.label || item.name : item.name) || c.id;
+            return { fieldId: c.id, item, label } as IdentityWithItem;
         })
-        .filter((c) => c.value !== '');
+        .filter((c): c is IdentityWithItem => c !== null)
+        .filter(
+            (opt) =>
+                !sorts.some((s) =>
+                    matchesIdentity(s, { fieldId: opt.fieldId }),
+                ),
+        )
+        .map((opt) => ({ value: opt.fieldId, label: opt.label }));
+
+    const resetAddState = () => setIsAddingSort(false);
+
+    const handleAdd = (value: string | null) => {
+        if (!value) return;
+        addSortField({ fieldId: value });
+        resetAddState();
+    };
+
+    const hasAddableSomething = addOptions.length > 0;
 
     return (
         <>
@@ -114,63 +145,77 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                             ref={provided.innerRef}
                             {...provided.droppableProps}
                         >
-                            {sorts.map((sort, index) => (
-                                <Draggable
-                                    key={sort.fieldId}
-                                    isDragDisabled={!isEditMode}
-                                    draggableId={sort.fieldId}
-                                    index={index}
-                                >
-                                    {(
-                                        {
-                                            draggableProps,
-                                            dragHandleProps,
-                                            innerRef,
-                                        },
-                                        snapshot,
-                                    ) => (
-                                        <DraggablePortalHandler
-                                            snapshot={snapshot}
-                                        >
-                                            <SortItem
-                                                isEditMode={isEditMode}
-                                                ref={innerRef}
-                                                isFirstItem={index === 0}
-                                                isOnlyItem={sorts.length === 1}
-                                                isDragging={snapshot.isDragging}
-                                                draggableProps={draggableProps}
-                                                dragHandleProps={
-                                                    dragHandleProps
-                                                }
-                                                sort={sort}
-                                                column={columns.find(
-                                                    (c) =>
-                                                        c.id === sort.fieldId,
-                                                )}
-                                                onAddSortField={(options) => {
-                                                    addSortField(
-                                                        sort.fieldId,
-                                                        options,
-                                                    );
-                                                }}
-                                                onRemoveSortField={() => {
-                                                    removeSortField(
-                                                        sort.fieldId,
-                                                    );
-                                                }}
-                                                onSetSortFieldNullsFirst={(
-                                                    payload,
-                                                ) => {
-                                                    setSortFieldNullsFirst(
-                                                        sort.fieldId,
+                            {sorts.map((sort, index) => {
+                                const identity: PivotSortIdentity = {
+                                    fieldId: sort.fieldId,
+                                    pivotValues: sort.pivotValues,
+                                };
+                                const key = serializeIdentity(identity);
+                                return (
+                                    <Draggable
+                                        key={key}
+                                        isDragDisabled={!isEditMode}
+                                        draggableId={key}
+                                        index={index}
+                                    >
+                                        {(
+                                            {
+                                                draggableProps,
+                                                dragHandleProps,
+                                                innerRef,
+                                            },
+                                            snapshot,
+                                        ) => (
+                                            <DraggablePortalHandler
+                                                snapshot={snapshot}
+                                            >
+                                                <SortItem
+                                                    isEditMode={isEditMode}
+                                                    ref={innerRef}
+                                                    isFirstItem={index === 0}
+                                                    isOnlyItem={
+                                                        sorts.length === 1
+                                                    }
+                                                    isDragging={
+                                                        snapshot.isDragging
+                                                    }
+                                                    draggableProps={
+                                                        draggableProps
+                                                    }
+                                                    dragHandleProps={
+                                                        dragHandleProps
+                                                    }
+                                                    sort={sort}
+                                                    column={columns.find(
+                                                        (c) =>
+                                                            c.id ===
+                                                            sort.fieldId,
+                                                    )}
+                                                    onAddSortField={(opts) => {
+                                                        addSortField(
+                                                            identity,
+                                                            opts,
+                                                        );
+                                                    }}
+                                                    onRemoveSortField={() => {
+                                                        removeSortField(
+                                                            identity,
+                                                        );
+                                                    }}
+                                                    onSetSortFieldNullsFirst={(
                                                         payload,
-                                                    );
-                                                }}
-                                            />
-                                        </DraggablePortalHandler>
-                                    )}
-                                </Draggable>
-                            ))}
+                                                    ) => {
+                                                        setSortFieldNullsFirst(
+                                                            identity,
+                                                            payload,
+                                                        );
+                                                    }}
+                                                />
+                                            </DraggablePortalHandler>
+                                        )}
+                                    </Draggable>
+                                );
+                            })}
 
                             {provided.placeholder}
                         </div>
@@ -178,11 +223,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 </Droppable>
             </DragDropContext>
 
-            {/*
-                Add sort to multi-sort form
-                Mimics SortItem component
-            */}
-            {isEditMode && availableColumnsToAddToSort.length > 0 && (
+            {isEditMode && hasAddableSomething && (
                 <>
                     {!isAddingSort ? (
                         <Button
@@ -195,46 +236,32 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                             Add sort
                         </Button>
                     ) : (
-                        <Group
-                            wrap="nowrap"
-                            justify="space-between"
-                            pl="xs"
-                            pr="xxs"
-                            py="two"
-                        >
-                            <Group gap="sm">
-                                {isEditMode && sorts.length > 0 && (
-                                    <MantineIcon
-                                        color="ldGray.5"
-                                        opacity={0.9}
-                                        icon={IconGripVertical}
-                                        style={{ cursor: 'grab' }}
-                                    />
-                                )}
-                                <Text fz="xs">then by</Text>
-                                <Select
-                                    placeholder="Add sort field"
-                                    size="xs"
-                                    data={availableColumnsToAddToSort.map(
-                                        (c) => ({
-                                            value: c.value,
-                                            label: c.label || '',
-                                        }),
-                                    )}
-                                    onChange={(value: string | null) => {
-                                        if (value) {
-                                            addSortField(value);
-                                            setIsAddingSort(false);
-                                        }
-                                    }}
+                        <Group wrap="nowrap" gap="sm" pl="xs" py="two">
+                            {sorts.length > 0 && (
+                                <MantineIcon
+                                    color="ldGray.5"
+                                    opacity={0.9}
+                                    icon={IconGripVertical}
+                                    style={{ cursor: 'grab' }}
                                 />
-                            </Group>
+                            )}
+                            <Text fz="xs">then by</Text>
+                            <Select
+                                placeholder="Column"
+                                size="xs"
+                                searchable
+                                data={addOptions}
+                                value={null}
+                                onChange={handleAdd}
+                                flex={1}
+                                comboboxProps={{ withinPortal: false }}
+                            />
                             <Tooltip label="Cancel">
                                 <ActionIcon
                                     size="xs"
                                     variant="subtle"
                                     color="ldGray.6"
-                                    onClick={() => setIsAddingSort(false)}
+                                    onClick={resetAddState}
                                 >
                                     <MantineIcon icon={IconMinus} />
                                 </ActionIcon>

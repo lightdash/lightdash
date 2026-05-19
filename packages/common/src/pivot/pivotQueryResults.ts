@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
@@ -12,6 +13,7 @@ import {
     type ItemsMap,
 } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
+import { type ParametersValuesMap } from '../types/parameters';
 import {
     type PivotColumn,
     type PivotConfig,
@@ -32,6 +34,29 @@ type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
 
+// Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
+// (parameters live on the client). For flat tables, useColumns re-formats per
+// cell. The pivot path stores backend values verbatim, so we do the same
+// per-cell overlay here whenever the field's format references parameters.
+const reformatCellWithParameters = (
+    value: ResultValue | null | undefined,
+    item: ItemsMap[string] | undefined,
+    parameters: ParametersValuesMap | undefined,
+): ResultValue | null | undefined => {
+    if (!value || !item || !parameters) return value;
+    if (!('format' in item) || typeof item.format !== 'string') return value;
+    if (
+        !item.format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) &&
+        !item.format.includes(`\${${LightdashParameters.PREFIX}`)
+    ) {
+        return value;
+    }
+    return {
+        raw: value.raw,
+        formatted: formatItemValue(item, value.raw, false, parameters),
+    };
+};
+
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
     metricQuery: Pick<
@@ -49,6 +74,7 @@ type PivotQueryResultsArgs = {
     };
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
+    parameters?: ParametersValuesMap;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -232,6 +258,7 @@ const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
     getFieldLabel: FieldLabelFunction,
+    parameters?: ParametersValuesMap,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
@@ -264,7 +291,7 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -279,7 +306,7 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -530,6 +557,7 @@ export const pivotQueryResults = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    parameters,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -744,7 +772,13 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row?.[metric.fieldId] ?? {};
+            const { value: rawCellValue } = row?.[metric.fieldId] ?? {};
+            const value =
+                reformatCellWithParameters(
+                    rawCellValue,
+                    getField(metric.fieldId),
+                    parameters,
+                ) ?? null;
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
@@ -881,7 +915,7 @@ export const pivotQueryResults = ({
         },
         groupedSubtotals,
     };
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 /**
@@ -897,6 +931,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     columnLimit,
+    parameters,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -913,6 +948,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
     columnLimit?: number;
+    parameters?: ParametersValuesMap;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -1030,7 +1066,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               pivotValue.value,
                               true,
-                              undefined,
+                              parameters,
                           )
                         : String(pivotValue.value));
                 const allColumnsWithSamePivotValues = columns.filter(
@@ -1178,7 +1214,11 @@ export const convertSqlPivotedRowsToPivotData = ({
                     );
 
                     return matchingColumn && row[matchingColumn.pivotColumnName]
-                        ? row[matchingColumn.pivotColumnName].value
+                        ? (reformatCellWithParameters(
+                              row[matchingColumn.pivotColumnName].value,
+                              getField(metric),
+                              parameters,
+                          ) ?? null)
                         : null;
                 });
 
@@ -1197,7 +1237,11 @@ export const convertSqlPivotedRowsToPivotData = ({
 
             return filteredValuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
-                    ? row[valueCol.pivotColumnName].value
+                    ? (reformatCellWithParameters(
+                          row[valueCol.pivotColumnName].value,
+                          getField(valueCol.referenceField),
+                          parameters,
+                      ) ?? null)
                     : null,
             );
         });
@@ -1391,7 +1435,20 @@ export const convertSqlPivotedRowsToPivotData = ({
                       }__${colIndex}`;
 
                 if (row[valueCol.pivotColumnName]) {
-                    combinedRow[fieldId] = row[valueCol.pivotColumnName];
+                    const cell = row[valueCol.pivotColumnName];
+                    const reformatted = reformatCellWithParameters(
+                        cell.value,
+                        getField(valueCol.referenceField),
+                        parameters,
+                    );
+                    // Helper short-circuits to the input value reference when
+                    // no reformat is needed — fall back to `cell` in that case
+                    // so we don't allocate a fresh wrapper per non-parameterised
+                    // cell.
+                    combinedRow[fieldId] =
+                        reformatted && reformatted !== cell.value
+                            ? { value: reformatted }
+                            : cell;
                 }
             });
 
@@ -1408,7 +1465,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               rowTotalValue,
                               false,
-                              undefined,
+                              parameters,
                           )
                         : String(rowTotalValue);
 
@@ -1512,7 +1569,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 export type PivotResultsDataCell = {

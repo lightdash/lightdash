@@ -25,6 +25,7 @@ import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
+import MinimalApp from './pages/MinimalApp';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import MinimalSqlChart from './pages/MinimalSqlChart';
@@ -143,6 +144,10 @@ const MINIMAL_ROUTES: RouteObject[] = [
                         <MinimalSqlChart />
                     </Stack>
                 ),
+            },
+            {
+                path: '/minimal/projects/:projectUuid/apps/:appUuid',
+                element: <MinimalApp />,
             },
         ],
     },

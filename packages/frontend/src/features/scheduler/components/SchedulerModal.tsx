@@ -44,6 +44,7 @@ const SchedulersModal: FC<
         | 'resourceUuid'
         | 'createMutation'
         | 'isChart'
+        | 'isApp'
         | 'currentParameterValues'
         | 'availableParameters'
     > & {
@@ -66,7 +67,8 @@ const SchedulersModal: FC<
     schedulersQuery,
     createMutation,
     isOpen = false,
-    isChart,
+    isChart = false,
+    isApp = false,
     isThresholdAlert,
     itemsMap,
     currentParameterValues,
@@ -269,6 +271,7 @@ const SchedulersModal: FC<
                 onClose={onClose}
                 onBack={() => setModalState(States.LIST)}
                 isChart={isChart}
+                isApp={isApp}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
                 currentParameterValues={currentParameterValues}

@@ -57,6 +57,7 @@ import {
     isField,
     isJwtUser,
     isMetric,
+    isPeriodOverPeriodAdditionalMetric,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -124,6 +125,7 @@ import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorage
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import { measureTime } from '../../logging/measureTime';
+import { getSchedulerContext } from '../../logging/winston';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -2403,7 +2405,12 @@ export class AsyncQueryService extends ProjectService {
                     warehouseType: warehouseCredentialsType,
                     errorName: e instanceof Error ? e.name : undefined,
                     errorCode: (e as { code?: string })?.code,
-                    queryContext: queryTags.query_context,
+                    // Surface every queryTag (chart_uuid, dashboard_uuid,
+                    // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
+                    // explore_name, query_context, …) onto the error log so a
+                    // single Cloud Logging filter maps a warehouse failure
+                    // back to the originating chart / scheduled sync.
+                    ...queryTags,
                 },
             );
 
@@ -2712,6 +2719,23 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /**
+     * Reads scheduler/job context from the request-scoped ExecutionContext
+     * (populated by SchedulerTask handlers when a scheduled job is running)
+     * so warehouse queries can be tagged back to the originating sync/delivery.
+     * Returns an empty object outside scheduler execution.
+     */
+    private static getSchedulerQueryTags(): Partial<RunQueryTags> {
+        const ctx = getSchedulerContext();
+        if (!ctx) return {};
+        const tags: Partial<RunQueryTags> = {};
+        if (ctx.scheduler_uuid) tags.scheduler_uuid = ctx.scheduler_uuid;
+        if (ctx.scheduler_name) tags.scheduler_name = ctx.scheduler_name;
+        if (ctx.saved_sql_uuid) tags.saved_sql_uuid = ctx.saved_sql_uuid;
+        if (ctx.job_id) tags.job_id = ctx.job_id;
+        return tags;
+    }
+
     private static buildQueryTags(query: QueryHistory): RunQueryTags {
         let actorTags: Record<string, string>;
         if (query.createdByActorType === 'jwt') {
@@ -2743,6 +2767,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             ...actorTags,
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: query.organizationUuid,
             project_uuid: query.projectUuid ?? undefined,
             explore_name: query.metricQuery.exploreName,
@@ -3637,6 +3662,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: metricQuery.exploreName,
@@ -3823,6 +3849,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
@@ -4034,6 +4061,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: savedChartOrganizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
@@ -4353,6 +4381,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
@@ -4717,6 +4746,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
@@ -4932,6 +4962,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             query_context: context,
@@ -4980,25 +5011,58 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
-            (chunk) => {
-                // Only handle the first call
-                if (columns.length === 0 && chunk.fields) {
-                    Object.keys(chunk.fields).forEach((key) => {
-                        columns.push({
-                            name: key,
-                            type: chunk.fields[key].type,
+        const limitedColumnDiscoverySql = applyLimitToSqlQuery({
+            sqlQuery: columnDiscoverySql,
+            limit: 1,
+        });
+        this.logger.info('column_discovery.started', {
+            event: 'column_discovery.started',
+            projectUuid,
+            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+            ...queryTags,
+        });
+        try {
+            await warehouseConnection.warehouseClient.streamQuery(
+                limitedColumnDiscoverySql,
+                (chunk) => {
+                    // Only handle the first call
+                    if (columns.length === 0 && chunk.fields) {
+                        Object.keys(chunk.fields).forEach((key) => {
+                            columns.push({
+                                name: key,
+                                type: chunk.fields[key].type,
+                            });
                         });
-                    });
-                }
-            },
-            {
-                tags: queryTags,
-            },
-        );
+                    }
+                },
+                {
+                    tags: queryTags,
+                },
+            );
+        } catch (e) {
+            const durationMs = performance.now() - sectionStartColumnDiscovery;
+            this.logger.error('column_discovery.failed', {
+                event: 'column_discovery.failed',
+                projectUuid,
+                durationMs,
+                sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+                errorName: e instanceof Error ? e.name : undefined,
+                errorCode: (e as { code?: string })?.code,
+                errorMessage: getErrorMessage(e),
+                ...queryTags,
+            });
+            throw e;
+        }
         const durationColumnDiscovery =
             performance.now() - sectionStartColumnDiscovery;
+        this.logger.info('column_discovery.completed', {
+            event: 'column_discovery.completed',
+            projectUuid,
+            durationMs: durationColumnDiscovery,
+            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+            columnCount: columns.length,
+            ...queryTags,
+        });
 
         // 4. Query Building
         const sectionStartQueryBuilding = performance.now();
@@ -5147,14 +5211,15 @@ export class AsyncQueryService extends ProjectService {
                 2,
             )}`,
             {
+                event: 'prepare_sql_chart_async_query_args.completed',
+                projectUuid,
                 totalTimeMs: totalTime,
-                sections: {
-                    warehouseMs: durationWarehouse.toFixed(2),
-                    userAttributesMs: durationUserAttributes.toFixed(2),
-                    columnDiscoveryMs: durationColumnDiscovery.toFixed(2),
-                    queryBuildingMs: durationQueryBuilding.toFixed(2),
-                    sqlGenerationMs: durationSqlGeneration.toFixed(2),
-                },
+                warehouseMs: durationWarehouse,
+                userAttributesMs: durationUserAttributes,
+                columnDiscoveryMs: durationColumnDiscovery,
+                queryBuildingMs: durationQueryBuilding,
+                sqlGenerationMs: durationSqlGeneration,
+                ...queryTags,
             },
         );
 
@@ -5476,6 +5541,17 @@ export class AsyncQueryService extends ProjectService {
     private static getCalculateTotalMetricQuery(
         metricQuery: MetricQuery,
     ): MetricQuery {
+        // PoP additional metrics require their time dimension to be selected
+        // (they join the shifted CTE on that field). The totals query strips
+        // all dimensions to collapse to a single row, so any PoP entries
+        // would fail the "time dim must be selected" check in MetricQueryBuilder.
+        // Totals on a "12 months ago" column aren't meaningful anyway —
+        // strip PoP entries from both metrics and additionalMetrics.
+        const popMetricIds = new Set(
+            (metricQuery.additionalMetrics ?? [])
+                .filter(isPeriodOverPeriodAdditionalMetric)
+                .map(getItemId),
+        );
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5483,8 +5559,10 @@ export class AsyncQueryService extends ProjectService {
             sorts: [],
             dimensions: [],
             customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
+            metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
+            additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
+                (am) => !isPeriodOverPeriodAdditionalMetric(am),
+            ),
         };
 
         const hasMetricFilters =
@@ -6014,6 +6092,7 @@ export class AsyncQueryService extends ProjectService {
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     ...this.getUserQueryTags(account),
+                    ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: savedChart.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: explore.name,
@@ -6080,6 +6159,7 @@ export class AsyncQueryService extends ProjectService {
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     ...this.getUserQueryTags(account),
+                    ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: account.organization.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: data.explore,
@@ -6167,6 +6247,7 @@ export class AsyncQueryService extends ProjectService {
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 ...this.getUserQueryTags(account),
+                ...AsyncQueryService.getSchedulerQueryTags(),
                 organization_uuid: account.organization.organizationUuid,
                 project_uuid: projectUuid,
                 explore_name: data.explore,

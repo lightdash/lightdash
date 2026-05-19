@@ -65,3 +65,30 @@
 .artifact {
     box-shadow: var(--mantine-shadow-lg);
 }
+
+.workspace {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    @mixin light {
+        background-color: white;
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
+}
+
+.floatingArtifactRegion {
+    flex: 0 0 50%;
+    min-width: 420px;
+    max-width: 50vw;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm) 0;
+    min-height: 0;
+    display: flex;
+}
+
+.floatingArtifactRegion > * {
+    flex: 1;
+    min-height: 0;
+}

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "0.2960.2",
+    "version": "0.2970.0",
     "private": false,
     "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
@@ -34,6 +34,6 @@
     },
     "devDependencies": {
         "@types/react": "19.2.2",
-        "typescript": "5.9.3"
+        "typescript": "6.0.3"
     }
 }

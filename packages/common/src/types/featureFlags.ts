@@ -155,6 +155,24 @@ export enum FeatureFlags {
      * prompt and measure click-through.
      */
     AiAgentSuggestions = 'ai-agent-suggestions',
+
+    /**
+     * Enable the new pivot-column-sort UI: per-pivot-column sort menu on
+     * pivot table headers, sort-direction indicators, and the pinned
+     * pivot-column entries in the Sort popover. Backend support
+     * (per-metric anchor CTE, pivot_values persistence) is always on;
+     * this flag only gates the UI/UX so we can validate with design
+     * partners before announcing GA.
+     */
+    PivotColumnSort = 'pivot-column-sort',
+
+    /**
+     * Gate the "Schedule delivery" entry point for data apps. Disabled by
+     * default while the screenshot pipeline is producing blank pages in
+     * production. Enable per-org once the underlying rendering issue is
+     * fixed.
+     */
+    DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
 }
 
 export type FeatureFlag = {

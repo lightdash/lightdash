@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type DashboardDataAppTile } from '@lightdash/common';
+import { ProjectType, type DashboardDataAppTile } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconPencil } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
@@ -9,6 +9,7 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -50,6 +51,8 @@ const DataAppTile: FC<Props> = (props) => {
     );
 
     const previewOrigin = usePreviewOrigin();
+    const { data: project } = useProject(projectUuid);
+    const isPreviewProject = project?.type === ProjectType.PREVIEW;
     // Skip the network calls when the backend already told us the app is
     // gone — `useGetApp` would 404 anyway, but bypassing the request avoids
     // a noisy log entry and a wasted round trip on every dashboard load.
@@ -135,8 +138,12 @@ const DataAppTile: FC<Props> = (props) => {
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="Data app not found"
-                        description="This data app no longer exists. Edit the tile to pick another app."
+                        title="Data app not available"
+                        description={
+                            isPreviewProject
+                                ? "Data apps aren't duplicated into preview environments yet. You can however edit or remove the tile itself."
+                                : 'This data app no longer exists. Edit the tile to pick another app.'
+                        }
                     />
                 ) : isForbidden ? (
                     <SuboptimalState

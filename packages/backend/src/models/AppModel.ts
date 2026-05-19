@@ -178,6 +178,36 @@ export class AppModel {
         return row;
     }
 
+    async findAppByUuid(appId: string): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+          })
+        | undefined
+    > {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                })[]
+            >(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .first();
+    }
+
     async findApp(
         appId: string,
         projectUuid: string,

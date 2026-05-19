@@ -511,7 +511,7 @@ export class PivotQueryBuilder {
                     const nullsClause = PivotQueryBuilder.getNullsFirstLast(
                         sort.nullsFirst,
                     );
-                    const colAnchorCteName = `${sort.reference}_column_anchor`;
+                    const colAnchorCteName = `${sort.reference}_ca`;
                     if (metricFirstValueQueries[colAnchorCteName]) {
                         acc.push(
                             `${q}${colAnchorCteName}${q}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
@@ -602,7 +602,7 @@ export class PivotQueryBuilder {
 
             if (isValueColumn) {
                 // Use the anchor value from the row anchor CTE
-                const rowAnchorCteName = `${sort.reference}_row_anchor`;
+                const rowAnchorCteName = `${sort.reference}_ra`;
                 if (metricFirstValueQueries[rowAnchorCteName]) {
                     const nullsClause = PivotQueryBuilder.getNullsFirstLast(
                         sort.nullsFirst,
@@ -686,7 +686,7 @@ export class PivotQueryBuilder {
                 sortConfig.nullsFirst,
             );
 
-            const colAnchorCteName = `${valCol.reference}_column_anchor`;
+            const colAnchorCteName = `${valCol.reference}_ca`;
             const groupColumnReferences = groupByColumns
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
@@ -938,7 +938,7 @@ export class PivotQueryBuilder {
                 valCol.aggregation,
             );
 
-            const rowAnchorCteName = `${valCol.reference}_row_anchor`;
+            const rowAnchorCteName = `${valCol.reference}_ra`;
             const anchorCteName =
                 perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column';
             const anchorCteRef =
@@ -996,10 +996,14 @@ export class PivotQueryBuilder {
             ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
         );
 
-        // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
-        // When sorting by a metric, we need additional CTEs to identify the "first pivot column"
-        // and compute row anchor values from that specific column only.
-        // When there are no index columns, row sorting is not needed (all rows have row_index = 1)
+        // When sorting by a metric value, we need the column_ranking CTE so
+        // that pivot_query can read col_idx from a precomputed scope instead
+        // of emitting an inline Window ORDER BY that references the sibling
+        // *_ca CTE — Databricks/Spark inlines those CTEs and can't
+        // resolve the cross-CTE column reference inside a Window function.
+        // Row anchor CTEs (and the anchor_column CTE that feeds them) only
+        // make sense when there are row dimensions to rank — without them
+        // every row has row_index = 1.
         const hasMetricSort = valuesColumns?.some((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
@@ -1011,8 +1015,7 @@ export class PivotQueryBuilder {
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
 
-        if (needsRowAnchor) {
-            // Generate column_ranking CTE
+        if (hasMetricSort) {
             const columnRankingSQL = this.getColumnRankingSQL(
                 groupByColumns,
                 valuesColumns,
@@ -1021,48 +1024,52 @@ export class PivotQueryBuilder {
             );
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
-            // Any pinned sort upgrades the shared anchor_column to per-metric
-            // anchors so two metrics can pin different columns independently.
-            const hasAnyPin =
-                sortBy?.some((s) => s.pivotValues?.length) ?? false;
+            if (needsRowAnchor) {
+                // Any pinned sort upgrades the shared anchor_column to per-metric
+                // anchors so two metrics can pin different columns independently.
+                const hasAnyPin =
+                    sortBy?.some((s) => s.pivotValues?.length) ?? false;
 
-            const perMetricAnchorCte = new Map<string, string>();
+                const perMetricAnchorCte = new Map<string, string>();
 
-            if (hasAnyPin && valuesColumns) {
-                valuesColumns.forEach((valCol) => {
-                    const sortConfig = sortBy?.find(
-                        (s) => s.reference === valCol.reference,
-                    );
-                    if (!sortConfig) return;
-                    const anchorCteName = `${valCol.reference}_anchor_column`;
-                    const anchorSQL = this.getAnchorColumnSQL(
+                if (hasAnyPin && valuesColumns) {
+                    valuesColumns.forEach((valCol) => {
+                        const sortConfig = sortBy?.find(
+                            (s) => s.reference === valCol.reference,
+                        );
+                        if (!sortConfig) return;
+                        const anchorCteName = `${valCol.reference}_anchor_column`;
+                        const anchorSQL = this.getAnchorColumnSQL(
+                            groupByColumns,
+                            sortBy,
+                            sortConfig.pivotValues,
+                        );
+                        anchorColumnCTEs.push(
+                            `${q}${anchorCteName}${q} AS (${anchorSQL})`,
+                        );
+                        perMetricAnchorCte.set(valCol.reference, anchorCteName);
+                    });
+                } else {
+                    const anchorColumnSQL = this.getAnchorColumnSQL(
                         groupByColumns,
                         sortBy,
-                        sortConfig.pivotValues,
                     );
-                    anchorColumnCTEs.push(
-                        `${q}${anchorCteName}${q} AS (${anchorSQL})`,
-                    );
-                    perMetricAnchorCte.set(valCol.reference, anchorCteName);
-                });
-            } else {
-                const anchorColumnSQL = this.getAnchorColumnSQL(
+                    anchorColumnCTEs = [
+                        `anchor_column AS (${anchorColumnSQL})`,
+                    ];
+                }
+
+                rowAnchorQueries = this.getRowAnchorCTEs(
+                    indexColumns,
+                    valuesColumns,
                     groupByColumns,
                     sortBy,
+                    hasAnyPin ? perMetricAnchorCte : undefined,
                 );
-                anchorColumnCTEs = [`anchor_column AS (${anchorColumnSQL})`];
+                rowAnchorCTEs = Object.values(rowAnchorQueries).map(
+                    ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
+                );
             }
-
-            rowAnchorQueries = this.getRowAnchorCTEs(
-                indexColumns,
-                valuesColumns,
-                groupByColumns,
-                sortBy,
-                hasAnyPin ? perMetricAnchorCte : undefined,
-            );
-            rowAnchorCTEs = Object.values(rowAnchorQueries).map(
-                ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
-            );
         }
 
         // Combine all queries for the metricFirstValueQueries map (used by getPivotQuerySQL)
@@ -1224,7 +1231,7 @@ export class PivotQueryBuilder {
         // Add joins for metric first value CTEs
         // Use LEFT JOIN to preserve all rows even when anchor values are NULL
         Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
-            if (cteName.endsWith('_row_anchor')) {
+            if (cteName.endsWith('_ra')) {
                 // Join on index columns for row anchor CTEs
                 // Skip if no index columns (row anchor CTEs shouldn't exist in this case)
                 if (indexColumns.length > 0) {
@@ -1240,7 +1247,7 @@ export class PivotQueryBuilder {
                         `LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`,
                     );
                 }
-            } else if (cteName.endsWith('_column_anchor')) {
+            } else if (cteName.endsWith('_ca')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
                     .map((col) =>
@@ -1429,19 +1436,21 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
-        // When metric sorting with index columns is active (needsRowAnchor),
-        // compute rankings in separate CTEs instead of inline Window functions.
-        // This prevents Databricks/Spark from failing when it inlines CTEs and
-        // can't resolve anchor column references in Window ORDER BY clauses.
-        const needsPrecomputedRankings =
-            columnRankingCTE !== null && indexColumns.length > 0;
+        // When metric sorting is active, compute rankings in separate CTEs
+        // instead of inline Window functions. This prevents Databricks/Spark
+        // from failing when it inlines CTEs and can't resolve anchor column
+        // references in Window ORDER BY clauses. row_ranking is only needed
+        // when there are row dimensions to rank — column_ranking handles the
+        // no-row-dim case on its own (pivot_query emits a literal `1` for
+        // row_index).
+        const needsPrecomputedRankings = columnRankingCTE !== null;
 
         let rowRankingCTE: string | null = null;
-        if (needsPrecomputedRankings) {
+        if (needsPrecomputedRankings && indexColumns.length > 0) {
             // Extract only row anchor queries for the row_ranking CTE
             const rowAnchorQueries = Object.fromEntries(
                 Object.entries(metricFirstValueQueries).filter(([key]) =>
-                    key.endsWith('_row_anchor'),
+                    key.endsWith('_ra'),
                 ),
             );
             const rowRankingSQL = this.getRowRankingSQL(

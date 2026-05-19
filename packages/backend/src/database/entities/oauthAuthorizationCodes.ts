@@ -11,7 +11,7 @@ export type DbOAuthAuthorizationCode = {
     created_at: Date;
     used_at: Date | null;
     code_challenge: string | null;
-    code_challenge_method: 'S256' | 'plain' | null;
+    code_challenge_method: 'S256' | null;
 };
 
 export type DbOAuthAuthorizationCodeIn = Omit<

@@ -1320,6 +1320,18 @@ export type DataAppViewedEvent = BaseTrack & {
     };
 };
 
+export type DataAppVersionRestoredEvent = BaseTrack & {
+    event: 'data_app.version.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        restoredFromVersion: number;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1327,7 +1339,8 @@ export type DataAppEvent =
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
     | DataAppImageUploadedEvent
-    | DataAppViewedEvent;
+    | DataAppViewedEvent
+    | DataAppVersionRestoredEvent;
 
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';

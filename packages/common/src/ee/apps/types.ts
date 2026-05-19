@@ -204,6 +204,11 @@ export type ApiUpdateAppResponse = ApiSuccess<{
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
 
+export type ApiRestoreAppVersionResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+}>;
+
 export type ApiDeleteAppResponse = ApiSuccessEmpty;
 
 export type ApiAppSummary = {

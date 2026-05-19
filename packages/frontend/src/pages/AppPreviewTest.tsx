@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
-import { IconAppsOff, IconDots, IconPencil } from '@tabler/icons-react';
+import {
+    IconAppsOff,
+    IconDots,
+    IconPencil,
+    IconSend,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -10,6 +15,7 @@ import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { AppSchedulersModal } from '../features/scheduler/components/SchedulerModals';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
@@ -30,6 +36,9 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const scheduledDeliveriesFlag = useServerFeatureFlag(
+        FeatureFlags.DataAppsScheduledDeliveries,
+    );
     const { user } = useApp();
 
     // Always fetch app to get creator info + latest ready version when needed.
@@ -68,6 +77,7 @@ export default function AppPreviewTest() {
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
     const [menuOpened, setMenuOpened] = useState(false);
+    const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
 
     // Close menu when the iframe receives focus (i.e. user clicked on it)
     const handleBlur = useCallback(() => {
@@ -193,6 +203,14 @@ export default function AppPreviewTest() {
                             >
                                 Continue building
                             </Menu.Item>
+                            {scheduledDeliveriesFlag.data?.enabled && (
+                                <Menu.Item
+                                    leftSection={<IconSend size={14} />}
+                                    onClick={() => setSchedulerModalOpen(true)}
+                                >
+                                    Schedule delivery
+                                </Menu.Item>
+                            )}
                         </Menu.Dropdown>
                     </Menu>
                 </Box>
@@ -202,6 +220,15 @@ export default function AppPreviewTest() {
                 expectedPreviewOrigin={previewOrigin}
                 identityKey={`${appUuid}:${version}`}
             />
+            {schedulerModalOpen && (
+                <AppSchedulersModal
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    name={appQuery.data?.pages[0]?.name ?? 'Data app'}
+                    isOpen
+                    onClose={() => setSchedulerModalOpen(false)}
+                />
+            )}
         </Box>
     );
 }
