@@ -3417,7 +3417,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             const name = item.displayName ?? '(name unavailable)';
             switch (item.type) {
                 case 'chart': {
-                    const headline = `- Chart "${name}" (chartUuid: ${item.chartUuid})`;
+                    const slugText = item.chartSlug ?? '(slug unavailable)';
+                    const headline = `- Chart "${name}" (chartSlug: ${slugText})`;
                     const overrides = item.runtimeOverrides;
                     if (!overrides) return headline;
                     const overrideLines: string[] = [];
@@ -3440,7 +3441,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     return `${headline}\n  Runtime overrides applied when the chart was pinned:\n${overrideLines.join('\n')}`;
                 }
                 case 'dashboard':
-                    return `- Dashboard "${name}" (dashboardUuid: ${item.dashboardUuid})`;
+                    return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
                 default:
                     return assertUnreachable(
                         item,

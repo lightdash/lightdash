@@ -3672,7 +3672,7 @@ export class AiAgentModel {
         const chartUuids = rows
             .filter((r) => r.entity_type === 'chart')
             .map((r) => r.entity_uuid);
-        const chartKindByUuid = new Map(
+        const chartDataByUuid = new Map(
             (
                 await this.database(SavedChartsTableName)
                     .whereIn('saved_query_uuid', chartUuids)
@@ -3681,21 +3681,45 @@ export class AiAgentModel {
                         {
                             saved_query_uuid: string;
                             last_version_chart_kind: string | null;
+                            slug: string;
                         }[]
-                    >('saved_query_uuid', 'last_version_chart_kind')
+                    >('saved_query_uuid', 'last_version_chart_kind', 'slug')
             ).map(
                 (r) =>
                     [
                         r.saved_query_uuid,
-                        (r.last_version_chart_kind as ChartKind | null) ?? null,
+                        {
+                            chartKind:
+                                (r.last_version_chart_kind as ChartKind | null) ??
+                                null,
+                            slug: r.slug,
+                        },
                     ] as const,
             ),
+        );
+        const dashboardUuids = rows
+            .filter((r) => r.entity_type === 'dashboard')
+            .map((r) => r.entity_uuid);
+        const dashboardSlugByUuid = new Map(
+            (
+                await this.database(DashboardsTableName)
+                    .whereIn('dashboard_uuid', dashboardUuids)
+                    .whereNull('deleted_at')
+                    .select<{ dashboard_uuid: string; slug: string }[]>(
+                        'dashboard_uuid',
+                        'slug',
+                    )
+            ).map((r) => [r.dashboard_uuid, r.slug] as const),
         );
 
         for (const row of rows) {
             const existing = grouped.get(row.ai_prompt_uuid) ?? [];
             existing.push(
-                AiAgentModel.toAiPromptContextItem(row, chartKindByUuid),
+                AiAgentModel.toAiPromptContextItem(
+                    row,
+                    chartDataByUuid,
+                    dashboardSlugByUuid,
+                ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
         }
@@ -3705,22 +3729,31 @@ export class AiAgentModel {
 
     private static toAiPromptContextItem(
         row: DbAiPromptContext,
-        chartKindByUuid: Map<string, ChartKind | null>,
+        chartDataByUuid: Map<
+            string,
+            { chartKind: ChartKind | null; slug: string }
+        >,
+        dashboardSlugByUuid: Map<string, string>,
     ): AiPromptContextItem {
         switch (row.entity_type) {
-            case 'chart':
+            case 'chart': {
+                const chartData = chartDataByUuid.get(row.entity_uuid);
                 return {
                     type: 'chart',
                     chartUuid: row.entity_uuid,
+                    chartSlug: chartData?.slug ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                     runtimeOverrides: row.runtime_overrides,
-                    chartKind: chartKindByUuid.get(row.entity_uuid) ?? null,
+                    chartKind: chartData?.chartKind ?? null,
                 };
+            }
             case 'dashboard':
                 return {
                     type: 'dashboard',
                     dashboardUuid: row.entity_uuid,
+                    dashboardSlug:
+                        dashboardSlugByUuid.get(row.entity_uuid) ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };

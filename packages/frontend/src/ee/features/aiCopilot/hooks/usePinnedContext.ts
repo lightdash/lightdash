@@ -36,10 +36,22 @@ export const usePinnedContext = ({
 
     const contextInput: AiPromptContextInput = useMemo(() => {
         const items: AiPromptContextInput = [];
-        if (chartUuid) items.push({ type: 'chart', chartUuid });
-        if (dashboardUuid) items.push({ type: 'dashboard', dashboardUuid });
+        if (chartUuid) {
+            items.push({
+                type: 'chart',
+                chartUuid,
+                chartSlug: chart?.slug ?? null,
+            });
+        }
+        if (dashboardUuid) {
+            items.push({
+                type: 'dashboard',
+                dashboardUuid,
+                dashboardSlug: dashboard?.slug ?? null,
+            });
+        }
         return items;
-    }, [chartUuid, dashboardUuid]);
+    }, [chartUuid, dashboardUuid, chart?.slug, dashboard?.slug]);
 
     const previewItems: AiPromptContextItem[] = useMemo(() => {
         const items: AiPromptContextItem[] = [];
@@ -47,6 +59,7 @@ export const usePinnedContext = ({
             items.push({
                 type: 'chart',
                 chartUuid,
+                chartSlug: chart?.slug ?? null,
                 displayName: chart?.name ?? null,
                 pinnedVersionUuid: null,
                 chartKind: chart?.chartConfig
@@ -62,12 +75,13 @@ export const usePinnedContext = ({
             items.push({
                 type: 'dashboard',
                 dashboardUuid,
+                dashboardSlug: dashboard?.slug ?? null,
                 displayName: dashboard?.name ?? null,
                 pinnedVersionUuid: null,
             });
         }
         return items;
-    }, [chartUuid, dashboardUuid, chart, dashboard?.name]);
+    }, [chartUuid, dashboardUuid, chart, dashboard?.name, dashboard?.slug]);
 
     return { contextInput, previewItems };
 };
