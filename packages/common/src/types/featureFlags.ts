@@ -185,6 +185,13 @@ export enum FeatureFlags {
      * fixed.
      */
     DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
+
+    /**
+     * Enable UI for hiding dimensions in pivot table charts (so a dimension
+     * can drive sort order without rendering or leaking into CSV/XLSX).
+     * Off by default while we validate with design partners before GA.
+     */
+    HidePivotDimensions = 'hide-pivot-dimensions',
 }
 
 export type FeatureFlag = {
