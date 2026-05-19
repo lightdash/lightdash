@@ -672,6 +672,14 @@ describe('Service Account content attribution', () => {
         ]);
         const sa = bearerClient(token);
 
+        // Resolve the SA's dedicated user_uuid so we can match it against
+        // the space's access list.
+        const whoamiResp = await sa.get<Body<{ userUuid: string }>>(
+            `${apiUrl}/user`,
+        );
+        expect(whoamiResp.status).toBe(200);
+        const saUserUuid = whoamiResp.body.results.userUuid;
+
         const createResp = await sa.post<Body<{ uuid: string; name: string }>>(
             `${apiUrl}/projects/${projectUuid}/spaces`,
             {
@@ -685,18 +693,27 @@ describe('Service Account content attribution', () => {
         const detailResp = await admin.get<
             Body<{
                 uuid: string;
-                createdByUserUuid?: string;
-                userId?: number;
-                pinnedListUuid?: string | null;
-                access?: Array<{ userUuid: string }>;
+                access?: Array<{
+                    userUuid: string;
+                    hasDirectAccess: boolean;
+                }>;
             }>
         >(`${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`);
         expect(detailResp.status).toBe(200);
-        // The seeded admin should NOT be the recorded creator anymore — the
-        // SA's own dedicated user row is.
         const access = detailResp.body.results.access ?? [];
-        const accessUuids = access.map((a) => a.userUuid);
-        expect(accessUuids).not.toContain(SEED_ORG_1_ADMIN.user_uuid);
+
+        // The SA is the sole direct-access entry — they are the creator.
+        // The seeded admin may surface as an auto-merged org admin
+        // (hasDirectAccess: false) but must not be a direct share.
+        const directEntries = access.filter((a) => a.hasDirectAccess);
+        expect(directEntries.map((a) => a.userUuid)).toEqual([saUserUuid]);
+
+        const adminEntry = access.find(
+            (a) => a.userUuid === SEED_ORG_1_ADMIN.user_uuid,
+        );
+        if (adminEntry !== undefined) {
+            expect(adminEntry.hasDirectAccess).toBe(false);
+        }
     });
 });
 
