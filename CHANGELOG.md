@@ -1,3 +1,10 @@
+## [0.2981.1](https://github.com/lightdash/lightdash/compare/0.2981.0...0.2981.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **ai-agent:** widen discoverFields step cap and quiet soft handoff errors ([#23294](https://github.com/lightdash/lightdash/issues/23294)) ([1741061](https://github.com/lightdash/lightdash/commit/17410612e69cb5c4854fd595f3acb5ab7b90d8c7))
+
 # [0.2981.0](https://github.com/lightdash/lightdash/compare/0.2980.0...0.2981.0) (2026-05-19)
 
 
