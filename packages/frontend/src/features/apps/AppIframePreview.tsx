@@ -1,3 +1,4 @@
+import { type DashboardFilters } from '@lightdash/common';
 import {
     forwardRef,
     useCallback,
@@ -52,6 +53,10 @@ type Props = {
      *  sits during inspect mode (the toolbar button before any click; the
      *  prompt editor after each click — TipTap yanks focus back on insert). */
     onInspectorCancelled?: () => void;
+    /** Dashboard filters to merge into every metric-query the iframe runs.
+     *  Set by `DashboardDataAppTile`; left undefined by `AppGenerate` where
+     *  there's no dashboard context. */
+    dashboardFilters?: DashboardFilters;
 };
 
 /**
@@ -82,6 +87,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
             onInspectorCancelled,
+            dashboardFilters,
         },
         ref,
     ) => {
@@ -103,6 +109,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 onElementSelected,
                 handleInspectorAnnounce,
                 handleScreenshotAnnounce,
+                dashboardFilters,
             );
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

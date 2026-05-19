@@ -9,10 +9,12 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -48,6 +50,16 @@ const DataAppTile: FC<Props> = (props) => {
                 />
             ),
         [showComments, isCommentsMenuOpen, uuid],
+    );
+
+    // Tile-scoped dashboard filters (drops filters the admin disabled for
+    // this tile via tileTargets). The backend additionally drops filters
+    // whose target field isn't in a given query's explore — an app may
+    // query multiple explores.
+    const tileDashboardFilters = useDashboardFiltersForTile(uuid);
+    const dashboardFiltersForApp = useMemo(
+        () => convertDateDashboardFilters(tileDashboardFilters),
+        [tileDashboardFilters],
     );
 
     const previewOrigin = usePreviewOrigin();
@@ -103,9 +115,20 @@ const DataAppTile: FC<Props> = (props) => {
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
 
+    // Bump the iframe URL whenever the active filters change so the app
+    // reloads and its mount-time metric queries re-fire — by then the bridge
+    // is stamping the new filters onto every outgoing call. Without this the
+    // bridge sees no new traffic until the user manually refreshes.
+    const filtersKey = useMemo(
+        () => JSON.stringify(dashboardFiltersForApp),
+        [dashboardFiltersForApp],
+    );
+
     const previewUrl =
         token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/?token=${token}&f=${encodeURIComponent(
+                  filtersKey,
+              )}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
     const isForbidden =
@@ -172,6 +195,7 @@ const DataAppTile: FC<Props> = (props) => {
                         src={previewUrl}
                         expectedPreviewOrigin={previewOrigin}
                         identityKey={`${appUuid}:${latestReadyVersion}`}
+                        dashboardFilters={dashboardFiltersForApp}
                     />
                 )}
             </Box>
