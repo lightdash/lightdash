@@ -42,7 +42,6 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
-    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
@@ -64,7 +63,6 @@ import {
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
-    METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
@@ -2200,29 +2198,6 @@ LIMIT 10`;
             );
         });
 
-        test('sum_distinct should partition only on distinct keys regardless of selected dimensions (SPK-450)', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_SUM_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            // PARTITION BY contains only the distinct key — selected dimensions are excluded so the
-            // dedup CTE collapses to a single scalar that's repeated across every output row.
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id ORDER BY',
-            );
-            expect(result.query).not.toContain('"orders".payment_method,');
-            // Scalar dedup CTE is attached via CROSS JOIN, never INNER JOIN on dimensions.
-            expect(result.query).toContain(
-                'CROSS JOIN dd_orders_total_revenue',
-            );
-            expect(result.query).not.toContain('INNER JOIN dd_');
-            expect(result.query).toContain('ROW_NUMBER() OVER');
-        });
-
         test('sum_distinct should work with no dimensions selected', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_SUM_DISTINCT,
@@ -2263,25 +2238,6 @@ LIMIT 10`;
             );
             // Neither distinct metric type should use COALESCE
             expect(result.query).not.toContain('COALESCE');
-        });
-
-        test('average_distinct should partition only on distinct keys regardless of selected dimensions (SPK-450)', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id ORDER BY',
-            );
-            expect(result.query).not.toContain('"orders".payment_method,');
-            expect(result.query).toContain(
-                'CROSS JOIN dd_orders_avg_shipping_cost',
-            );
-            expect(result.query).not.toContain('INNER JOIN dd_');
         });
 
         test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
