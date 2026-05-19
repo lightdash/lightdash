@@ -1,3 +1,11 @@
+## [0.2974.1](https://github.com/lightdash/lightdash/compare/0.2974.0...0.2974.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **ai:** skip errored prompt responses when rebuilding chat history ([#23263](https://github.com/lightdash/lightdash/issues/23263)) ([316a035](https://github.com/lightdash/lightdash/commit/316a035447f97a17a850ef1b1b117608524a1d50))
+* unblock data app iframe assets ([#23248](https://github.com/lightdash/lightdash/issues/23248)) ([df791a7](https://github.com/lightdash/lightdash/commit/df791a7c64d993d2a87e803a0f50eacb3460d4b5))
+
 # [0.2974.0](https://github.com/lightdash/lightdash/compare/0.2973.0...0.2974.0) (2026-05-19)
 
 
