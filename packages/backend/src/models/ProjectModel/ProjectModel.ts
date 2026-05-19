@@ -2143,14 +2143,18 @@ export class ProjectModel {
         const projectGroupAccesses = await this.database(
             ProjectGroupAccessTableName,
         )
-            .select<ProjectGroupAccess[]>({
+            .select<(ProjectGroupAccess & { role_uuid: string | null })[]>({
                 projectUuid: 'project_uuid',
                 groupUuid: 'group_uuid',
                 role: 'role',
+                role_uuid: 'role_uuid',
             })
             .where('project_uuid', projectUuid);
 
-        return projectGroupAccesses;
+        return projectGroupAccesses.map(({ role_uuid, ...access }) => ({
+            ...access,
+            role: role_uuid ?? access.role,
+        }));
     }
 
     async getWarehouseCredentialsForProject(

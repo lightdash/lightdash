@@ -18,6 +18,7 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -492,6 +493,61 @@ describe('ProjectModel', () => {
 
             // Only the space insert, no access grant
             expect(tracker.history.insert).toHaveLength(1);
+        });
+    });
+
+    describe('getProjectGroupAccesses', () => {
+        const groupUuid = 'group-uuid-1';
+        const customRoleUuid = 'custom-role-uuid-1';
+
+        test('returns custom role uuid in `role` when role_uuid is set', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(ProjectGroupAccessTableName, [projectUuid]),
+                )
+                .response([
+                    {
+                        projectUuid,
+                        groupUuid,
+                        role: 'viewer',
+                        role_uuid: customRoleUuid,
+                    },
+                ]);
+
+            const result = await model.getProjectGroupAccesses(projectUuid);
+
+            expect(result).toEqual([
+                {
+                    projectUuid,
+                    groupUuid,
+                    role: customRoleUuid,
+                },
+            ]);
+        });
+
+        test('returns system role in `role` when role_uuid is null', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(ProjectGroupAccessTableName, [projectUuid]),
+                )
+                .response([
+                    {
+                        projectUuid,
+                        groupUuid,
+                        role: 'editor',
+                        role_uuid: null,
+                    },
+                ]);
+
+            const result = await model.getProjectGroupAccesses(projectUuid);
+
+            expect(result).toEqual([
+                {
+                    projectUuid,
+                    groupUuid,
+                    role: 'editor',
+                },
+            ]);
         });
     });
 });
