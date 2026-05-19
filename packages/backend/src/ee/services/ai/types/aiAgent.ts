@@ -76,6 +76,7 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     siteUrl: string;
     canManageAgent: boolean;
+    toolHints: string[];
 };
 
 export type PerformanceMetrics = {

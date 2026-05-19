@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTION_TOOLS,
+    AgentSuggestion,
     AgentSummaryContext,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -36,6 +38,7 @@ import {
     CommercialFeatureFlags,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
@@ -63,9 +66,11 @@ import {
     toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    validateAgentSuggestion,
     WarehouseQueryError,
     type AiPromptContextInput,
     type SessionUser,
+    type SuggestionValidationCatalog,
     type TransformedCustomMetric,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -100,6 +105,8 @@ import {
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
+    AiAgentSuggestionsGeneratedEvent,
+    AiAgentSuggestionSubmitEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
@@ -147,6 +154,11 @@ import {
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import {
+    generateAgentSuggestions,
+    SUGGESTION_FALLBACK_CHIPS,
+    type SuggestionPromptContext,
+} from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
@@ -262,6 +274,56 @@ function cleanupOAuthCache(): void {
             oauthResponseUrlCache.delete(key);
         }
     });
+}
+
+const CLARIFYING_QUESTION_RE =
+    /(\?\s*$)|(could you clarify)|(did you mean)|(which (one|of these))|(let me know which)|(what would you like)/i;
+
+const REFUSAL_RE =
+    /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
+
+function detectClarifyingQuestion(text: string): boolean {
+    return CLARIFYING_QUESTION_RE.test(text);
+}
+
+function detectRefusal(text: string): boolean {
+    return REFUSAL_RE.test(text);
+}
+
+// Find the explore the agent's most recent query-producing tool call hit.
+// Returns a compact slice of its fields (labels) so the suggestion prompt can
+// stay grounded in fields the agent JUST used instead of the full catalogue.
+function extractLatestQueryExplore(
+    toolCalls: ReadonlyArray<{ toolArgs: object }>,
+    availableExplores: Explore[],
+): NonNullable<
+    SuggestionPromptContext['thread']
+>['latestAssistantTurn']['latestQueryExplore'] {
+    for (let i = toolCalls.length - 1; i >= 0; i -= 1) {
+        const args = toolCalls[i]?.toolArgs as
+            | { exploreName?: unknown }
+            | undefined;
+        if (args && typeof args.exploreName === 'string') {
+            const explore = availableExplores.find(
+                (e) => e.name === args.exploreName,
+            );
+            if (explore) {
+                const baseTable = explore.tables[explore.baseTable];
+                return {
+                    name: explore.name,
+                    label: explore.label,
+                    description: baseTable.description ?? null,
+                    dimensions: Object.values(baseTable.dimensions).map(
+                        (d) => d.label,
+                    ),
+                    metrics: Object.values(baseTable.metrics).map(
+                        (m) => m.label,
+                    ),
+                };
+            }
+        }
+    }
+    return null;
 }
 
 export class AiAgentService extends BaseService {
@@ -611,6 +673,334 @@ export class AiAgentService extends BaseService {
         }));
 
         return exploreAccessSummary;
+    }
+
+    public async getAgentSuggestions(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            afterMessageUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid?: string;
+            afterMessageUuid?: string;
+        },
+    ): Promise<{ chips: AgentSuggestion[] }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const featureEnabled = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentSuggestions,
+        });
+        if (!featureEnabled.enabled) {
+            return { chips: [] };
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            agent.tags,
+        );
+
+        const explores = availableExplores.slice(0, 12).map((explore) => {
+            const baseTable = explore.tables[explore.baseTable];
+            return {
+                name: explore.name,
+                label: explore.label,
+                description: baseTable.description ?? null,
+                dimensions: Object.values(baseTable.dimensions)
+                    .slice(0, 8)
+                    .map((d) => d.label),
+                metrics: Object.values(baseTable.metrics)
+                    .slice(0, 8)
+                    .map((m) => m.label),
+            };
+        });
+
+        const verifiedQuestionsData =
+            await this.aiAgentModel.getVerifiedQuestions(agentUuid);
+        const verifiedQuestions = verifiedQuestionsData
+            .slice(0, 6)
+            .map((q) => q.question);
+
+        const verifiedContent = await this.fetchSuggestionsVerifiedContent(
+            user,
+            projectUuid,
+        );
+
+        const recentUserConversations = threadUuid
+            ? undefined
+            : await this.fetchSuggestionsRecentConversations({
+                  organizationUuid,
+                  agentUuid,
+                  userUuid: user.userUuid,
+              });
+
+        const threadContext = threadUuid
+            ? await this.buildSuggestionsThreadContext({
+                  organizationUuid,
+                  threadUuid,
+                  afterMessageUuid,
+                  availableExplores,
+              })
+            : null;
+
+        const validationCatalog: SuggestionValidationCatalog = {
+            exploreNames: new Set(availableExplores.map((e) => e.name)),
+        };
+
+        const startedAt = Date.now();
+        let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
+        let usingFallback = true;
+        let modelId = 'fallback';
+
+        try {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+                useFastModel: true,
+            });
+
+            const generated = await generateAgentSuggestions(
+                modelOptions,
+                {
+                    agentName: agent.name,
+                    agentInstruction: agent.instruction,
+                    enabledTools: AGENT_SUGGESTION_TOOLS,
+                    explores,
+                    verifiedQuestions,
+                    verifiedContentTags: agent.tags ?? [],
+                    verifiedContent,
+                    recentUserConversations,
+                    thread: threadContext ?? undefined,
+                },
+                {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                    mode: threadContext ? 'post-response' : 'empty-state',
+                },
+            );
+
+            const dropped: string[] = [];
+            // Resolve model-side intent into final wire shape. Navigate chips
+            // carry a recentConversationIndex from the LLM; the server turns
+            // that into a real thread URL using the conversations array we
+            // built earlier (which has the UUIDs the LLM never sees).
+            const resolved: AgentSuggestion[] = [];
+            for (const chip of generated.chips) {
+                if (chip.kind === 'prompt') {
+                    resolved.push(chip);
+                } else {
+                    const conv =
+                        recentUserConversations?.[chip.recentConversationIndex];
+                    if (conv) {
+                        resolved.push({
+                            kind: 'navigate',
+                            label: chip.label,
+                            url: `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${conv.threadUuid}`,
+                        });
+                    } else {
+                        dropped.push(
+                            `${chip.label} (no recent conversation at index ${chip.recentConversationIndex})`,
+                        );
+                    }
+                }
+            }
+
+            const validated = resolved.filter((chip) => {
+                const result = validateAgentSuggestion(chip, validationCatalog);
+                if (!result.valid) {
+                    dropped.push(`${chip.label} (${result.reason})`);
+                    return false;
+                }
+                return true;
+            });
+            if (dropped.length > 0) {
+                Logger.warn(
+                    `[AiAgentService] Dropped ${dropped.length} suggestion chip(s): ${dropped.join('; ')}`,
+                );
+            }
+            if (validated.length === 0) {
+                chips = SUGGESTION_FALLBACK_CHIPS;
+                usingFallback = true;
+            } else {
+                chips = validated;
+                usingFallback = false;
+            }
+            modelId = String(modelOptions.model.modelId ?? 'unknown');
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to generate agent suggestions, falling back to defaults: ${String(
+                    error,
+                )}`,
+            );
+            Sentry.captureException(error, {
+                tags: { errorType: 'AiAgentSuggestionsGenerationFailed' },
+            });
+        }
+
+        this.analytics.track<AiAgentSuggestionsGeneratedEvent>({
+            event: 'ai_agent.suggestions_generated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                agentId: agentUuid,
+                chipCount: chips.length,
+                exploreCount: explores.length,
+                verifiedQuestionsCount: verifiedQuestions.length,
+                latencyMs: Date.now() - startedAt,
+                modelId,
+                usingFallback,
+            },
+        });
+
+        return { chips };
+    }
+
+    private async buildSuggestionsThreadContext({
+        organizationUuid,
+        threadUuid,
+        afterMessageUuid,
+        availableExplores,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+        afterMessageUuid?: string;
+        availableExplores: Explore[];
+    }): Promise<NonNullable<SuggestionPromptContext['thread']> | null> {
+        const messages = await this.aiAgentModel.findThreadMessages({
+            organizationUuid,
+            threadUuid,
+        });
+        if (messages.length === 0) return null;
+
+        // Pick the target assistant message: the one named by afterMessageUuid
+        // if supplied, else the most recent assistant message in the thread.
+        const candidates = messages.filter(
+            (m): m is Extract<typeof m, { role: 'assistant' }> =>
+                m.role === 'assistant',
+        );
+        const latestAssistant = afterMessageUuid
+            ? (candidates.find((m) => m.uuid === afterMessageUuid) ??
+              candidates[candidates.length - 1])
+            : candidates[candidates.length - 1];
+
+        if (!latestAssistant) return null;
+
+        const latestAssistantText = (latestAssistant.message ?? '').slice(
+            0,
+            1600,
+        );
+        const askedClarifyingQuestion =
+            detectClarifyingQuestion(latestAssistantText);
+        const refused = detectRefusal(latestAssistantText);
+
+        const latestQueryExplore = extractLatestQueryExplore(
+            latestAssistant.toolCalls ?? [],
+            availableExplores,
+        );
+
+        const recentMessages = messages.slice(-6).map((m) => ({
+            role: m.role,
+            text: (m.message ?? '').slice(0, 600),
+        }));
+
+        return {
+            recentMessages,
+            latestAssistantTurn: {
+                text: latestAssistantText,
+                askedClarifyingQuestion,
+                refused,
+                latestQueryExplore,
+            },
+        };
+    }
+
+    private async fetchSuggestionsRecentConversations({
+        organizationUuid,
+        agentUuid,
+        userUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+        userUuid: string;
+    }): Promise<SuggestionPromptContext['recentUserConversations']> {
+        try {
+            const threads = await this.aiAgentModel.findThreads({
+                organizationUuid,
+                agentUuid,
+                userUuid,
+                createdFrom: ['web_app', 'slack'],
+            });
+            const sorted = [...threads].sort(
+                (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime(),
+            );
+            const now = Date.now();
+            return sorted.slice(0, 5).map((thread) => {
+                const createdAt = new Date(thread.createdAt).getTime();
+                const daysAgo = Math.max(
+                    0,
+                    Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)),
+                );
+                const topic =
+                    thread.title ??
+                    thread.firstMessage?.message ??
+                    'Untitled thread';
+                return {
+                    topic: topic.slice(0, 200),
+                    lastUserMessage:
+                        thread.firstMessage?.message?.slice(0, 200) ?? null,
+                    daysAgo,
+                    threadUuid: thread.uuid,
+                };
+            });
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to fetch recent conversations for suggestions: ${String(
+                    error,
+                )}`,
+            );
+            return [];
+        }
+    }
+
+    private async fetchSuggestionsVerifiedContent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SuggestionPromptContext['verifiedContent']> {
+        try {
+            const items =
+                await this.projectService.getVerifiedContentForHomepage(
+                    user,
+                    projectUuid,
+                );
+            return items.slice(0, 10).map((item) => {
+                const isDashboard = 'spaceUuid' in item && 'tiles' in item;
+                return {
+                    title: item.name,
+                    type: isDashboard ? 'dashboard' : 'chart',
+                    description: item.description ?? null,
+                };
+            });
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to fetch verified content for suggestions: ${String(
+                    error,
+                )}`,
+            );
+            return [];
+        }
     }
 
     private async executeAsyncAiMetricQuery(
@@ -1828,10 +2218,12 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            toolHints,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
+            toolHints: string[];
         },
     ): Promise<AgentResponseStream> {
         try {
@@ -1860,6 +2252,19 @@ export class AiAgentService extends BaseService {
                 }),
             );
 
+            if (toolHints.length > 0) {
+                this.analytics.track<AiAgentSuggestionSubmitEvent>({
+                    event: 'ai_agent.suggestion_submit',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: prompt.projectUuid,
+                        agentId: agentUuid,
+                        toolHints,
+                    },
+                });
+            }
+
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
                 chatHistoryMessages,
@@ -1868,6 +2273,7 @@ export class AiAgentService extends BaseService {
                     stream: true,
                     canManageAgent,
                     enableSqlMode,
+                    toolHints,
                 },
             );
             return response;
@@ -3839,6 +4245,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -3849,6 +4256,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -3859,6 +4267,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             stream: false;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -3868,6 +4277,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -4016,6 +4426,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
+            toolHints: options.toolHints ?? [],
         };
 
         const mcpToolSetup: AgentMcpToolSetup =

@@ -106,14 +106,15 @@ const AiAgentNewThreadPage: FC = () => {
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
     const onSubmit = useCallback(
-        (prompt: string) => {
+        ({ message, toolHints }: { message: string; toolHints: string[] }) => {
             setPendingPrompt('');
             void createAgentThread({
-                prompt,
+                prompt: message,
                 context: contextInput.length > 0 ? contextInput : undefined,
                 optimisticContext:
                     previewItems.length > 0 ? previewItems : undefined,
                 enableSqlMode: sqlModeAvailable && sqlMode,
+                toolHints,
                 modelConfig: selectedModel
                     ? {
                           modelName: selectedModel.name,
@@ -219,7 +220,9 @@ const AiAgentNewThreadPage: FC = () => {
                     {verifiedQuestions && (
                         <SuggestedQuestions
                             questions={verifiedQuestions}
-                            onQuestionClick={onSubmit}
+                            onQuestionClick={(question) =>
+                                onSubmit({ message: question, toolHints: [] })
+                            }
                             isLoading={isCreatingThread}
                         />
                     )}
@@ -249,6 +252,8 @@ const AiAgentNewThreadPage: FC = () => {
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
+                        projectUuid={projectUuid}
+                        agentUuid={agent.uuid}
                         models={modelOptions}
                         selectedModelId={selectedModelKey}
                         onModelChange={handleSelectedModelKeyChange}

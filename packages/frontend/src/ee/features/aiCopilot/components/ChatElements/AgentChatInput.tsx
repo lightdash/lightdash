@@ -1,4 +1,8 @@
-import type { AiModelOption } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type AgentSuggestion,
+    type AiModelOption,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -9,20 +13,56 @@ import {
     Paper,
     Switch,
     Text,
-    Textarea,
     Tooltip,
 } from '@mantine-8/core';
+import { RichTextEditor } from '@mantine/tiptap';
 import { IconArrowUp, IconBrain, IconTerminal2 } from '@tabler/icons-react';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import Mention from '@tiptap/extension-mention';
+import Placeholder from '@tiptap/extension-placeholder';
+import { useEditor, type Editor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
+import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import styles from './AgentChatInput.module.css';
+import { AgentSuggestionChips } from './AgentSuggestionChips';
 
 const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
+const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
+
+const SuggestionChipMention = Mention.extend({
+    name: SUGGESTION_CHIP_MENTION_NAME,
+    addAttributes() {
+        return {
+            id: {
+                default: null,
+                parseHTML: (element) => element.getAttribute('data-id'),
+                renderHTML: (attributes) =>
+                    attributes.id ? { 'data-id': attributes.id } : {},
+            },
+            label: {
+                default: null,
+                parseHTML: (element) => element.getAttribute('data-label'),
+                renderHTML: (attributes) =>
+                    attributes.label ? { 'data-label': attributes.label } : {},
+            },
+        };
+    },
+});
+
+type SubmitArgs = {
+    message: string;
+    toolHints: string[];
+};
+
 interface AgentChatInputProps {
-    onSubmit: (message: string) => void;
+    onSubmit: (args: SubmitArgs) => void;
     loading?: boolean;
     disabled?: boolean;
     disabledReason?: string;
@@ -30,6 +70,8 @@ interface AgentChatInputProps {
     messageCount?: number;
     projectUuid?: string;
     agentUuid?: string;
+    threadUuid?: string;
+    latestAssistantMessageUuid?: string;
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
@@ -41,6 +83,20 @@ interface AgentChatInputProps {
     onValueChange?: (value: string) => void;
 }
 
+const extractToolHints = (editor: Editor | null): string[] => {
+    if (!editor) return [];
+    const hints: string[] = [];
+    editor.state.doc.descendants((node) => {
+        if (
+            node.type.name === SUGGESTION_CHIP_MENTION_NAME &&
+            typeof node.attrs.id === 'string'
+        ) {
+            hints.push(node.attrs.id);
+        }
+    });
+    return hints;
+};
+
 export const AgentChatInput = ({
     onSubmit,
     loading = false,
@@ -50,6 +106,8 @@ export const AgentChatInput = ({
     messageCount = 0,
     projectUuid,
     agentUuid,
+    threadUuid,
+    latestAssistantMessageUuid,
     models,
     selectedModelId,
     onModelChange,
@@ -60,92 +118,278 @@ export const AgentChatInput = ({
     defaultValue,
     onValueChange,
 }: AgentChatInputProps) => {
-    // this is a workaround to prevent the enter key from being pressed when
-    // the user is composing a character
-    // see https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent for more details
-    const [isComposing, setIsComposing] = useState(false);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValueState] = useState(defaultValue ?? '');
-    const setValue = useCallback(
-        (next: string) => {
-            setValueState(next);
-            onValueChange?.(next);
-        },
-        [onValueChange],
-    );
     const navigate = useNavigate();
+    const onSubmitRef = useRef(onSubmit);
+    onSubmitRef.current = onSubmit;
+    const onValueChangeRef = useRef(onValueChange);
+    onValueChangeRef.current = onValueChange;
+    const editorRef = useRef<Editor | null>(null);
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const loadingRef = useRef(loading);
+    loadingRef.current = loading;
+    const disabledRef = useRef(disabled);
+    disabledRef.current = disabled;
+
+    // Hide the chip strip while the user is scrolled away from the input.
+    // Reappears as they scroll back toward the bottom of the thread — chips
+    // are noise when reading history.
+    const [chipsNearBottom, setChipsNearBottom] = useState(true);
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el) return undefined;
+        let scrollEl: HTMLElement | null = el.parentElement;
+        while (scrollEl) {
+            const overflow = window.getComputedStyle(scrollEl).overflowY;
+            if (overflow === 'auto' || overflow === 'scroll') break;
+            scrollEl = scrollEl.parentElement;
+        }
+        if (!scrollEl) return undefined;
+        // Hysteresis: collapsing the chip strip changes scrollHeight, which
+        // can flip the threshold and cause a flicker loop. We hide once the
+        // user is past HIDE_PX and only re-show when they're back inside
+        // SHOW_PX — the gap absorbs the height change.
+        const HIDE_PX = 40;
+        const SHOW_PX = 8;
+        let raf: number | null = null;
+        const measure = () => {
+            raf = null;
+            if (!scrollEl) return;
+            const distance =
+                scrollEl.scrollHeight -
+                scrollEl.scrollTop -
+                scrollEl.clientHeight;
+            setChipsNearBottom((prev) => {
+                if (prev && distance > HIDE_PX) return false;
+                if (!prev && distance < SHOW_PX) return true;
+                return prev;
+            });
+        };
+        const onScroll = () => {
+            if (raf !== null) return;
+            raf = window.requestAnimationFrame(measure);
+        };
+        measure();
+        scrollEl.addEventListener('scroll', onScroll, { passive: true });
+        return () => {
+            if (raf !== null) window.cancelAnimationFrame(raf);
+            scrollEl?.removeEventListener('scroll', onScroll);
+        };
+    }, []);
+
+    const { track } = useTracking();
+
+    const showModelSelector =
+        models && models.length > 1 && onModelChange !== undefined;
+    const isMinimalMode = !showModelSelector;
+
+    const suggestionsFlag = useServerFeatureFlag(
+        FeatureFlags.AiAgentSuggestions,
+    );
+
+    const emptyStateMode =
+        !isMinimalMode &&
+        messageCount === 0 &&
+        suggestionsFlag.data?.enabled === true;
+    const postResponseMode =
+        messageCount > 0 &&
+        !loading &&
+        !!threadUuid &&
+        !!latestAssistantMessageUuid &&
+        suggestionsFlag.data?.enabled === true;
+
+    const suggestionsQuery = useAgentSuggestions({
+        projectUuid,
+        agentUuid,
+        threadUuid: postResponseMode ? threadUuid : undefined,
+        afterMessageUuid: postResponseMode
+            ? latestAssistantMessageUuid
+            : undefined,
+        enabled: emptyStateMode || postResponseMode,
+    });
+
+    const editor = useEditor({
+        extensions: [
+            StarterKit.configure({
+                heading: false,
+                bulletList: false,
+                orderedList: false,
+                blockquote: false,
+                codeBlock: false,
+                horizontalRule: false,
+            }),
+            Placeholder.configure({ placeholder }),
+            SuggestionChipMention.configure({
+                renderText: ({ node }) =>
+                    typeof node.attrs.label === 'string'
+                        ? node.attrs.label
+                        : '',
+                renderHTML: ({ node }) => [
+                    'span',
+                    { class: styles.chipMention, 'data-id': node.attrs.id },
+                    typeof node.attrs.label === 'string'
+                        ? node.attrs.label
+                        : '',
+                ],
+            }),
+        ],
+        editable: !disabled,
+        autofocus: true,
+        content: defaultValue ?? '',
+        onUpdate: ({ editor: ed }) => {
+            const text = ed.getText();
+            setValueState(text);
+            onValueChangeRef.current?.(text);
+        },
+        editorProps: {
+            handleKeyDown: (_, event) => {
+                if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.isComposing
+                ) {
+                    if (loadingRef.current || disabledRef.current) {
+                        return true;
+                    }
+                    const ed = editorRef.current;
+                    if (!ed) return false;
+                    const text = ed.getText().trim();
+                    if (!text) return true;
+                    event.preventDefault();
+                    onSubmitRef.current({
+                        message: text,
+                        toolHints: extractToolHints(ed),
+                    });
+                    ed.commands.clearContent();
+                    setValueState('');
+                    return true;
+                }
+                return false;
+            },
+        },
+    });
+    editorRef.current = editor;
+
+    useEffect(() => {
+        if (!editor) return;
+        editor.setEditable(!disabled);
+    }, [editor, disabled]);
+
+    const handleChipClick = useCallback(
+        (chip: AgentSuggestion, index: number) => {
+            const trackClick = () => {
+                if (!projectUuid || !agentUuid) return;
+                track({
+                    name: EventName.AI_AGENT_SUGGESTION_CLICK,
+                    properties: {
+                        projectId: projectUuid,
+                        agentId: agentUuid,
+                        chipLabel: chip.label,
+                        chipKind: chip.kind,
+                        chipTool:
+                            chip.kind === 'prompt' ? chip.tool : undefined,
+                        chipIndex: index,
+                        mode: emptyStateMode ? 'empty-state' : 'post-response',
+                    },
+                });
+            };
+
+            if (chip.kind === 'navigate') {
+                trackClick();
+                void navigate(chip.url);
+                return;
+            }
+
+            // Empty-state: insert as a mention so the user can compose around it.
+            // Post-response: auto-submit because the user wants exactly that next.
+            if (emptyStateMode) {
+                if (!editor) return;
+                editor
+                    .chain()
+                    .focus()
+                    .insertContent([
+                        {
+                            type: SUGGESTION_CHIP_MENTION_NAME,
+                            attrs: { id: chip.tool, label: chip.label },
+                        },
+                        { type: 'text', text: ' ' },
+                    ])
+                    .run();
+                trackClick();
+                return;
+            }
+
+            if (loadingRef.current || disabledRef.current) return;
+            onSubmitRef.current({
+                message: chip.label,
+                toolHints: [chip.tool],
+            });
+            editor?.commands.clearContent();
+            setValueState('');
+            trackClick();
+        },
+        [editor, projectUuid, agentUuid, track, emptyStateMode, navigate],
+    );
+
+    const handleImpression = useCallback(
+        (chipCount: number) => {
+            if (!projectUuid || !agentUuid) return;
+            track({
+                name: EventName.AI_AGENT_SUGGESTION_IMPRESSION,
+                properties: {
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                    chipCount,
+                },
+            });
+        },
+        [track, projectUuid, agentUuid],
+    );
 
     const hasValue = value.trim().length > 0;
     const showWarningBanner =
         messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT;
     const showDisabledBanner = disabled && disabledReason;
 
-    // Use minimal mode when there's no model selector (existing thread)
-    const showModelSelector =
-        models && models.length > 1 && onModelChange !== undefined;
-    const isMinimalMode = !showModelSelector;
-
-    useLayoutEffect(() => {
-        if (!inputRef.current) return;
-        const elem = inputRef.current;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (
-                e.key === 'Enter' &&
-                !e.shiftKey &&
-                !disabled &&
-                !loading &&
-                !isComposing
-            ) {
-                e.preventDefault();
-                const valueToSubmit = value.trim();
-                if (valueToSubmit) {
-                    onSubmit(valueToSubmit);
-                    setValue('');
-                }
-            }
-        };
-        inputRef.current.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-            elem.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [onSubmit, disabled, loading, value, isComposing, setValue]);
-
-    useLayoutEffect(() => {
-        if (!inputRef.current) return;
-        const elem = inputRef.current;
-
-        function handleCompositionStart() {
-            setIsComposing(true);
-        }
-        function handleCompositionEnd() {
-            setIsComposing(false);
-        }
-
-        elem.addEventListener('compositionstart', handleCompositionStart);
-        elem.addEventListener('compositionend', handleCompositionEnd);
-
-        return () => {
-            elem.removeEventListener(
-                'compositionstart',
-                handleCompositionStart,
-            );
-            elem.removeEventListener('compositionend', handleCompositionEnd);
-        };
-    }, []);
-
     const handleSubmit = () => {
-        const valueToSubmit = value.trim();
-        if (valueToSubmit && !disabled && !loading && !isComposing) {
-            onSubmit(valueToSubmit);
-            setValue('');
-        }
+        const ed = editorRef.current;
+        if (!ed) return;
+        const text = ed.getText().trim();
+        if (!text || disabled || loading) return;
+        onSubmitRef.current({
+            message: text,
+            toolHints: extractToolHints(ed),
+        });
+        ed.commands.clearContent();
+        setValueState('');
     };
 
-    // For existing threads
+    const chipRow = useMemo(() => {
+        if (!emptyStateMode && !postResponseMode) return null;
+        if (suggestionsQuery.isError) return null;
+        const chips = suggestionsQuery.data?.chips ?? [];
+        if (!suggestionsQuery.isLoading && chips.length === 0) return null;
+        return (
+            <AgentSuggestionChips
+                chips={chips}
+                isLoading={suggestionsQuery.isLoading}
+                onChipClick={handleChipClick}
+                onImpression={handleImpression}
+            />
+        );
+    }, [
+        emptyStateMode,
+        postResponseMode,
+        suggestionsQuery.isError,
+        suggestionsQuery.isLoading,
+        suggestionsQuery.data,
+        handleChipClick,
+        handleImpression,
+    ]);
+
     if (isMinimalMode) {
         return (
-            <Box className={styles.minimalContainer}>
+            <Box className={styles.minimalContainer} ref={rootRef}>
                 {showWarningBanner && (
                     <Paper className={styles.warningBanner}>
                         <Text size="xs" c="ldGray.7" ta="center">
@@ -169,37 +413,40 @@ export const AgentChatInput = ({
                     </Paper>
                 )}
 
+                {chipRow && (
+                    <Box
+                        className={`${styles.chipReveal} ${
+                            chipsNearBottom ? '' : styles.chipHidden
+                        }`}
+                        aria-hidden={!chipsNearBottom}
+                    >
+                        {chipRow}
+                    </Box>
+                )}
+
                 <Box
                     className={`${styles.minimalInputWrapper} ${
                         sqlMode ? styles.sqlModeActive : ''
                     }`}
                     pos="relative"
                 >
-                    <Textarea
-                        autoFocus
-                        w="100%"
-                        ref={inputRef}
-                        placeholder={placeholder}
-                        autosize
-                        minRows={1}
-                        maxRows={6}
-                        disabled={disabled}
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                    <RichTextEditor
+                        editor={editor}
                         classNames={{
-                            input: styles.minimalTextarea,
-                            wrapper: styles.minimalTextareaWrapper,
+                            root: styles.editorRoot,
+                            content: styles.minimalEditorContent,
                         }}
-                    />
+                    >
+                        <RichTextEditor.Content />
+                    </RichTextEditor>
 
                     <ActionIcon
-                        style={{ position: 'absolute' }}
                         right={12}
                         bottom={10}
                         variant="filled"
                         size="md"
                         className={styles.minimalSubmitButton}
-                        disabled={disabled || isComposing || !hasValue}
+                        disabled={disabled || !hasValue}
                         loading={loading}
                         onClick={handleSubmit}
                         aria-label="Send message"
@@ -213,10 +460,6 @@ export const AgentChatInput = ({
                     </ActionIcon>
                 </Box>
 
-                {/* SQL mode switch — sits below the input so it never collides
-                    with typed text. Right-aligned so it visually anchors to
-                    the submit button above. Only renders when parent passes
-                    a handler (flag + permission gated). */}
                 {onSqlModeChange && !disabled && (
                     <Group justify="flex-end" px="xs" pt="xs">
                         <Tooltip
@@ -262,52 +505,43 @@ export const AgentChatInput = ({
         );
     }
 
-    // New thread mode
     return (
         <Box
+            ref={rootRef}
             className={`${styles.container} ${
                 showWarningBanner ? styles.warningBannerVisible : ''
             } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
         >
-            {/* Main input card */}
+            {chipRow && (
+                <Box
+                    className={`${styles.chipReveal} ${
+                        chipsNearBottom ? '' : styles.chipHidden
+                    }`}
+                    aria-hidden={!chipsNearBottom}
+                >
+                    {chipRow}
+                </Box>
+            )}
+
             <Box
                 className={`${styles.inputCard} ${
                     sqlMode ? styles.sqlModeActive : ''
                 }`}
             >
-                {/* Textarea */}
-                <Textarea
-                    autoFocus
-                    ref={inputRef}
-                    placeholder={placeholder}
-                    autosize
-                    minRows={2}
-                    maxRows={8}
-                    disabled={disabled}
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
+                <RichTextEditor
+                    editor={editor}
                     classNames={{
-                        input: styles.textarea,
-                        wrapper: styles.textareaWrapper,
+                        root: styles.editorRoot,
+                        content: styles.editorContent,
                     }}
-                    styles={{
-                        input: {
-                            border: 'none',
-                            '&:focus': {
-                                border: 'none',
-                                outline: 'none',
-                            },
-                        },
-                    }}
-                />
+                >
+                    <RichTextEditor.Content />
+                </RichTextEditor>
 
-                {/* Dotted divider */}
                 <hr className={styles.divider} />
 
-                {/* Toolbar */}
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
-                        {/* Model selector */}
                         {showModelSelector && (
                             <ModelSelector
                                 models={models}
@@ -316,7 +550,6 @@ export const AgentChatInput = ({
                             />
                         )}
 
-                        {/* Extended thinking toggle */}
                         {onExtendedThinkingChange && (
                             <Group>
                                 <Divider orientation="vertical" />
@@ -353,10 +586,6 @@ export const AgentChatInput = ({
                     </Box>
 
                     <Group gap="md" align="center" wrap="nowrap">
-                        {/* SQL mode switch — only rendered when the parent
-                            has confirmed flag + permission, so visibility
-                            here is the visibility contract. Sits next to
-                            submit because it's a per-prompt intent toggle. */}
                         {onSqlModeChange && !disabled && (
                             <Tooltip
                                 multiline
@@ -395,12 +624,11 @@ export const AgentChatInput = ({
                             </Tooltip>
                         )}
 
-                        {/* Submit button */}
                         <ActionIcon
                             variant="filled"
                             size="lg"
                             className={styles.submitButton}
-                            disabled={disabled || isComposing || !hasValue}
+                            disabled={disabled || !hasValue}
                             loading={loading}
                             onClick={handleSubmit}
                             aria-label="Send message"
@@ -416,7 +644,6 @@ export const AgentChatInput = ({
                 </Box>
             </Box>
 
-            {/* Disabled reason banner */}
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
                     <Text size="xs" c="dimmed" ta="right">

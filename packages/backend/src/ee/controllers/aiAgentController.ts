@@ -1,6 +1,7 @@
 import {
     AiArtifactTSOACompat,
     ApiAgentReadinessScoreResponse,
+    ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -330,6 +331,29 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/suggestions')
+    @OperationId('getAgentSuggestions')
+    async getAgentSuggestions(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Query() threadUuid?: string,
+        @Query() afterMessageUuid?: string,
+    ): Promise<ApiAgentSuggestionsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiAgentService().getAgentSuggestions(
+            toSessionUser(req.account),
+            { projectUuid, agentUuid, threadUuid, afterMessageUuid },
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluateReadiness')
     @OperationId('evaluateAgentReadiness')
     async evaluateAgentReadiness(
@@ -631,6 +655,7 @@ export class AiAgentController extends BaseController {
                 agentUuid,
                 threadUuid,
                 enableSqlMode: body?.enableSqlMode ?? false,
+                toolHints: body?.toolHints ?? [],
             },
         );
 

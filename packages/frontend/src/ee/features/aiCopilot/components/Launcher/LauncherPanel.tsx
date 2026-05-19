@@ -133,13 +133,20 @@ const NewThreadPanel: FC<{
     const [sqlMode, setSqlMode] = useState(false);
     const dispatchToStore = useAiAgentStoreDispatch();
 
-    const handleSubmit = (prompt: string) => {
+    const handleSubmit = ({
+        message,
+        toolHints,
+    }: {
+        message: string;
+        toolHints: string[];
+    }) => {
         void createAgentThread({
-            prompt,
+            prompt: message,
             context: contextInput.length > 0 ? contextInput : undefined,
             optimisticContext:
                 previewItems.length > 0 ? previewItems : undefined,
             enableSqlMode: sqlModeAvailable && sqlMode,
+            toolHints,
         });
     };
 
@@ -239,15 +246,22 @@ const ExistingThreadPanel: FC<{
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
-    const handleSubmit = (prompt: string) => {
+    const handleSubmit = ({
+        message,
+        toolHints,
+    }: {
+        message: string;
+        toolHints: string[];
+    }) => {
         const firstAssistantMessage = thread?.messages?.find(
             (m) => m.role === 'assistant',
         );
         const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
         void createAgentThreadMessage({
-            prompt,
+            prompt: message,
             modelConfig,
             enableSqlMode: sqlModeAvailable && sqlMode,
+            toolHints,
         });
     };
 
@@ -301,6 +315,12 @@ const ExistingThreadPanel: FC<{
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
+                        threadUuid={threadId}
+                        latestAssistantMessageUuid={
+                            [...(thread.messages ?? [])]
+                                .reverse()
+                                .find((m) => m.role === 'assistant')?.uuid
+                        }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={
                             sqlModeAvailable

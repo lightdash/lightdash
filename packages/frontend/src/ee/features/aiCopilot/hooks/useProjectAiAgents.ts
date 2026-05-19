@@ -592,11 +592,13 @@ export const useCreateAgentThreadMutation = (
         ApiAiAgentThreadCreateRequest & {
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         }
     >({
         mutationFn: ({
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            toolHints: _toolHints,
             ...data
         }) =>
             agentUuid
@@ -653,6 +655,7 @@ export const useCreateAgentThreadMutation = (
                 threadUuid: thread.uuid,
                 messageUuid: thread.firstMessage.uuid,
                 enableSqlMode: variables.enableSqlMode,
+                toolHints: variables.toolHints,
                 onFinish: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -760,12 +763,14 @@ export const useCreateAgentThreadMessageMutation = (
         ApiAiAgentThreadMessageCreateRequest & {
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            toolHints?: string[];
         },
         { messageUuid: string }
     >({
         mutationFn: ({
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            toolHints: _toolHints,
             ...data
         }) =>
             agentUuid && threadUuid
@@ -843,6 +848,7 @@ export const useCreateAgentThreadMessageMutation = (
                 threadUuid: threadUuid!,
                 messageUuid: data.uuid,
                 enableSqlMode: vars.enableSqlMode,
+                toolHints: vars.toolHints,
                 onFinish: () =>
                     queryClient.invalidateQueries([
                         AI_AGENTS_KEY,
