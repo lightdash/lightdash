@@ -1,3 +1,11 @@
+## [0.2981.3](https://github.com/lightdash/lightdash/compare/0.2981.2...0.2981.3) (2026-05-19)
+
+
+### Bug Fixes
+
+* **data-apps:** improve 1st version build speed ([#23242](https://github.com/lightdash/lightdash/issues/23242)) ([a815e88](https://github.com/lightdash/lightdash/commit/a815e88972a502111afc98a447266ea9ba7e41c2))
+* drop legacy dashboard export scope rows and stop emitting console.warn for unknown scopes ([#23290](https://github.com/lightdash/lightdash/issues/23290)) ([fde16d7](https://github.com/lightdash/lightdash/commit/fde16d71995dd2dd22778613920d4171fb20a59e)), closes [#22802](https://github.com/lightdash/lightdash/issues/22802)
+
 ## [0.2981.2](https://github.com/lightdash/lightdash/compare/0.2981.1...0.2981.2) (2026-05-19)
 
 
