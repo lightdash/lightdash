@@ -322,6 +322,180 @@ describe('validation', () => {
         );
     });
 
+    it('Should flag dashboard filter referencing a deleted explore as TableDoesNotExist', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'deleted_model_status',
+                                tableName: 'deleted_model',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        // Must match the exact wording parsed by
+        // ValidationModel.parseDashboardFilterError so the bell-icon UI
+        // categorises this as TableDoesNotExist (and offers a rename/delete).
+        expect(errors.map((error) => error.error)).toContain(
+            "Table 'deleted_model' no longer exists",
+        );
+        // The generic "field no longer exists" should NOT also appear for
+        // this target — we want a single, specific error.
+        expect(errors.map((error) => error.error)).not.toContain(
+            "Filter error: the field 'deleted_model_status' on table 'deleted_model' no longer exists",
+        );
+    });
+
+    it('Should flag dashboard tile target referencing a deleted explore as TableDoesNotExist', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'table_dimension',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            tileTargets: {
+                                'tile-uuid': {
+                                    fieldId: 'deleted_model_status',
+                                    tableName: 'deleted_model',
+                                },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Table 'deleted_model' no longer exists",
+        );
+    });
+
+    it('Should NOT flag dashboard filter on a valid joined table', async () => {
+        // exploreWithJoin contains both `table` and `another_table` in its
+        // .tables map — a filter on `table_dimension` via `tableName: 'table'`
+        // must stay error-free even though `table` is not the baseTable.
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [exploreWithJoin]);
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'table_dimension',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(
+            errors.filter((e) =>
+                e.error?.startsWith("Table 'table' no longer exists"),
+            ),
+        ).toEqual([]);
+    });
+
+    it('Should still emit FieldDoesNotExist when the table is valid but the field is renamed', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'table_renamed_field',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Filter error: the field 'table_renamed_field' on table 'table' no longer exists",
+        );
+        expect(errors.map((error) => error.error)).not.toContain(
+            "Table 'table' no longer exists",
+        );
+    });
+
     it('Should validate dashboard tile targets with table name mismatch', async () => {
         (
             dashboardModel.findDashboardsForValidation as jest.Mock
