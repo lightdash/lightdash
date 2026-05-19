@@ -1,3 +1,10 @@
+## [0.2976.1](https://github.com/lightdash/lightdash/compare/0.2976.0...0.2976.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **api-tests:** drop stale plain PKCE assertion in OAuth discovery test ([#23270](https://github.com/lightdash/lightdash/issues/23270)) ([2c0ed37](https://github.com/lightdash/lightdash/commit/2c0ed37154dbaf5d5aba409fb442cefde930e436)), closes [#23174](https://github.com/lightdash/lightdash/issues/23174)
+
 # [0.2976.0](https://github.com/lightdash/lightdash/compare/0.2975.0...0.2976.0) (2026-05-19)
 
 
