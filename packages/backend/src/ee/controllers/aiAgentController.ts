@@ -55,7 +55,6 @@ import {
     Body,
     Delete,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -79,7 +78,6 @@ import Logger from '../../logging/logger';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
-@Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
