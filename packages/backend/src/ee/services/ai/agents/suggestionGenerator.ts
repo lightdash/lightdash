@@ -11,7 +11,7 @@ const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an e
 
 There are TWO chip kinds:
 
-1. PROMPT chips (kind="prompt") — a complete data question the agent can act on by running a query, building a chart, or finding existing content. When clicked, the label is sent verbatim as the user's next message. Use a real tool from: ${AGENT_SUGGESTION_TOOLS.join(', ')}. Reference only real explore and dimension/metric labels from the catalogue.
+1. PROMPT chips (kind="prompt") — a complete data question the agent can act on by running a query, building a chart, or finding existing content. When clicked, the label is sent verbatim as the user's next message. Use a real tool from: ${AGENT_SUGGESTION_TOOLS.join(', ')}. Reference only real explore and dimension/metric labels from the catalogue. In defaults.dimensions, use field IDs from the catalogue, not labels.
 
 2. NAVIGATE chips (kind="navigate") — open one of the user's own recent threads. ONLY emit these when <recentUserConversations> contains a thread the user might want to resume. Set recentConversationIndex to the array index (0 = most recent). The server resolves the URL. Label should make it clear the chip resumes a conversation, e.g. "Continue your funnel conversion analysis" or "Resume the visit analytics dashboard build". Don't write more than ONE navigate chip per response — keep the rest as fresh PROMPT chips.
 
@@ -47,7 +47,7 @@ Two modes:
 
 1. ANSWER mode — when <thread.latestAssistantTurn.askedClarifyingQuestion> is true, the chips ARE the user's likely answers to the agent's question. Pull options from the choices the agent presented in its reply. 5-40 chars typically.
 
-2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it.
+2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it. In defaults.dimensions, use field IDs from the catalogue, not labels.
 
 PREFERRED CONTEXT:
 - When <thread.latestAssistantTurn.latestQueryExplore> is present, lean on its dimensions and metrics first. These are the fields the agent just touched — the user is almost certainly thinking in that explore's frame.
@@ -105,6 +105,11 @@ export type VerifiedContentItem = {
     description: string | null;
 };
 
+type SuggestionFieldContext = {
+    id: string;
+    label: string;
+};
+
 export type SuggestionPromptContext = {
     agentName: string;
     agentInstruction: string | null;
@@ -113,8 +118,8 @@ export type SuggestionPromptContext = {
         name: string;
         label: string;
         description: string | null;
-        dimensions: string[];
-        metrics: string[];
+        dimensions: SuggestionFieldContext[];
+        metrics: SuggestionFieldContext[];
     }>;
     verifiedQuestions: string[];
     verifiedContentTags: string[];
@@ -136,8 +141,8 @@ export type SuggestionPromptContext = {
                 name: string;
                 label: string;
                 description: string | null;
-                dimensions: string[];
-                metrics: string[];
+                dimensions: SuggestionFieldContext[];
+                metrics: SuggestionFieldContext[];
             } | null;
         };
     };
