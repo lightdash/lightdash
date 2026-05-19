@@ -2314,19 +2314,15 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         props.tile.properties?.savedChartUuid,
     );
 
-    // Use fresh chart data from useSavedQuery (which is properly cache-invalidated
-    // on verify/unverify) to keep verification status up-to-date without requiring
-    // a full page refresh.
-    const readyQueryDataWithFreshVerification = useMemo(() => {
+    // Use fresh chart data from useSavedQuery to keep dashboard tiles aligned
+    // with chart edits without requiring a full page refresh.
+    const readyQueryDataWithFreshChart = useMemo(() => {
         if (!readyQuery.data) return undefined;
         const freshChart = readyQuery.chartQuery?.data;
         if (!freshChart) return readyQuery.data;
         return {
             ...readyQuery.data,
-            chart: {
-                ...readyQuery.data.chart,
-                verification: freshChart.verification,
-            },
+            chart: freshChart,
         };
     }, [readyQuery.data, readyQuery.chartQuery?.data]);
 
@@ -2358,7 +2354,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={isLoading}
             resultsData={resultsData}
-            dashboardChartReadyQuery={readyQueryDataWithFreshVerification}
+            dashboardChartReadyQuery={readyQueryDataWithFreshChart}
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );

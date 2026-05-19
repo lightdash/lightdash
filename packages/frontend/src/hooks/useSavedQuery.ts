@@ -84,7 +84,7 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedQuery = async (
+export const getSavedQuery = async (
     id: string,
     projectUuid: string,
 ): Promise<SavedChart> =>

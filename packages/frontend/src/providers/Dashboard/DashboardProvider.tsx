@@ -1519,6 +1519,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         removeMetricDashboardFilter,
         resetDashboardFilters,
         setDashboardFilters,
+        setOriginalDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
         allFilterableFieldsMap,
