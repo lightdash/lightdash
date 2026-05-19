@@ -16,6 +16,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfig, PivotConfiguration } from '../types/pivot';
 import {
     ChartType,
+    getHiddenTableFields,
     isCartesianChartConfig,
     type SavedChartDAO,
 } from '../types/savedCharts';
@@ -209,10 +210,34 @@ function getTablePivotConfiguration(
         }))
         .filter((col) => metricQuery.dimensions.includes(col.reference));
 
+    // Identify hidden dimensions (visible: false in columnProperties).
+    // Dimensions that are hidden AND appear in sorts become sortOnlyColumns —
+    // they drive sort order in the SQL but do not render as row-index columns.
+    const hiddenFieldIds = getHiddenTableFields(chartConfig);
+    const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
+    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
+
+    const sortOnlyDimensions = metricQuery.dimensions
+        .filter(
+            (d) =>
+                hiddenFieldIds.includes(d) &&
+                sortFieldIds.has(d) &&
+                !groupByRefs.has(d),
+        )
+        .map((d) => ({
+            reference: d,
+            aggregation: VizAggregationOptions.ANY,
+        }));
+
+    // When computing index columns, treat hidden dims the same as value columns
+    // so they are excluded from indexColumn (preventing them from rendering as
+    // row-index columns while still allowing them to participate in sort CTEs).
+    const allValuesColumnsForIndex = [...valuesColumns, ...sortOnlyDimensions];
+
     // Find columns that are not groupBy or value columns (these become index columns)
     const indexColumn = getIndexColumn(
         groupByColumns,
-        valuesColumns,
+        allValuesColumnsForIndex,
         fields,
         metricQuery,
     );
@@ -221,6 +246,9 @@ function getTablePivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
+        ...(sortOnlyDimensions.length > 0 && {
+            sortOnlyColumns: sortOnlyDimensions,
+        }),
     };
 
     const pivotConfiguration: PivotConfiguration = {
