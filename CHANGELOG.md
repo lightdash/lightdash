@@ -1,3 +1,10 @@
+# [0.2976.0](https://github.com/lightdash/lightdash/compare/0.2975.0...0.2976.0) (2026-05-19)
+
+
+### Features
+
+* update app builder UI with more modern input ([#23245](https://github.com/lightdash/lightdash/issues/23245)) ([6e553a2](https://github.com/lightdash/lightdash/commit/6e553a21dca6ffcc7cb8a0fef2f32ed462f01e0b))
+
 # [0.2975.0](https://github.com/lightdash/lightdash/compare/0.2974.1...0.2975.0) (2026-05-19)
 
 
