@@ -518,7 +518,11 @@ export class OrganizationController extends BaseController {
      * Create a new color palette
      * @summary Create color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/color-palettes')
     @OperationId('CreateColorPalette')
     async createColorPalette(
@@ -558,7 +562,11 @@ export class OrganizationController extends BaseController {
      * Update a color palette
      * @summary Update color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Patch('/color-palettes/{colorPaletteUuid}')
     @OperationId('UpdateColorPalette')
     async updateColorPalette(
@@ -584,7 +592,11 @@ export class OrganizationController extends BaseController {
      * Delete a color palette
      * @summary Delete color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('/color-palettes/{colorPaletteUuid}')
     @OperationId('DeleteColorPalette')
     async deleteColorPalette(
@@ -606,7 +618,11 @@ export class OrganizationController extends BaseController {
      * Set a color palette as the active palette
      * @summary Set active color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/color-palettes/{colorPaletteUuid}/active')
     @OperationId('SetActiveColorPalette')
     async setActiveColorPalette(
