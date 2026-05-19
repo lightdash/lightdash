@@ -8640,6 +8640,625 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "VizBaseConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "metadata": {
+                        "properties": {
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["version"],
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "metadata"],
+                "type": "object"
+            },
+            "ChartKind.VERTICAL_BAR": {
+                "enum": ["vertical_bar"],
+                "type": "string"
+            },
+            "ChartKind.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "VizIndexType": {
+                "enum": ["time", "category"],
+                "type": "string"
+            },
+            "VizAggregationOptions": {
+                "enum": ["sum", "count", "avg", "min", "max", "any"],
+                "type": "string"
+            },
+            "SortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "pivotValues": {
+                        "items": {
+                            "$ref": "#/components/schemas/PivotSortAnchor"
+                        },
+                        "type": "array",
+                        "description": "Pins the row-sort anchor to a specific pivot column."
+                    },
+                    "nullsFirst": {
+                        "type": "boolean"
+                    },
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
+            },
+            "StackType": {
+                "enum": ["none", "stack", "stack100"],
+                "type": "string"
+            },
+            "PivotChartLayout": {
+                "properties": {
+                    "stack": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StackType"
+                            }
+                        ]
+                    },
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
+                    "groupBy": {
+                        "items": {
+                            "properties": {
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "y": {
+                        "items": {
+                            "properties": {
+                                "aggregation": {
+                                    "$ref": "#/components/schemas/VizAggregationOptions"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["aggregation", "reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "x": {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/VizIndexType"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type", "reference"],
+                        "type": "object"
+                    }
+                },
+                "required": ["y"],
+                "type": "object"
+            },
+            "CartesianSeriesType.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "CartesianSeriesType.BAR": {
+                "enum": ["bar"],
+                "type": "string"
+            },
+            "ValueLabelPositionOptions": {
+                "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
+                "type": "string"
+            },
+            "AxisSide": {
+                "enum": [0, 1],
+                "type": "number"
+            },
+            "CartesianChartDisplay": {
+                "properties": {
+                    "stack": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StackType"
+                            }
+                        ]
+                    },
+                    "legend": {
+                        "properties": {
+                            "align": {
+                                "type": "string",
+                                "enum": ["start", "center", "end"]
+                            },
+                            "position": {
+                                "type": "string",
+                                "enum": ["top", "bottom", "left", "right"]
+                            }
+                        },
+                        "required": ["align", "position"],
+                        "type": "object"
+                    },
+                    "series": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "whichYAxis": {
+                                    "$ref": "#/components/schemas/AxisSide"
+                                },
+                                "valueLabelPosition": {
+                                    "$ref": "#/components/schemas/ValueLabelPositionOptions"
+                                },
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/CartesianSeriesType.LINE"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/CartesianSeriesType.BAR"
+                                        }
+                                    ]
+                                },
+                                "color": {
+                                    "type": "string"
+                                },
+                                "yAxisIndex": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "object"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "properties": {
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "position": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "properties": {
+                            "dateFormat": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/VizIndexType"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "VizCartesianChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout"
+                            },
+                            "type": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind.LINE"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.PIE": {
+                "enum": ["pie"],
+                "type": "string"
+            },
+            "VizPieChartDisplay": {
+                "properties": {
+                    "isDonut": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "VizPieChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizPieChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.PIE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "VizColumnConfig": {
+                "properties": {
+                    "barConfig": {
+                        "properties": {
+                            "color": {
+                                "type": "string"
+                            },
+                            "max": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "min": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "displayStyle": {
+                        "type": "string",
+                        "enum": ["text", "bar"]
+                    },
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "order": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "frozen": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["frozen", "label", "reference", "visible"],
+                "type": "object"
+            },
+            "VizColumnsConfig": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/VizColumnConfig"
+                },
+                "type": "object"
+            },
+            "VizTableDisplay": {
+                "properties": {},
+                "type": "object"
+            },
+            "VizTableConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizTableDisplay"
+                            },
+                            "columns": {
+                                "$ref": "#/components/schemas/VizColumnsConfig"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.TABLE"
+                            }
+                        },
+                        "required": ["columns", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_SpaceSummary.uuid-or-name-or-userAccess_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "userAccess": {
+                        "$ref": "#/components/schemas/SpaceAccess"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Dashboard.uuid-or-name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Project.projectUuid_": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["projectUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Organization.organizationUuid_": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["organizationUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SqlChart": {
+                "properties": {
+                    "resolvedColorPalette": {
+                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
+                        "description": "Fully resolved palette for this SQL chart, computed from the\norg → project → space → dashboard hierarchy. SQL charts have no\nper-chart override — set the palette via the containing space,\ndashboard, project, or organization."
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                    },
+                    "dashboard": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-userAccess_"
+                    },
+                    "lastUpdatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "config": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/VizBaseConfig"
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/VizPieChartConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/VizTableConfig"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "savedSqlUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "resolvedColorPalette",
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
+                    "organization",
+                    "project",
+                    "dashboard",
+                    "space",
+                    "lastUpdatedBy",
+                    "lastUpdatedAt",
+                    "createdBy",
+                    "createdAt",
+                    "chartKind",
+                    "config",
+                    "limit",
+                    "sql",
+                    "slug",
+                    "description",
+                    "name",
+                    "savedSqlUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSqlChart": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SqlChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncDashboardSqlChartQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "appliedDashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            }
+                        },
+                        "required": ["appliedDashboardFilters"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_": {
+                "properties": {
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "dashboardSorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["dashboardFilters", "dashboardSorts"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Record_string.number_": {
                 "properties": {},
                 "additionalProperties": {
@@ -10728,6 +11347,12 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -10770,12 +11395,6 @@
                         },
                         "type": "array"
                     },
-                    "userAccess": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -10800,13 +11419,13 @@
                     "createdAt",
                     "organizationUuid",
                     "uuid",
+                    "userAccess",
                     "integrations",
                     "tags",
                     "updatedAt",
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
@@ -11065,6 +11684,12 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -11107,12 +11732,6 @@
                         },
                         "type": "array"
                     },
-                    "userAccess": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -11137,13 +11756,13 @@
                     "createdAt",
                     "organizationUuid",
                     "uuid",
+                    "userAccess",
                     "integrations",
                     "tags",
                     "updatedAt",
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
@@ -11588,6 +12207,12 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -11626,12 +12251,6 @@
                         },
                         "type": "array"
                     },
-                    "userAccess": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -11653,12 +12272,12 @@
                     "description",
                     "name",
                     "projectUuid",
+                    "userAccess",
                     "integrations",
                     "tags",
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
@@ -11697,6 +12316,12 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -11730,12 +12355,6 @@
                         "nullable": true
                     },
                     "groupAccess": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "userAccess": {
                         "items": {
                             "type": "string"
                         },
@@ -12177,10 +12796,7 @@
                     "findDashboards",
                     "findCharts",
                     "getDashboardCharts",
-                    "readContent",
-                    "editContent",
                     "improveContext",
-                    "loadSkill",
                     "runSavedChart",
                     "listWarehouseTables",
                     "describeWarehouseTable"
@@ -12307,29 +12923,11 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
@@ -12340,13 +12938,18 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -12355,8 +12958,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -12366,16 +12969,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -12450,11 +13053,6 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
@@ -12465,13 +13063,18 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -12480,8 +13083,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -17994,7 +18597,7 @@
             },
             "url.URL": {
                 "type": "string",
-                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+                "description": "The URL interface represents an object providing static methods used for creating object URLs.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
             },
             "OauthAuth": {
                 "properties": {
@@ -18722,10 +19325,6 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "VizIndexType": {
-                "enum": ["time", "category"],
-                "type": "string"
-            },
             "PivotIndexColum": {
                 "properties": {
                     "type": {
@@ -18737,10 +19336,6 @@
                 },
                 "required": ["type", "reference"],
                 "type": "object"
-            },
-            "VizAggregationOptions": {
-                "enum": ["sum", "count", "avg", "min", "max", "any"],
-                "type": "string"
             },
             "ValuesColumn": {
                 "properties": {
@@ -18761,32 +19356,6 @@
                     }
                 },
                 "required": ["reference"],
-                "type": "object"
-            },
-            "SortByDirection": {
-                "enum": ["ASC", "DESC"],
-                "type": "string"
-            },
-            "VizSortBy": {
-                "properties": {
-                    "pivotValues": {
-                        "items": {
-                            "$ref": "#/components/schemas/PivotSortAnchor"
-                        },
-                        "type": "array",
-                        "description": "Pins the row-sort anchor to a specific pivot column."
-                    },
-                    "nullsFirst": {
-                        "type": "boolean"
-                    },
-                    "direction": {
-                        "$ref": "#/components/schemas/SortByDirection"
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["direction", "reference"],
                 "type": "object"
             },
             "SortBy": {
@@ -18864,549 +19433,6 @@
                         "$ref": "#/components/schemas/ApiSqlRunnerPivotQueryPayload"
                     }
                 ]
-            },
-            "VizBaseConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "metadata": {
-                        "properties": {
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["version"],
-                        "type": "object"
-                    }
-                },
-                "required": ["type", "metadata"],
-                "type": "object"
-            },
-            "ChartKind.VERTICAL_BAR": {
-                "enum": ["vertical_bar"],
-                "type": "string"
-            },
-            "ChartKind.LINE": {
-                "enum": ["line"],
-                "type": "string"
-            },
-            "StackType": {
-                "enum": ["none", "stack", "stack100"],
-                "type": "string"
-            },
-            "PivotChartLayout": {
-                "properties": {
-                    "stack": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "$ref": "#/components/schemas/StackType"
-                            }
-                        ]
-                    },
-                    "sortBy": {
-                        "items": {
-                            "$ref": "#/components/schemas/VizSortBy"
-                        },
-                        "type": "array"
-                    },
-                    "groupBy": {
-                        "items": {
-                            "properties": {
-                                "reference": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["reference"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "y": {
-                        "items": {
-                            "properties": {
-                                "aggregation": {
-                                    "$ref": "#/components/schemas/VizAggregationOptions"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["aggregation", "reference"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "x": {
-                        "properties": {
-                            "type": {
-                                "$ref": "#/components/schemas/VizIndexType"
-                            },
-                            "reference": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["type", "reference"],
-                        "type": "object"
-                    }
-                },
-                "required": ["y"],
-                "type": "object"
-            },
-            "CartesianSeriesType.LINE": {
-                "enum": ["line"],
-                "type": "string"
-            },
-            "CartesianSeriesType.BAR": {
-                "enum": ["bar"],
-                "type": "string"
-            },
-            "ValueLabelPositionOptions": {
-                "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
-                "type": "string"
-            },
-            "AxisSide": {
-                "enum": [0, 1],
-                "type": "number"
-            },
-            "CartesianChartDisplay": {
-                "properties": {
-                    "stack": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "$ref": "#/components/schemas/StackType"
-                            }
-                        ]
-                    },
-                    "legend": {
-                        "properties": {
-                            "align": {
-                                "type": "string",
-                                "enum": ["start", "center", "end"]
-                            },
-                            "position": {
-                                "type": "string",
-                                "enum": ["top", "bottom", "left", "right"]
-                            }
-                        },
-                        "required": ["align", "position"],
-                        "type": "object"
-                    },
-                    "series": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "properties": {
-                                "whichYAxis": {
-                                    "$ref": "#/components/schemas/AxisSide"
-                                },
-                                "valueLabelPosition": {
-                                    "$ref": "#/components/schemas/ValueLabelPositionOptions"
-                                },
-                                "type": {
-                                    "anyOf": [
-                                        {
-                                            "$ref": "#/components/schemas/CartesianSeriesType.LINE"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/CartesianSeriesType.BAR"
-                                        }
-                                    ]
-                                },
-                                "color": {
-                                    "type": "string"
-                                },
-                                "yAxisIndex": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "format": {
-                                    "$ref": "#/components/schemas/Format"
-                                },
-                                "label": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "object"
-                    },
-                    "yAxis": {
-                        "items": {
-                            "properties": {
-                                "format": {
-                                    "$ref": "#/components/schemas/Format"
-                                },
-                                "position": {
-                                    "type": "string"
-                                },
-                                "label": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "xAxis": {
-                        "properties": {
-                            "dateFormat": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/VizIndexType"
-                            },
-                            "label": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    }
-                },
-                "type": "object"
-            },
-            "VizCartesianChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.LINE"
-                                    }
-                                ]
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ChartKind.PIE": {
-                "enum": ["pie"],
-                "type": "string"
-            },
-            "VizPieChartDisplay": {
-                "properties": {
-                    "isDonut": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "VizPieChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/VizPieChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.PIE"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ChartKind.TABLE": {
-                "enum": ["table"],
-                "type": "string"
-            },
-            "VizColumnConfig": {
-                "properties": {
-                    "barConfig": {
-                        "properties": {
-                            "color": {
-                                "type": "string"
-                            },
-                            "max": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "min": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "displayStyle": {
-                        "type": "string",
-                        "enum": ["text", "bar"]
-                    },
-                    "aggregation": {
-                        "$ref": "#/components/schemas/VizAggregationOptions"
-                    },
-                    "order": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "frozen": {
-                        "type": "boolean"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "reference": {
-                        "type": "string"
-                    },
-                    "visible": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["frozen", "label", "reference", "visible"],
-                "type": "object"
-            },
-            "VizColumnsConfig": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/VizColumnConfig"
-                },
-                "type": "object"
-            },
-            "VizTableDisplay": {
-                "properties": {},
-                "type": "object"
-            },
-            "VizTableConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/VizTableDisplay"
-                            },
-                            "columns": {
-                                "$ref": "#/components/schemas/VizColumnsConfig"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.TABLE"
-                            }
-                        },
-                        "required": ["columns", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_SpaceSummary.uuid-or-name-or-userAccess_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "userAccess": {
-                        "$ref": "#/components/schemas/SpaceAccess"
-                    }
-                },
-                "required": ["name", "uuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_Dashboard.uuid-or-name_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "uuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_Project.projectUuid_": {
-                "properties": {
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["projectUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_Organization.organizationUuid_": {
-                "properties": {
-                    "organizationUuid": {
-                        "type": "string",
-                        "description": "The unique identifier of the organization",
-                        "format": "uuid"
-                    }
-                },
-                "required": ["organizationUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SqlChart": {
-                "properties": {
-                    "resolvedColorPalette": {
-                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this SQL chart, computed from the\norg → project → space → dashboard hierarchy. SQL charts have no\nper-chart override — set the palette via the containing space,\ndashboard, project, or organization."
-                    },
-                    "lastViewedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "organization": {
-                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
-                    },
-                    "project": {
-                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
-                    },
-                    "dashboard": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "space": {
-                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-userAccess_"
-                    },
-                    "lastUpdatedBy": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "savedSqlUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "resolvedColorPalette",
-                    "lastViewedAt",
-                    "firstViewedAt",
-                    "views",
-                    "organization",
-                    "project",
-                    "dashboard",
-                    "space",
-                    "lastUpdatedBy",
-                    "lastUpdatedAt",
-                    "createdBy",
-                    "createdAt",
-                    "chartKind",
-                    "config",
-                    "limit",
-                    "sql",
-                    "slug",
-                    "description",
-                    "name",
-                    "savedSqlUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSqlChart": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SqlChart"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
             },
             "ApiCreateSqlChart": {
                 "properties": {
@@ -19739,16 +19765,6 @@
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -19759,6 +19775,16 @@
                         "nullable": true
                     },
                     "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
                         "type": "string"
                     },
                     "dashboardVersionId": {
@@ -19843,12 +19869,12 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "updatedAt",
-                    "versionUuid",
-                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
+                    "updatedAt",
+                    "versionUuid",
+                    "spaceUuid",
                     "dashboardVersionId",
                     "verification",
                     "tiles",
@@ -19911,6 +19937,19 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -19926,19 +19965,6 @@
                     "dashboardUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
                     },
                     "verification": {
                         "allOf": [
@@ -20034,13 +20060,13 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "slug",
                     "updatedAt",
                     "chartConfig",
                     "spaceUuid",
                     "dashboardUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
-                    "slug",
                     "verification",
                     "spaceName",
                     "colorPaletteUuid",
@@ -20531,13 +20557,6 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -20545,6 +20564,13 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "spaceName": {
                         "type": "string"
@@ -20559,10 +20585,10 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "spaceUuid",
-                    "dashboardUuid",
                     "pinnedListUuid",
                     "slug",
+                    "spaceUuid",
+                    "dashboardUuid",
                     "spaceName",
                     "dashboardName"
                 ],
@@ -20611,21 +20637,21 @@
             },
             "Pick_SavedChart.updatedAt-or-updatedByUser-or-pinnedListOrder_": {
                 "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the chart was last updated"
-                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
+                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     }
                 },
-                "required": ["updatedAt", "pinnedListOrder"],
+                "required": ["pinnedListOrder", "updatedAt"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -20732,13 +20758,6 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -20747,6 +20766,13 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -20773,10 +20799,10 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "updatedAt",
-                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
+                    "updatedAt",
+                    "spaceUuid",
                     "views",
                     "firstViewedAt"
                 ],
@@ -24001,13 +24027,13 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig",
-                        "description": "Visualization configuration for the chart"
-                    },
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "tableName": {
                         "type": "string",
@@ -24027,7 +24053,7 @@
                         "description": "Pivot table configuration"
                     }
                 },
-                "required": ["name", "chartConfig", "slug", "tableName"],
+                "required": ["name", "slug", "chartConfig", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -24342,22 +24368,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -24719,22 +24745,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -24816,6 +24842,10 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -24825,10 +24855,6 @@
                         "type": "number",
                         "format": "double",
                         "description": "Schema version for this chart configuration"
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
                     },
                     "verification": {
                         "allOf": [
@@ -24909,8 +24935,8 @@
                 },
                 "required": [
                     "name",
-                    "version",
                     "slug",
+                    "version",
                     "tableName",
                     "metricQuery",
                     "spaceSlug"
@@ -25084,6 +25110,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -25091,9 +25120,6 @@
                     "version": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "slug": {
-                        "type": "string"
                     },
                     "contentType": {
                         "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
@@ -25115,8 +25141,8 @@
                 "required": [
                     "name",
                     "limit",
-                    "version",
                     "slug",
+                    "version",
                     "spaceSlug",
                     "sql",
                     "chartKind"
@@ -25150,6 +25176,9 @@
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -25158,9 +25187,6 @@
                     "version": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "slug": {
-                        "type": "string"
                     },
                     "verification": {
                         "allOf": [
@@ -25218,7 +25244,7 @@
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                     }
                 },
-                "required": ["name", "version", "slug", "tabs", "spaceSlug"],
+                "required": ["name", "slug", "version", "tabs", "spaceSlug"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -25717,13 +25743,6 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -25732,6 +25751,13 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     },
                     "verification": {
                         "allOf": [
@@ -25770,10 +25796,10 @@
                 "required": [
                     "name",
                     "uuid",
-                    "updatedAt",
-                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
+                    "updatedAt",
+                    "spaceUuid",
                     "verification",
                     "views",
                     "firstViewedAt"
@@ -25823,14 +25849,6 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the chart was last updated"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -25843,6 +25861,14 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     },
                     "verification": {
                         "allOf": [
@@ -25887,11 +25913,11 @@
                 "required": [
                     "name",
                     "uuid",
-                    "updatedAt",
-                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
+                    "updatedAt",
+                    "spaceUuid",
                     "verification",
                     "views",
                     "firstViewedAt"
@@ -27148,10 +27174,10 @@
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
                     },
-                    "organizationWarehouseCredentialsUuid": {
+                    "pinnedListUuid": {
                         "type": "string"
                     },
-                    "pinnedListUuid": {
+                    "organizationWarehouseCredentialsUuid": {
                         "type": "string"
                     },
                     "dbtConnection": {
@@ -31294,22 +31320,6 @@
                     }
                 ]
             },
-            "ApiExecuteAsyncDashboardSqlChartQueryResults": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
-                    },
-                    {
-                        "properties": {
-                            "appliedDashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            }
-                        },
-                        "required": ["appliedDashboardFilters"],
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiSuccess_ApiExecuteAsyncDashboardSqlChartQueryResults_": {
                 "properties": {
                     "results": {
@@ -33259,7 +33269,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2981.1",
+        "version": "0.2979.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
