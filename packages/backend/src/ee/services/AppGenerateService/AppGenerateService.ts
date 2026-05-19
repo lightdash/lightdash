@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    assertEmbeddedAuth,
     assertUnreachable,
     DATA_APP_CLAUDE_MODELS,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -22,6 +23,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    type AnonymousAccount,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
@@ -4295,6 +4297,85 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             user.organizationUuid!,
             projectUuid,
         );
+    }
+
+    /**
+     * Mint a preview token for embed-side rendering of a data app, bundling
+     * the resolved latest ready version so the frontend doesn't need a
+     * separate round-trip to find it.
+     *
+     * The token is issued only when the data app is referenced by a tile on
+     * a dashboard in the embed's allowlist (or `allowAllDashboards` is set),
+     * mirroring how embedded charts are gated by whitelisted dashboards.
+     * The app must live in the embed's project — preview environments where
+     * the dashboard tile references a source-project app are explicitly out
+     * of scope and surface as a 404 to the frontend.
+     */
+    async getEmbedAppPreviewToken(
+        account: AnonymousAccount,
+        appUuid: string,
+    ): Promise<{ token: string; version: number }> {
+        assertEmbeddedAuth(account);
+
+        if (!isValidUuid(appUuid)) {
+            throw new ParameterError('Invalid UUID format');
+        }
+
+        const { projectUuid } = account.embed;
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (!app) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this data app',
+            );
+        }
+
+        if (!account.embed.allowAllDashboards) {
+            const dashboardsWithApp =
+                await this.appModel.findDashboardsContainingApp(
+                    appUuid,
+                    projectUuid,
+                );
+            const allowedDashboards = new Set(account.embed.dashboardUuids);
+            const onAllowedDashboard = dashboardsWithApp.some((d) =>
+                allowedDashboards.has(d),
+            );
+            if (!onAllowedDashboard) {
+                throw new ForbiddenError(
+                    'Data app is not authorized by this embed',
+                );
+            }
+        }
+
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latestReady) {
+            throw new NotFoundError(
+                `Data app has no ready version yet: ${appUuid}`,
+            );
+        }
+
+        const token = mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            appUuid,
+            latestReady.version,
+            account.user.id,
+            app.organization_uuid,
+            projectUuid,
+        );
+
+        return { token, version: latestReady.version };
     }
 
     /**

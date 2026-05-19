@@ -26,6 +26,7 @@ import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboard } from '../hooks';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
+import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 import '../../../../../styles/react-grid.css';
@@ -131,10 +132,10 @@ const EmbedDashboardGrid: FC<{
                                 dashboardSlug={dashboard.slug}
                             />
                         ) : tile.type === DashboardTileTypes.DATA_APP ? (
-                            <SuboptimalState
+                            <EmbedDataAppTile
                                 key={tile.uuid}
-                                title="Data app tile"
-                                description="Data apps cannot be rendered in embedded dashboards yet."
+                                tile={tile}
+                                projectUuid={projectUuid}
                             />
                         ) : (
                             assertUnreachable(
