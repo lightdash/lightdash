@@ -564,6 +564,7 @@ export const pivotQueryResults = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const hiddenDimensionFieldIds = pivotConfig.hiddenDimensionFieldIds || [];
     const { visibleMetricFieldIds } = pivotConfig;
 
     const isMetricVisible = (metricId: string): boolean => {
@@ -591,20 +592,30 @@ export const pivotQueryResults = ({
     const dimensions = [...metricQuery.dimensions];
 
     // Headers (column index)
-    const headerDimensions = pivotConfig.pivotDimensions.filter(
-        (pivotDimension) => dimensions.includes(pivotDimension),
-    );
+    // hiddenDimensionFieldIds dims are excluded from rendered headers; they
+    // still participate in the underlying query and can drive sort order.
+    const headerDimensions = pivotConfig.pivotDimensions
+        .filter((pivotDimension) => dimensions.includes(pivotDimension))
+        .filter((d) => !hiddenDimensionFieldIds.includes(d));
     const headerValueTypes = getHeaderValueTypes({
         metricsAsRows: pivotConfig.metricsAsRows,
         pivotDimensionNames: headerDimensions,
     });
 
     // Indices (row index)
-    const indexDimensions = dimensions
+    // indexDimensionsForGrouping: full set used to build row-grouping keys so
+    // that hidden dims still correctly delineate rows. indexDimensionsForDisplay
+    // is the filtered set actually emitted into indexValueTypes / indexValues.
+    const indexDimensionsForGrouping = dimensions
         .filter((d) => !pivotConfig.pivotDimensions.includes(d))
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
-    const indexDimensionValueTypes = indexDimensions.map<{
+    const indexDimensionsForDisplay = indexDimensionsForGrouping.filter(
+        (d) => !hiddenDimensionFieldIds.includes(d),
+    );
+    // Keep legacy name as an alias for grouping to minimise diff surface.
+    const indexDimensions = indexDimensionsForGrouping;
+    const indexDimensionValueTypes = indexDimensionsForDisplay.map<{
         type: FieldType.DIMENSION;
         fieldId: string;
     }>((d) => ({
@@ -645,7 +656,30 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
-            const indexRowValues = indexDimensions
+            // indexRowKeysValues: derived from the FULL dimension set so hidden
+            // dims still correctly partition rows (grouping, not display).
+            const indexRowKeysValues = indexDimensions
+                .map<PivotData['indexValues'][number][number]>((fieldId) => ({
+                    type: 'value',
+                    fieldId,
+                    value: getObjectValue(row, fieldId).value,
+                    colSpan: 1,
+                }))
+                .concat(
+                    pivotConfig.metricsAsRows
+                        ? [
+                              {
+                                  type: 'label',
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
+                              },
+                          ]
+                        : [],
+                );
+
+            // indexRowValues: derived from display-only dims (hidden dims
+            // excluded). This is what gets pushed into indexValues / rendered.
+            const indexRowValues = indexDimensionsForDisplay
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
@@ -683,11 +717,13 @@ export const pivotQueryResults = ({
                           ],
                 );
 
-            // Write the index values
+            // Write the index values — use FULL key set for deduplication so
+            // that rows with the same display values but different hidden-dim
+            // values are not collapsed into one.
             if (
                 setIndexByKey(
                     rowIndices,
-                    indexRowValues.map((l) =>
+                    indexRowKeysValues.map((l) =>
                         l.type === 'value' ? String(l.value?.raw) : l.fieldId,
                     ),
                     rowCount,

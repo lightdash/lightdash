@@ -1763,6 +1763,89 @@ describe('parameter-aware cell formatting (PROD-437)', () => {
     });
 });
 
+describe('hiddenDimensionFieldIds in pivotQueryResults', () => {
+    it('omits a hidden pivot-column-header dimension from headerValueTypes', () => {
+        // page and site are both pivot dimensions; hide site
+        const result = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: ['page', 'site'],
+                metricsAsRows: true,
+                hiddenDimensionFieldIds: ['site'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        const headerFieldIds = result.headerValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(headerFieldIds).not.toContain('site');
+    });
+
+    it('omits a hidden row-index dimension from indexValueTypes', () => {
+        // No pivot dims so both page and site are row-index; hide page
+        const result = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: ['page'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        const indexFieldIds = result.indexValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(indexFieldIds).not.toContain('page');
+    });
+
+    it('preserves row grouping when a row-index dimension is hidden (rows still group correctly)', () => {
+        // With no hidden dims
+        const fullResult = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: [],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        // With page hidden — row count must stay the same (grouping uses full dims)
+        const hiddenResult = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: ['page'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        // Row count must be unchanged: rows are still grouped by both page + site
+        expect(hiddenResult.rowsCount).toBe(fullResult.rowsCount);
+        // But indexValueTypes should only contain site (page is hidden)
+        const indexFieldIds = hiddenResult.indexValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(indexFieldIds).not.toContain('page');
+        expect(indexFieldIds).toContain('site');
+    });
+});
+
 describe('convertSqlPivotedRowsToPivotData metric ordering (#19838 / #19919)', () => {
     it('orders metricsAsRows row labels by columnOrder, not valuesColumns first-occurrence', () => {
         // baseMetricsArray was previously derived via Array.from(new Set(...)),
