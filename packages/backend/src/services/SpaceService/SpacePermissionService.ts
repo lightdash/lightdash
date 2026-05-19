@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
     NotFoundError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
     resolveSpaceAccess,
     type AbilityAction,
     type OrganizationSpaceAccess,
@@ -15,11 +17,19 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
+export type SpaceAdmin = {
+    userUuid: string;
+    source: 'organization' | 'project';
+};
+
 export type SpaceAccessContextForCasl = {
     organizationUuid: string;
     projectUuid: string;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
+    // Admins reach the space via CASL even when `resolveSpaceAccess` omits
+    // them (private spaces with no direct entry). Surfaced for audit display.
+    admins: SpaceAdmin[];
 };
 
 export class SpacePermissionService extends BaseService {
@@ -238,11 +248,30 @@ export class SpacePermissionService extends BaseService {
                 organizationAccess: orgAccess,
             });
 
+            // Build the admin map project-first, then overwrite with org —
+            // org source wins on dedup.
+            const adminSource = new Map<string, SpaceAdmin['source']>();
+            for (const a of projectAccess) {
+                if (a.role === ProjectMemberRole.ADMIN) {
+                    adminSource.set(a.userUuid, 'project');
+                }
+            }
+            for (const a of orgAccess) {
+                if (a.role === OrganizationMemberRole.ADMIN) {
+                    adminSource.set(a.userUuid, 'organization');
+                }
+            }
+            const admins: SpaceAdmin[] = Array.from(
+                adminSource,
+                ([userUuid, source]) => ({ userUuid, source }),
+            );
+
             result[spaceUuid] = {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
+                admins,
             };
         }
         return result;

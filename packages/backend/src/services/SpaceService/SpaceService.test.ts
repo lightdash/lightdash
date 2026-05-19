@@ -954,6 +954,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             projectUuid: 'project-uuid',
             inheritsFromOrgOrProject: true,
             access: [],
+            admins: [],
         });
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
@@ -1230,5 +1231,158 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         expect(
             mockSpaceModel.updateWithCopiedPermissions,
         ).not.toHaveBeenCalled();
+    });
+
+    test('getSpace surfaces org/project admins missing from resolver output', async () => {
+        // Restricted space: resolver returns one direct user, no admins
+        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            projectUuid: 'project-uuid',
+            inheritsFromOrgOrProject: false,
+            access: [
+                {
+                    userUuid: 'direct-user',
+                    role: SpaceMemberRole.EDITOR,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                },
+            ],
+            // CASL-only admins that resolveSpaceAccess intentionally drops
+            admins: [
+                { userUuid: 'org-admin', source: 'organization' },
+                { userUuid: 'project-admin', source: 'project' },
+            ],
+        });
+        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
+            'direct-user': {
+                firstName: 'Direct',
+                lastName: 'User',
+                email: 'direct@example.com',
+            },
+            'org-admin': {
+                firstName: 'Org',
+                lastName: 'Admin',
+                email: 'orgadmin@example.com',
+            },
+            'project-admin': {
+                firstName: 'Project',
+                lastName: 'Admin',
+                email: 'projectadmin@example.com',
+            },
+        });
+
+        const result = await service.getSpace(
+            'project-uuid',
+            mockUser as unknown as SessionUser,
+            'space-uuid',
+        );
+
+        expect(result.access).toHaveLength(3);
+        expect(result.access).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    userUuid: 'direct-user',
+                    hasDirectAccess: true,
+                }),
+                expect.objectContaining({
+                    userUuid: 'org-admin',
+                    role: SpaceMemberRole.ADMIN,
+                    hasDirectAccess: false,
+                    inheritedFrom: 'organization',
+                    firstName: 'Org',
+                    email: 'orgadmin@example.com',
+                }),
+                expect.objectContaining({
+                    userUuid: 'project-admin',
+                    role: SpaceMemberRole.ADMIN,
+                    hasDirectAccess: false,
+                    inheritedFrom: 'project',
+                    firstName: 'Project',
+                }),
+            ]),
+        );
+    });
+
+    test('getSpace keeps direct role when admin user also has a direct entry', async () => {
+        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            projectUuid: 'project-uuid',
+            inheritsFromOrgOrProject: false,
+            access: [
+                {
+                    userUuid: 'org-admin',
+                    role: SpaceMemberRole.EDITOR,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                },
+            ],
+            admins: [{ userUuid: 'org-admin', source: 'organization' }],
+        });
+        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
+            'org-admin': {
+                firstName: 'Org',
+                lastName: 'Admin',
+                email: 'orgadmin@example.com',
+            },
+        });
+
+        const result = await service.getSpace(
+            'project-uuid',
+            mockUser as unknown as SessionUser,
+            'space-uuid',
+        );
+
+        expect(result.access).toHaveLength(1);
+        expect(result.access[0]).toEqual(
+            expect.objectContaining({
+                userUuid: 'org-admin',
+                role: SpaceMemberRole.EDITOR,
+                hasDirectAccess: true,
+            }),
+        );
+    });
+
+    test('getSpace does not duplicate admins already present in resolver output', async () => {
+        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            projectUuid: 'project-uuid',
+            inheritsFromOrgOrProject: true,
+            access: [
+                {
+                    userUuid: 'org-admin',
+                    role: SpaceMemberRole.ADMIN,
+                    hasDirectAccess: false,
+                    projectRole: ProjectMemberRole.ADMIN,
+                    inheritedRole: OrganizationMemberRole.ADMIN,
+                    inheritedFrom: 'organization',
+                },
+            ],
+            admins: [{ userUuid: 'org-admin', source: 'organization' }],
+        });
+        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
+            'org-admin': {
+                firstName: 'Org',
+                lastName: 'Admin',
+                email: 'orgadmin@example.com',
+            },
+        });
+
+        const result = await service.getSpace(
+            'project-uuid',
+            mockUser as unknown as SessionUser,
+            'space-uuid',
+        );
+
+        expect(result.access).toHaveLength(1);
+        expect(result.access[0]).toEqual(
+            expect.objectContaining({
+                userUuid: 'org-admin',
+                role: SpaceMemberRole.ADMIN,
+            }),
+        );
     });
 });
