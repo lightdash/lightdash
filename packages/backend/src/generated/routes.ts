@@ -9651,6 +9651,11 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        metrics: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
                         dimensions: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -10600,11 +10605,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -10662,11 +10667,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -37629,6 +37634,11 @@ export function RegisterRoutes(app: Router) {
             in: 'query',
             name: 'afterMessageUuid',
             dataType: 'string',
+        },
+        enableSqlMode: {
+            in: 'query',
+            name: 'enableSqlMode',
+            dataType: 'boolean',
         },
     };
     app.get(

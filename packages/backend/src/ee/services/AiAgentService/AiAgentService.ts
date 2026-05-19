@@ -69,6 +69,7 @@ import {
     UpdateWebAppResponse,
     validateAgentSuggestion,
     WarehouseQueryError,
+    type AgentSuggestionTool,
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
@@ -335,14 +336,23 @@ function validateGeneratedSuggestion(
     chip: AgentSuggestion,
     catalog: SuggestionValidationCatalog,
     availableExplores: Explore[],
+    enabledTools: AgentSuggestionTool[],
 ) {
     const result = validateAgentSuggestion(chip, catalog);
     if (!result.valid || chip.kind === 'navigate') {
         return result;
     }
 
-    const { explore: exploreName, dimensions } = chip.defaults;
-    if (!exploreName || dimensions.length === 0) {
+    if (!enabledTools.includes(chip.tool)) {
+        return {
+            valid: false as const,
+            reason: `disabled tool "${chip.tool}"`,
+        };
+    }
+
+    const { explore: exploreName, dimensions, metrics } = chip.defaults;
+    const selectedFields = [...dimensions, ...metrics];
+    if (!exploreName || selectedFields.length === 0) {
         return result;
     }
 
@@ -352,7 +362,7 @@ function validateGeneratedSuggestion(
     }
 
     try {
-        validateSelectedFieldsExistence(explore, dimensions);
+        validateSelectedFieldsExistence(explore, selectedFields);
         return result;
     } catch (error) {
         return {
@@ -721,11 +731,13 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             afterMessageUuid,
+            enableSqlMode = false,
         }: {
             projectUuid: string;
             agentUuid: string;
             threadUuid?: string;
             afterMessageUuid?: string;
+            enableSqlMode?: boolean;
         },
     ): Promise<{ chips: AgentSuggestion[] }> {
         const { organizationUuid } = user;
@@ -742,6 +754,35 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canRunSql =
+            enableSqlMode &&
+            auditedAbility.can(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
+        const canManageAgent = auditedAbility.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid,
+                projectUuid,
+                metadata: {
+                    agentUuid,
+                    agentName: agent.name,
+                },
+            }),
+        );
+        const enabledTools = AGENT_SUGGESTION_TOOLS.filter((tool) => {
+            if (tool === 'runSql') return canRunSql;
+            if (tool === 'proposeChange') {
+                return agent.enableSelfImprovement && canManageAgent;
+            }
+            return true;
+        });
 
         const availableExplores = await this.getAvailableExplores(
             user,
@@ -818,7 +859,7 @@ export class AiAgentService extends BaseService {
                 {
                     agentName: agent.name,
                     agentInstruction: agent.instruction,
-                    enabledTools: AGENT_SUGGESTION_TOOLS,
+                    enabledTools,
                     explores,
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
@@ -865,6 +906,7 @@ export class AiAgentService extends BaseService {
                     chip,
                     validationCatalog,
                     availableExplores,
+                    enabledTools,
                 );
                 if (!result.valid) {
                     dropped.push(`${chip.label} (${result.reason})`);

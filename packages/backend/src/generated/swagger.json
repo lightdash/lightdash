@@ -11238,6 +11238,12 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "metrics": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "dimensions": {
                                 "items": {
                                     "type": "string"
@@ -11249,7 +11255,12 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["timeframe", "dimensions", "explore"],
+                        "required": [
+                            "timeframe",
+                            "metrics",
+                            "dimensions",
+                            "explore"
+                        ],
                         "type": "object"
                     },
                     "tool": {
@@ -12179,8 +12190,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -12238,8 +12249,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {

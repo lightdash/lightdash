@@ -29,6 +29,11 @@ const promptChipModelSchema = z.object({
                 .describe(
                     'Field IDs the chip implies. Empty array when the chip does not pin dimensions.',
                 ),
+            metrics: z
+                .array(z.string())
+                .describe(
+                    'Metric field IDs the chip implies. Empty array when the chip does not pin metrics.',
+                ),
             timeframe: z
                 .string()
                 .nullable()

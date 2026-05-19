@@ -339,12 +339,19 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Query() threadUuid?: string,
         @Query() afterMessageUuid?: string,
+        @Query() enableSqlMode?: boolean,
     ): Promise<ApiAgentSuggestionsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.getAiAgentService().getAgentSuggestions(
             toSessionUser(req.account),
-            { projectUuid, agentUuid, threadUuid, afterMessageUuid },
+            {
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                afterMessageUuid,
+                enableSqlMode,
+            },
         );
         return {
             status: 'ok',
