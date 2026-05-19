@@ -4,6 +4,7 @@ import {
     NotFoundError,
     OrganizationWarehouseCredentials,
     sensitiveCredentialsFieldNames,
+    stripDucklakeNestedSensitive,
     UnexpectedServerError,
     UpdateOrganizationWarehouseCredentials,
     WarehouseCredentials,
@@ -45,6 +46,13 @@ export class OrganizationWarehouseCredentialsModel {
         sensitiveCredentialsFieldNames.forEach((field) => {
             delete strippedCredentials[field];
         });
+        if (credentials.type === WarehouseTypes.DUCKLAKE) {
+            return stripDucklakeNestedSensitive(
+                strippedCredentials as CreateWarehouseCredentials & {
+                    type: WarehouseTypes.DUCKLAKE;
+                },
+            ) as WarehouseCredentials;
+        }
         return strippedCredentials as WarehouseCredentials;
     }
 
