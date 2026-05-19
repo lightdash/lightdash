@@ -1,3 +1,10 @@
+## [0.2976.4](https://github.com/lightdash/lightdash/compare/0.2976.3...0.2976.4) (2026-05-19)
+
+
+### Bug Fixes
+
+* **spaces:** show service accounts in share modal ([#23243](https://github.com/lightdash/lightdash/issues/23243)) ([e09f525](https://github.com/lightdash/lightdash/commit/e09f52568f10ecbff3b310b5b873c88a22b32f77))
+
 ## [0.2976.3](https://github.com/lightdash/lightdash/compare/0.2976.2...0.2976.3) (2026-05-19)
 
 
