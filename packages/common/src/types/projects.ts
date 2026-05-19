@@ -28,6 +28,7 @@ export enum WarehouseTypes {
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
     DUCKDB = 'duckdb',
+    DUCKLAKE = 'ducklake',
 }
 
 export type SshTunnelConfiguration = {
@@ -232,6 +233,180 @@ export type DuckdbCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export enum DucklakeCatalogType {
+    POSTGRES = 'postgres',
+    SQLITE = 'sqlite',
+    DUCKDB = 'duckdb',
+}
+
+export enum DucklakeDataPathType {
+    S3 = 's3',
+    GCS = 'gcs',
+    AZURE = 'azure',
+    LOCAL = 'local',
+}
+
+export type CreateDucklakeCatalogPostgres = {
+    type: DucklakeCatalogType.POSTGRES;
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+};
+export type DucklakeCatalogPostgres = Omit<
+    CreateDucklakeCatalogPostgres,
+    'user' | 'password'
+>;
+
+export type CreateDucklakeCatalogSqlite = {
+    type: DucklakeCatalogType.SQLITE;
+    path: string;
+};
+export type DucklakeCatalogSqlite = CreateDucklakeCatalogSqlite;
+
+export type CreateDucklakeCatalogDuckdb = {
+    type: DucklakeCatalogType.DUCKDB;
+    path: string;
+};
+export type DucklakeCatalogDuckdb = CreateDucklakeCatalogDuckdb;
+
+export type CreateDucklakeCatalog =
+    | CreateDucklakeCatalogPostgres
+    | CreateDucklakeCatalogSqlite
+    | CreateDucklakeCatalogDuckdb;
+
+export type DucklakeCatalog =
+    | DucklakeCatalogPostgres
+    | DucklakeCatalogSqlite
+    | DucklakeCatalogDuckdb;
+
+export type CreateDucklakeDataPathS3 = {
+    type: DucklakeDataPathType.S3;
+    url: string;
+    endpoint?: string;
+    region?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    forcePathStyle?: boolean;
+    useSsl?: boolean;
+};
+export type DucklakeDataPathS3 = Omit<
+    CreateDucklakeDataPathS3,
+    'accessKeyId' | 'secretAccessKey'
+>;
+
+export type CreateDucklakeDataPathGcs = {
+    type: DucklakeDataPathType.GCS;
+    url: string;
+    hmacKeyId?: string;
+    hmacSecret?: string;
+};
+export type DucklakeDataPathGcs = Omit<
+    CreateDucklakeDataPathGcs,
+    'hmacKeyId' | 'hmacSecret'
+>;
+
+export type CreateDucklakeDataPathAzure = {
+    type: DucklakeDataPathType.AZURE;
+    url: string;
+    connectionString?: string;
+    accountName?: string;
+    accountKey?: string;
+};
+export type DucklakeDataPathAzure = Omit<
+    CreateDucklakeDataPathAzure,
+    'connectionString' | 'accountKey'
+>;
+
+export type CreateDucklakeDataPathLocal = {
+    type: DucklakeDataPathType.LOCAL;
+    path: string;
+};
+export type DucklakeDataPathLocal = CreateDucklakeDataPathLocal;
+
+export type CreateDucklakeDataPath =
+    | CreateDucklakeDataPathS3
+    | CreateDucklakeDataPathGcs
+    | CreateDucklakeDataPathAzure
+    | CreateDucklakeDataPathLocal;
+
+export type DucklakeDataPath =
+    | DucklakeDataPathS3
+    | DucklakeDataPathGcs
+    | DucklakeDataPathAzure
+    | DucklakeDataPathLocal;
+
+export type CreateDucklakeCredentials = {
+    type: WarehouseTypes.DUCKLAKE;
+    catalog: CreateDucklakeCatalog;
+    dataPath: CreateDucklakeDataPath;
+    schema: string;
+    catalogAlias?: string;
+    threads?: number;
+    requireUserCredentials?: boolean;
+    startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
+};
+
+export type DucklakeCredentials = Omit<
+    CreateDucklakeCredentials,
+    'catalog' | 'dataPath'
+> & {
+    catalog: DucklakeCatalog;
+    dataPath: DucklakeDataPath;
+};
+
+/**
+ * Top-level sensitive-field stripping does not reach into the nested
+ * catalog/dataPath objects, so call this after the generic strip to
+ * scrub nested credentials from a CreateDucklakeCredentials.
+ */
+export const stripDucklakeNestedSensitive = (
+    credentials: CreateDucklakeCredentials,
+): DucklakeCredentials => {
+    const stripCatalog = (catalog: CreateDucklakeCatalog): DucklakeCatalog => {
+        switch (catalog.type) {
+            case DucklakeCatalogType.POSTGRES: {
+                const { user, password, ...rest } = catalog;
+                return rest;
+            }
+            case DucklakeCatalogType.SQLITE:
+            case DucklakeCatalogType.DUCKDB:
+                return catalog;
+            default:
+                return catalog;
+        }
+    };
+    const stripDataPath = (
+        dataPath: CreateDucklakeDataPath,
+    ): DucklakeDataPath => {
+        switch (dataPath.type) {
+            case DucklakeDataPathType.S3: {
+                const { accessKeyId, secretAccessKey, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.GCS: {
+                const { hmacKeyId, hmacSecret, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.AZURE: {
+                const { connectionString, accountKey, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.LOCAL:
+                return dataPath;
+            default:
+                return dataPath;
+        }
+    };
+    return {
+        ...credentials,
+        catalog: stripCatalog(credentials.catalog),
+        dataPath: stripDataPath(credentials.dataPath),
+    };
+};
+
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -303,7 +478,8 @@ export type CreateWarehouseCredentials =
     | CreateTrinoCredentials
     | CreateClickhouseCredentials
     | CreateAthenaCredentials
-    | CreateDuckdbCredentials;
+    | CreateDuckdbCredentials
+    | CreateDucklakeCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -313,7 +489,8 @@ export type WarehouseCredentials =
     | TrinoCredentials
     | ClickhouseCredentials
     | AthenaCredentials
-    | DuckdbCredentials;
+    | DuckdbCredentials
+    | DucklakeCredentials;
 
 // Returns the timezone the column data is in when the query runs.
 // Snowflake's dbt translator wraps timestamps with CONVERT_TIMEZONE('UTC', col),
