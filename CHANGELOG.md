@@ -1,3 +1,15 @@
+# [0.2975.0](https://github.com/lightdash/lightdash/compare/0.2974.1...0.2975.0) (2026-05-19)
+
+
+### Bug Fixes
+
+* include orphan tiles in tab-filtered dashboard renders (PROD-2505) ([#23262](https://github.com/lightdash/lightdash/issues/23262)) ([98e54a4](https://github.com/lightdash/lightdash/commit/98e54a4585b054720a9483ff0b133dc3feb57a45))
+
+
+### Features
+
+* allow API key authentication for color palette endpoints ([#23258](https://github.com/lightdash/lightdash/issues/23258)) ([3a38134](https://github.com/lightdash/lightdash/commit/3a38134b9753c9a4de350e0e9804715a97681a97))
+
 ## [0.2974.1](https://github.com/lightdash/lightdash/compare/0.2974.0...0.2974.1) (2026-05-19)
 
 
