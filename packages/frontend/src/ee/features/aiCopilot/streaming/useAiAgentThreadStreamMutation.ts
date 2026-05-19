@@ -1,4 +1,5 @@
 import {
+    type AgentSuggestion,
     isAiAgentToolName,
     toolImproveContextArgsSchema,
     toolRunQueryOutputSchema,
@@ -22,6 +23,7 @@ import {
     setImproveContextNotification,
     setMessage,
     setParts,
+    setSuggestions,
     startStreaming,
     stopStreaming,
     type StreamPart,
@@ -48,6 +50,14 @@ type McpUnavailableNoticeChunk = UIMessageChunk & {
         serverName: string;
         message: string;
         status: 'not_connected' | 'connecting' | 'connected' | 'error';
+    };
+    transient?: boolean;
+};
+
+type AgentSuggestionsChunk = UIMessageChunk & {
+    type: 'data-agent-suggestions';
+    data: {
+        chips: AgentSuggestion[];
     };
     transient?: boolean;
 };
@@ -124,6 +134,23 @@ export const getMcpUnavailableNoticeFromChunk = (
     return null;
 };
 
+const getAgentSuggestionsFromChunk = (
+    chunk: UIMessageChunk,
+): AgentSuggestionsChunk['data'] | null => {
+    if (
+        chunk.type === 'data-agent-suggestions' &&
+        'data' in chunk &&
+        chunk.data &&
+        typeof chunk.data === 'object' &&
+        'chips' in chunk.data &&
+        Array.isArray(chunk.data.chips)
+    ) {
+        return chunk.data as AgentSuggestionsChunk['data'];
+    }
+
+    return null;
+};
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -182,6 +209,16 @@ export function useAiAgentThreadStreamMutation() {
                                 addMcpUnavailableNotice({
                                     threadUuid,
                                     notice,
+                                }),
+                            );
+                        }
+
+                        const suggestions = getAgentSuggestionsFromChunk(value);
+                        if (suggestions) {
+                            dispatch(
+                                setSuggestions({
+                                    threadUuid,
+                                    suggestions: suggestions.chips,
                                 }),
                             );
                         }

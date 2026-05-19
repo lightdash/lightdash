@@ -1,4 +1,5 @@
 import {
+    type AgentSuggestion,
     type AiAgentToolName,
     type AiMcpServerConnectionStatus,
 } from '@lightdash/common';
@@ -53,6 +54,7 @@ export interface AiAgentThreadStreamingState {
     isStreaming: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
+    suggestions: AgentSuggestion[];
     decidedToolCallIds: string[];
     mcpUnavailableNotices: McpUnavailableNotice[];
     error?: string;
@@ -74,6 +76,7 @@ const initialThread: Omit<
     isStreaming: true,
     toolCalls: [],
     reasoning: [],
+    suggestions: [],
     decidedToolCallIds: [],
     mcpUnavailableNotices: [],
 };
@@ -139,6 +142,19 @@ export const aiAgentThreadStreamSlice = createSlice({
                 !streamingThread.decidedToolCallIds.includes(toolCallId)
             ) {
                 streamingThread.decidedToolCallIds.push(toolCallId);
+            }
+        },
+        setSuggestions: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                suggestions: AgentSuggestion[];
+            }>,
+        ) => {
+            const { threadUuid, suggestions } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.suggestions = suggestions;
             }
         },
         stopStreaming: (
@@ -284,6 +300,7 @@ export const {
     setMessage,
     setParts,
     markToolCallDecided,
+    setSuggestions,
     stopStreaming,
     setError,
     addToolCall,
