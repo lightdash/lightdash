@@ -41,6 +41,11 @@ interface Props extends Pick<
 > {
     tile: DashboardSqlChartTile;
     minimal?: boolean;
+    /**
+     * Render via the embed-only API surface (JWT-authorized via dashboard
+     * tile membership) instead of the registered chart endpoints.
+     */
+    isEmbed?: boolean;
 }
 
 /**
@@ -69,7 +74,7 @@ const DashboardOptions = memo(
     ),
 );
 
-const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
     const { user } = useApp();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -119,11 +124,12 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid,
         savedSqlUuid,
         context,
-        dashboardUuid,
+        dashboardUuid: dashboardUuid ?? '',
         tileUuid: tile.uuid,
         dashboardFilters,
         dashboardSorts: [],
         parameters,
+        isEmbed,
     });
 
     // Charts in Dashboard shouldn't have animation
