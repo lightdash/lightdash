@@ -1,3 +1,10 @@
+# [0.2977.0](https://github.com/lightdash/lightdash/compare/0.2976.4...0.2977.0) (2026-05-19)
+
+
+### Features
+
+* **mcp:** return structuredContent from run_sql ([#23275](https://github.com/lightdash/lightdash/issues/23275)) ([00fdc3b](https://github.com/lightdash/lightdash/commit/00fdc3b20c2e27270dc3f3ee92f8ab4707af5200))
+
 ## [0.2976.4](https://github.com/lightdash/lightdash/compare/0.2976.3...0.2976.4) (2026-05-19)
 
 
