@@ -1,3 +1,10 @@
+# [0.2978.0](https://github.com/lightdash/lightdash/compare/0.2977.0...0.2978.0) (2026-05-19)
+
+
+### Features
+
+* update app resource picker and prompt editor ([#23268](https://github.com/lightdash/lightdash/issues/23268)) ([6429106](https://github.com/lightdash/lightdash/commit/64291066bf48c597c299f75c6d749dfbd7f3e279))
+
 # [0.2977.0](https://github.com/lightdash/lightdash/compare/0.2976.4...0.2977.0) (2026-05-19)
 
 
