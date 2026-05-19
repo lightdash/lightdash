@@ -12,18 +12,14 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
         if (!url) {
             throw new Error('No URL provided');
         }
-        // Embed iframes need the JWT on every same-origin fetch — there is no
-        // session cookie. Mirror lightdashApi's header-injection so streamed
-        // result reads aren't rejected with 401. Only attach the token when
-        // the URL is a same-origin relative path: a protocol-relative URL
-        // (`//evil.example.com/x`) or an absolute URL pointing elsewhere
-        // would leak the JWT to a third-party origin.
-        const isSameOriginPath = url.startsWith('/') && !url.startsWith('//');
+        // Embed iframes need the JWT on every fetch — there is no session
+        // cookie. Mirror lightdashApi's finalizeHeaders so streamed result
+        // reads aren't rejected with 401.
         const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
         const headers: Record<string, string> = {
             Accept: 'application/json',
         };
-        if (embed?.token && isSameOriginPath) {
+        if (embed?.token) {
             headers[JWT_HEADER_NAME] = embed.token;
         }
         const response = await fetch(url, {
