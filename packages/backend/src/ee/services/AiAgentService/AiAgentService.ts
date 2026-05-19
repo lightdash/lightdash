@@ -3161,7 +3161,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                 messages.push(...toolCallmessages);
 
-                if (message.response) {
+                if (message.response && !message.error_message) {
                     messages.push({
                         role: 'assistant',
                         content: message.response,
