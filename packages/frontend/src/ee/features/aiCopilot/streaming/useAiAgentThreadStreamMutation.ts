@@ -184,6 +184,7 @@ export function useAiAgentThreadStreamMutation() {
                                     notice,
                                 }),
                             );
+                            continue;
                         }
                     }
                 })();

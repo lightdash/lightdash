@@ -1,5 +1,13 @@
 import { type AiAgentThread } from '@lightdash/common';
-import { Box, Divider, Flex, getDefaultZIndex, Stack } from '@mantine-8/core';
+import {
+    Box,
+    Divider,
+    Flex,
+    getDefaultZIndex,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { IconCrop } from '@tabler/icons-react';
 import {
     Fragment,
     useRef,
@@ -30,6 +38,34 @@ type Props = {
     showAddToEvalsButton?: boolean;
 };
 
+const CompactionDivider = () => (
+    <Box pos="relative" py="sm">
+        <Divider my={0} />
+        <Flex
+            align="center"
+            gap={6}
+            px="sm"
+            pos="absolute"
+            top="50%"
+            left="50%"
+            style={{
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'var(--mantine-color-body)',
+                whiteSpace: 'nowrap',
+            }}
+        >
+            <IconCrop
+                size={14}
+                stroke={1.8}
+                color="var(--mantine-color-gray-5)"
+            />
+            <Text size="xs" c="dimmed" fw={500}>
+                Conversation compacted
+            </Text>
+        </Flex>
+    </Box>
+);
+
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,
     height = '100%',
@@ -45,6 +81,12 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     const [addToEvalsPromptUuid, setAddToEvalsPromptUuid] = useState<
         string | null
     >(null);
+    const compactionsByTriggeringPromptUuid = new Map(
+        thread.compactions.map((compaction) => [
+            compaction.triggeringPromptUuid,
+            compaction,
+        ]),
+    );
 
     return (
         <Flex
@@ -67,6 +109,11 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     <Stack flex={1} style={{ flexGrow: 1 }}>
                         {thread.messages.map((message, i, xs) => (
                             <Fragment key={`${message.role}-${message.uuid}`}>
+                                {message.role === 'user' &&
+                                    compactionsByTriggeringPromptUuid.has(
+                                        message.uuid,
+                                    ) && <CompactionDivider />}
+
                                 {ChatElementsUtils.shouldRenderDivider(
                                     message,
                                     i,
