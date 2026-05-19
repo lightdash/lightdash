@@ -219,6 +219,9 @@ describe('pivotResultsAsCsv', () => {
             const allValues = result.flat();
             // The hidden dim's field id must not appear anywhere in the output
             expect(allValues).not.toContain('site');
+            // The hidden dim's formatted values must not appear in the output
+            expect(allValues).not.toContain('Blog');
+            expect(allValues).not.toContain('Docs');
             // The visible dim should still appear
             expect(allValues).toContain('/home');
         });
@@ -254,8 +257,8 @@ describe('pivotResultsAsCsv', () => {
             // 'site' field values ('Blog', 'Docs') must not appear in the output
             expect(allValues).not.toContain('Blog');
             expect(allValues).not.toContain('Docs');
-            // Metric values should still be present
-            expect(allValues.some((v) => v !== '')).toBe(true);
+            // Metric values like '6.0' (from views) and '7.0' (from devices) should be present
+            expect(allValues).toContain('6.0');
         });
 
         it('shows all dimensions when hiddenDimensionFieldIds is empty', () => {
