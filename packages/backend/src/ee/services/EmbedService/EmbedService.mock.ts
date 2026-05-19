@@ -14,6 +14,7 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -114,6 +115,7 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     userAttributesModel: {} as UserAttributesModel,
     projectService: {} as ProjectService,
     asyncQueryService: {} as AsyncQueryService,
+    permissionsService: {} as PermissionsService,
     featureFlagModel: featureFlagModelMock,
     organizationModel: organizationModelMock,
 };

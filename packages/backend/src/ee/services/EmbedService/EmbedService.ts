@@ -84,6 +84,7 @@ import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
     getAvailableParameterDefinitions,
     getDashboardParametersValuesMap,
@@ -108,6 +109,7 @@ type Dependencies = {
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     asyncQueryService: AsyncQueryService;
+    permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
 };
@@ -139,9 +141,12 @@ export class EmbedService extends BaseService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly permissionsService: PermissionsService;
+
     constructor(dependencies: Dependencies) {
         super();
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.permissionsService = dependencies.permissionsService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
         this.dashboardModel = dependencies.dashboardModel;
@@ -1191,32 +1196,6 @@ export class EmbedService extends BaseService {
         return savedSqlUuid;
     }
 
-    private async _permissionsGetSqlChartAndResults(
-        embed: Pick<Embed, 'dashboardUuids' | 'allowAllDashboards'>,
-        projectUuid: string,
-        savedSqlUuid: string,
-        dashboardUuid: string,
-    ) {
-        const { allowAllDashboards, dashboardUuids } = embed;
-        if (!allowAllDashboards && !dashboardUuids.includes(dashboardUuid)) {
-            throw new ForbiddenError(
-                `Dashboard ${dashboardUuid} is not embedded`,
-            );
-        }
-
-        const sqlChartExists =
-            await this.dashboardModel.savedSqlChartExistsInDashboard(
-                projectUuid,
-                dashboardUuid,
-                savedSqlUuid,
-            );
-        if (!sqlChartExists) {
-            throw new ForbiddenError(
-                `This SQL chart does not belong to dashboard ${dashboardUuid}`,
-            );
-        }
-    }
-
     async getDashboardSqlChartTile({
         account,
         projectUuid,
@@ -1226,8 +1205,7 @@ export class EmbedService extends BaseService {
         projectUuid: string;
         tileUuid: string;
     }): Promise<ApiSqlChart['results']> {
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+        const { user } = await this.embedModel.get(projectUuid);
 
         const { dashboardUuid } = account.access.content;
 
@@ -1250,11 +1228,9 @@ export class EmbedService extends BaseService {
             organizationUuid: dashboard.organizationUuid,
         });
 
-        await this._permissionsGetSqlChartAndResults(
-            { allowAllDashboards, dashboardUuids },
-            projectUuid,
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
             savedSqlUuid,
-            dashboardUuid,
         );
 
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
@@ -1297,8 +1273,7 @@ export class EmbedService extends BaseService {
         parameters?: ParametersValuesMap;
         limit?: number;
     }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+        const { user } = await this.embedModel.get(projectUuid);
 
         const { dashboardUuid } = account.access.content;
 
@@ -1322,11 +1297,9 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
 
-        await this._permissionsGetSqlChartAndResults(
-            { allowAllDashboards, dashboardUuids },
-            projectUuid,
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
             savedSqlUuid,
-            dashboardUuid,
         );
 
         this.analytics.trackAccount<EmbedQueryViewed>(account, {

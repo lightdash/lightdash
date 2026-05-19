@@ -5363,13 +5363,26 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             tileUuid,
-            dashboardUuid,
+            dashboardUuid: requestDashboardUuid,
             context,
             invalidateCache,
             dashboardFilters,
             dashboardSorts,
             limit,
         } = args;
+
+        // For JWT users, the dashboard scope is bound to the token, not the
+        // request body. Trusting `args.dashboardUuid` would let a JWT user
+        // merge another dashboard's parameter values into their query.
+        const dashboardUuid = isJwtUser(account)
+            ? account.access.content.dashboardUuid
+            : requestDashboardUuid;
+
+        if (!dashboardUuid) {
+            throw new ForbiddenError(
+                'JWT does not grant access to a dashboard',
+            );
+        }
 
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedSqlChartPermissions(

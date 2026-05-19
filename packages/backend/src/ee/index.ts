@@ -104,6 +104,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     projectService: repository.getProjectService(),
                     asyncQueryService: repository.getAsyncQueryService(),
+                    permissionsService: repository.getPermissionsService(),
                     dashboardModel: models.getDashboardModel(),
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
