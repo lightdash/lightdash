@@ -139,6 +139,30 @@ describe('getPivotConfig', () => {
             expect(result?.hiddenDimensionFieldIds).toBeUndefined();
         });
 
+        it('omits both hiddenDimensionFieldIds and hiddenMetricFieldIds when metricQuery is provided but no fields are hidden', () => {
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            orders_status: { visible: true },
+                            payments_total_revenue: { visible: true },
+                        },
+                    },
+                },
+                pivotConfig: { columns: ['payments_payment_method'] },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: ['payments_payment_method', 'orders_status'],
+                },
+            });
+
+            expect(result).toBeDefined();
+            // No hidden fields at all → both arrays must be absent (not empty arrays)
+            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
+            expect(result?.hiddenMetricFieldIds).toBeUndefined();
+        });
+
         it('falls back to hiddenMetricFieldIds for all hidden fields when metricQuery is absent', () => {
             // Backward-compat: callers that cannot provide metricQuery (e.g. ChartDownloadMenu)
             // get the legacy flat list in hiddenMetricFieldIds.

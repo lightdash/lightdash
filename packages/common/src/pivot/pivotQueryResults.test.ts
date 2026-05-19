@@ -1782,7 +1782,8 @@ describe('hiddenDimensionFieldIds in pivotQueryResults', () => {
         const headerFieldIds = result.headerValueTypes.map((t) =>
             'fieldId' in t ? t.fieldId : null,
         );
-        expect(headerFieldIds).not.toContain('site');
+        expect(headerFieldIds).toContain('page'); // 'page' is still present
+        expect(headerFieldIds).not.toContain('site'); // 'site' is hidden
     });
 
     it('omits a hidden row-index dimension from indexValueTypes', () => {
