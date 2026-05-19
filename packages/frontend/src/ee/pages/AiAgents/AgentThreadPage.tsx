@@ -6,6 +6,7 @@ import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import {
     useProjectAiAgent as useAiAgent,
@@ -71,6 +72,45 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
+    const firstAssistantMessage = thread?.messages?.find(
+        (m) => m.role === 'assistant',
+    );
+    const threadModelConfig = firstAssistantMessage?.modelConfig ?? null;
+
+    const { data: availableModels } = useModelOptions({
+        projectUuid,
+        agentUuid,
+        options: { enabled: !!threadModelConfig },
+    });
+
+    const isThreadModelUnavailable =
+        !!threadModelConfig &&
+        !!availableModels &&
+        !availableModels.some(
+            (m) =>
+                m.provider === threadModelConfig.modelProvider &&
+                m.name === threadModelConfig.modelName,
+        );
+
+    const disabledReasons: { when: boolean; message: string }[] = [
+        {
+            when: thread?.createdFrom === 'slack',
+            message:
+                'This thread is read-only. To continue the conversation, reply in Slack.',
+        },
+        {
+            when: !!thread && !isThreadFromCurrentUser,
+            message: 'This thread is read-only. It belongs to another user.',
+        },
+        {
+            when: isThreadModelUnavailable,
+            message: `The model used in this thread (${threadModelConfig?.modelProvider} ${threadModelConfig?.modelName}) is no longer available. Start a new thread to continue.`,
+        },
+    ];
+    const activeDisabledReason = disabledReasons.find((r) => r.when);
+    const inputDisabled = !!activeDisabledReason;
+    const inputDisabledReason = activeDisabledReason?.message;
+
     const handleSubmit = ({
         message,
         toolHints,
@@ -78,15 +118,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         message: string;
         toolHints: string[];
     }) => {
-        // Use modelConfig from first assistant message for follow-up messages
-        const firstAssistantMessage = thread?.messages?.find(
-            (m) => m.role === 'assistant',
-        );
-        const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
-
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig,
+            modelConfig: threadModelConfig ?? undefined,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });
@@ -112,10 +146,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             showAddToEvalsButton={canManage}
         >
             <AgentChatInput
-                disabled={
-                    thread.createdFrom === 'slack' || !isThreadFromCurrentUser
-                }
-                disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                disabled={inputDisabled}
+                disabledReason={inputDisabledReason}
                 loading={isCreatingMessage || isStreaming || isPending}
                 onSubmit={handleSubmit}
                 placeholder={`Ask ${agent.name} anything about your data...`}
