@@ -58,8 +58,8 @@ metricQuery.timezone  →  user.timezone  →  project.queryTimezone  →  confi
 ```
 
 - A viewer with `timezone = 'Asia/Tokyo'` sees charts in Tokyo whenever the chart hasn't pinned its own timezone.
-- An author can still "pin" a chart to a specific zone via the Explorer timezone picker — that wins for every viewer (matches Looker's `timezone: <fixed_zone>` behavior).
-- Charts without a pinned zone fall through per-viewer (Looker's `timezone: user_timezone` model).
+- An author can still "pin" a chart to a specific zone via the Explorer timezone picker — that wins for every viewer.
+- Charts without a pinned zone fall through per-viewer.
 
 Resolution happens server-side in [`resolveQueryTimezone`](../packages/common/src/utils/resolveQueryTimezone.ts). Anonymous viewers (embeds / JWT) and service accounts have no profile timezone — the helper `getAccountUserTimezone(account)` returns `null` for them, so they fall through to the project default.
 

@@ -1,6 +1,6 @@
 # Timezones v2 — Design Principles
 
-Distilled from the [research review](./timezone-review.md), [Q&A](./timezone-questions.md), and the surveyed peers (Looker, Omni, Sigma, Cube, Metabase, Mode, Hex). Each principle is one sentence + a status line.
+Distilled from the [research review](./timezone-review.md) and [Q&A](./timezone-questions.md). Each principle is one sentence + a status line.
 
 **Legend.** ✅ already true · ⚠️ partial — gap noted · ❌ change needed.
 
@@ -120,7 +120,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 ## Power users / extensibility
 
 23. **Expose the resolved TZ as a template variable in user SQL (**`${ldQueryTimezone}` **or similar).**
-    ❌ `gap-ld-query-tz-var` *[feature]* — Missing — closes the Hex `hex_timezone` parity gap and lets user SQL match the resolved TZ.
+    ❌ `gap-ld-query-tz-var` *[feature]* — Missing — lets user SQL match the resolved TZ.
 
 24. **Per-column wall-clock TZ annotation lets a modeler declare "this column is in PT, not UTC."**
     ❌ `gap-wall-clock-tz-col` *[feature]* — Missing — today `dataTimezone` is warehouse-wide. Add `meta.dimension.wall_clock_timezone` or equivalent.
@@ -159,8 +159,8 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 ## Out of scope (call out, don't fix here)
 
 - **Fiscal calendars / custom granularities** (4-4-5 retail, fiscal quarter) — adjacent to TZ, not a TZ concern. Track separately.
-- **Looker-style "viewer TZ" as a third mode** distinct from chart-pin and project-fallback — defer until customer feedback justifies the third axis.
-- **Pre-aggregate TZ matching à la Cube's** `scheduled_refresh_time_zones` — revisit if pre-agg adoption grows enough to make the materialization-forces-project-TZ behavior surprising.
+- **A separate "viewer TZ" mode** distinct from chart-pin and project-fallback — defer until customer feedback justifies the third axis.
+- **Pre-aggregate TZ matching** (materializing per-TZ refreshes) — revisit if pre-agg adoption grows enough to make the materialization-forces-project-TZ behavior surprising.
 
 ---
 

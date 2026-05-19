@@ -14,7 +14,7 @@ Companion to [`timezone-handling.md`](./timezone-handling.md) (what we do) and [
 
 **If YAML and warehouse disagree, YAML wins everywhere downstream**: SQL emission (`getSqlForTruncatedDate` branches on the declared type), formatting (`shouldShiftItemTimezone` reads the declared type), filter wrapping. The warehouse may return a TIMESTAMP at runtime even if YAML says DATE — that's a "timestamp leak" we discuss below.
 
-**Stance**: same as Looker. Metabase trusts the warehouse. Our approach is correct for analyst-controlled semantic layers but produces silent wrong answers if `type:` is wrong.
+**Stance**: trust the semantic layer over the warehouse. This is correct for analyst-controlled semantic layers but produces silent wrong answers if `type:` is wrong.
 
 ### Are `TIMESTAMP_NTZ` / `TIMESTAMP_LTZ` / `TIMESTAMP_TZ` distinct first-class source types, or collapsed?
 
@@ -44,7 +44,7 @@ Companion to [`timezone-handling.md`](./timezone-handling.md) (what we do) and [
 
 The closest workaround is `convert_timezone: false` per-dimension (translator.ts:219), but that's a *display* opt-out, not a wall-clock-tz declaration. The filter SQL still converts as if the value were in `dataTimezone`.
 
-**This is a real gap** — flagged in [`timezone-review.md` section E](./timezone-review.md#e-the-datatimezone-is-an-unvalidated-user-assertion). Omni also lacks this. Per the research synthesis (research_on_timezones.md:256–262), this is the single highest-leverage feature to differentiate the design.
+**This is a real gap** — flagged in [`timezone-review.md` section E](./timezone-review.md#e-the-datatimezone-is-an-unvalidated-user-assertion). Per the research synthesis, this is the single highest-leverage feature to differentiate the design.
 
 ---
 
@@ -79,7 +79,7 @@ The closest workaround is `convert_timezone: false` per-dimension (translator.ts
 - `normalizeCellRawForFilter` to decide whether to shift cell clicks.
 - `filtersCompiler.ts` to pick literal format for filter boundaries on DATE-base intervals.
 
-So we *carry* the metadata. But we *re-derive* on top of it in five places (the duplicated-bypass concern in the review). Looker carries one type and routes all decisions off it; we route off the same data but via independent code paths.
+So we *carry* the metadata. But we *re-derive* on top of it in five places (the duplicated-bypass concern in the review). The metadata is the single source of truth; we route off the same data but via independent code paths, which is what the consolidation gap aims to fix.
 
 ---
 
@@ -98,17 +98,17 @@ metricQuery.timezone   (per-chart pin)
 
 This is the same order documented in [`timezone-handling.md:23`](./timezone-handling.md). Anonymous viewers (embeds, JWT, service accounts) skip the user layer (`getAccountUserTimezone(account)` returns null for them).
 
-### Per-content choice like Looker's "Each Tile's TZ" vs "Viewer Time Zone"?
+### Per-content choice between a pinned TZ and a viewer TZ?
 
-**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) corresponds to Looker's **"Each Tile's TZ"** — once set, every viewer sees that zone. An unpinned chart with `EnableUserTimezones=on` corresponds to Looker's **"Viewer Time Zone"** — each viewer's profile drives the resolution.
+**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. An unpinned chart with `EnableUserTimezones=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
 
-**What we don't have**: Looker's *author-saved-at-save-time* mode (the default "Each Tile's TZ"). In Looker, if an author in Pacific creates a chart, the chart silently inherits Pacific. We require the author to explicitly pin if they want viewer-stable behavior. This is more honest, slightly less ergonomic.
+**What we don't have**: an *author-saved-at-save-time* default that silently inherits the author's zone. We require the author to explicitly pin if they want viewer-stable behavior. This is more honest, slightly less ergonomic.
 
 ### Is there a user-TZ concept at all? What's the roadmap?
 
 **Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableUserTimezones` feature flag (`featureFlags.ts:12`). Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
 
-**Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`. Like Looker's "User Specific Time Zones" admin setting and Omni's "Allow User-Specific Timezones" connection toggle.
+**Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
 **Sharp footgun**: turning the flag off does NOT clear stored `users.timezone` values, and `resolveQueryTimezone` honors them regardless of the flag (only the picker UI is gated). Flagged in [`timezone-review.md` Concern 1](./timezone-review.md#concern-1--feature-flag-entanglement-is-wide-and-underspecified). Fix it before any customer hits "I disabled the feature but it still applies."
 
@@ -120,9 +120,9 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 2. **Query TZ for the scheduled report** — resolved via the normal chain, but the *user* is the schedule owner (or an impersonated account), so their profile TZ applies.
 3. **Embed TZ** — embed viewers are anonymous; their `getAccountUserTimezone` returns null, so they fall through to the project default. Embed JWTs do not currently surface a user-TZ override.
 
-**Why this matters**: an admin in NY sets up a daily 9am Pacific delivery (`scheduler.timezone = America/Los_Angeles`). The report queries fire at 9am PT but compute "last 7 days" in NY because that's the schedule owner's TZ. The recipient in Singapore reads numbers bracketed by NY midnight. This is the kind of cross-tz confusion the Metabase troubleshooting flowchart documents at length. **We don't have a doc for this.**
+**Why this matters**: an admin in NY sets up a daily 9am Pacific delivery (`scheduler.timezone = America/Los_Angeles`). The report queries fire at 9am PT but compute "last 7 days" in NY because that's the schedule owner's TZ. The recipient in Singapore reads numbers bracketed by NY midnight. This is the kind of cross-tz confusion that warrants explicit documentation. **We don't have a doc for this.**
 
-**Recommendation**: explicitly document the three timezones in a follow-up section to `timezone-handling.md`. Looker separates Application Time Zone (when) from Query Time Zone (what). We have the structure; we don't have the editorial.
+**Recommendation**: explicitly document the three timezones in a follow-up section to `timezone-handling.md` — separating the application time zone (when a delivery fires) from the query time zone (what the numbers mean). We have the structure; we don't have the editorial.
 
 ---
 
@@ -130,7 +130,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 ### Where is "now" resolved?
 
-**Lightdash server, in Node.** `filtersCompiler.ts` uses `moment()` with `.tz(timezone)` for relative operators (`IN_THE_CURRENT`, `IN_THE_PAST`, etc. — see [`timezone-handling.md:188`](./timezone-handling.md)). Warehouse `CURRENT_TIMESTAMP` / `GETDATE()` is never used for relative-date computation. This matches Looker's behavior (research_on_timezones.md:33).
+**Lightdash server, in Node.** `filtersCompiler.ts` uses `moment()` with `.tz(timezone)` for relative operators (`IN_THE_CURRENT`, `IN_THE_PAST`, etc. — see [`timezone-handling.md:188`](./timezone-handling.md)). Warehouse `CURRENT_TIMESTAMP` / `GETDATE()` is never used for relative-date computation.
 
 **Surface consistency**:
 - **Interactive queries**: Node `moment()` in the resolved query TZ.
@@ -138,7 +138,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 - **Embed queries**: same path, but `getAccountUserTimezone` returns null so it falls through to project TZ.
 - **SQL Runner / user-written SQL**: `CURRENT_TIMESTAMP` runs on the warehouse against whatever session TZ we set. **Inconsistent with the rest** — a user who writes `WHERE created_at > NOW()` in SQL Runner does NOT get the same boundary as `IN_THE_CURRENT` in Explore.
 
-This is the same gap Hex addresses with `hex_timezone` (research_on_timezones.md:190) — exposing the resolved TZ to user SQL. Flagged in [`timezone-review.md` section H](./timezone-review.md#h-no-sql-side-surface-for-the-resolved-tz).
+The fix is to expose the resolved TZ to user SQL as a template variable. Flagged in [`timezone-review.md` section H](./timezone-review.md#h-no-sql-side-surface-for-the-resolved-tz).
 
 ### "Yesterday" filter on a DATE column — what's the literal?
 
@@ -154,7 +154,7 @@ No `timestamp` cast, no `+00:00` offset. The same boundary on a TIMESTAMP-base d
 WHERE created_at_day >= '2026-05-16 00:00:00+00:00' AND created_at_day < '2026-05-17 00:00:00+00:00'
 ```
 
-The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-side bypass — a DATE filter literal would anchor at midnight UTC and cross day boundaries in positive-offset zones, which is exactly the Metabase bug pattern at research_on_timezones.md:139.
+The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-side bypass — a DATE filter literal would otherwise anchor at midnight UTC and cross day boundaries in positive-offset zones, the classic off-by-one-day bug.
 
 ### Alice in Tokyo, Bob in LA, same chart — same SQL?
 
@@ -180,7 +180,7 @@ The dashboard-relative-filter case is the most surprising one to demonstrate to 
 
 **(a) Wall-clock, untouched.** Lightdash assumes a DATE column is a calendar value with no TZ implication. The DATE-base bypass logic at `timeFrames.ts`, `filtersCompiler.ts`, `formatting.ts`, and `normalizeCellRawForFilter.ts` all rest on this assumption. There is no shift, no convert, no anchor — the value the warehouse stores is the value the user sees.
 
-This matches Hex's "Represent dates as Date type" (research_on_timezones.md:192) and Looker's `datatype: date` (research_on_timezones.md:21). It diverges from Metabase, which historically treats DATE as `timestamp with time zone '...+TZ'` and produces the bugs at research_on_timezones.md:139.
+A DATE is a calendar value, not an instant — anchoring it to midnight in some zone and converting between zones is the classic way to make a date "slip" by a day around midnight. Lightdash refuses to do this.
 
 ### "Yesterday" on a DATE column — filter literal computed in project TZ or warehouse `CURRENT_DATE`?
 
@@ -201,7 +201,7 @@ If we used `CURRENT_DATE` on the warehouse instead, the answer would depend on t
 
 ### Do filters always target the base column with truncation applied?
 
-**Yes — confirmed.** `filtersCompiler.ts` and `MetricQueryBuilder.ts` apply the truncation/extract expression to the WHERE LHS, never to the truncated alias. The doc calls this "filter parity" at [`timezone-handling.md:139, 149`](./timezone-handling.md). This is the Sigma bug class (research_on_timezones.md:51) and we have explicitly avoided it.
+**Yes — confirmed.** `filtersCompiler.ts` and `MetricQueryBuilder.ts` apply the truncation/extract expression to the WHERE LHS, never to the truncated alias. The doc calls this "filter parity" at [`timezone-handling.md:139, 149`](./timezone-handling.md). Filtering on the alias instead is a well-known bug class we have explicitly avoided.
 
 ### Dashboard date filters fanning out to charts at different granularities — one bracket or per-chart?
 
@@ -258,7 +258,7 @@ The mitigation works for Lightdash's own surfaces because we know the field type
 
 **Consequence**: every viewer sees a pre-agg computed in project TZ (or chart-pinned TZ). A user with `users.timezone = 'Asia/Tokyo'` sees bars bucketed by NY midnights if the project is NY, even though their other (non-materialized) charts respect Tokyo.
 
-This is **simpler than Cube** (which materializes per `scheduled_refresh_time_zones`, research_on_timezones.md:120) but has a documented gap — there's no visible indicator on the chart that "your TZ was ignored because this is materialized."
+This is **simpler than materializing per-TZ refreshes**, but has a documented gap — there's no visible indicator on the chart that "your TZ was ignored because this is materialized."
 
 ### Bucket boundary on a pre-agg — project TZ's month or UTC's month?
 
@@ -274,11 +274,11 @@ This is **simpler than Cube** (which materializes per `scheduled_refresh_time_zo
 
 **Yes, at the model level via dbt config** (`startOfWeek` passed into `timeFrameConfigs[...].getSql` — `timeFrames.ts:66, 360, 424, 491, 560`). Implemented per-warehouse via `bigqueryStartOfWeekMap` / interval-shift math / Snowflake's `WEEK_START` session variable.
 
-**Scope**: model-wide, configurable via dbt YAML at the explore level. **Not per-user, not per-project, not per-dimension.** Matches Looker's `week_start_day` (research_on_timezones.md:25).
+**Scope**: model-wide, configurable via dbt YAML at the explore level. **Not per-user, not per-project, not per-dimension.**
 
 ### Fiscal year start months / custom granularities (4-4-5 retail calendar)?
 
-**Not supported.** Lightdash's `TimeFrames` enum is fixed at `MILLISECOND` through `YEAR` plus extract variants. No `fiscal_quarter`, no custom granularity definition like Cube 0.36+ (research_on_timezones.md:111). A modeler who needs fiscal-quarter buckets has to write a derived dimension manually.
+**Not supported.** Lightdash's `TimeFrames` enum is fixed at `MILLISECOND` through `YEAR` plus extract variants. No `fiscal_quarter` or user-defined custom granularities. A modeler who needs fiscal-quarter buckets has to write a derived dimension manually.
 
 This is a feature gap, not a TZ gap, but it's the kind of thing that interacts with TZ (a fiscal year starting "April 1 in NY" needs both a calendar boundary and a TZ boundary). Worth tracking as a separate request.
 
@@ -288,7 +288,7 @@ This is a feature gap, not a TZ gap, but it's the kind of thing that interacts w
 
 The companion filter parity is also implemented ([`timezone-handling.md:149`](./timezone-handling.md)). A filter on `day_of_week_index = 1` matches the same project-TZ DOW the SELECT groups on.
 
-**This is genuinely well done** — the easy mistake (running EXTRACT on the unconverted base column) is the one Looker users hit at the documented gotcha in research_on_timezones.md:37.
+**This is genuinely well done** — the easy mistake (running EXTRACT on the unconverted base column) is a common gotcha and we get it right.
 
 ---
 
@@ -343,15 +343,15 @@ The only place this could go wrong is if we ever emitted `IS NULL OR (col >= bou
 
 ### Is the resolved TZ visible to chart viewers?
 
-**Yes — a badge on the chart card** ([`timezone-handling.md:291`](./timezone-handling.md)). The chart header shows the resolved timezone so users can see "this chart is in America/New_York" without diving into settings. Roughly equivalent to Metabase's results-TZ chart banner (research_on_timezones.md:132).
+**Yes — a badge on the chart card** ([`timezone-handling.md:291`](./timezone-handling.md)). The chart header shows the resolved timezone so users can see "this chart is in America/New_York" without diving into settings.
 
 ### Different-TZ-viewer warning when user-TZ mode is off?
 
 **No explicit warning.** A viewer in `Asia/Tokyo` looking at a project-NY chart sees the badge "America/New_York" — they have to mentally translate. We don't pop a banner saying "this chart is in someone else's TZ." Probably the right call (banner fatigue), but worth confirming the badge is prominent enough.
 
-### Author per-content override (Looker "each tile" vs "viewer TZ")?
+### Author per-content override (pinned-TZ vs explicit viewer-TZ)?
 
-**Partial — only "pin to TZ X" exists.** A chart author can pin via the Explorer TZ picker, which behaves like Looker's "Each Tile's TZ" — every viewer sees the pinned zone. The complement (explicit "Viewer TZ" mode that's stronger than the user's profile) doesn't exist as a separate concept; an unpinned chart implicitly falls through to user-or-project, which is the same effect.
+**Partial — only "pin to TZ X" exists.** A chart author can pin via the Explorer TZ picker — every viewer then sees the pinned zone. The complement (an explicit "Viewer TZ" mode that's stronger than the user's profile) doesn't exist as a separate concept; an unpinned chart implicitly falls through to user-or-project, which is the same effect.
 
 ### SQL Runner / "view underlying SQL" showing TZ conversion?
 
@@ -366,18 +366,18 @@ The one gap: the resolved `queryTimezone` value itself isn't shown next to the S
 ### What's the declared design intent — "consistent shape" or "viewer-local"?
 
 **Both, depending on configuration.** Off the rack with `EnableUserTimezones=off`:
-- Every viewer of a non-pinned chart sees project-TZ buckets → **consistent chart shape** (Sigma / Metabase model).
+- Every viewer of a non-pinned chart sees project-TZ buckets → **consistent chart shape**.
 
 With `EnableUserTimezones=on`:
-- Non-pinned charts shift per viewer → **viewer-local boundaries** (Looker viewer-TZ / Omni user-TZ model).
-- Pinned charts override per viewer → **per-content choice** (Looker "Each Tile's TZ" model).
+- Non-pinned charts shift per viewer → **viewer-local boundaries**.
+- Pinned charts override per viewer → **per-content choice**.
 
 So the architectural intent is "support both, default to consistent." **This is not documented anywhere a customer can find.** Customers discover it via:
 - The Profile Settings picker appearing or not appearing (depending on flag).
 - The badge on the chart card showing "America/New_York" when their profile is Tokyo.
 - "Why does my dashboard look different in Singapore than in NY?" support tickets.
 
-**The single highest-leverage docs investment**: add a public-facing "How Lightdash handles timezones" doc that explains the three-mode behavior in two paragraphs. Looker has one. Sigma has one. Metabase has the troubleshooting flowchart. We have an internal `timezone-handling.md` for engineers, and nothing for customers.
+**The single highest-leverage docs investment**: add a public-facing "How Lightdash handles timezones" doc that explains the three-mode behavior in two paragraphs. We have an internal `timezone-handling.md` for engineers, and nothing for customers.
 
 ---
 
