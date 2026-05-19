@@ -20,6 +20,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -239,6 +240,7 @@ const ExistingThreadPanel: FC<{
         mutateAsync: createAgentThreadMessage,
         isLoading: isCreatingMessage,
     } = useCreateAgentThreadMessageMutation(projectUuid, agent.uuid, threadId);
+    const streamingState = useAiAgentThreadStreamQuery(threadId);
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
@@ -267,6 +269,14 @@ const ExistingThreadPanel: FC<{
 
     const headerTitle =
         thread?.title || thread?.firstMessage?.message || agent.name;
+    const latestAssistantMessage = [...(thread?.messages ?? [])]
+        .reverse()
+        .find((m) => m.role === 'assistant');
+    const postResponseSuggestions =
+        latestAssistantMessage &&
+        streamingState?.messageUuid === latestAssistantMessage.uuid
+            ? streamingState.suggestions
+            : [];
 
     if (isLoadingThread || !thread) {
         return (
@@ -317,10 +327,9 @@ const ExistingThreadPanel: FC<{
                         agentUuid={agent.uuid}
                         threadUuid={threadId}
                         latestAssistantMessageUuid={
-                            [...(thread.messages ?? [])]
-                                .reverse()
-                                .find((m) => m.role === 'assistant')?.uuid
+                            latestAssistantMessage?.uuid
                         }
+                        postResponseSuggestions={postResponseSuggestions}
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={
                             sqlModeAvailable

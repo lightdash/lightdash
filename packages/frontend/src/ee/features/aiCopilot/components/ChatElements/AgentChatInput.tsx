@@ -73,6 +73,7 @@ interface AgentChatInputProps {
     agentUuid?: string;
     threadUuid?: string;
     latestAssistantMessageUuid?: string;
+    postResponseSuggestions?: AgentSuggestion[];
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
@@ -109,6 +110,7 @@ export const AgentChatInput = ({
     agentUuid,
     threadUuid,
     latestAssistantMessageUuid,
+    postResponseSuggestions = [],
     models,
     selectedModelId,
     onModelChange,
@@ -196,19 +198,14 @@ export const AgentChatInput = ({
     const postResponseMode =
         messageCount > 0 &&
         !loading &&
-        !!threadUuid &&
-        !!latestAssistantMessageUuid &&
+        postResponseSuggestions.length > 0 &&
         suggestionsFlag.data?.enabled === true;
 
     const suggestionsQuery = useAgentSuggestions({
         projectUuid,
         agentUuid,
         enableSqlMode: sqlMode,
-        threadUuid: postResponseMode ? threadUuid : undefined,
-        afterMessageUuid: postResponseMode
-            ? latestAssistantMessageUuid
-            : undefined,
-        enabled: emptyStateMode || postResponseMode,
+        enabled: emptyStateMode,
     });
 
     const editor = useEditor({
@@ -383,13 +380,16 @@ export const AgentChatInput = ({
 
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
-        if (suggestionsQuery.isError) return null;
-        const chips = suggestionsQuery.data?.chips ?? [];
-        if (!suggestionsQuery.isLoading && chips.length === 0) return null;
+        if (emptyStateMode && suggestionsQuery.isError) return null;
+        const chips = emptyStateMode
+            ? (suggestionsQuery.data?.chips ?? [])
+            : postResponseSuggestions;
+        const isLoading = emptyStateMode && suggestionsQuery.isLoading;
+        if (!isLoading && chips.length === 0) return null;
         return (
             <AgentSuggestionChips
                 chips={chips}
-                isLoading={suggestionsQuery.isLoading}
+                isLoading={isLoading}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
             />
@@ -400,6 +400,7 @@ export const AgentChatInput = ({
         suggestionsQuery.isError,
         suggestionsQuery.isLoading,
         suggestionsQuery.data,
+        postResponseSuggestions,
         handleChipClick,
         handleImpression,
     ]);
@@ -541,9 +542,7 @@ export const AgentChatInput = ({
             )}
 
             <Box
-                className={`${styles.inputCard} ${
-                    sqlMode ? styles.sqlModeActive : ''
-                }`}
+                className={`${styles.inputCard} ${sqlMode ? styles.sqlModeActive : ''}`}
             >
                 <RichTextEditor
                     editor={editor}
