@@ -134,6 +134,9 @@ export class PivotQueryBuilder {
         for (const col of this.pivotConfiguration.groupByColumns ?? []) {
             existingRefs.add(col.reference);
         }
+        for (const col of this.pivotConfiguration.sortOnlyDimensions ?? []) {
+            existingRefs.add(col.reference);
+        }
 
         const allTableCalculationIds = new Set(
             Object.values(this.itemsMap)
@@ -389,17 +392,28 @@ export class PivotQueryBuilder {
      * @param indexColumns - Columns to use as row identifiers
      * @param valuesColumns - Columns to aggregate with their aggregation functions
      * @param groupByColumns - Additional columns to group by for pivoting
+     * @param sortOnlyDimensions - Pivot-column dims that are hidden from display
+     *   but still need to pass through the GROUP BY so they're available for
+     *   column ORDER BY (sortOnlyDimensions in PivotConfiguration).
      * @returns SQL for the group_by_query CTE
      */
     private getGroupByQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: PivotConfiguration['groupByColumns'],
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            // Sort-only pivot dimensions must be in GROUP BY so their values
+            // are available for column ORDER BY downstream. They are not
+            // pivot-spread columns (not in groupByColumns), but they still
+            // need to survive the aggregation pipeline.
+            ...(sortOnlyDimensions || []).map(
+                (col) => `${q}${col.reference}${q}`,
+            ),
             ...indexColumns.map((col) => `${q}${col.reference}${q}`),
         ];
 
@@ -473,6 +487,9 @@ export class PivotQueryBuilder {
      * @param sortBy - Sort configuration for columns
      * @param metricFirstValueQueries - Map of CTE names to their definitions
      * @param q - Quote character for field names
+     * @param sortOnlyDimensions - Hidden pivot-column dims that drive column ORDER BY
+     *   but are not pivot-spread columns. They participate in ORDER BY the same way
+     *   as groupByColumns but are not included in the groupByColumns DISTINCT SELECT.
      * @returns ORDER BY clause string for groupBy columns
      */
     private buildGroupByOrderBy(
@@ -484,8 +501,16 @@ export class PivotQueryBuilder {
             { cteName: string; sql: string }
         >,
         q: string,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const orderByParts: string[] = [];
+
+        // All dimension columns that can appear in the ORDER BY:
+        // visible groupByColumns + hidden sortOnlyDimensions
+        const allOrderableDims = [
+            ...groupByColumns,
+            ...(sortOnlyDimensions || []),
+        ];
 
         if (sortBy) {
             const isValueColumn = (sort: VizSortBy | undefined) =>
@@ -493,10 +518,8 @@ export class PivotQueryBuilder {
                     (valCol) => valCol.reference === sort?.reference,
                 );
 
-            const isGroupByColumn = ({ reference }: VizSortBy) =>
-                groupByColumns.some(
-                    (groupCol) => groupCol.reference === reference,
-                );
+            const isOrderableDim = ({ reference }: VizSortBy) =>
+                allOrderableDims.some((col) => col.reference === reference);
 
             // Create values order parts
             const valuesOrderByParts = sortBy
@@ -520,8 +543,10 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Create groups order parts. Note that groups parts should follow the groupsByColumns order rather than sortBy order.
-            const groupsOrderByParts = groupByColumns.map((col) => {
+            // Create groups order parts following allOrderableDims order (visible groupByColumns
+            // first, then sortOnlyDimensions). Note that groups parts should follow the
+            // groupsByColumns order rather than sortBy order.
+            const groupsOrderByParts = allOrderableDims.map((col) => {
                 const sort = sortBy.find((s) => s.reference === col.reference);
                 const sortExpr = this.resolveSortField(
                     col.reference,
@@ -537,7 +562,7 @@ export class PivotQueryBuilder {
 
             // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
             const sortByValuesFirst = isValueColumn(
-                sortBy.find((s) => isValueColumn(s) || isGroupByColumn(s)),
+                sortBy.find((s) => isValueColumn(s) || isOrderableDim(s)),
             );
             if (sortByValuesFirst) {
                 orderByParts.push(...valuesOrderByParts, ...groupsOrderByParts);
@@ -545,8 +570,8 @@ export class PivotQueryBuilder {
                 orderByParts.push(...groupsOrderByParts, ...valuesOrderByParts);
             }
         } else {
-            // Default to all groupBy columns with ASC direction
-            groupByColumns.forEach((col) => {
+            // Default to all orderable dim columns with ASC direction
+            allOrderableDims.forEach((col) => {
                 orderByParts.push(`g.${q}${col.reference}${q} ASC`);
             });
         }
@@ -706,10 +731,13 @@ export class PivotQueryBuilder {
      * Generates the column_ranking CTE that computes column_index for each distinct groupBy combination.
      * This is needed to identify the anchor column (column_index = 1) for row sorting.
      *
-     * @param groupByColumns - Group by columns
+     * @param groupByColumns - Group by columns (visible pivot-column dims)
      * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration
      * @param columnAnchorCTEs - Column anchor CTEs for metric-based column sorting
+     * @param sortOnlyDimensions - Hidden pivot-column dims available in group_by_query
+     *   that should influence the ORDER BY of column_ranking (and thus column order)
+     *   but should NOT appear in the DISTINCT SELECT (so they don't create extra groups).
      * @returns SQL for the column_ranking CTE
      */
     private getColumnRankingSQL(
@@ -717,20 +745,28 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
         columnAnchorCTEs: Record<string, { cteName: string; sql: string }>,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
+        // DISTINCT SELECT contains only visible groupBy columns so that each
+        // pivot column header combination maps to exactly one col_idx.
+        // sortOnlyDimensions are NOT included here — they are helper dims that
+        // only drive the ORDER BY, not the column identity.
         const groupByRefs = groupByColumns
             .map((col) => `g.${q}${col.reference}${q}`)
             .join(', ');
 
-        // Build ORDER BY clause for column_index (same logic as buildGroupByOrderBy)
+        // Build ORDER BY clause for column_index.
+        // sortOnlyDimensions participate in the ORDER BY so they influence which
+        // groupBy combination gets col_idx = 1, 2, 3, …
         const groupByOrderBy = this.buildGroupByOrderBy(
             groupByColumns,
             valuesColumns,
             sortBy,
             columnAnchorCTEs,
             q,
+            sortOnlyDimensions,
         );
 
         // Build JOINs for column anchor CTEs
@@ -965,8 +1001,9 @@ export class PivotQueryBuilder {
      *
      * @param indexColumns - Normalized index columns
      * @param valuesColumns - Value columns configuration
-     * @param groupByColumns - Group by columns
+     * @param groupByColumns - Group by columns (visible pivot-column dims)
      * @param sortBy - Sort configuration
+     * @param sortOnlyDimensions - Hidden pivot-column dims that influence column ORDER BY
      * @returns Object containing all anchor-related CTEs and the combined metricFirstValueQueries map
      */
     private getMetricAnchorCTEs(
@@ -974,6 +1011,7 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): {
         columnAnchorCTEs: string[];
         columnRankingCTE: string | null;
@@ -1007,6 +1045,15 @@ export class PivotQueryBuilder {
         const hasMetricSort = valuesColumns?.some((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
+        // A sort-only dimension also drives the column ORDER BY, which means
+        // we need column_ranking (for the precomputed ranking path) even when
+        // there is no metric sort. This keeps Databricks/Spark from emitting
+        // inline Window functions that reference cross-CTE columns.
+        const hasDimSort =
+            sortOnlyDimensions?.some((dim) =>
+                sortBy?.some((sort) => sort.reference === dim.reference),
+            ) ?? false;
+        const needsColumnRanking = hasMetricSort || hasDimSort;
         const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
         let columnRankingCTE: string | null = null;
@@ -1015,12 +1062,13 @@ export class PivotQueryBuilder {
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
 
-        if (hasMetricSort) {
+        if (needsColumnRanking) {
             const columnRankingSQL = this.getColumnRankingSQL(
                 groupByColumns,
                 valuesColumns,
                 sortBy,
                 columnAnchorQueries,
+                sortOnlyDimensions,
             );
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
@@ -1163,6 +1211,7 @@ export class PivotQueryBuilder {
             { cteName: string; sql: string }
         >,
         usePrecomputedRankings: boolean = false,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
@@ -1280,6 +1329,7 @@ export class PivotQueryBuilder {
             sortBy,
             metricFirstValueQueries,
             q,
+            sortOnlyDimensions,
         );
 
         // If there are no index columns, use a constant for row_index (all rows have same index)
@@ -1400,9 +1450,10 @@ export class PivotQueryBuilder {
      * @param groupByQuery - GROUP BY query SQL
      * @param indexColumns - Index columns for row identification
      * @param valuesColumns - Value columns to aggregate
-     * @param groupByColumns - Columns to pivot across
+     * @param groupByColumns - Columns to pivot across (visible pivot-column dims)
      * @param sortBy - Sort configuration
      * @param columnLimit - Maximum number of columns to return
+     * @param sortOnlyDimensions - Hidden pivot-column dims that drive column ORDER BY
      * @returns Complete SQL with CTEs for pivoting with grouping
      */
     private getFullPivotSQL(
@@ -1413,6 +1464,7 @@ export class PivotQueryBuilder {
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
         columnLimit: number | undefined,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
@@ -1434,6 +1486,7 @@ export class PivotQueryBuilder {
             valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
+            sortOnlyDimensions,
         );
 
         // When metric sorting is active, compute rankings in separate CTEs
@@ -1469,6 +1522,7 @@ export class PivotQueryBuilder {
             sortBy,
             metricFirstValueQueries,
             needsPrecomputedRankings,
+            sortOnlyDimensions,
         );
 
         let maxColumnsPerValueColumnSql = '';
@@ -1584,6 +1638,7 @@ export class PivotQueryBuilder {
             groupByColumns,
             sortBy,
             sortOnlyColumns,
+            sortOnlyDimensions,
         } = this.pivotConfiguration;
 
         // Merge sort-only columns into valuesColumns for SQL generation.
@@ -1615,6 +1670,7 @@ export class PivotQueryBuilder {
             indexColumns,
             valuesColumns,
             groupByColumns,
+            sortOnlyDimensions,
         );
 
         let finalSql: string;
@@ -1629,6 +1685,7 @@ export class PivotQueryBuilder {
                 groupByColumns,
                 sortBy,
                 columnLimit,
+                sortOnlyDimensions,
             );
         } else {
             finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);

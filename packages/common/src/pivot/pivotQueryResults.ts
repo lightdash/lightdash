@@ -1068,6 +1068,11 @@ export const convertSqlPivotedRowsToPivotData = ({
         .filter((field, index, self) => self.indexOf(field) === index)
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
 
+    // pivotDetails.groupByColumns comes from PivotConfiguration.groupByColumns,
+    // which only contains VISIBLE pivot-column dims. Hidden pivot-column dims
+    // that drive sort order (sortOnlyDimensions in PivotConfiguration) are
+    // deliberately excluded from groupByColumns before this point, so they
+    // never appear as column header rows here. No extra filtering needed.
     const headerValueTypes = getHeaderValueTypes({
         metricsAsRows: pivotConfig.metricsAsRows,
         pivotDimensionNames: (pivotDetails.groupByColumns ?? []).map(

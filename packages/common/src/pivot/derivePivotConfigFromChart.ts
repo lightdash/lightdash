@@ -34,8 +34,13 @@ function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
     metricQuery: MetricQuery,
 ): NonNullable<PivotConfiguration['sortBy']> | undefined {
-    const { groupByColumns, indexColumn, valuesColumns, sortOnlyColumns } =
-        partialPivot;
+    const {
+        groupByColumns,
+        indexColumn,
+        valuesColumns,
+        sortOnlyColumns,
+        sortOnlyDimensions,
+    } = partialPivot;
 
     const sortBy = metricQuery.sorts
         .map<NonNullable<PivotConfiguration['sortBy']>[number] | undefined>(
@@ -56,12 +61,17 @@ function getSortByForPivotConfiguration(
                     (col) => col.reference === sort.fieldId,
                 );
 
+                const isSortOnlyDimension = sortOnlyDimensions?.some(
+                    (col) => col.reference === sort.fieldId,
+                );
+
                 // Include sort if the field is present in any part of the pivot configuration
                 if (
                     isGroupByColumn ||
                     isIndexColumn ||
                     isValueColumn ||
-                    isSortOnlyColumn
+                    isSortOnlyColumn ||
+                    isSortOnlyDimension
                 ) {
                     return {
                         reference: sort.fieldId,
@@ -203,31 +213,54 @@ function getTablePivotConfiguration(
 
     const pivotColumns = pivotConfig.columns || [];
 
-    // Group by columns are the pivot dimensions
-    const groupByColumns = pivotColumns
+    // Identify hidden dimensions (visible: false in columnProperties).
+    // ANY hidden dim is excluded from indexColumn / groupByColumns.
+    // Among hidden dims, those that also appear in sorts participate in SQL
+    // for sort ordering but do not render as visible columns.
+    // Hidden dims that are NOT sorted are simply dropped entirely.
+    const hiddenFieldIds = getHiddenTableFields(chartConfig);
+    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
+
+    // Group by columns are the pivot dimensions — exclude hidden ones.
+    // Hidden pivot-column dims are either routed to sortOnlyDimensions (if sorted)
+    // or dropped entirely (if not sorted).
+    const allPivotGroupByColumns = pivotColumns
         .map((col: string) => ({
             reference: col,
         }))
         .filter((col) => metricQuery.dimensions.includes(col.reference));
 
-    // Identify hidden dimensions (visible: false in columnProperties).
-    // ANY hidden dim is excluded from indexColumn / groupByColumns.
-    // Among hidden dims, those that also appear in sorts become sortOnlyColumns —
-    // they drive sort order in the SQL but do not render as row-index columns.
-    // Hidden dims that are NOT sorted are simply dropped entirely.
-    const hiddenFieldIds = getHiddenTableFields(chartConfig);
-    const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
-    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
+    const groupByColumns = allPivotGroupByColumns.filter(
+        (col) => !hiddenFieldIds.includes(col.reference),
+    );
 
-    // All hidden dims (regardless of sort status) — used to exclude from indexColumn.
+    // Hidden pivot-column dims that are also sorted → kept for column ORDER BY
+    // via sortOnlyDimensions. They drive column sort order but are not spread
+    // as pivot column headers.
+    const sortOnlyPivotDimensions = allPivotGroupByColumns
+        .filter(
+            (col) =>
+                hiddenFieldIds.includes(col.reference) &&
+                sortFieldIds.has(col.reference),
+        )
+        .map((col) => ({ reference: col.reference }));
+
+    const groupByRefs = new Set([
+        ...groupByColumns.map((c) => c.reference),
+        ...sortOnlyPivotDimensions.map((c) => c.reference),
+    ]);
+
+    // All hidden dims that are NOT pivot-column dims (i.e., row-index dims).
+    // These are excluded from indexColumn.
     const allHiddenDimRefs = new Set(
         metricQuery.dimensions.filter(
             (d) => hiddenFieldIds.includes(d) && !groupByRefs.has(d),
         ),
     );
 
-    // Subset of hidden dims that are also sorted → participate in SQL via sortOnlyColumns.
-    const sortOnlyDimensions = metricQuery.dimensions
+    // Subset of hidden row-index dims that are also sorted → participate in SQL
+    // via sortOnlyColumns (merged into valuesColumns for the group_by_query).
+    const sortOnlyRowDimensions = metricQuery.dimensions
         .filter((d) => allHiddenDimRefs.has(d) && sortFieldIds.has(d))
         .map((d) => ({
             reference: d,
@@ -247,9 +280,16 @@ function getTablePivotConfiguration(
         ...hiddenDimPlaceholders,
     ];
 
+    // Also exclude hidden pivot-column dims from indexColumn by treating them as
+    // group-by columns from getIndexColumn's perspective.
+    const allGroupByColumnsForIndex = [
+        ...groupByColumns,
+        ...sortOnlyPivotDimensions,
+    ];
+
     // Find columns that are not groupBy or value columns (these become index columns)
     const indexColumn = getIndexColumn(
-        groupByColumns,
+        allGroupByColumnsForIndex,
         allValuesColumnsForIndex,
         fields,
         metricQuery,
@@ -259,8 +299,11 @@ function getTablePivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
-        ...(sortOnlyDimensions.length > 0 && {
-            sortOnlyColumns: sortOnlyDimensions,
+        ...(sortOnlyRowDimensions.length > 0 && {
+            sortOnlyColumns: sortOnlyRowDimensions,
+        }),
+        ...(sortOnlyPivotDimensions.length > 0 && {
+            sortOnlyDimensions: sortOnlyPivotDimensions,
         }),
     };
 
