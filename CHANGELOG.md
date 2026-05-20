@@ -1,3 +1,10 @@
+# [0.2992.0](https://github.com/lightdash/lightdash/compare/0.2991.0...0.2992.0) (2026-05-20)
+
+
+### Features
+
+* render data app tiles inside embedded dashboards (PROD-7742) ([#23295](https://github.com/lightdash/lightdash/issues/23295)) ([a047682](https://github.com/lightdash/lightdash/commit/a047682b0de6161a4f0f200b02525b58f8b0eb53))
+
 # [0.2991.0](https://github.com/lightdash/lightdash/compare/0.2990.0...0.2991.0) (2026-05-20)
 
 
