@@ -1,3 +1,10 @@
+## [0.2989.2](https://github.com/lightdash/lightdash/compare/0.2989.1...0.2989.2) (2026-05-20)
+
+
+### Bug Fixes
+
+* **timezone:** persist gated displayTimezone on async query snapshot ([#23336](https://github.com/lightdash/lightdash/issues/23336)) ([2e006c2](https://github.com/lightdash/lightdash/commit/2e006c2da3245228256e1f652b52a20ec733ea55))
+
 ## [0.2989.1](https://github.com/lightdash/lightdash/compare/0.2989.0...0.2989.1) (2026-05-20)
 
 
