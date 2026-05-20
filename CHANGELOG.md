@@ -1,3 +1,10 @@
+## [0.2989.1](https://github.com/lightdash/lightdash/compare/0.2989.0...0.2989.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* restore ai composer width ([#23334](https://github.com/lightdash/lightdash/issues/23334)) ([c0c3bc9](https://github.com/lightdash/lightdash/commit/c0c3bc932a1d23c960597e967e210a59c015ff63)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2989.0](https://github.com/lightdash/lightdash/compare/0.2988.0...0.2989.0) (2026-05-20)
 
 
