@@ -97,10 +97,17 @@ const Login: FC<{}> = () => {
     useEffect(() => {
         if (loginOptions && loginOptionsSuccess) {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
-                window.location.href = loginOptions.redirectUri;
+                // Forward the post-login redirect target so the backend can
+                // persist it as `returnTo` (see `storeOIDCRedirect`). Without
+                // this, SSO-only orgs always land on `/` after auth.
+                const ssoUrl = new URL(loginOptions.redirectUri);
+                if (redirectUrl && redirectUrl !== '/') {
+                    ssoUrl.searchParams.set('redirect', redirectUrl);
+                }
+                window.location.href = ssoUrl.href;
             }
         }
-    }, [loginOptionsSuccess, loginOptions]);
+    }, [loginOptionsSuccess, loginOptions, redirectUrl]);
 
     const ssoOptions = loginOptions
         ? (loginOptions.showOptions.filter(
