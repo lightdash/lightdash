@@ -25,6 +25,7 @@ export const lightdashConfigMock: LightdashConfig = {
             googleDriveApiKey: undefined,
             enableGCloudADC: false,
             enabled: false,
+            includeBigqueryScope: false,
         },
         okta: {
             loginPath: '',

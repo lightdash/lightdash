@@ -428,9 +428,23 @@ apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
     (req, res, next) => {
+        const { includeBigqueryScope } = lightdashConfig.auth.google;
+        const scope = ['profile', 'email'];
+        if (includeBigqueryScope) {
+            scope.push('https://www.googleapis.com/auth/bigquery');
+        }
         passport.authenticate('google', {
-            scope: ['profile', 'email'],
+            scope,
             loginHint: getLoginHint(req),
+            // Request a refresh token and force the consent screen so we can
+            // store BigQuery credentials. Only needed when the BigQuery scope
+            // is bundled into the login flow.
+            ...(includeBigqueryScope && {
+                accessType: 'offline',
+                prompt: 'consent',
+                session: false,
+                includeGrantedScopes: true,
+            }),
         })(req, res, next);
     },
 );

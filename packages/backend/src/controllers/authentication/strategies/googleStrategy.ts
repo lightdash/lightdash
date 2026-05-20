@@ -65,19 +65,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   };
                   const hasBigqueryScope = params.scope.includes('bigquery');
 
-                  if (hasBigqueryScope) {
-                      // we'll also be adding the token to the warehouse credentials
-                      // so they can use it to query bigquery
-                      Logger.info(
-                          `Creating user warehouse credentials for bigquery on Google OAuth`,
-                      );
-                      await req.services
-                          .getUserService()
-                          .createBigqueryWarehouseCredentials(
-                              req.user!,
-                              refreshToken,
-                          );
-                  }
                   const user = await req.services
                       .getUserService()
                       .loginWithOpenId(
@@ -92,6 +79,18 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                               ),
                           },
                       );
+
+                  if (hasBigqueryScope && user) {
+                      Logger.info(
+                          `Creating user warehouse credentials for bigquery on Google OAuth`,
+                      );
+                      await req.services
+                          .getUserService()
+                          .createBigqueryWarehouseCredentials(
+                              user,
+                              refreshToken,
+                          );
+                  }
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {

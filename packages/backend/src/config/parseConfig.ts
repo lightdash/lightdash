@@ -1398,6 +1398,13 @@ export type AuthGoogleConfig = {
     googleDriveApiKey: string | undefined;
     enabled: boolean;
     enableGCloudADC: boolean;
+    /**
+     * When true, the Google login flow also requests the BigQuery scope so
+     * users on BigQuery SSO complete a single consent screen instead of two
+     * separate OAuth flows (one for login, one for BigQuery warehouse access).
+     * See PROD-7783.
+     */
+    includeBigqueryScope: boolean;
 };
 
 type AuthOktaConfig = {
@@ -1825,6 +1832,8 @@ export const parseConfig = (): LightdashConfig => {
                 googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
                 enabled: process.env.AUTH_GOOGLE_ENABLED === 'true',
                 enableGCloudADC: process.env.AUTH_ENABLE_GCLOUD_ADC === 'true',
+                includeBigqueryScope:
+                    process.env.AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,
