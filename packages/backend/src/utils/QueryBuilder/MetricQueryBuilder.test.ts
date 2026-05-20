@@ -42,7 +42,6 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
-    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
@@ -64,7 +63,6 @@ import {
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
-    METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
@@ -2200,25 +2198,6 @@ LIMIT 10`;
             );
         });
 
-        test('sum_distinct should include selected dimensions in PARTITION BY', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_SUM_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            // The PARTITION BY should include both the distinct key and the selected dimensions
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method, "orders".status',
-            );
-            // Should still have the ROW_NUMBER window function
-            expect(result.query).toContain('ROW_NUMBER() OVER');
-            // Should have the dd CTE
-            expect(result.query).toContain('dd_orders_total_revenue');
-        });
-
         test('sum_distinct should work with no dimensions selected', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_SUM_DISTINCT,
@@ -2261,22 +2240,6 @@ LIMIT 10`;
             expect(result.query).not.toContain('COALESCE');
         });
 
-        test('average_distinct should include selected dimensions in PARTITION BY', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method',
-            );
-            expect(result.query).toContain('GROUP BY');
-            expect(result.query).toContain('dd_orders_avg_shipping_cost');
-        });
-
         test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
@@ -2297,11 +2260,6 @@ LIMIT 10`;
             );
             // The inlined fallback SUM should NOT appear in the final SELECT
             // (it's OK inside the CTE, but not in the outer query)
-            const outerSelect =
-                result.query.split('FROM')[
-                    result.query.split('FROM').length - 1
-                ];
-            // Check the final SELECT doesn't use the raw inlined SQL
             expect(result.query).not.toMatch(
                 /SELECT[\s\S]*\(SUM\("orders"\.amount\)\) \* 1\.1[\s\S]*FROM(?![\s\S]*AS \()/,
             );
