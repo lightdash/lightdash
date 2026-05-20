@@ -1,3 +1,10 @@
+# [0.2988.0](https://github.com/lightdash/lightdash/compare/0.2987.0...0.2988.0) (2026-05-20)
+
+
+### Features
+
+* bundle BigQuery OAuth scope into Google login flow (PROD-7783) ([#23330](https://github.com/lightdash/lightdash/issues/23330)) ([70a62d9](https://github.com/lightdash/lightdash/commit/70a62d96c6af30ad247c62fb0eecbd0822b2973a))
+
 # [0.2987.0](https://github.com/lightdash/lightdash/compare/0.2986.0...0.2987.0) (2026-05-20)
 
 
