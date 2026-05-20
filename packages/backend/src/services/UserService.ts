@@ -2042,10 +2042,10 @@ export class UserService extends BaseService {
             return requestUser;
         }
 
-        // If feature flag is off, clear any active impersonation
+        // If the org has disabled impersonation, clear any active session
         if (!(await this.isImpersonationEnabled(requestUser))) {
             this.logger.warn(
-                `Impersonation feature flag is disabled, clearing impersonation for admin ${passportUser.id}`,
+                `Impersonation disabled for organization, clearing impersonation for admin ${passportUser.id}`,
             );
             clearImpersonation();
             return requestUser;

@@ -119,13 +119,7 @@ const Settings: FC = () => {
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
 
-    const { data: isUserImpersonationEnabled } = useServerFeatureFlag(
-        FeatureFlags.UserImpersonation,
-    );
-
-    const showImpersonationPanel =
-        isUserImpersonationEnabled?.enabled &&
-        user?.ability?.can('update', 'Organization');
+    const showImpersonationPanel = user?.ability?.can('update', 'Organization');
 
     const { data: leaveOrganizationFlag } = useServerFeatureFlag(
         FeatureFlags.LeaveOrganization,

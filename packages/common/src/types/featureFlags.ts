@@ -58,12 +58,6 @@ export enum FeatureFlags {
     GoogleChatEnabled = 'google-chat-enabled',
 
     /**
-     * Enable admin user impersonation. When disabled, impersonation
-     * actions are blocked and active sessions are cleared.
-     */
-    UserImpersonation = 'user-impersonation',
-
-    /**
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
