@@ -25,12 +25,6 @@ import {
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -44,6 +38,12 @@ import { useUpsertOrganizationUserRoleAssignmentMutation } from '../../../hooks/
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from '../../common/InHouseTable';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
@@ -102,14 +102,6 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
-
-    // Temporary workaround to resolve a memoization issue with react-mantine-table
-    const [tableData, setTableData] = useState<
-        (OrganizationMemberProfile | OrganizationMemberProfileWithGroups)[]
-    >([]);
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(
@@ -323,7 +315,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                     const user = row.original;
                     const isCurrentUser =
                         activeUser.data?.userUuid === user.userUuid;
-                    const disabled = isCurrentUser || tableData.length < 1;
+                    const disabled = isCurrentUser || flatData.length < 1;
 
                     return (
                         <Box
@@ -354,14 +346,14 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         isGroupManagementEnabled,
         updateUserRole,
         activeUser.data?.userUuid,
-        tableData.length,
+        flatData.length,
         canInvite,
         handleInviteSent,
     ]);
 
     const table = useMantineReactTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -399,7 +391,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -459,7 +451,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,

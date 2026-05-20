@@ -1,5 +1,7 @@
 export { InHouseTable, MantineReactTable } from './InHouseTable';
+export { InHouseTableSearchInput } from './InHouseTableSearchInput';
 export { useInHouseTable, useMantineReactTable } from './useInHouseTable';
+export type { InHouseTableSearchInputProps } from './InHouseTableSearchInput';
 export type {
     InHouseTableColumnDef,
     InHouseTableInstance,

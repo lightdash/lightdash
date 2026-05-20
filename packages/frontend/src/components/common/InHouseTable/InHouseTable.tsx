@@ -143,33 +143,32 @@ const useColumnSizeVars = <TData extends RowData>(
 ) => {
     const columnSizing = table.getState().columnSizing;
     const columnSizingInfo = table.getState().columnSizingInfo;
+    const headers = table.getFlatHeaders();
 
-    return useMemo(() => {
-        const vars: ColumnSizeVars = {};
+    const vars: ColumnSizeVars = {};
 
-        for (const [columnId, size] of Object.entries(columnSizing)) {
-            vars[getColumnSizeVarName('col', columnId)] = size;
+    for (const [columnId, size] of Object.entries(columnSizing)) {
+        vars[getColumnSizeVarName('col', columnId)] = size;
+    }
+
+    for (const header of headers) {
+        vars[getColumnSizeVarName('header', header.id)] = header.getSize();
+        vars[getColumnSizeVarName('col', header.column.id)] =
+            header.column.getSize();
+    }
+
+    if (columnSizingInfo.isResizingColumn) {
+        const resizingColumn = table.getColumn(
+            String(columnSizingInfo.isResizingColumn),
+        );
+
+        if (resizingColumn) {
+            vars[getColumnSizeVarName('col', resizingColumn.id)] =
+                resizingColumn.getSize();
         }
+    }
 
-        for (const header of table.getFlatHeaders()) {
-            vars[getColumnSizeVarName('header', header.id)] = header.getSize();
-            vars[getColumnSizeVarName('col', header.column.id)] =
-                header.column.getSize();
-        }
-
-        if (columnSizingInfo.isResizingColumn) {
-            const resizingColumn = table.getColumn(
-                String(columnSizingInfo.isResizingColumn),
-            );
-
-            if (resizingColumn) {
-                vars[getColumnSizeVarName('col', resizingColumn.id)] =
-                    resizingColumn.getSize();
-            }
-        }
-
-        return vars;
-    }, [columnSizing, columnSizingInfo, table]);
+    return vars;
 };
 
 const defaultEstimateSize = () => 44;
@@ -827,6 +826,10 @@ export const InHouseTable = <TData extends RowData>({
                 {...containerProps}
                 ref={handleContainerRef}
                 className={cx(classes.container, containerProps.className)}
+                style={{
+                    ...columnSizeVars,
+                    ...containerProps.style,
+                }}
             >
                 <Table
                     {...tableProps}
@@ -841,7 +844,6 @@ export const InHouseTable = <TData extends RowData>({
                     )}
                     style={{
                         minWidth: table.getTotalSize(),
-                        ...columnSizeVars,
                         ...tableProps.style,
                     }}
                 >

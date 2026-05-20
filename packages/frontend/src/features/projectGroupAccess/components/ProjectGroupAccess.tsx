@@ -27,12 +27,12 @@ import {
     IconTrash,
     IconUsersGroup,
 } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useCallback, useMemo, useState, type FC } from 'react';
+} from '../../../components/common/InHouseTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useToaster from '../../../hooks/toaster/useToaster';
