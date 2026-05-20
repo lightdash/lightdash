@@ -1,3 +1,10 @@
+# [0.2990.0](https://github.com/lightdash/lightdash/compare/0.2989.3...0.2990.0) (2026-05-20)
+
+
+### Features
+
+* **ai-agents:** add ai_agent_document and access tables migration ([#23238](https://github.com/lightdash/lightdash/issues/23238)) ([9c349a7](https://github.com/lightdash/lightdash/commit/9c349a7a17e6917522a6b837b4e25e8b9ef43873))
+
 ## [0.2989.3](https://github.com/lightdash/lightdash/compare/0.2989.2...0.2989.3) (2026-05-20)
 
 
