@@ -5,7 +5,7 @@ description: Use when reading and editing Lightdash dashboards and charts as JSO
 
 # Developing in Lightdash
 
-Use this skill when reading and editing Lightdash dashboards and charts.
+Use this skill when working with Lightdash dashboards and charts.
 
 Use content tools:
 
@@ -22,24 +22,31 @@ For edits, call `editContent` with:
 - `slug: "your-content-slug"`
 - `patch: [...]`
 
-`patch` should describe the requested JSON edit. The intended flow is to patch current JSON, validate it, persist it, then refresh affected frontend state via invalidation.
+`patch` should describe the requested RFC6902 JSON edit.
 
-Recommended loop:
+### Recommended workflow for editing Dashboards:
 
-1. Load the skill, then load the relevant resource.
-2. Call `readContent` and inspect the current JSON shape.
-3. If needed, read related content too before editing.
-4. Build the smallest possible JSON Patch.
-5. Call `editContent` with that patch.
-6. Treat validation as part of the edit flow before accepting the change.
+1. Call `readContent` and inspect the current JSON shape.
+2. Always read the `dashboard-reference` resource
+3. Build the smallest possible JSON Patch.
+4. Call `editContent` with that patch.
+5. Re-read if needed to verify the final state.
+
+### Recommended workflow for Charts/Dashboard Tiles:
+
+1. Call `readContent` for the chart slug.
+2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below)
+3. If you add or change filters, verify exact filter values before patching.
+4. If you change the chart's name or purpose, also update dashboards that reference that chart.
+5. Build the smallest possible JSON Patch.
+6. Call `editContent` with that patch.
 7. Re-read if needed to verify the final state.
 
 Rules:
 
-- Always read before editing.
+- Always read content before editing.
 - Preserve unrelated fields.
 - Prefer minimal patches.
-- Use slugs, not UUIDs, at the tool boundary.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
 
 ## Common Mistakes
@@ -52,14 +59,6 @@ Rules:
 | **Missing `contentType`**                               | Content type becomes ambiguous                                                                   | Always keep `contentType: "chart"` or `contentType: "dashboard"`                                    |
 
 ## Editing Charts
-
-1. Load the relevant chart resource for the chart type you are editing.
-2. Call `readContent` for the chart slug.
-3. If you add or change filters, verify exact filter values before patching.
-4. If you change the chart's name or purpose, also update dashboards that reference that chart.
-5. Build the smallest possible JSON Patch.
-6. Call `editContent` with that patch.
-7. Re-read if needed to verify the final state.
 
 Dashboard tiles have their own titles. A `saved_chart` tile's `title` and `chartName` are independent overrides and do not automatically change when a chart is renamed. If you change a chart from `"Total Revenue"` to `"Gross Profit"`, update the dashboard tile too.
 
