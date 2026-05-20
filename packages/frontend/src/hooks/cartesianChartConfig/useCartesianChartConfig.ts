@@ -1094,6 +1094,7 @@ const useCartesianChartConfig = ({
                         : undefined;
                 const defaultSmooth = prev?.series?.[0]?.smooth;
                 const defaultLabel = prev?.series?.[0]?.label;
+                const defaultStackLabel = prev?.series?.[0]?.stackLabel;
 
                 const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
                 const expectedSeriesMap = getExpectedSeriesMap({
@@ -1108,6 +1109,7 @@ const useCartesianChartConfig = ({
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,
+                    defaultStackLabel,
                     itemsMap,
                     columnLimit,
                 });

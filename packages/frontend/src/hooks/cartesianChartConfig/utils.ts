@@ -73,6 +73,7 @@ export type GetExpectedSeriesMapArgs = {
     xField: string;
     availableDimensions: string[];
     defaultLabel?: Series['label'];
+    defaultStackLabel?: Series['stackLabel'];
     itemsMap: ItemsMap | undefined;
     columnLimit?: number;
 };
@@ -89,11 +90,16 @@ export const getExpectedSeriesMap = ({
     xField,
     availableDimensions,
     defaultLabel,
+    defaultStackLabel,
     itemsMap,
     columnLimit,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
+    // stackLabel is conditionally spread so series shape stays identical to
+    // pre-fix when callers do not opt in. Adding `stackLabel: undefined`
+    // unconditionally would surface a new key on every series and break
+    // toStrictEqual snapshots used by other tests.
     const defaultProperties = {
         smooth: defaultSmooth,
         showSymbol: defaultShowSymbol,
@@ -101,6 +107,9 @@ export const getExpectedSeriesMap = ({
         areaStyle: defaultAreaStyle,
         yAxisIndex: 0,
         label: defaultLabel,
+        ...(defaultStackLabel !== undefined && {
+            stackLabel: defaultStackLabel,
+        }),
     };
     if (pivotKeys && pivotKeys.length > 0) {
         // Use new pivoted data format if available
