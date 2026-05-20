@@ -157,21 +157,14 @@ const useTableConfig = (
 
     // This is controlled by the state in this component.
     // User configures the names and visibilty of these in the config panel
+    // Reads the persisted visibility directly. The previous short-circuit that
+    // forced dimensions to always render while pivoting was a guard against an
+    // older bug where filtering an index dimension corrupted metric values —
+    // the indexDimensionsForGrouping/ForDisplay split in pivotQueryResults
+    // (PROD-2108 data layer) solves that, so the guard is obsolete.
     const isColumnVisible = useCallback(
-        (fieldId: string) => {
-            // we should always show dimensions when pivoting
-            // hiding a dimension randomly removes values from all metrics
-            if (
-                pivotDimensions &&
-                pivotDimensions.length > 0 &&
-                isDimension(getField(fieldId))
-            ) {
-                return true;
-            }
-
-            return columnProperties[fieldId]?.visible ?? true;
-        },
-        [pivotDimensions, getField, columnProperties],
+        (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
+        [columnProperties],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
@@ -355,11 +348,22 @@ const useTableConfig = (
             );
         });
 
+        const hiddenDimensionFieldIds = selectedItemIds?.filter((fieldId) => {
+            const field = getField(fieldId);
+            return (
+                !isColumnVisible(fieldId) &&
+                field &&
+                isField(field) &&
+                isDimension(field)
+            );
+        });
+
         const pivotConfig: PivotConfig = {
             pivotDimensions,
             metricsAsRows,
             columnOrder,
             hiddenMetricFieldIds,
+            hiddenDimensionFieldIds,
             columnTotals: tableChartConfig?.showColumnCalculation,
             rowTotals: tableChartConfig?.showRowCalculation,
         };
