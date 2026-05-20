@@ -155,6 +155,7 @@ import {
     streamAgentResponse,
     type AgentMcpToolSetup,
 } from '../ai/agents/agentV2';
+import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
@@ -165,7 +166,13 @@ import {
 } from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
-import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
+import { Compaction } from '../ai/compaction';
+import {
+    getAvailableModels,
+    getCompactionModelMetadata,
+    getDefaultModel,
+    getModel,
+} from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
@@ -219,6 +226,10 @@ import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService'
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
+>;
+
+type ThreadCompaction = NonNullable<
+    Awaited<ReturnType<AiAgentModel['findLatestThreadCompaction']>>
 >;
 
 type AgentResponseStream = {
@@ -519,6 +530,20 @@ export class AiAgentService extends BaseService {
             );
 
         return isEligibleForTrial;
+    }
+
+    private async getIsContextCompactionEnabled(
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiContextCompaction,
+        });
+
+        return flag.enabled;
     }
 
     /**
@@ -1434,11 +1459,16 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             threadUuid,
         });
+        const compactions = await this.aiAgentModel.findThreadCompactions({
+            organizationUuid,
+            threadUuid,
+        });
 
         if (thread.createdFrom !== 'slack') {
             return {
                 ...thread,
                 messages,
+                compactions,
             };
         }
 
@@ -1457,6 +1487,7 @@ export class AiAgentService extends BaseService {
 
         return {
             ...thread,
+            compactions,
             messages: messages.map((message) => {
                 if (message.role !== 'user') {
                     return message;
@@ -2227,6 +2258,156 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    private async maybeCompactThreadBeforeResponse(
+        user: SessionUser,
+        {
+            threadUuid,
+            prompt,
+        }: {
+            threadUuid: string;
+            prompt: AiWebAppPrompt;
+        },
+    ): Promise<ThreadCompaction | null> {
+        // Web-app only for now. Slack still needs compaction UX + thread replay
+        // semantics before we can safely reuse this flow there.
+        const compactionLogContext = `[AiAgent][Compaction] thread=${threadUuid} prompt=${prompt.promptUuid}`;
+        const latestCompaction =
+            await this.aiAgentModel.findLatestThreadCompaction(threadUuid);
+
+        if (prompt.threadUuid !== threadUuid) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=thread-mismatch promptThread=${prompt.threadUuid}`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        const compactionEnabled =
+            await this.getIsContextCompactionEnabled(user);
+
+        if (!compactionEnabled) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=feature-flag-disabled`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        const existingCompaction =
+            await this.aiAgentModel.findThreadCompactionByTriggeringPrompt(
+                prompt.promptUuid,
+            );
+
+        if (existingCompaction) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=already-compacted compaction=${existingCompaction.ai_thread_compaction_uuid}`,
+            );
+            return existingCompaction;
+        }
+
+        const { supportsCompaction, contextWindowTokens } =
+            getCompactionModelMetadata(this.lightdashConfig.ai.copilot, {
+                provider: prompt.modelConfig?.modelProvider as AnyType,
+                modelName: prompt.modelConfig?.modelName,
+            });
+
+        if (!supportsCompaction || contextWindowTokens === null) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=unsupported-model provider=${prompt.modelConfig?.modelProvider ?? 'default'} model=${prompt.modelConfig?.modelName ?? 'default'}`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        const previousPrompt =
+            await this.aiAgentModel.findPreviousPromptInThread(
+                threadUuid,
+                prompt.promptUuid,
+            );
+
+        if (!previousPrompt) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=no-previous-prompt`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        const previousPromptTotalTokens =
+            previousPrompt.token_usage?.totalTokens;
+        const threshold = contextWindowTokens - Compaction.RESERVE_TOKENS;
+        const shouldCompact = Compaction.shouldCompactPrompt({
+            totalTokens: previousPromptTotalTokens,
+            contextWindowTokens,
+            reserveTokens: Compaction.RESERVE_TOKENS,
+        });
+
+        Logger.debug(
+            `${compactionLogContext} check previousPrompt=${previousPrompt.ai_prompt_uuid} totalTokens=${previousPromptTotalTokens ?? 'unknown'} contextWindow=${contextWindowTokens} reserveTokens=${Compaction.RESERVE_TOKENS} threshold=${threshold} shouldCompact=${shouldCompact}`,
+        );
+
+        if (!shouldCompact) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=under-threshold`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const threadMessages = await this.aiAgentModel.findThreadMessages({
+            organizationUuid: user.organizationUuid,
+            threadUuid,
+        });
+
+        const messagesToCompact = Compaction.getMessagesToCompact(
+            threadMessages,
+            {
+                compactedThroughPromptUuid:
+                    latestCompaction?.compacted_through_ai_prompt_uuid ?? null,
+                compactThroughPromptUuid: previousPrompt.ai_prompt_uuid,
+            },
+        );
+
+        Logger.debug(
+            `${compactionLogContext} selection selectedMessages=${messagesToCompact.length} totalThreadMessages=${threadMessages.length} compactedThroughPrompt=${latestCompaction?.compacted_through_ai_prompt_uuid ?? 'none'} compactThroughPrompt=${previousPrompt.ai_prompt_uuid}`,
+        );
+
+        if (messagesToCompact.length === 0) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=empty-selection`,
+            );
+            return latestCompaction ?? null;
+        }
+
+        const compactionModel = getModel(this.lightdashConfig.ai.copilot, {
+            provider: prompt.modelConfig?.modelProvider as AnyType,
+            modelName: prompt.modelConfig?.modelName,
+            useFastModel: true,
+        });
+
+        const serializedInput =
+            Compaction.serializeConversation(messagesToCompact);
+
+        const summary = await generateCompactionSummary(compactionModel, {
+            previousSummary: latestCompaction?.summary,
+            conversation: serializedInput,
+        });
+
+        const createdCompaction =
+            await this.aiAgentModel.createThreadCompaction({
+                threadUuid,
+                compactedThroughPromptUuid: previousPrompt.ai_prompt_uuid,
+                triggeringPromptUuid: prompt.promptUuid,
+                serializedInput,
+                summary,
+            });
+
+        Logger.debug(
+            `${compactionLogContext} created compaction=${createdCompaction.ai_thread_compaction_uuid} selectedMessages=${messagesToCompact.length} totalThreadMessages=${threadMessages.length} serializedInputChars=${serializedInput.length} summaryChars=${summary.length}`,
+        );
+
+        return createdCompaction;
+    }
+
     private async prepareAgentThreadResponse(
         user: SessionUser,
         {
@@ -2296,20 +2477,31 @@ export class AiAgentService extends BaseService {
                 }`,
             );
         }
+        const compaction = await this.maybeCompactThreadBeforeResponse(user, {
+            threadUuid: prompt.threadUuid,
+            prompt,
+        });
+
+        const compactedThreadMessages =
+            Compaction.filterThreadMessagesAfterCompaction(
+                threadMessages,
+                compaction?.compacted_through_ai_prompt_uuid ?? null,
+            );
 
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
-            threadMessages,
+            compactedThreadMessages,
             {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: prompt.organizationUuid,
                 projectUuid: agent.projectUuid,
                 agentUuid: agent.uuid,
                 retrieveRelevantArtifacts:
                     retrieveRelevantArtifacts &&
                     this.getIsVerifiedArtifactsEnabled(),
+                compaction,
             },
         );
 
-        return { user, chatHistoryMessages, prompt };
+        return { user, chatHistoryMessages, prompt, compaction };
     }
 
     async streamAgentThreadResponse(
@@ -2336,14 +2528,14 @@ export class AiAgentService extends BaseService {
                 threadUuid,
             });
 
-            if (!user.organizationUuid) {
+            if (!validatedUser.organizationUuid) {
                 throw new ForbiddenError();
             }
-            const auditedAbility = this.createAuditedAbility(user);
+            const auditedAbility = this.createAuditedAbility(validatedUser);
             const canManageAgent = auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: validatedUser.organizationUuid,
                     projectUuid: prompt.projectUuid,
                     metadata: {
                         agentUuid,
@@ -2357,7 +2549,7 @@ export class AiAgentService extends BaseService {
                     event: 'ai_agent.suggestion_submit',
                     userId: user.userUuid,
                     properties: {
-                        organizationId: user.organizationUuid,
+                        organizationId: validatedUser.organizationUuid,
                         projectId: prompt.projectUuid,
                         agentId: agentUuid,
                         toolHints,
@@ -2365,7 +2557,7 @@ export class AiAgentService extends BaseService {
                 });
             }
 
-            const response = await this.generateOrStreamAgentResponse(
+            return await this.generateOrStreamAgentResponse(
                 validatedUser,
                 chatHistoryMessages,
                 {
@@ -2376,7 +2568,6 @@ export class AiAgentService extends BaseService {
                     toolHints,
                 },
             );
-            return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
@@ -3574,6 +3765,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             projectUuid: string;
             agentUuid: string;
             retrieveRelevantArtifacts: boolean;
+            compaction: ThreadCompaction | null;
         },
     ): Promise<ModelMessage[]> {
         const contextMap = await this.aiAgentModel.getContextForPromptUuids(
@@ -3699,7 +3891,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }),
         );
 
-        return messagesWithToolCalls.flat();
+        const history = messagesWithToolCalls.flat();
+
+        if (!options.compaction) {
+            return history;
+        }
+
+        // `agentV2.getAgentMessages()` prepends the canonical system prompt first,
+        // so the compaction summary is injected immediately after that prompt.
+        return [
+            Compaction.createSummaryMessage(options.compaction.summary),
+            ...history,
+        ];
     }
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
@@ -5029,6 +5232,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     retrieveRelevantArtifacts:
                         agent !== undefined &&
                         this.getIsVerifiedArtifactsEnabled(),
+                    // TODO: add Slack compaction support once Slack has an
+                    // equivalent persisted marker / summary UX.
+                    compaction: null,
                 });
 
             response = await this.generateOrStreamAgentResponse(

@@ -154,6 +154,14 @@ export type AiAgentUser = {
     name: string;
 };
 
+export type AiThreadCompaction = {
+    uuid: string;
+    threadUuid: string;
+    compactedThroughPromptUuid: string;
+    triggeringPromptUuid: string;
+    createdAt: string;
+};
+
 export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     role: 'user';
     uuid: string;
@@ -227,6 +235,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
 export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
     AiAgentThreadSummary<TUser> & {
         messages: AiAgentMessage<TUser>[];
+        compactions: AiThreadCompaction[];
     };
 
 export type ApiAiAgentResponse = {

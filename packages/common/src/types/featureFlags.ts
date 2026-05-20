@@ -192,6 +192,11 @@ export enum FeatureFlags {
      * Off by default while we validate with design partners before GA.
      */
     HidePivotDimensions = 'hide-pivot-dimensions',
+
+    /**
+     * Enable AI thread context compaction for streamed web-app conversations.
+     */
+    AiContextCompaction = 'ai-context-compaction',
 }
 
 export type FeatureFlag = {

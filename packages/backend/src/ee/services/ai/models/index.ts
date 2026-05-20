@@ -208,3 +208,30 @@ export const getModel = (
             return assertUnreachable(provider, `Invalid provider: ${provider}`);
     }
 };
+
+export const getCompactionModelMetadata = (
+    config: LightdashConfig['ai']['copilot'],
+    options?: {
+        modelName?: string;
+        provider?: typeof config.defaultProvider;
+    },
+): {
+    supportsCompaction: boolean;
+    contextWindowTokens: number | null;
+} => {
+    const provider = options?.provider ?? config.defaultProvider;
+
+    if (provider === 'azure' || provider === 'openrouter') {
+        return {
+            supportsCompaction: false,
+            contextWindowTokens: null,
+        };
+    }
+
+    const { preset } = getModelPreset(provider, config, options?.modelName);
+
+    return {
+        supportsCompaction: true,
+        contextWindowTokens: preset.contextWindowTokens,
+    };
+};

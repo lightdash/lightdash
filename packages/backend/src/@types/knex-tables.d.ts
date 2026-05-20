@@ -316,6 +316,8 @@ import {
     AiSlackThreadTableName,
     AiSqlApprovalTable,
     AiSqlApprovalTableName,
+    AiThreadCompactionTable,
+    AiThreadCompactionTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
@@ -478,6 +480,7 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiPromptContextTableName]: AiPromptContextTable;
+        [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;

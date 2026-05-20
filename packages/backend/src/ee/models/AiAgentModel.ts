@@ -31,6 +31,7 @@ import {
     AiPromptContextItem,
     AiResultType,
     AiThread,
+    AiThreadCompaction,
     AiWebAppPrompt,
     AlreadyExistsError,
     ApiAppendEvaluationRequest,
@@ -94,6 +95,7 @@ import {
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiSqlApprovalTableName,
+    AiThreadCompactionTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
@@ -105,6 +107,7 @@ import {
     DbAiSlackThread,
     DbAiSqlApproval,
     DbAiThread,
+    DbAiThreadCompaction,
     DbAiWebAppPrompt,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
@@ -2310,6 +2313,79 @@ export class AiAgentModel {
         return (await Promise.all(messagesPromises)).flat();
     }
 
+    async findThreadCompactions({
+        organizationUuid,
+        threadUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+    }): Promise<AiThreadCompaction[]> {
+        const rows = await this.database(AiThreadCompactionTableName)
+            .join(
+                AiThreadTableName,
+                `${AiThreadCompactionTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select<DbAiThreadCompaction[]>(
+                `${AiThreadCompactionTableName}.ai_thread_compaction_uuid`,
+                `${AiThreadCompactionTableName}.ai_thread_uuid`,
+                `${AiThreadCompactionTableName}.compacted_through_ai_prompt_uuid`,
+                `${AiThreadCompactionTableName}.triggering_ai_prompt_uuid`,
+                `${AiThreadCompactionTableName}.serialized_input`,
+                `${AiThreadCompactionTableName}.summary`,
+                `${AiThreadCompactionTableName}.created_at`,
+            )
+            .where(`${AiThreadCompactionTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(
+                `${AiThreadTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .orderBy(`${AiThreadCompactionTableName}.created_at`, 'asc');
+
+        return rows.map((row) => ({
+            uuid: row.ai_thread_compaction_uuid,
+            threadUuid: row.ai_thread_uuid,
+            compactedThroughPromptUuid: row.compacted_through_ai_prompt_uuid,
+            triggeringPromptUuid: row.triggering_ai_prompt_uuid,
+            createdAt: row.created_at.toISOString(),
+        }));
+    }
+
+    async findLatestThreadCompaction(
+        threadUuid: string,
+    ): Promise<DbAiThreadCompaction | undefined> {
+        return this.database(AiThreadCompactionTableName)
+            .select<DbAiThreadCompaction[]>(
+                'ai_thread_compaction_uuid',
+                'ai_thread_uuid',
+                'compacted_through_ai_prompt_uuid',
+                'triggering_ai_prompt_uuid',
+                'serialized_input',
+                'summary',
+                'created_at',
+            )
+            .where('ai_thread_uuid', threadUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
+    async findThreadCompactionByTriggeringPrompt(
+        triggeringPromptUuid: string,
+    ): Promise<DbAiThreadCompaction | undefined> {
+        return this.database(AiThreadCompactionTableName)
+            .select<DbAiThreadCompaction[]>(
+                'ai_thread_compaction_uuid',
+                'ai_thread_uuid',
+                'compacted_through_ai_prompt_uuid',
+                'triggering_ai_prompt_uuid',
+                'serialized_input',
+                'summary',
+                'created_at',
+            )
+            .where('triggering_ai_prompt_uuid', triggeringPromptUuid)
+            .first();
+    }
+
     async findThreadArtifacts({
         promptUuids,
     }: {
@@ -3245,16 +3321,86 @@ export class AiAgentModel {
         await this.database(AiPromptTableName)
             .update({
                 responded_at: this.database.fn.now(),
-                ...(data.response ? { response: data.response } : {}),
+                ...('response' in data
+                    ? { response: data.response ?? null }
+                    : {}),
                 ...(data.errorMessage
                     ? { error_message: data.errorMessage }
                     : {}),
-                ...(data.humanScore ? { human_score: data.humanScore } : {}),
+                ...(data.humanScore !== undefined
+                    ? { human_score: data.humanScore }
+                    : {}),
+                ...(data.tokenUsage !== undefined
+                    ? { token_usage: data.tokenUsage }
+                    : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
             })
             .returning('ai_prompt_uuid');
+    }
+
+    async createThreadCompaction(data: {
+        threadUuid: string;
+        compactedThroughPromptUuid: string;
+        triggeringPromptUuid: string;
+        serializedInput: string;
+        summary: string;
+    }): Promise<DbAiThreadCompaction> {
+        const [row] = await this.database(AiThreadCompactionTableName)
+            .insert({
+                ai_thread_uuid: data.threadUuid,
+                compacted_through_ai_prompt_uuid:
+                    data.compactedThroughPromptUuid,
+                triggering_ai_prompt_uuid: data.triggeringPromptUuid,
+                serialized_input: data.serializedInput,
+                summary: data.summary,
+            })
+            .returning<DbAiThreadCompaction[]>([
+                'ai_thread_compaction_uuid',
+                'ai_thread_uuid',
+                'compacted_through_ai_prompt_uuid',
+                'triggering_ai_prompt_uuid',
+                'serialized_input',
+                'summary',
+                'created_at',
+            ]);
+
+        if (row === undefined) {
+            throw new Error('Failed to create thread compaction');
+        }
+
+        return row;
+    }
+
+    async findPreviousPromptInThread(
+        threadUuid: string,
+        currentPromptUuid: string,
+    ): Promise<
+        | Pick<
+              DbAiPrompt,
+              'ai_prompt_uuid' | 'created_at' | 'token_usage' | 'prompt'
+          >
+        | undefined
+    > {
+        return this.database(AiPromptTableName)
+            .select<
+                Pick<
+                    DbAiPrompt,
+                    'ai_prompt_uuid' | 'created_at' | 'token_usage' | 'prompt'
+                >[]
+            >('ai_prompt_uuid', 'created_at', 'token_usage', 'prompt')
+            .where('ai_thread_uuid', threadUuid)
+            .whereNot('ai_prompt_uuid', currentPromptUuid)
+            .where(
+                'created_at',
+                '<',
+                this.database(AiPromptTableName)
+                    .select('created_at')
+                    .where('ai_prompt_uuid', currentPromptUuid),
+            )
+            .orderBy('created_at', 'desc')
+            .first();
     }
 
     async updateHumanScore(data: {

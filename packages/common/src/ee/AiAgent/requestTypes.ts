@@ -24,6 +24,10 @@ export type AiThread = {
     agentUuid: string | null;
 };
 
+export type AiPromptTokenUsage = {
+    totalTokens: number;
+};
+
 export type CreateSlackThread = {
     organizationUuid: string;
     projectUuid: string;
@@ -137,6 +141,7 @@ export type UpdateSlackResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateWebAppResponse = {
@@ -144,6 +149,7 @@ export type UpdateWebAppResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateSlackResponseTs = {

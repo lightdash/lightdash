@@ -628,6 +628,7 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         title: null,
                         titleGeneratedAt: null,
+                        compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
                             thread.firstMessage.uuid,
