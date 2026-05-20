@@ -321,6 +321,9 @@ importers:
       csv-stringify:
         specifier: 6.5.1
         version: 6.5.1
+      dompurify:
+        specifier: 3.4.0
+        version: 3.4.0
       duckdb-async:
         specifier: 1.4.2
         version: 1.4.2(encoding@0.1.13)
@@ -390,6 +393,9 @@ importers:
       js-yaml:
         specifier: 4.1.1
         version: 4.1.1
+      jsdom:
+        specifier: 24.0.0
+        version: 24.0.0(canvas@3.2.1)
       jsonwebtoken:
         specifier: 9.0.3
         version: 9.0.3
@@ -553,6 +559,9 @@ importers:
       '@types/js-yaml':
         specifier: 4.0.1
         version: 4.0.1
+      '@types/jsdom':
+        specifier: 21.1.7
+        version: 21.1.7
       '@types/jsonwebtoken':
         specifier: 9.0.5
         version: 9.0.5
@@ -6839,6 +6848,9 @@ packages:
 
   '@types/js-yaml@4.0.9':
     resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
+
+  '@types/jsdom@21.1.7':
+    resolution: {integrity: sha512-yOriVnggzrnQ3a9OKOCxaVuSug3w3/SbOj5i7VwXWZEyUNl3bLF9V3MfxGbZKuwqJOQyRfqXyROBB1CoZLFWzA==}
 
   '@types/json-schema@7.0.9':
     resolution: {integrity: sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==}
@@ -23207,6 +23219,12 @@ snapshots:
 
   '@types/js-yaml@4.0.9': {}
 
+  '@types/jsdom@21.1.7':
+    dependencies:
+      '@types/node': 22.13.1
+      '@types/tough-cookie': 4.0.5
+      parse5: 7.1.2
+
   '@types/json-schema@7.0.9': {}
 
   '@types/json5@0.0.29': {}
@@ -29140,7 +29158,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.0.0
-      ws: 8.18.0
+      ws: 8.20.0
       xml-name-validator: 5.0.0
     optionalDependencies:
       canvas: 3.2.1

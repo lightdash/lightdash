@@ -181,6 +181,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('create', 'AiAgentThread', {
             organizationUuid,
         });
+        can('view', 'OrganizationDesign', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.ORG_EDIT]: ({
         organizationUuid,
@@ -316,6 +319,9 @@ const applyServiceAccountStaticAbilities: Record<
             //  userUuid: userUuid,
         });
         can('manage', 'DataApp', {
+            organizationUuid,
+        });
+        can('manage', 'OrganizationDesign', {
             organizationUuid,
         });
         can('manage', 'Dashboard', {

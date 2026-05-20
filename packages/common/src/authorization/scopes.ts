@@ -765,6 +765,24 @@ const scopes: Scope[] = [
         ],
     },
 
+    // Organization Design Assets (shared CSS/fonts/images/instructions
+    // injected into every data app generated in the org). Org-scoped
+    // resource — view is available to all members, manage to org admins.
+    {
+        name: 'view:OrganizationDesign',
+        description: 'View organization design assets',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:OrganizationDesign',
+        description: 'Create, edit, and delete organization design assets',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+
     // Spotlight Scopes
     {
         name: 'manage:SpotlightTableConfig',

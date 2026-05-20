@@ -2,6 +2,7 @@ export * from './AiAgent';
 export * from './apps/types';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
+export * from './designs/types';
 export * from './embed';
 export * from './preAggregates';
 export * from './preAggregates/types';
