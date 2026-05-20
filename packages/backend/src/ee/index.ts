@@ -27,6 +27,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -160,6 +161,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
+                    aiAgentContentValidation: new AiAgentContentValidation(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, context }) =>
