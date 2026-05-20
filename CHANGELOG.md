@@ -1,3 +1,10 @@
+## [0.2994.1](https://github.com/lightdash/lightdash/compare/0.2994.0...0.2994.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* **echarts:** preserve stack total labels when a new pivot value appears ([#23345](https://github.com/lightdash/lightdash/issues/23345)) ([#23346](https://github.com/lightdash/lightdash/issues/23346)) ([b237a26](https://github.com/lightdash/lightdash/commit/b237a26a13f52dff0af6ec2ae1949391cabc9cde))
+
 # [0.2994.0](https://github.com/lightdash/lightdash/compare/0.2993.0...0.2994.0) (2026-05-20)
 
 
