@@ -1,3 +1,12 @@
+## [0.2984.3](https://github.com/lightdash/lightdash/compare/0.2984.2...0.2984.3) (2026-05-20)
+
+
+### Bug Fixes
+
+* forward `redirect` param to SSO URL so post-login returns to correct page ([#23312](https://github.com/lightdash/lightdash/issues/23312)) ([46a0e94](https://github.com/lightdash/lightdash/commit/46a0e94c39594a1fd6abcb35745ad00094c23038))
+* include orphan tiles in scheduled tab-filtered PDF exports (PROD-2505) ([#23321](https://github.com/lightdash/lightdash/issues/23321)) ([f2c4be7](https://github.com/lightdash/lightdash/commit/f2c4be7198a54bcd6b62c6230a3a22e8edd39ddc))
+* refine AI chat composer spacing and dark-mode surface ([#23313](https://github.com/lightdash/lightdash/issues/23313)) ([2a5e93a](https://github.com/lightdash/lightdash/commit/2a5e93ac08987fd41a2e4629e96502625fa5e4b1))
+
 ## [0.2984.2](https://github.com/lightdash/lightdash/compare/0.2984.1...0.2984.2) (2026-05-20)
 
 
