@@ -19,11 +19,6 @@ import {
     IconDots,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
@@ -31,6 +26,11 @@ import {
     useUnverifyDashboardMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';

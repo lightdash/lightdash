@@ -34,14 +34,14 @@ import {
     IconLayoutDashboard,
     IconSearch,
 } from '@tabler/icons-react';
+import { useMemo, useRef, useState } from 'react';
+import { EmptyState } from '../components/common/EmptyState';
+import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useMemo, useRef, useState } from 'react';
-import { EmptyState } from '../components/common/EmptyState';
-import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
+} from '../components/common/InHouseTable';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     useDashboardQuery,
@@ -368,6 +368,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         enableGlobalFilterModes: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },
         initialState: {
             density: 'xs',
         },
@@ -766,6 +767,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         enableGlobalFilterModes: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        rowVirtualizerProps: { estimateSize: () => 56, overscan: 10 },
         initialState: {
             density: 'xs',
         },

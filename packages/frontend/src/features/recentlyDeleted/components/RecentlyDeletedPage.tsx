@@ -30,12 +30,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -45,6 +39,12 @@ import {
     type UIEvent,
 } from 'react';
 import Callout from '../../../components/common/Callout';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from '../../../components/common/InHouseTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -189,14 +189,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
-
-    // Workaround for memoization issue with mantine-react-table
-    const [tableData, setTableData] = useState<DeletedContentWithDescendants[]>(
-        [],
-    );
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     const { mutate: restoreContent, isLoading: isRestoring } =
         useRestoreDeletedContent(projectUuid);
@@ -487,7 +479,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
 
     const table = useMantineReactTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
@@ -532,7 +524,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -648,7 +640,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             </Group>
         ),
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,

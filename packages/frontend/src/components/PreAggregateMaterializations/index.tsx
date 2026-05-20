@@ -42,12 +42,6 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-} from 'mantine-react-table';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
@@ -59,6 +53,12 @@ import { useTimeAgo } from '../../hooks/useTimeAgo';
 import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_SortingState,
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';

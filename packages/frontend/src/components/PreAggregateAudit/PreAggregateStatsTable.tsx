@@ -12,13 +12,13 @@ import {
     IconTable,
     IconTarget,
 } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
-} from 'mantine-react-table';
-import { useCallback, useMemo, useState, type FC } from 'react';
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import {
     aggregateStats,

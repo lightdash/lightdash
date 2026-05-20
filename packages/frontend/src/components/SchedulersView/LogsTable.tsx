@@ -24,12 +24,6 @@ import {
     IconTextCaption,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -48,6 +42,12 @@ import {
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
 import EmptyStateLoader from '../common/EmptyStateLoader';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
@@ -702,7 +702,7 @@ const LogsTable: FC<LogsTableProps> = ({
             },
         }),
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 48, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,

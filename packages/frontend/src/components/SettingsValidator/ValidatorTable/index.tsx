@@ -26,21 +26,20 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
     useRef,
-    useState,
     type FC,
     type UIEvent,
 } from 'react';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from '../../common/InHouseTable';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
@@ -153,12 +152,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         }
         return data;
     }, [data, pinnedValidation]);
-
-    // Workaround for memoization issue with mantine-react-table
-    const [displayData, setDisplayData] = useState<ValidationResponse[]>([]);
-    useEffect(() => {
-        setDisplayData(tableData);
-    }, [tableData]);
 
     const totalFetched = data.length;
 
@@ -331,7 +324,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
 
     const table = useMantineReactTable({
         columns,
-        data: displayData,
+        data: tableData,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -406,7 +399,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 44, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,

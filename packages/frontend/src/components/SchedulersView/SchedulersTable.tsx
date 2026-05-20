@@ -34,13 +34,6 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -57,6 +50,13 @@ import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import GoogleChatSvg from '../../svgs/googlechat.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_SortingState,
+    type MRT_Virtualizer,
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
@@ -143,12 +143,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
     const { data: project } = useProject(projectUuid);
-
-    // Temporary workaround to resolve a memoization issue with react-mantine-table.
-    const [tableData, setTableData] = useState<SchedulerItem[]>([]);
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     // Reassign owner modal state
     const [reassignModalOpen, setReassignModalOpen] = useState(false);
@@ -798,7 +792,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
     const table = useMantineReactTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
@@ -862,7 +856,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -969,7 +963,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
             sorting,
             isLoading,
