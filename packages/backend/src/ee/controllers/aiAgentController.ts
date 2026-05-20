@@ -33,6 +33,8 @@ import {
     ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
     ApiCreateAiAgent,
+    ApiCreateAiAgentSqlChartArtifactRequest,
+    ApiCreateAiAgentSqlChartArtifactResponse,
     ApiCreateAiAgentResponse,
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
@@ -883,6 +885,36 @@ export class AiAgentController extends BaseController {
                     projectUuid,
                     body.tags,
                 ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('201', 'Created')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/sql-chart-artifact')
+    @OperationId('createSqlChartArtifact')
+    async createSqlChartArtifact(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+        @Body() body: ApiCreateAiAgentSqlChartArtifactRequest,
+    ): Promise<ApiCreateAiAgentSqlChartArtifactResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+
+        return {
+            status: 'ok',
+            results: (await this.getAiAgentService().createSqlChartArtifact(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    ...body,
+                },
+            )) as unknown as AiArtifactTSOACompat,
         };
     }
 

@@ -489,6 +489,12 @@ const AssistantBubbleContent: FC<{
                                     toolResults={message.toolResults}
                                     toolCalls={message.toolCalls}
                                     pendingContent={pendingApprovalContent}
+                                    artifactContext={{
+                                        projectUuid,
+                                        agentUuid,
+                                        threadUuid: message.threadUuid,
+                                        messageUuid: message.uuid,
+                                    }}
                                 />
                             )}
                             {latestTextSeg ? (
@@ -529,6 +535,12 @@ const AssistantBubbleContent: FC<{
                                 isLive={isStreaming || isPending}
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
+                                artifactContext={{
+                                    projectUuid,
+                                    agentUuid,
+                                    threadUuid: message.threadUuid,
+                                    messageUuid: message.uuid,
+                                }}
                             />
                         )}
                         {message.reasoning && message.reasoning.length > 0 && (

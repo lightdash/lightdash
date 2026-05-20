@@ -309,7 +309,7 @@ export async function getArtifactBlocks(
 
     const vizConfig = parseVizConfig(chartArtifact.chartConfig, maxQueryLimit);
     if (!vizConfig) {
-        throw new Error('Failed to parse viz config');
+        return [];
     }
 
     // Get explore to populate SQL for additional metrics

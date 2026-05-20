@@ -3,6 +3,7 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     parseVizConfig,
+    toolRunSqlArgsSchema,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
@@ -35,6 +36,7 @@ import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
+import { AiSqlChartVisualization } from './AiSqlChartVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -92,10 +94,24 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const [selectedChartType, setSelectedChartType] =
             useState<AiAgentChartTypeOption | null>(null);
 
+        const sqlChartConfig = useMemo(() => {
+            if (
+                artifactData?.artifactType !== 'chart' ||
+                !artifactData.chartConfig
+            ) {
+                return null;
+            }
+            const parsed = toolRunSqlArgsSchema.safeParse(
+                artifactData.chartConfig,
+            );
+            return parsed.success ? parsed.data : null;
+        }, [artifactData?.artifactType, artifactData?.chartConfig]);
+
         const isFloatingChart =
             variant === 'floating' &&
             artifactData?.artifactType === 'chart' &&
-            !!artifactData.chartConfig;
+            !!artifactData.chartConfig &&
+            !sqlChartConfig;
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !artifactData?.chartConfig) return null;
@@ -221,6 +237,19 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         />
                     </div>
                 </div>
+            );
+        }
+
+        if (sqlChartConfig) {
+            return (
+                <AiSqlChartVisualization
+                    artifactData={artifactData}
+                    projectUuid={artifact.projectUuid}
+                    agentUuid={artifact.agentUuid}
+                    sqlChartConfig={sqlChartConfig}
+                    showCloseButton={showCloseButton}
+                    variant={variant}
+                />
             );
         }
 

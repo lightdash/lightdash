@@ -31,7 +31,10 @@ import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { getToolIcon } from './utils/toolIcons';
-import { type ToolCallSummary } from './utils/types';
+import {
+    type ToolCallArtifactContext,
+    type ToolCallSummary,
+} from './utils/types';
 
 export type LiveActivityToolGroup = {
     toolName: AiAgentToolName;
@@ -57,6 +60,7 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
+    artifactContext?: ToolCallArtifactContext;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -400,6 +404,7 @@ export const LiveActivityCard: FC<Props> = ({
     toolResults,
     toolCalls,
     pendingContent,
+    artifactContext,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -445,7 +450,9 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
 
-    const showBody = expanded && (hasHistory || hasPending);
+    const latestNeedsExpandedBody = latest?.toolName === 'runSql';
+    const showBody =
+        expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -458,7 +465,9 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded((prev) => !prev)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={!hasHistory && !hasPending}
+                disabled={
+                    !hasHistory && !hasPending && !latestNeedsExpandedBody
+                }
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -526,7 +535,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || hasPending) && (
+                    {(hasHistory || hasPending || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
@@ -587,6 +596,14 @@ export const LiveActivityCard: FC<Props> = ({
                                                           latestBuiltInToolName
                                                       }
                                                       toolCall={tc}
+                                                      artifactContext={
+                                                          artifactContext
+                                                      }
+                                                      toolResult={toolResults?.find(
+                                                          (result) =>
+                                                              result.toolCallId ===
+                                                              tc.toolCallId,
+                                                      )}
                                                   />
                                                   {trace && (
                                                       <DiscoverFieldsTrace
@@ -636,6 +653,8 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
                                             status="done"
+                                            artifactContext={artifactContext}
+                                            toolResults={toolResults}
                                             extraBody={
                                                 groupTrace ? (
                                                     <DiscoverFieldsTrace

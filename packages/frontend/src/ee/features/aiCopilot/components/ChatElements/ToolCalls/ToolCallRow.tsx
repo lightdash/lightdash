@@ -1,6 +1,7 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolResult,
     type AiAgentToolName,
     friendlyName,
     isToolName,
@@ -22,7 +23,10 @@ import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolIcon } from './utils/toolIcons';
-import { type ToolCallSummary } from './utils/types';
+import {
+    type ToolCallArtifactContext,
+    type ToolCallSummary,
+} from './utils/types';
 
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'improveContext',
@@ -56,6 +60,8 @@ type Props = {
      * subagent trace.
      */
     extraBody?: React.ReactNode;
+    artifactContext?: ToolCallArtifactContext;
+    toolResults?: AiAgentToolResult[];
 };
 
 export const ToolCallRow: FC<Props> = ({
@@ -63,6 +69,8 @@ export const ToolCallRow: FC<Props> = ({
     toolCalls,
     status = 'done',
     extraBody,
+    artifactContext,
+    toolResults,
 }) => {
     const Icon = getToolIcon(toolName);
     const builtInToolName = isToolName(toolName) ? toolName : null;
@@ -105,6 +113,11 @@ export const ToolCallRow: FC<Props> = ({
                     <ToolCallDescription
                         toolName={builtInToolName}
                         toolCall={toolCalls[0]}
+                        artifactContext={artifactContext}
+                        toolResult={toolResults?.find(
+                            (result) =>
+                                result.toolCallId === toolCalls[0].toolCallId,
+                        )}
                     />
                 </Box>
             );
@@ -200,6 +213,11 @@ export const ToolCallRow: FC<Props> = ({
                                   key={tc.toolCallId}
                                   toolName={builtInToolName}
                                   toolCall={tc}
+                                  artifactContext={artifactContext}
+                                  toolResult={toolResults?.find(
+                                      (result) =>
+                                          result.toolCallId === tc.toolCallId,
+                                  )}
                               />
                           ))
                         : null}

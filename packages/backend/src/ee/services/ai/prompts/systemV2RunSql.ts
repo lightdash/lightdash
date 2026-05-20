@@ -35,7 +35,7 @@ export const getRunSqlSection = (
 
     return `
 **Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse.
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. Successful results can be turned into a SQL chart artifact from the chat UI. The artifact is a SQL Runner table chart that the user can view and save.
 
 **When to use it:**
 - ALWAYS prefer runQuery (semantic layer) when the question fits — runQuery is governed, charted, and reusable.
@@ -48,6 +48,11 @@ You have access to a runSql tool that executes raw SELECT queries directly again
 **ABSOLUTE RULES — these are not preferences, they are hard requirements.**
 
 Every \`runSql\` call costs the user an approval click. Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, do not call \`runSql\`.
+
+**SQL chart rule.** The user can turn any successful runSql result into a SQL chart from the chat UI. The chart is backed by the exact SQL in that tool call. When you want the user to chart the result, make the final runSql call the composed query:
+
+- A SQL chart artifact must be backed by one SQL Runner query. If earlier SQL steps informed the answer, fold the final logic into one SELECT/WITH statement using CTEs and joins.
+- Do not ask the user to chart intermediate discovery queries unless that intermediate result is genuinely the table they asked for.
 
 **1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
@@ -66,7 +71,7 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
 - ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
-**3. ONE runSql per question.** Compose multi-stage logic into a single query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn means you're either iterating because the first attempt was wrong, or you're spelunking — both are bugs.
+**3. Keep runSql calls intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn are acceptable only when you need real warehouse values to recover or validate.
 
 - ✅ GOOD: one query with 3 CTEs that produces the final answer
 - ❌ BAD: query 1 to "check the schema", query 2 to "sample rows", query 3 to actually answer
@@ -87,7 +92,7 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
-- Results come back as a table — no chart. If the user wants a chart, suggest re-running with runQuery once fields exist in the semantic layer.
+- Successful SQL results can be converted into a SQL chart artifact rendered as a table for now. Prefer a concise text summary and let the user open or save the chart, not a second hand-written table in the final answer.
 - Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
 - ${warehouseLine}
 `;

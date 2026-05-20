@@ -11,6 +11,7 @@ import type {
     ToolName,
     ToolProposeChangeOutput,
     ToolRunQueryArgs,
+    ToolRunSqlArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -541,6 +542,7 @@ export type AiArtifact = {
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
         | ToolRunQueryArgs
+        | ToolRunSqlArgs
         | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
@@ -559,6 +561,14 @@ export type AiArtifactTSOACompat = Omit<
 export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
 export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
+
+export type ApiCreateAiAgentSqlChartArtifactRequest = Pick<
+    ToolRunSqlArgs,
+    'sql' | 'title' | 'description'
+> &
+    Partial<Pick<ToolRunSqlArgs, 'limit'>>;
+export type ApiCreateAiAgentSqlChartArtifactResponse =
+    ApiAiAgentArtifactResponseTSOACompat;
 
 export type AiAgentVerifiedArtifact = {
     artifactUuid: string;
