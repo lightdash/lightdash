@@ -1,4 +1,9 @@
-import { getItemLabel, getItemMap, isField } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getItemLabel,
+    getItemMap,
+    isField,
+} from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -21,6 +26,7 @@ import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
 } from '../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
@@ -262,13 +268,21 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         [itemsMap, columnProperties],
     );
 
-    // Hidden field IDs from chart config, split by kind. Dims drop out of pivot
-    // headers / row index; metrics drop out of data columns. Both ship to the
-    // pivot reducer worker so the user's "Hide column" toggle takes effect
-    // without waiting for a new query.
+    // Hidden field IDs from chart config, split by kind. Dims drop out of
+    // pivot headers / row index; metrics drop out of data columns. Both ship
+    // to the pivot reducer worker so the user's "Hide column" toggle takes
+    // effect without waiting for a new query.
+    //
+    // PROD-2108 flag gate: unflagged users keep the pre-existing behavior
+    // (no dim filtering) so an existing chart with a stray `visible: false`
+    // on a dim doesn't suddenly start hiding columns.
+    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
+        FeatureFlags.HidePivotDimensions,
+    );
+    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
     const queryDimensions = query.data?.metricQuery?.dimensions;
     const { hiddenDimensionFieldIds, hiddenMetricFieldIds } = useMemo(() => {
-        if (!columnProperties) {
+        if (!columnProperties || !isHidePivotDimsEnabled) {
             return {
                 hiddenDimensionFieldIds: undefined,
                 hiddenMetricFieldIds: undefined,
@@ -290,7 +304,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             hiddenDimensionFieldIds: hiddenDims,
             hiddenMetricFieldIds: hiddenMets,
         };
-    }, [columnProperties, queryDimensions]);
+    }, [columnProperties, queryDimensions, isHidePivotDimsEnabled]);
 
     // Convert pivoted query results to PivotData format for PivotTable
     // Only process when user is actually viewing grouped results

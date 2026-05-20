@@ -1,5 +1,6 @@
 import {
     convertFormattedValue,
+    FeatureFlags,
     getItemLabel,
     isCustomDimension,
     isDimension,
@@ -28,6 +29,7 @@ import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -155,16 +157,33 @@ const useTableConfig = (
         [getFieldLabelOverride, getFieldLabelDefault],
     );
 
-    // This is controlled by the state in this component.
-    // User configures the names and visibilty of these in the config panel
-    // Reads the persisted visibility directly. The previous short-circuit that
-    // forced dimensions to always render while pivoting was a guard against an
-    // older bug where filtering an index dimension corrupted metric values —
-    // the indexDimensionsForGrouping/ForDisplay split in pivotQueryResults
-    // (PROD-2108 data layer) solves that, so the guard is obsolete.
+    // PROD-2108 flag gate. When off, preserve the legacy short-circuit that
+    // forced dimensions to always render while pivoting — it guarded against
+    // an older pivot reducer bug where filtering an index dim corrupted
+    // metric values. The PR 2 indexDimensionsForGrouping/ForDisplay split
+    // fixes that root cause, but we only honor the persisted dim visibility
+    // when the flag is on, so existing charts that have an unintentional
+    // `columnProperties[dim].visible: false` (set by clicks during the era of
+    // the buggy guard) keep rendering the dim. Flag-on opts into the new
+    // behavior.
+    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
+        FeatureFlags.HidePivotDimensions,
+    );
+    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
+
     const isColumnVisible = useCallback(
-        (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
-        [columnProperties],
+        (fieldId: string) => {
+            if (
+                !isHidePivotDimsEnabled &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 &&
+                isDimension(getField(fieldId))
+            ) {
+                return true;
+            }
+            return columnProperties[fieldId]?.visible ?? true;
+        },
+        [columnProperties, isHidePivotDimsEnabled, pivotDimensions, getField],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
@@ -348,16 +367,22 @@ const useTableConfig = (
             );
         });
 
-        const hiddenDimensionFieldIds = selectedItemIds?.filter((fieldId) => {
-            const field = getField(fieldId);
-            if (!field || isColumnVisible(fieldId)) return false;
-            // Custom SQL dimensions are not `Field`s but still behave as dims
-            // in the pivot (they can drive sort order via sortOnlyDimensions).
-            return (
-                (isField(field) && isDimension(field)) ||
-                isCustomDimension(field)
-            );
-        });
+        // Only populate the dim-side hidden list when the flag is on. Without
+        // it, isColumnVisible still applies the legacy short-circuit for dims
+        // and we keep the pre-PROD-2108 contract (no dim filtering downstream).
+        const hiddenDimensionFieldIds = isHidePivotDimsEnabled
+            ? selectedItemIds?.filter((fieldId) => {
+                  const field = getField(fieldId);
+                  if (!field || isColumnVisible(fieldId)) return false;
+                  // Custom SQL dimensions are not `Field`s but still behave
+                  // as dims in the pivot (driving sort order via
+                  // sortOnlyDimensions).
+                  return (
+                      (isField(field) && isDimension(field)) ||
+                      isCustomDimension(field)
+                  );
+              })
+            : undefined;
 
         const pivotConfig: PivotConfig = {
             pivotDimensions,
@@ -430,6 +455,7 @@ const useTableConfig = (
         metricsAsRows,
         selectedItemIds,
         isColumnVisible,
+        isHidePivotDimsEnabled,
         getField,
         getFieldLabel,
         tableChartConfig?.showColumnCalculation,
