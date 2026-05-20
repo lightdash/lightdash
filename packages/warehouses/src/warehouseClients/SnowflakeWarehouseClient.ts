@@ -1004,14 +1004,27 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         return tablesMetadata.reduce<WarehouseCatalog>((acc, tableMetadata) => {
             if (tableMetadata) {
                 tableMetadata.rows.forEach((row) => {
+                    // Defensive type coercion for runtime safety
+                    const rowDbName =
+                        typeof row.database_name === 'string'
+                            ? row.database_name
+                            : String(row.database_name ?? '');
+                    const rowSchemaName =
+                        typeof row.schema_name === 'string'
+                            ? row.schema_name
+                            : String(row.schema_name ?? '');
+                    const rowTableName =
+                        typeof row.table_name === 'string'
+                            ? row.table_name
+                            : String(row.table_name ?? '');
+
                     const match = config.find(
                         ({ database, schema, table }) =>
                             database.toLowerCase() ===
-                                row.database_name.toLowerCase() &&
+                                rowDbName.toLowerCase() &&
                             schema.toLowerCase() ===
-                                row.schema_name.toLowerCase() &&
-                            table.toLowerCase() ===
-                                row.table_name.toLowerCase(),
+                                rowSchemaName.toLowerCase() &&
+                            table.toLowerCase() === rowTableName.toLowerCase(),
                     );
                     // Unquoted identifiers will always be
                     if (row.kind === 'COLUMN' && !!match) {

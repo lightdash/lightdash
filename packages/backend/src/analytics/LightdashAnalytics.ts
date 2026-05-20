@@ -195,7 +195,11 @@ export const getContextFromQueryOrHeader = (
             : undefined;
     if (context) {
         for (const [key, value] of Object.entries(QueryExecutionContext)) {
-            if (value.toLowerCase() === context.toLowerCase()) {
+            // Defensive type check for runtime safety
+            if (
+                typeof value === 'string' &&
+                value.toLowerCase() === context.toLowerCase()
+            ) {
                 return value as QueryExecutionContext;
             }
         }

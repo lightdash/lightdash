@@ -263,16 +263,22 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     ): Record<string, string> | undefined {
         return labels
             ? Object.fromEntries(
-                  Object.entries(labels).map(([key, value]) => [
-                      key
-                          .toLowerCase()
-                          .replace(/[^a-z0-9_-]/g, '_')
-                          .substring(0, 60) || 'empty_key',
-                      value
-                          .toLowerCase()
-                          .replace(/[^a-z0-9_-]/g, '_')
-                          .substring(0, 60) || 'empty_value',
-                  ]),
+                  Object.entries(labels).map(([key, value]) => {
+                      // Defensive type guards for runtime safety
+                      const keyStr = typeof key === 'string' ? key : String(key);
+                      const valueStr =
+                          typeof value === 'string' ? value : String(value);
+                      return [
+                          keyStr
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_key',
+                          valueStr
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_value',
+                      ];
+                  }),
               )
             : undefined;
     }

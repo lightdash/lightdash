@@ -362,28 +362,31 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             return null;
         }
 
+        // Ensure value is a string before processing (defensive check for runtime type safety)
+        const stringValue = typeof value === 'string' ? value : String(value);
+
         const normalizedType = type
             .toLowerCase()
             .replace(/\(\d+(,\s*\d+)?\)/, '');
 
         switch (normalizedType) {
             case AthenaTypes.BOOLEAN:
-                return value.toLowerCase() === 'true';
+                return stringValue.toLowerCase() === 'true';
             case AthenaTypes.TINYINT:
             case AthenaTypes.SMALLINT:
             case AthenaTypes.INTEGER:
             case AthenaTypes.BIGINT:
-                return parseInt(value, 10);
+                return parseInt(stringValue, 10);
             case AthenaTypes.REAL:
             case AthenaTypes.DOUBLE:
             case AthenaTypes.DECIMAL:
-                return parseFloat(value);
+                return parseFloat(stringValue);
             case AthenaTypes.DATE:
             case AthenaTypes.TIMESTAMP:
             case AthenaTypes.TIMESTAMP_TZ:
-                return new Date(value);
+                return new Date(stringValue);
             default:
-                return value;
+                return stringValue;
         }
     }
 

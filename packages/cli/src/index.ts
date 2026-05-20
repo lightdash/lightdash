@@ -72,7 +72,9 @@ function parseUseDbtListOption(value: string | undefined): boolean {
     if (value === undefined) {
         return true;
     }
-    return value.toLowerCase() !== 'false';
+    // Defensive type check for runtime safety
+    const stringValue = typeof value === 'string' ? value : String(value);
+    return stringValue.toLowerCase() !== 'false';
 }
 
 function parseDisableTimestampConversionOption(
@@ -81,7 +83,9 @@ function parseDisableTimestampConversionOption(
     if (value === undefined) {
         return false;
     }
-    return value.toLowerCase() === 'true';
+    // Defensive type check for runtime safety
+    const stringValue = typeof value === 'string' ? value : String(value);
+    return stringValue.toLowerCase() === 'true';
 }
 
 function parseProjectArgument(value: string | undefined): string | undefined {
