@@ -241,8 +241,6 @@ const SortIcon = <TData extends RowData>({
     );
 };
 
-export const MantineReactTable = InHouseTable;
-
 const HeaderContent = <TData extends RowData>({
     header,
 }: {
@@ -971,3 +969,5 @@ export const InHouseTable = <TData extends RowData>({
         </Paper>
     );
 };
+
+export const MantineReactTable = InHouseTable;
