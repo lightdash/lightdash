@@ -1,3 +1,19 @@
+# [0.2997.0](https://github.com/lightdash/lightdash/compare/0.2996.0...0.2997.0) (2026-05-20)
+
+
+### Bug Fixes
+
+* respect `hiddenDimensionFieldIds` in pivot XLSX and CSV output ([#23301](https://github.com/lightdash/lightdash/issues/23301)) ([3e597b2](https://github.com/lightdash/lightdash/commit/3e597b2a2853d438693f85757d92e548cdd12ca2))
+
+
+### Features
+
+* add `sortOnlyDimensions` support for hidden pivot-column sort dims ([#23343](https://github.com/lightdash/lightdash/issues/23343)) ([58ef361](https://github.com/lightdash/lightdash/commit/58ef3615736f1d99cf9762a68cfba01affd076a7))
+* migrate operational tables ([#23318](https://github.com/lightdash/lightdash/issues/23318)) ([0132fb8](https://github.com/lightdash/lightdash/commit/0132fb8ee2223f792cb8a29e5e849ba041b539d8))
+* migrate settings access tables to content table ([#23317](https://github.com/lightdash/lightdash/issues/23317)) ([26d7985](https://github.com/lightdash/lightdash/commit/26d7985326675dac9c059be299e991a33877f288))
+* **pivot:** UI to hide pivot dimensions (flag-gated) ([#23303](https://github.com/lightdash/lightdash/issues/23303)) ([59723a6](https://github.com/lightdash/lightdash/commit/59723a6dd26a9b8f6c01251e07bbccd04e3cff31)), closes [#23289](https://github.com/lightdash/lightdash/issues/23289) [#23046](https://github.com/lightdash/lightdash/issues/23046) [#23289](https://github.com/lightdash/lightdash/issues/23289) [#23291](https://github.com/lightdash/lightdash/issues/23291) [#23301](https://github.com/lightdash/lightdash/issues/23301)
+* support `hiddenDimensionFieldIds` and `sortOnlyColumns` in pivot configuration ([#23291](https://github.com/lightdash/lightdash/issues/23291)) ([8145a30](https://github.com/lightdash/lightdash/commit/8145a3095968450ed95a10784ad2004da6566c0d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2996.0](https://github.com/lightdash/lightdash/compare/0.2995.0...0.2996.0) (2026-05-20)
 
 
