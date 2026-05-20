@@ -30,12 +30,12 @@ import {
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import useApp from '../../../providers/App/useApp';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
 import {
     ContentTable,
     useContentTable,
     type MRT_ColumnDef,
 } from '../../common/ContentTable';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ForbiddenPanel from '../../ForbiddenPanel';

@@ -41,13 +41,13 @@ import {
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
-import EmptyStateLoader from '../common/EmptyStateLoader';
 import {
     ContentTable,
     useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
 } from '../common/ContentTable';
+import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
