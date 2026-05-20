@@ -209,7 +209,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const [lastDbtRefreshAt, setLastDbtRefreshAt] = useState<
         Date | undefined
     >();
-    const timeAgo = useTimeAgo(lastDbtRefreshAt || new Date());
+    const fallbackLastDbtRefreshAtRef = useRef(new Date());
+    const timeAgo = useTimeAgo(
+        lastDbtRefreshAt ?? fallbackLastDbtRefreshAtRef.current,
+    );
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
