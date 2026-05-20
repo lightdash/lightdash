@@ -1,3 +1,10 @@
+# [0.2996.0](https://github.com/lightdash/lightdash/compare/0.2995.0...0.2996.0) (2026-05-20)
+
+
+### Features
+
+* migrate resource and metrics tables to content table ([#23315](https://github.com/lightdash/lightdash/issues/23315)) ([1c61f6c](https://github.com/lightdash/lightdash/commit/1c61f6c0ed75b0abcc2c2405d01ac565d13f9643))
+
 # [0.2995.0](https://github.com/lightdash/lightdash/compare/0.2994.1...0.2995.0) (2026-05-20)
 
 
