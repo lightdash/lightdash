@@ -257,24 +257,44 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
      * Sanitize label key and values.
      * Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
      * But also, keys can't be longer than 60 characters, or empty.
+     *
+     * Defensive String() coercion: the TS type promises `Record<string, string>`
+     * but callers (warehouse `queryTags`) can drift — a non-string value here
+     * would crash the whole job at `.toLowerCase()`, taking down every
+     * downstream sync/query. The warn log surfaces the rogue key so the
+     * source can be fixed.
      */
     static sanitizeLabelsWithValues(
         labels?: Record<string, string>,
     ): Record<string, string> | undefined {
-        return labels
-            ? Object.fromEntries(
-                  Object.entries(labels).map(([key, value]) => [
-                      key
-                          .toLowerCase()
-                          .replace(/[^a-z0-9_-]/g, '_')
-                          .substring(0, 60) || 'empty_key',
-                      value
-                          .toLowerCase()
-                          .replace(/[^a-z0-9_-]/g, '_')
-                          .substring(0, 60) || 'empty_value',
-                  ]),
-              )
-            : undefined;
+        if (!labels) return undefined;
+        return Object.fromEntries(
+            Object.entries(labels).map(([key, value]) => {
+                const safeKey = typeof key === 'string' ? key : String(key);
+                let safeValue: string;
+                if (typeof value === 'string') {
+                    safeValue = value;
+                } else if (value === null || value === undefined) {
+                    safeValue = '';
+                } else {
+                    console.warn(
+                        'BigqueryWarehouseClient.sanitizeLabelsWithValues: coerced non-string label value',
+                        { key: safeKey, valueType: typeof value },
+                    );
+                    safeValue = String(value);
+                }
+                return [
+                    safeKey
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]/g, '_')
+                        .substring(0, 60) || 'empty_key',
+                    safeValue
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]/g, '_')
+                        .substring(0, 60) || 'empty_value',
+                ];
+            }),
+        );
     }
 
     static getFieldsFromResponse(response: QueryRowsResponse[2] | undefined) {
