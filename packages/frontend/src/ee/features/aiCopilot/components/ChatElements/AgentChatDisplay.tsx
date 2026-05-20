@@ -6,8 +6,9 @@ import {
     getDefaultZIndex,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconCrop } from '@tabler/icons-react';
+import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
     useRef,
@@ -60,8 +61,26 @@ const CompactionDivider = () => (
                 color="var(--mantine-color-gray-5)"
             />
             <Text size="xs" c="dimmed" fw={500}>
-                Conversation compacted
+                Summarized Conversation
             </Text>
+            <Tooltip
+                withinPortal
+                maw={320}
+                multiline
+                label="Lightdash automatically summarizes earlier messages when a conversation gets long, so responses stay fast and relevant."
+            >
+                <Box
+                    component="span"
+                    aria-label="About summarized conversations"
+                    style={{ display: 'inline-flex' }}
+                >
+                    <IconInfoCircle
+                        size={14}
+                        stroke={1.8}
+                        color="var(--mantine-color-gray-5)"
+                    />
+                </Box>
+            </Tooltip>
         </Flex>
     </Box>
 );
