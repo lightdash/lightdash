@@ -143,8 +143,16 @@
 /* Minimal mode styles for existing threads */
 .minimalContainer {
     position: relative;
+    width: 100%;
+    max-width: 62rem;
+    margin: 0 auto;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm);
+}
+
+.minimalContainerFullWidth {
+    max-width: none;
+    margin: 0;
 }
 
 /* ------------------------------------------------------------------ *
