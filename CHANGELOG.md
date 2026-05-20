@@ -1,3 +1,10 @@
+## [0.2984.1](https://github.com/lightdash/lightdash/compare/0.2984.0...0.2984.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* **scheduler:** resolve infinite spinner on test notification ([#23302](https://github.com/lightdash/lightdash/issues/23302)) ([6d91154](https://github.com/lightdash/lightdash/commit/6d91154a67cdce1b7a88f81d5904af1432c6a03d))
+
 # [0.2984.0](https://github.com/lightdash/lightdash/compare/0.2983.0...0.2984.0) (2026-05-19)
 
 
