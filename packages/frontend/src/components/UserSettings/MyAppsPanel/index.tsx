@@ -29,11 +29,6 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -44,6 +39,11 @@ import {
 import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import { useContentAction } from '../../../hooks/useContent';
+import {
+    InHouseTable,
+    useInHouseTable,
+    type MRT_ColumnDef,
+} from '../../common/InHouseTable';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
@@ -390,7 +390,7 @@ const MyAppsPanel: FC = () => {
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useInHouseTable({
         columns,
         data: flatData,
         enableColumnActions: false,
@@ -433,7 +433,7 @@ const MyAppsPanel: FC = () => {
 
     return (
         <Stack gap="md">
-            <MantineReactTable table={table} />
+            <InHouseTable table={table} />
             {appToDelete && (
                 <AppDeleteModal
                     opened
