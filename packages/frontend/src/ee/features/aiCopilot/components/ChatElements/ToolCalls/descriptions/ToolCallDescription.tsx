@@ -197,6 +197,8 @@ export const ToolCallDescription: FC<{
                     schema={describeWarehouseTableArgs.schema ?? null}
                 />
             );
+        case 'listKnowledgeDocuments':
+        case 'getKnowledgeDocumentContent':
         case 'discoverFields':
         case 'improveContext':
         case 'loadSkill':

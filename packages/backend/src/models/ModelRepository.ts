@@ -131,6 +131,7 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    aiAgentDocumentModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -697,6 +698,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentDocumentModel');
     }
 
     public getAiOrganizationSettingsModel<ModelImplT>(): ModelImplT {

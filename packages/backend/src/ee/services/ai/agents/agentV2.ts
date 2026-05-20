@@ -13,15 +13,14 @@ import {
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
-import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
+import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
 import { getImproveContext } from '../tools/improveContext';
+import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
-import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
-import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -182,10 +181,6 @@ const getAgentTools = (
         pageSize: args.getDashboardChartsPageSize,
     });
 
-    const readContent = getReadContent({
-        readContent: dependencies.readContent,
-    });
-
     const runQuery = getRunQuery({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -215,8 +210,6 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              autoApproveSql: args.autoApproveSql,
-              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
           })
         : null;
 
@@ -238,9 +231,6 @@ const getAgentTools = (
     });
 
     const improveContext = getImproveContext();
-    const editContent = getEditContent({
-        editContent: dependencies.editContent,
-    });
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
@@ -251,24 +241,20 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
-    const loadSkill =
-        args.availableSkills.length > 0
-            ? getLoadSkill({
-                  loadSkill: dependencies.loadSkill,
-              })
-            : null;
+    const listKnowledgeDocuments = getListKnowledgeDocuments({
+        listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
+    });
+
+    const getKnowledgeDocumentContent = getGetKnowledgeDocumentContent({
+        getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
+    });
 
     const tools: ToolSet = {
         findContent,
+        getDashboardCharts,
         discoverFields,
-        ...(args.enableAgentRevamp
-            ? {
-                  readContent,
-                  editContent,
-              }
-            : {
-                  getDashboardCharts,
-              }),
+        listKnowledgeDocuments,
+        getKnowledgeDocumentContent,
         runQuery,
         runSavedChart,
         generateDashboard,
@@ -277,7 +263,6 @@ const getAgentTools = (
             ? { proposeChange }
             : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
-        ...(loadSkill ? { loadSkill } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
@@ -304,6 +289,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             instructions: args.agentSettings.instruction || undefined,
             availableExplores,
             availableSkills: args.availableSkills,
+            knowledgeDocuments: args.knowledgeDocuments,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
             canRunSql: args.canRunSql,

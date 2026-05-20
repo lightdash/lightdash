@@ -57,11 +57,11 @@ import {
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
+import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { formatDuration, formatFileSize } from './formatters';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';

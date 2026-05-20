@@ -651,6 +651,20 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:AiAgentDocument',
+        description: 'View AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentDocument',
+        description: 'Upload and manage AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'view:AiAgentThread',
         description: 'View all AI agent conversation threads',
         isEnterprise: true,

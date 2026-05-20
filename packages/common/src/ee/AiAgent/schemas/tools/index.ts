@@ -3,6 +3,8 @@ export * from './toolDashboardArgs';
 export * from './toolDashboardV2Args';
 export * from './toolDescribeWarehouseTableArgs';
 export * from './toolFindChartsArgs';
+export * from './toolGetKnowledgeDocumentContentArgs';
+export * from './toolListKnowledgeDocumentsArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
 export * from './toolGetDashboardChartsArgs';

@@ -8,7 +8,9 @@ import {
     toolFindExploresArgsSchemaV3,
     toolFindFieldsArgsSchema,
     toolGetDashboardChartsArgsSchema,
+    toolGetKnowledgeDocumentContentArgsSchema,
     toolImproveContextArgsSchema,
+    toolListKnowledgeDocumentsArgsSchema,
     toolListWarehouseTablesArgsSchema,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
@@ -71,6 +73,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     runSql: 'run_sql',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
+    listKnowledgeDocuments: 'list_knowledge_documents',
+    getKnowledgeDocumentContent: 'get_knowledge_document_content',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
@@ -101,6 +105,8 @@ const TOOL_SCHEMAS = {
     runSql: toolRunSqlArgsSchema,
     listWarehouseTables: toolListWarehouseTablesArgsSchema,
     describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
+    listKnowledgeDocuments: toolListKnowledgeDocumentsArgsSchema,
+    getKnowledgeDocumentContent: toolGetKnowledgeDocumentContentArgsSchema,
 } satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {

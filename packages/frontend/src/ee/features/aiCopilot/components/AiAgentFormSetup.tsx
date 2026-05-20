@@ -48,11 +48,9 @@ import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
-import {
-    InstructionsGuidelines,
-    InstructionsTemplates,
-} from './InstructionsSupport';
+import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
@@ -255,27 +253,6 @@ export const AiAgentFormSetup = ({
                                 </Text>
                             </Stack>
                             <Stack gap="sm">
-                                <Title
-                                    order={6}
-                                    c="ldGray.7"
-                                    size="sm"
-                                    fw={500}
-                                >
-                                    Quick Templates
-                                </Title>
-
-                                <InstructionsTemplates
-                                    onSelect={(instruction: string) => {
-                                        form.setFieldValue(
-                                            'instruction',
-                                            form.values.instruction
-                                                ? `${form.values.instruction}\n\n${instruction}`
-                                                : instruction,
-                                        );
-                                    }}
-                                />
-                            </Stack>
-                            <Stack gap="sm">
                                 <Box>
                                     <Title
                                         order={6}
@@ -303,6 +280,26 @@ export const AiAgentFormSetup = ({
                                     to learn more about instructions and how
                                     they work.
                                 </Text>
+                            </Stack>
+                            <AiAgentKnowledgeFilesSection
+                                agentUuid={agentUuid}
+                                projectUuid={projectUuid}
+                            />
+                            <Stack gap="sm">
+                                <Box>
+                                    <Title
+                                        order={6}
+                                        c="ldGray.7"
+                                        size="sm"
+                                        fw={500}
+                                    >
+                                        Configuration
+                                    </Title>
+                                    <Text c="dimmed" size="xs">
+                                        Control how this agent interacts with
+                                        your data and semantic layer.
+                                    </Text>
+                                </Box>
                             </Stack>
                             <Switch
                                 variant="subtle"

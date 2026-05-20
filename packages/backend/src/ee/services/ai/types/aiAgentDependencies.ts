@@ -1,6 +1,8 @@
 import {
     AdditionalMetric,
     AgentToolOutput,
+    AiAgentDocumentContent,
+    AiAgentDocumentSummary,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
@@ -243,6 +245,12 @@ export type DescribeWarehouseTableFn = (args: {
     columns: Array<{ name: string; type: string }>;
     resolvedSchema: string | null;
 }>;
+
+export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
+
+export type GetKnowledgeDocumentContentFn = (args: {
+    documentUuid: string;
+}) => Promise<AiAgentDocumentContent>;
 
 export type WaitForSqlApprovalFn = (
     toolCallId: string,
