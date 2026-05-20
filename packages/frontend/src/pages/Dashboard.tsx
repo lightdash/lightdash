@@ -32,6 +32,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
+import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
@@ -895,6 +896,7 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
+            <DashboardAiAgentContextBridge />
             <Dashboard />
         </DashboardProvider>
     );
