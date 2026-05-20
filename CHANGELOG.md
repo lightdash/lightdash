@@ -1,3 +1,15 @@
+# [0.2987.0](https://github.com/lightdash/lightdash/compare/0.2986.0...0.2987.0) (2026-05-20)
+
+
+### Bug Fixes
+
+* improve compaction divider label and add info tooltip ([#23329](https://github.com/lightdash/lightdash/issues/23329)) ([d063ce0](https://github.com/lightdash/lightdash/commit/d063ce030b13dec11a7d0c090c742c959589a11b))
+
+
+### Features
+
+* **data-apps:** add Claude model picker to chat input ([#23328](https://github.com/lightdash/lightdash/issues/23328)) ([2e86989](https://github.com/lightdash/lightdash/commit/2e869897d822fa10f7a3ce9d64660c4d32521508))
+
 # [0.2986.0](https://github.com/lightdash/lightdash/compare/0.2985.0...0.2986.0) (2026-05-20)
 
 
