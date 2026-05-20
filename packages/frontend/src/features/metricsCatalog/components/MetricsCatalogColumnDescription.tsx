@@ -7,7 +7,7 @@ import { useRef, useState, type FC } from 'react';
 import {
     type MRT_Row,
     type MRT_TableInstance,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import { useIsLineClamped } from '../../../hooks/useIsLineClamped';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setDescriptionPopoverIsClosing } from '../store/metricsCatalogSlice';

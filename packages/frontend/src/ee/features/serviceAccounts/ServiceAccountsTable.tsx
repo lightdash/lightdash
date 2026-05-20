@@ -44,10 +44,10 @@ import {
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';
@@ -635,7 +635,7 @@ export const ServiceAccountsTable: FC<Props> = ({
         statusFilter !== 'all' ||
         search.length > 0;
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredAccounts,
         enableColumnActions: false,
@@ -916,7 +916,7 @@ export const ServiceAccountsTable: FC<Props> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             <ServiceAccountsDeleteModal
                 isOpen={opened}

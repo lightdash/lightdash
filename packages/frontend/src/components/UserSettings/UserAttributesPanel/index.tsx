@@ -30,12 +30,12 @@ import {
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import useApp from '../../../providers/App/useApp';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ForbiddenPanel from '../../ForbiddenPanel';
@@ -183,7 +183,7 @@ const UserAttributesPanel: FC = () => {
         );
     }, [orgUserAttributes, searchQuery]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: false,
@@ -356,7 +356,7 @@ const UserAttributesPanel: FC = () => {
                         </ActionIcon>
                     </Tooltip>
                 </Group>
-                <MantineReactTable table={table} />
+                <ContentTable table={table} />
             </Stack>
 
             <UserAttributeModal

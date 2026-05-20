@@ -29,10 +29,10 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../../../components/common/InHouseTable';
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useGetSlack,
@@ -474,7 +474,7 @@ const AiAgentAdminAgentsTable = () => {
         [projectsMap, slackChannels, navigate],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredAgents,
         enableColumnResizing: false,
@@ -616,7 +616,7 @@ const AiAgentAdminAgentsTable = () => {
 
     return (
         <Box>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
         </Box>
     );
 };

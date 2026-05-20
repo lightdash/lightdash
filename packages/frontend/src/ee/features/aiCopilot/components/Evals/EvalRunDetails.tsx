@@ -19,10 +19,10 @@ import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../../../components/common/InHouseTable';
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluationRunResults,
@@ -194,7 +194,7 @@ export const EvalRunDetails: FC<Props> = ({
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: runData?.results ?? [],
         enableSorting: false,
@@ -372,7 +372,7 @@ export const EvalRunDetails: FC<Props> = ({
 
                 <Divider />
                 <Box>
-                    <MantineReactTable table={table} />
+                    <ContentTable table={table} />
                 </Box>
                 <Divider />
 

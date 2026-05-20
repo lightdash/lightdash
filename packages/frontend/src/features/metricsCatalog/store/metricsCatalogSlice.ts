@@ -7,7 +7,7 @@ import {
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { MRT_SortingState } from '../../../components/common/InHouseTable';
+import type { MRT_SortingState } from '../../../components/common/ContentTable';
 import type { UserWithAbility } from '../../../hooks/user/useUser';
 import { SavedTreeEditMode } from '../types';
 

@@ -27,10 +27,10 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMemo, type FC } from 'react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -328,7 +328,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             [organizationUsers],
         );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: allChanges,
         enableStickyHeader: true,
@@ -523,7 +523,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                     </Button>
                 )}
             </Group>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
         </Stack>
     );
 };

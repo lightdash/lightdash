@@ -35,13 +35,13 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from 'react';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../components/common/ContentTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from '../components/common/InHouseTable';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     useDashboardQuery,
@@ -352,7 +352,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         );
     }, [dataWithoutTotal, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: true,
@@ -427,7 +427,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 // Charts Table Component
@@ -582,7 +582,7 @@ const ChartsTable = ({
         );
     }, [data, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: false,
@@ -648,7 +648,7 @@ const ChartsTable = ({
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 // Filters Table Component
@@ -751,7 +751,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         });
     }, [data, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: true,
@@ -817,7 +817,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 const DashboardVersionComparison = ({
