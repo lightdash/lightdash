@@ -2357,7 +2357,7 @@ const getStackTotalRows = (
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
-const getStackTotalSeries = (
+export const getStackTotalSeries = (
     rows: Record<string, unknown>[],
     seriesWithStack: EChartsSeries[],
     itemsMap: ItemsMap,
@@ -2370,7 +2370,15 @@ const getStackTotalSeries = (
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
         (acc, [stack, series]) => {
-            if (!stack || !series[0] || !series[0].stackLabel?.show) {
+            // A series can land at index 0 without a `stackLabel` config (e.g.
+            // auto-generated for a new pivot value after a metric-sort reorder).
+            // Drive the synthetic stack-total off any saved series in the
+            // stack, not just the first one.
+            if (
+                !stack ||
+                !series.length ||
+                !series.some((s) => s.stackLabel?.show)
+            ) {
                 return acc;
             }
             const stackSeries: EChartsSeries = {
@@ -2385,7 +2393,7 @@ const getStackTotalSeries = (
                 clip: !isStack100,
                 label: {
                     ...getBarTotalLabelStyle(),
-                    show: series[0].stackLabel?.show,
+                    show: true,
                     formatter: (param) => {
                         const stackTotal = param.data[2];
                         const fieldId = series[0].pivotReference?.field;
@@ -3244,7 +3252,7 @@ const useEchartsCartesianConfig = (
         let maxCharCount = 0;
 
         Object.entries(seriesGroupedByStack).forEach(([stack, stackSeries]) => {
-            if (!stack || !stackSeries[0]?.stackLabel?.show) return;
+            if (!stack || !stackSeries.some((s) => s.stackLabel?.show)) return;
 
             const stackTotalData = getStackTotalRows(
                 paddedSortedResults,

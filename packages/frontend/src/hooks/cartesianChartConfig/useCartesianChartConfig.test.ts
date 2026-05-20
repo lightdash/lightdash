@@ -223,6 +223,41 @@ describe('getExpectedSeriesMap', () => {
             ]);
         });
     });
+
+    // When a pivot value appears in the data that is NOT in the saved
+    // eChartsConfig.series, getExpectedSeriesMap synthesises a fresh series
+    // for it. That auto-generated series must inherit stack-label config
+    // from the saved series, otherwise getStackTotalSeries (which short-
+    // circuits when the first stacked series has no stackLabel.show) drops
+    // the synthetic stack-total series and total labels disappear from
+    // every bar. Surfaced after #22899 (0.2918.0) extended the
+    // metric-sort-driven reorder that can push the synthetic series to
+    // index 0.
+    test('should propagate defaultStackLabel to every pivoted series', () => {
+        const defaultStackLabel = { show: true };
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultStackLabel,
+        });
+        const series = Object.values(result);
+        expect(series.length).toBeGreaterThan(0);
+        series.forEach((s) =>
+            expect(s.stackLabel).toStrictEqual(defaultStackLabel),
+        );
+    });
+
+    test('should propagate defaultStackLabel to every non-pivoted series', () => {
+        const defaultStackLabel = { show: true };
+        const result = getExpectedSeriesMap({
+            ...simpleSeriesMapArgs,
+            defaultStackLabel,
+        });
+        const series = Object.values(result);
+        expect(series.length).toBeGreaterThan(0);
+        series.forEach((s) =>
+            expect(s.stackLabel).toStrictEqual(defaultStackLabel),
+        );
+    });
 });
 
 describe('mergeExistingAndExpectedSeries', () => {

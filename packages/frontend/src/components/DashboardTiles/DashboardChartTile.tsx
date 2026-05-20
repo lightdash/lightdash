@@ -225,6 +225,7 @@ const computeDashboardChartSeries = (
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
+            defaultStackLabel: firstSerie?.stackLabel,
             itemsMap,
             columnLimit: chart.chartConfig.config.columnLimit,
         });

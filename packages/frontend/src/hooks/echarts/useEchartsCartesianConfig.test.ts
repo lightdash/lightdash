@@ -19,6 +19,7 @@ import {
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    getStackTotalSeries,
     padDatasetForContinuousAxis,
     selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
@@ -1192,5 +1193,102 @@ describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => 
 
         expect(padThenTransformCats).toEqual(partialRange);
         expect(transformThenPadCats).toEqual(partialRange);
+    });
+});
+
+describe('getStackTotalSeries', () => {
+    const itemsMap = {} as any;
+    const baseArgs = {
+        rows: [] as Record<string, unknown>[],
+        itemsMap,
+        flipAxis: false,
+        selectedLegendNames: {} as any,
+        isStack100: false,
+    };
+
+    test('emits a synthetic stack-total series when every series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    // The index-0 short-circuit broke total labels whenever the pivot-merge
+    // re-ordered series and dropped an unconfigured auto-generated series
+    // at the front of the stack. As long as ANY series in the stack has
+    // stackLabel.show=true, the synthetic stack-total series must still be
+    // appended.
+    test('still emits the synthetic stack-total series when only a non-first series has stackLabel.show', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                // Auto-generated series for a new pivot value — no stackLabel.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                // Saved series carrying the user's stack-label intent.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    test('does not emit a synthetic series when no series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(0);
     });
 });
