@@ -53,8 +53,6 @@ type SanitizedMantineProps<TElement extends HTMLElement> = Omit<
     style?: CSSProperties;
 };
 
-export const MantineReactTable = InHouseTable;
-
 const assignRef = <TElement,>(
     ref: React.Ref<TElement> | undefined,
     value: TElement | null,
@@ -242,6 +240,8 @@ const SortIcon = <TData extends RowData>({
         <IconArrowsSort size={14} />
     );
 };
+
+export const MantineReactTable = InHouseTable;
 
 const HeaderContent = <TData extends RowData>({
     header,
