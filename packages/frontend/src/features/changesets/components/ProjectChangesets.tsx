@@ -25,12 +25,12 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useMemo, type FC } from 'react';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useMemo, type FC } from 'react';
+} from '../../../components/common/InHouseTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -347,7 +347,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         enableTopToolbar: false,
         mantinePaperProps: {
             shadow: undefined,
-            sx: {
+            style: {
                 border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
@@ -356,7 +356,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             },
         },
         mantineTableContainerProps: {
-            sx: {
+            style: {
                 maxHeight: 500,
                 minHeight: '300px',
                 display: 'flex',
@@ -368,27 +368,14 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             withColumnBorders: Boolean(allChanges.length),
         },
         mantineTableHeadRowProps: {
-            sx: {
+            style: {
                 boxShadow: 'none',
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
             },
         },
         mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
             const isLastColumn =
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
 
             return {
                 bg: 'ldGray.0',
@@ -407,30 +394,14 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
-                },
-                sx: {
                     justifyContent: 'center',
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
                 },
             };
         },
         mantineTableBodyRowProps: () => {
             return {
-                sx: {
+                style: {
                     cursor: 'pointer',
-                    '&:hover': {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
                 },
             };
         },

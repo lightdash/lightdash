@@ -13,13 +13,6 @@ import {
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -33,6 +26,13 @@ import {
     useProjectCompileLogs,
     type ProjectCompileLog,
 } from '../../hooks/useProjectCompileLogs';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_SortingState,
+    type MRT_Virtualizer,
+} from '../common/InHouseTable';
 import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
 import { CompilationLogDrawer } from './CompilationLogDrawer';
@@ -111,14 +111,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = compileLogs.length;
-
-    // Temporary workaround to resolve a memoization issue with react-mantine-table.
-    // In certain scenarios, the content fails to render properly even when the data is updated.
-    // This issue may be addressed in a future library update.
-    const [tableData, setTableData] = useState<ProjectCompileLog[]>([]);
-    useEffect(() => {
-        setTableData(compileLogs);
-    }, [compileLogs]);
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(
@@ -276,7 +268,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     const table = useMantineReactTable({
         columns,
-        data: tableData,
+        data: compileLogs,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -376,7 +368,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,
