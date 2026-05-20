@@ -16,6 +16,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfig, PivotConfiguration } from '../types/pivot';
 import {
     ChartType,
+    getHiddenTableFields,
     isCartesianChartConfig,
     type SavedChartDAO,
 } from '../types/savedCharts';
@@ -209,10 +210,47 @@ function getTablePivotConfiguration(
         }))
         .filter((col) => metricQuery.dimensions.includes(col.reference));
 
+    // Identify hidden dimensions (visible: false in columnProperties).
+    // ANY hidden dim is excluded from indexColumn / groupByColumns.
+    // Among hidden dims, those that also appear in sorts become sortOnlyColumns —
+    // they drive sort order in the SQL but do not render as row-index columns.
+    // Hidden dims that are NOT sorted are simply dropped entirely.
+    const hiddenFieldIds = getHiddenTableFields(chartConfig);
+    const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
+    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
+
+    // All hidden dims (regardless of sort status) — used to exclude from indexColumn.
+    const allHiddenDimRefs = new Set(
+        metricQuery.dimensions.filter(
+            (d) => hiddenFieldIds.includes(d) && !groupByRefs.has(d),
+        ),
+    );
+
+    // Subset of hidden dims that are also sorted → participate in SQL via sortOnlyColumns.
+    const sortOnlyDimensions = metricQuery.dimensions
+        .filter((d) => allHiddenDimRefs.has(d) && sortFieldIds.has(d))
+        .map((d) => ({
+            reference: d,
+            aggregation: VizAggregationOptions.ANY,
+        }));
+
+    // When computing index columns, treat ALL hidden dims the same as value columns
+    // so they are excluded from indexColumn (preventing them from rendering as
+    // row-index columns). This covers both sort-only hidden dims and hidden dims
+    // that are not sorted at all.
+    const hiddenDimPlaceholders = [...allHiddenDimRefs].map((d) => ({
+        reference: d,
+        aggregation: VizAggregationOptions.ANY,
+    }));
+    const allValuesColumnsForIndex = [
+        ...valuesColumns,
+        ...hiddenDimPlaceholders,
+    ];
+
     // Find columns that are not groupBy or value columns (these become index columns)
     const indexColumn = getIndexColumn(
         groupByColumns,
-        valuesColumns,
+        allValuesColumnsForIndex,
         fields,
         metricQuery,
     );
@@ -221,6 +259,9 @@ function getTablePivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
+        ...(sortOnlyDimensions.length > 0 && {
+            sortOnlyColumns: sortOnlyDimensions,
+        }),
     };
 
     const pivotConfiguration: PivotConfiguration = {

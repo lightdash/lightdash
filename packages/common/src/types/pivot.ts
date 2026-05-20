@@ -11,6 +11,14 @@ export type PivotConfig = {
     visibleMetricFieldIds?: string[];
     columnTotals?: boolean;
     rowTotals?: boolean;
+    /**
+     * Dimensions (row-index or pivot-column-header) hidden from the rendered
+     * pivot and from exports. The dimension still participates in the
+     * underlying query and can drive sort order; it just doesn't render and
+     * is filtered out of CSV/XLSX. Mirrors `hiddenMetricFieldIds` for the
+     * dimension side.
+     */
+    hiddenDimensionFieldIds?: string[];
 };
 
 // Used in AsyncQueryService to execute pivoted queries
