@@ -1,9 +1,4 @@
-import {
-    FeatureFlags,
-    getItemLabel,
-    getItemMap,
-    isField,
-} from '@lightdash/common';
+import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -22,11 +17,11 @@ import {
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useIsHidePivotDimsEnabled } from '../../../hooks/useIsHidePivotDimsEnabled';
 import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
 } from '../../../hooks/useQueryResults';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
@@ -276,10 +271,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     // PROD-2108 flag gate: unflagged users keep the pre-existing behavior
     // (no dim filtering) so an existing chart with a stray `visible: false`
     // on a dim doesn't suddenly start hiding columns.
-    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
-        FeatureFlags.HidePivotDimensions,
-    );
-    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
     const queryDimensions = query.data?.metricQuery?.dimensions;
     const { hiddenDimensionFieldIds, hiddenMetricFieldIds } = useMemo(() => {
         if (!columnProperties || !isHidePivotDimsEnabled) {

@@ -16,6 +16,10 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import {
+    getRowDims,
+    isFieldSubtotalGroupingLevel,
+} from '../../../utils/pivotSubtotalGrouping';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
@@ -111,12 +115,10 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
         isTableVisualizationConfig(visualizationConfig) &&
         (visualizationConfig.chartConfig.showSubtotals ?? false);
     const dimensions = resultsData?.metricQuery?.dimensions ?? [];
-    const rowDims = dimensions.filter((d) => !pivotDimensions?.includes(d));
+    const rowDims = getRowDims(dimensions, pivotDimensions);
     const isSubtotalGroupingLevel =
         allowHidePivotDimension &&
-        showSubtotals &&
-        rowDims.includes(fieldId) &&
-        rowDims.indexOf(fieldId) < rowDims.length - 1;
+        isFieldSubtotalGroupingLevel(fieldId, rowDims, showSubtotals);
 
     // Pivoted dimensions become column headers and can't be frozen.
     const shouldShowFreezeToggle = !isPivotingDimension;

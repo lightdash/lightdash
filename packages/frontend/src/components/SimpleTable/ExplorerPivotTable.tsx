@@ -1,4 +1,4 @@
-import { FeatureFlags, FieldType, type SortField } from '@lightdash/common';
+import { FieldType, type SortField } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { useCallback, useMemo, type ComponentProps, type FC } from 'react';
 import {
@@ -11,12 +11,16 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useIsHidePivotDimsEnabled } from '../../hooks/useIsHidePivotDimsEnabled';
 import {
     matchesIdentity,
     normalizePivotValues,
     pivotValuesEqual,
 } from '../../utils/pivotSortIdentity';
+import {
+    getRowDims,
+    isFieldSubtotalGroupingLevel,
+} from '../../utils/pivotSubtotalGrouping';
 import { SortDirection } from '../../utils/sortUtils';
 import PivotTable, { type PivotSortMenuTarget } from '../common/PivotTable';
 import ColumnHeaderSortMenuOptions from '../Explorer/ResultsCard/ColumnHeaderSortMenuOptions';
@@ -52,21 +56,16 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
         ? visualizationConfig.chartConfig
         : null;
 
-    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
-        FeatureFlags.HidePivotDimensions,
-    );
-    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
 
     const showSubtotals = chartConfig?.showSubtotals ?? false;
     const rowDims = useMemo(
-        () => dimensions.filter((d) => !pivotConfig?.columns?.includes(d)),
+        () => getRowDims(dimensions, pivotConfig?.columns),
         [dimensions, pivotConfig],
     );
     const isSubtotalGroupingLevel = useCallback(
         (fieldId: string) =>
-            showSubtotals &&
-            rowDims.includes(fieldId) &&
-            rowDims.indexOf(fieldId) < rowDims.length - 1,
+            isFieldSubtotalGroupingLevel(fieldId, rowDims, showSubtotals),
         [showSubtotals, rowDims],
     );
 

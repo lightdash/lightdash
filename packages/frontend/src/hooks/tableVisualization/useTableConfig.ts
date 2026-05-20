@@ -1,6 +1,5 @@
 import {
     convertFormattedValue,
-    FeatureFlags,
     getItemLabel,
     isCustomDimension,
     isDimension,
@@ -28,8 +27,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
+import { useIsHidePivotDimsEnabled } from '../useIsHidePivotDimsEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -166,10 +165,7 @@ const useTableConfig = (
     // `columnProperties[dim].visible: false` (set by clicks during the era of
     // the buggy guard) keep rendering the dim. Flag-on opts into the new
     // behavior.
-    const { data: hidePivotDimsFlag } = useServerFeatureFlag(
-        FeatureFlags.HidePivotDimensions,
-    );
-    const isHidePivotDimsEnabled = hidePivotDimsFlag?.enabled ?? false;
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
 
     const isColumnVisible = useCallback(
         (fieldId: string) => {
