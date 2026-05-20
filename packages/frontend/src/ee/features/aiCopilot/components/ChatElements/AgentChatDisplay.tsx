@@ -12,6 +12,7 @@ import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import { UserBubble } from './AgentChatUserBubble';
 import ThreadScrollToBottom from './ScrollToBottom';
+import styles from './AgentChatDisplay.module.css';
 import { ChatElementsUtils } from './utils';
 
 type Props = {
@@ -53,77 +54,86 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             style={{ flexGrow: 1, overflowY: 'auto' }}
             pt="md"
         >
-            <Stack
-                {...ChatElementsUtils.centeredElementProps}
-                gap="xl"
-                style={{ flexGrow: 1 }}
-            >
-                <Stack flex={1} style={{ flexGrow: 1 }}>
-                    {thread.messages.map((message, i, xs) => (
-                        <Fragment key={`${message.role}-${message.uuid}`}>
-                            {ChatElementsUtils.shouldRenderDivider(
-                                message,
-                                i,
-                                xs,
-                            ) && (
-                                <Divider
-                                    label={
-                                        message.createdAt
-                                            ? ChatElementsUtils.getDividerLabel(
-                                                  message.createdAt,
-                                              )
-                                            : undefined
-                                    }
-                                    labelPosition="center"
-                                    my="sm"
-                                />
-                            )}
+            <Flex direction="column" style={{ flexGrow: 1, minHeight: '100%' }}>
+                <Stack
+                    w={ChatElementsUtils.centeredElementProps.w}
+                    maw={ChatElementsUtils.centeredElementProps.maw}
+                    mx={ChatElementsUtils.centeredElementProps.mx}
+                    px={ChatElementsUtils.centeredElementProps.px}
+                    pb="md"
+                    gap="xl"
+                    style={{ flexGrow: 1 }}
+                >
+                    <Stack flex={1} style={{ flexGrow: 1 }}>
+                        {thread.messages.map((message, i, xs) => (
+                            <Fragment key={`${message.role}-${message.uuid}`}>
+                                {ChatElementsUtils.shouldRenderDivider(
+                                    message,
+                                    i,
+                                    xs,
+                                ) && (
+                                    <Divider
+                                        label={
+                                            message.createdAt
+                                                ? ChatElementsUtils.getDividerLabel(
+                                                      message.createdAt,
+                                                  )
+                                                : undefined
+                                        }
+                                        labelPosition="center"
+                                        my="sm"
+                                    />
+                                )}
 
-                            {message.role === 'user' ? (
-                                <UserBubble message={message} />
-                            ) : (
-                                <ErrorBoundary>
-                                    {projectUuid && agentUuid && (
-                                        <AssistantBubble
-                                            message={message}
-                                            debug={debug}
-                                            projectUuid={projectUuid}
-                                            agentUuid={agentUuid}
-                                            onAddToEvals={
-                                                setAddToEvalsPromptUuid
-                                            }
-                                            showAddToEvalsButton={
-                                                showAddToEvalsButton
-                                            }
-                                            renderArtifactsInline={
-                                                renderArtifactsInline
-                                            }
-                                        />
-                                    )}
-                                </ErrorBoundary>
-                            )}
-                        </Fragment>
-                    ))}
+                                {message.role === 'user' ? (
+                                    <UserBubble message={message} />
+                                ) : (
+                                    <ErrorBoundary>
+                                        {projectUuid && agentUuid && (
+                                            <AssistantBubble
+                                                message={message}
+                                                debug={debug}
+                                                projectUuid={projectUuid}
+                                                agentUuid={agentUuid}
+                                                onAddToEvals={
+                                                    setAddToEvalsPromptUuid
+                                                }
+                                                showAddToEvalsButton={
+                                                    showAddToEvalsButton
+                                                }
+                                                renderArtifactsInline={
+                                                    renderArtifactsInline
+                                                }
+                                            />
+                                        )}
+                                    </ErrorBoundary>
+                                )}
+                            </Fragment>
+                        ))}
+                    </Stack>
+
+                    {enableAutoScroll && projectUuid && agentUuid ? (
+                        <ThreadScrollToBottom
+                            scrollAreaRef={viewport}
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            threadUuid={thread.uuid}
+                        />
+                    ) : null}
                 </Stack>
 
-                {enableAutoScroll && projectUuid && agentUuid ? (
-                    <ThreadScrollToBottom
-                        scrollAreaRef={viewport}
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        threadUuid={thread.uuid}
-                    />
+                {children ? (
+                    <Box
+                        className={styles.composerFooter}
+                        pos="sticky"
+                        bottom={0}
+                        w="100%"
+                        style={{ zIndex: getDefaultZIndex('app') - 1 }}
+                    >
+                        {children}
+                    </Box>
                 ) : null}
-
-                <Box
-                    pos="sticky"
-                    bottom={0}
-                    w="100%"
-                    style={{ zIndex: getDefaultZIndex('app') - 1 }}
-                >
-                    {children}
-                </Box>
-            </Stack>
+            </Flex>
 
             {showAddToEvalsButton &&
                 projectUuid &&

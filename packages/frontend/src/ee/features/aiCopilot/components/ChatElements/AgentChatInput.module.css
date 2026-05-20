@@ -143,7 +143,8 @@
 /* Minimal mode styles for existing threads */
 .minimalContainer {
     position: relative;
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm);
 }
 
 /* ------------------------------------------------------------------ *
@@ -315,6 +316,14 @@
     background: transparent;
     flex: 1;
     min-width: 0;
+    --rte-bg: transparent;
+    --rte-border-color: transparent;
+
+    :global(.mantine-RichTextEditor-content),
+    :global(.mantine-8-RichTextEditor-content) {
+        background: transparent;
+        border: none;
+    }
 }
 
 .editorContent {
@@ -356,9 +365,11 @@
     max-height: 144px;
     overflow-y: auto;
     flex: 1;
+    background: transparent;
 
     :global(.ProseMirror) {
         outline: none;
+        background: transparent;
     }
 
     :global(p.is-empty.is-editor-empty::before) {
