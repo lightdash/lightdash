@@ -340,6 +340,13 @@ export type ApiCreateAiMcpServer = {
 
 export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
 export type ApiAiMcpServerResponse = ApiSuccess<AiMcpServer>;
+export type ApiAiMcpServerToolListResponse = ApiSuccess<AiMcpServerTool[]>;
+export type ApiAiAgentMcpServerToolListResponse = ApiSuccess<
+    AiAgentMcpServerTool[]
+>;
+export type ApiUpdateAiAgentMcpServerToolsRequest = {
+    toolSettings: AiAgentMcpServerToolUpdate[];
+};
 export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
     authorizationUrl: string;
 }>;

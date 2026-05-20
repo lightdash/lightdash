@@ -9,6 +9,7 @@ import {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentExploreAccessSummaryResponse,
+    ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentResponse,
     ApiAiAgentSqlApprovalRequest,
@@ -28,6 +29,7 @@ import {
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
+    ApiAiMcpServerToolListResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -44,6 +46,7 @@ import {
     ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
+    ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -208,6 +211,52 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcpServers/{mcpServerUuid}/tools')
+    @OperationId('listMcpServerTools')
+    async listMcpServerTools(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiAiMcpServerToolListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listMcpServerTools(
+                toSessionUser(req.account),
+                projectUuid,
+                mcpServerUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/tools/refresh')
+    @OperationId('refreshMcpServerTools')
+    async refreshMcpServerTools(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiAiMcpServerToolListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().refreshMcpServerTools(
+                toSessionUser(req.account),
+                projectUuid,
+                mcpServerUuid,
+            ),
+        };
+    }
+
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -301,6 +350,58 @@ export class AiAgentController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 agentUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/mcpServers/{mcpServerUuid}/tools')
+    @OperationId('listAgentMcpServerTools')
+    async listAgentMcpServerTools(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiAiAgentMcpServerToolListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgentMcpServerTools(
+                toSessionUser(req.account),
+                projectUuid,
+                agentUuid,
+                mcpServerUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{agentUuid}/mcpServers/{mcpServerUuid}/tools')
+    @OperationId('updateAgentMcpServerTools')
+    async updateAgentMcpServerTools(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() mcpServerUuid: string,
+        @Body() body: ApiUpdateAiAgentMcpServerToolsRequest,
+    ): Promise<ApiAiAgentMcpServerToolListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().updateAgentMcpServerTools(
+                toSessionUser(req.account),
+                projectUuid,
+                agentUuid,
+                mcpServerUuid,
+                body,
             ),
         };
     }

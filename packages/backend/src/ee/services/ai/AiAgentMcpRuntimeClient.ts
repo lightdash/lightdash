@@ -1,9 +1,14 @@
-import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
+import {
+    createMCPClient,
+    type ListToolsResult,
+    type MCPClient,
+} from '@ai-sdk/mcp';
 import {
     assertUnreachable,
     type AiMcpCredentialScope,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
+    type AiMcpServerToolInput,
 } from '@lightdash/common';
 /* eslint-disable import/extensions */
 import {
@@ -480,6 +485,18 @@ export const testMcpConnection = async (
     }
 };
 
+const toMcpServerToolInputs = (
+    result: ListToolsResult,
+): AiMcpServerToolInput[] =>
+    result.tools.map((tool) => ({
+        toolName: tool.name,
+        title: tool.title ?? null,
+        description: tool.description ?? null,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations ?? null,
+        meta: tool._meta ?? null,
+    }));
+
 export class AiAgentMcpRuntimeClient {
     private readonly aiAgentModel: AiAgentModel;
 
@@ -679,6 +696,70 @@ export class AiAgentMcpRuntimeClient {
                       })
                     : undefined,
         }));
+    }
+
+    async listTools(args: {
+        projectUuid: string;
+        mcpServer: AiMcpServerWithSensitiveData;
+    }): Promise<AiMcpServerToolInput[]> {
+        let mcpClient: MCPClient | undefined;
+
+        try {
+            mcpClient = await createHttpMcpClient(
+                {
+                    ...args.mcpServer,
+                    oauthProvider:
+                        args.mcpServer.authType === 'oauth'
+                            ? this.createSharedMcpOAuthProvider({
+                                  projectUuid: args.projectUuid,
+                                  mcpServerUuid: args.mcpServer.uuid,
+                              })
+                            : undefined,
+                },
+                (error) => {
+                    Logger.error(
+                        `[AiAgent][MCP][${args.mcpServer.name}] Uncaught MCP client error during tool discovery`,
+                        error,
+                    );
+                },
+            );
+
+            const tools = await mcpClient.listTools();
+
+            await this.persistRuntimeState({
+                serverUuid: args.mcpServer.uuid,
+                connectionStatus: 'connected',
+                error: null,
+            });
+
+            return toMcpServerToolInputs(tools);
+        } catch (error) {
+            const normalizedError =
+                error instanceof Error ? error : new Error(String(error));
+            const userFacingErrorMessage =
+                getMcpUserFacingErrorMessage(normalizedError);
+            const status = getUnavailableMcpStatus(
+                args.mcpServer as AiAgentMcpServer,
+                normalizedError,
+            );
+
+            await this.persistRuntimeState({
+                serverUuid: args.mcpServer.uuid,
+                connectionStatus: status,
+                error: userFacingErrorMessage,
+            });
+
+            throw normalizedError;
+        } finally {
+            if (mcpClient) {
+                await mcpClient.close().catch((closeError) => {
+                    Logger.error(
+                        `[AiAgent][MCP][${args.mcpServer.name}] Failed to close MCP client after tool discovery`,
+                        closeError,
+                    );
+                });
+            }
+        }
     }
 
     async resolveTools(args: {
