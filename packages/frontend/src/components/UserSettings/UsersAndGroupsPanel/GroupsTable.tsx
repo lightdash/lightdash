@@ -16,12 +16,6 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -32,6 +26,12 @@ import {
 } from 'react';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import useApp from '../../../providers/App/useApp';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from '../../common/InHouseTable';
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
 import { GroupsTopToolbar } from './GroupsTopToolbar';
@@ -78,12 +78,6 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
-
-    // Temporary workaround to resolve a memoization issue with react-mantine-table
-    const [tableData, setTableData] = useState<GroupWithMembers[]>([]);
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(
@@ -204,7 +198,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 size: 50,
                 Cell: ({ row }) => {
                     const group = row.original;
-                    const disabled = !canManageGroups || tableData.length < 1;
+                    const disabled = !canManageGroups || flatData.length < 1;
 
                     return (
                         <Box
@@ -224,12 +218,12 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 },
             },
         ],
-        [canManageGroups, tableData.length, onEditGroup, theme],
+        [canManageGroups, flatData.length, onEditGroup, theme],
     );
 
     const table = useMantineReactTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -267,7 +261,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -327,7 +321,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 64, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,
