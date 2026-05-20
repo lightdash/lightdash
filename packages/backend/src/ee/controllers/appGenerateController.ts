@@ -72,6 +72,7 @@ export class AppGenerateController extends BaseController {
             body.template,
             body.clarifications,
             body.spaceUuid,
+            body.claudeModel,
         );
         return {
             status: 'ok',
@@ -211,6 +212,7 @@ export class AppGenerateController extends BaseController {
             body.imageIds ?? [],
             body.charts,
             body.dashboard,
+            body.claudeModel,
         );
         return {
             status: 'ok',

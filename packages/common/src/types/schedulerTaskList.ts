@@ -2,6 +2,7 @@ import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
     type ChartReference,
+    type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
@@ -45,6 +46,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     imageIds?: string[];
     isIteration: boolean;
     chartReferences?: ChartReference[];
+    // Claude model the user picked for this version. Absent on jobs enqueued
+    // before the picker shipped — the pipeline falls back to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
+    claudeModel?: DataAppClaudeModel;
 };
 
 export const EE_SCHEDULER_TASKS = {

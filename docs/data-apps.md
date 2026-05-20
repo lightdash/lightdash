@@ -159,6 +159,20 @@ When users send follow-up prompts, the system creates a new `DbAppVersion` and e
 
 This means Claude can see what it built previously and make targeted changes rather than starting from scratch.
 
+### Model selection
+
+The chat input carries a `ModelPicker` (next to the send button) that lets the user choose which Claude model runs the generation: `opus` (highest quality, best for complex apps), `sonnet` (default, balanced), or `haiku` (fastest). The choice is editable on every turn — `claude --continue` keeps the prior conversation context but accepts a fresh `--model` flag per invocation, so switching mid-iteration doesn't reset Claude's memory of what it already built.
+
+How it flows through the stack:
+
+- The frontend sends `claudeModel: 'opus' | 'sonnet' | 'haiku'` on `POST /api/v1/ee/projects/{projectUuid}/apps/` (generate) and `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/versions` (iterate).
+- The backend validates it against `DATA_APP_CLAUDE_MODELS` (`AppGenerateService.resolveClaudeModel`) and rejects unknown values rather than shelling out as `--model <anything>` to the Claude CLI inside the sandbox.
+- The resolved value is persisted per-version on `app_versions.resources.claudeModel` (JSONB) and carried through the scheduler payload to `runClaudeGeneration`, where it substitutes into the `--model ${model}` flag for the user-facing generation, the build auto-fix retries, and the post-build metadata (name + description) call.
+- Older versions and jobs queued before the picker shipped don't carry the field; both the pipeline and the picker fall back to `DEFAULT_DATA_APP_CLAUDE_MODEL` (`sonnet`) so existing builds and resumed sandboxes keep working.
+- The restore-notification call (`notifyClaudeOfRestore`) deliberately stays on a fixed model — it's a one-line FYI to the persistent Claude session, not a user-driven generation.
+
+The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_APP_CLAUDE_MODELS`, `DataAppClaudeModel`, `DEFAULT_DATA_APP_CLAUDE_MODEL`) so the frontend picker, the request body, and the backend validation stay in sync.
+
 ### Cancellation
 
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
