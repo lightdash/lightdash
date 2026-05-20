@@ -188,6 +188,7 @@ const InfiniteResourceTableColumnName = ({
                 <Stack gap={2}>
                     <Group gap="xs" wrap="nowrap">
                         <Text
+                            fz="sm"
                             fw={600}
                             lineClamp={1}
                             style={{ overflowWrap: 'anywhere' }}

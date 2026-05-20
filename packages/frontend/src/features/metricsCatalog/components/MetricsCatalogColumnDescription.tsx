@@ -3,8 +3,11 @@ import { Box, Text, useMantineTheme } from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
-import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { useRef, useState, type FC } from 'react';
+import {
+    type MRT_Row,
+    type MRT_TableInstance,
+} from '../../../components/common/InHouseTable';
 import { useIsLineClamped } from '../../../hooks/useIsLineClamped';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setDescriptionPopoverIsClosing } from '../store/metricsCatalogSlice';

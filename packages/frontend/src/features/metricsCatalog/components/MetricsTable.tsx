@@ -13,7 +13,6 @@ import {
     Paper,
     Text,
     useMantineTheme,
-    type PaperProps,
 } from '@mantine/core';
 import {
     IconArrowDown,
@@ -21,12 +20,6 @@ import {
     IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
 import {
     useCallback,
     useDeferredValue,
@@ -37,6 +30,12 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_SortingState,
+    type MRT_Virtualizer,
+} from '../../../components/common/InHouseTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -233,7 +232,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     };
 
     // Reusable paper props to avoid duplicate when rendering tree view
-    const mantinePaperProps: PaperProps = useMemo(
+    const mantinePaperProps = useMemo(
         () => ({
             shadow: undefined,
             sx: {
@@ -241,7 +240,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'column' as const,
             },
         }),
         [theme],
@@ -435,26 +434,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 },
             },
         },
-        mantineTableBodyRowProps: {
-            sx: {
-                'td:first-of-type > div > .explore-button-container': {
-                    visibility: 'hidden',
-                    opacity: 0,
-                },
-                '&:hover': {
-                    td: {
-                        backgroundColor: theme.colors.ldGray[0],
-                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
-
-                    'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'visible',
-                        opacity: 1,
-                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
-                },
-            },
-        },
         mantineTableBodyCellProps: (props) => {
             const isLastVisibleColumn =
                 props.table
@@ -596,7 +575,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             showGlobalFilter: true, // Show search input by default
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         displayColumnDefOptions: {
             'mrt-row-actions': {
                 header: '',

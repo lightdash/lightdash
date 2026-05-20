@@ -46,10 +46,10 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
-import { type MRT_TableInstance } from 'mantine-react-table';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
+import { type MRT_TableInstance } from '../../../../components/common/InHouseTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';

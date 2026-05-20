@@ -38,14 +38,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_TableOptions,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useDeferredValue,
     useEffect,
@@ -64,6 +56,14 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_SortingState,
+    type MRT_TableOptions,
+    type MRT_Virtualizer,
+} from '../InHouseTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
@@ -535,31 +535,8 @@ const InfiniteResourceTable = ({
         mantineTableBodyRowProps: ({ row }) => {
             const isTableSelectionActive =
                 table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
-            const isSelected = row.getIsSelected();
 
             return {
-                sx: {
-                    cursor: 'pointer',
-                    'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'hidden',
-                        opacity: 0,
-                    },
-                    '&:hover': {
-                        td: isSelected
-                            ? {}
-                            : {
-                                  backgroundColor: theme.colors.ldGray[0],
-                                  transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                              },
-
-                        'td:first-of-type > div > .explore-button-container': {
-                            visibility: 'visible',
-                            opacity: 1,
-                            transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
-                },
-
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
@@ -788,7 +765,7 @@ const InfiniteResourceTable = ({
             columnVisibility: defaultColumnVisibility,
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         displayColumnDefOptions: {
             'mrt-row-actions': {
                 header: '',
