@@ -1916,6 +1916,11 @@ export type McpToolCallEvent = BaseTrack & {
         organizationId: string;
         projectId?: string;
         toolName: string;
+        authType: string;
+        anthropicClient?: string;
+        clientSource?: string;
+        protocolVersion?: string;
+        userAgent?: string;
     };
 };
 

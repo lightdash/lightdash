@@ -43,6 +43,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
+    CallToolRequestSchema,
+    RequestInfo,
     ServerNotification,
     ServerRequest,
     // eslint-disable-next-line import/extensions
@@ -139,6 +141,13 @@ export enum McpToolName {
 
 const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
 
+type McpClientMetadata = {
+    anthropicClient?: string;
+    clientSource?: string;
+    protocolVersion?: string;
+    userAgent?: string;
+};
+
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -166,6 +175,7 @@ export type ExtraContext = {
     headerUserAttributes?: UserAttributeValueMap;
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
     headerProjectUuid?: string;
+    mcpClientMetadata?: McpClientMetadata;
 };
 
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
@@ -179,6 +189,7 @@ const extraContextSchema = z.object({
     account: z.custom<OauthAccount | ApiKeyAccount | ServiceAcctAccount>(),
     headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
     headerProjectUuid: z.string().optional(),
+    mcpClientMetadata: z.custom<McpClientMetadata>().optional(),
 });
 
 const mcpProtocolContextSchema = z.object({
@@ -188,9 +199,70 @@ const mcpProtocolContextSchema = z.object({
             z.object({ extra: extraContextSchema }),
         )
         .optional(),
+    requestInfo: z.custom<RequestInfo>().optional(),
+    _meta: z.record(z.unknown()).optional(),
 });
 
 type McpProtocolContext = z.infer<typeof mcpProtocolContextSchema>;
+
+const getRequestHeader = (
+    requestInfo: RequestInfo | undefined,
+    headerName: string,
+): string | undefined => {
+    const headerValue = requestInfo?.headers[headerName.toLowerCase()];
+
+    if (Array.isArray(headerValue)) {
+        return headerValue[0];
+    }
+
+    return headerValue;
+};
+
+const CLAUDE_CODE_TOOL_USE_ID_META_KEY = 'claudecode/toolUseId';
+const CODEX_TURN_METADATA_META_KEY = 'x-codex-turn-metadata';
+
+const getMcpClientSource = (
+    requestInfo: RequestInfo | undefined,
+    _meta: McpProtocolContext['_meta'],
+): string | undefined => {
+    if (_meta?.[CLAUDE_CODE_TOOL_USE_ID_META_KEY] !== undefined) {
+        return 'claudecode';
+    }
+    if (_meta?.[CODEX_TURN_METADATA_META_KEY] !== undefined) {
+        return 'codex';
+    }
+    if (
+        getRequestHeader(requestInfo, 'x-openai-session') !== undefined ||
+        _meta?.['openai/session'] !== undefined
+    ) {
+        return 'openai';
+    }
+
+    return undefined;
+};
+
+const getMcpClientMetadata = ({
+    requestInfo,
+    _meta,
+}: Pick<McpProtocolContext, 'requestInfo' | '_meta'>): McpClientMetadata => {
+    const userAgent = getRequestHeader(requestInfo, 'user-agent');
+    const anthropicClient = getRequestHeader(requestInfo, 'x-anthropic-client');
+    const protocolVersion = getRequestHeader(
+        requestInfo,
+        'mcp-protocol-version',
+    );
+    const clientSource = getMcpClientSource(requestInfo, _meta);
+
+    return {
+        anthropicClient,
+        clientSource,
+        protocolVersion,
+        userAgent:
+            userAgent && anthropicClient
+                ? `${userAgent} (${anthropicClient})`
+                : userAgent,
+    };
+};
 
 const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
@@ -286,34 +358,68 @@ export class McpService extends BaseService {
         this.aiAgentService = aiAgentService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
-            this.mcpServer = Sentry.wrapMcpServerWithSentry(
-                new McpServer({
-                    name: 'Lightdash MCP Server',
-                    version: VERSION,
-                    websiteUrl: this.lightdashConfig.siteUrl,
-                    icons: [
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
-                            mimeType: 'image/svg+xml',
-                        },
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
-                            mimeType: 'image/png',
-                            sizes: ['32x32'],
-                        },
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
-                            mimeType: 'image/png',
-                            sizes: ['152x152'],
-                        },
-                    ],
-                }),
-            );
+            this.mcpServer = this.createMcpServer();
             this.setupHandlers();
         } catch (error) {
             this.logger.error('Error initializing MCP server:', error);
             throw error;
         }
+    }
+
+    private createMcpServer(): McpServer {
+        const mcpServer = Sentry.wrapMcpServerWithSentry(
+            new McpServer({
+                name: 'Lightdash MCP Server',
+                version: VERSION,
+                websiteUrl: this.lightdashConfig.siteUrl,
+                icons: [
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
+                        mimeType: 'image/svg+xml',
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
+                        mimeType: 'image/png',
+                        sizes: ['32x32'],
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
+                        mimeType: 'image/png',
+                        sizes: ['152x152'],
+                    },
+                ],
+            }),
+        );
+
+        const originalSetRequestHandler =
+            mcpServer.server.setRequestHandler.bind(mcpServer.server);
+
+        const wrappedSetRequestHandler: typeof originalSetRequestHandler = (
+            requestSchema,
+            handler,
+        ) => {
+            if (Object.is(requestSchema, CallToolRequestSchema)) {
+                return originalSetRequestHandler(
+                    requestSchema,
+                    async (request, extra) => {
+                        const context =
+                            mcpProtocolContextSchema.safeParse(extra);
+                        if (context.success && context.data.authInfo) {
+                            context.data.authInfo.extra.mcpClientMetadata =
+                                getMcpClientMetadata(context.data);
+                        }
+
+                        return handler(request, extra);
+                    },
+                );
+            }
+
+            return originalSetRequestHandler(requestSchema, handler);
+        };
+
+        mcpServer.server.setRequestHandler = wrappedSetRequestHandler;
+
+        return mcpServer;
     }
 
     private async buildScopedResponse(
@@ -2321,29 +2427,7 @@ export class McpService extends BaseService {
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
     public createServer(options?: { projectPinned?: boolean }): McpServer {
-        const newServer = Sentry.wrapMcpServerWithSentry(
-            new McpServer({
-                name: 'Lightdash MCP Server',
-                version: VERSION,
-                websiteUrl: this.lightdashConfig.siteUrl,
-                icons: [
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
-                        mimeType: 'image/svg+xml',
-                    },
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
-                        mimeType: 'image/png',
-                        sizes: ['32x32'],
-                    },
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
-                        mimeType: 'image/png',
-                        sizes: ['152x152'],
-                    },
-                ],
-            }),
-        );
+        const newServer = this.createMcpServer();
 
         // Temporarily swap the server to register handlers on the new instance
         const originalServer = this.mcpServer;
@@ -2446,6 +2530,33 @@ export class McpService extends BaseService {
     ): void {
         try {
             const { user, organizationUuid } = McpService.getAccount(context);
+            const authType =
+                context.authInfo?.extra.account.authentication.type ?? 'none';
+            const clientMetadata =
+                context.authInfo?.extra.mcpClientMetadata ??
+                getMcpClientMetadata({
+                    requestInfo: context.requestInfo,
+                    _meta: context._meta,
+                });
+            const mcpClientMetadata = {
+                authType,
+                ...clientMetadata,
+                toolName,
+            };
+
+            this.logger.debug(
+                `Tracking MCP client authType=${authType} anthropicClient=${
+                    mcpClientMetadata.anthropicClient ?? 'none'
+                } protocolVersion=${
+                    mcpClientMetadata.protocolVersion ?? 'unknown'
+                } userAgent=${
+                    mcpClientMetadata.userAgent ?? 'unknown'
+                } clientSource=${
+                    mcpClientMetadata.clientSource ?? 'none'
+                } toolName=${toolName}`,
+                mcpClientMetadata,
+            );
+
             this.analytics.track<McpToolCallEvent>({
                 event: 'mcp_tool_call',
                 userId: user.userUuid,
@@ -2453,6 +2564,11 @@ export class McpService extends BaseService {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     toolName,
+                    authType,
+                    anthropicClient: mcpClientMetadata.anthropicClient,
+                    clientSource: mcpClientMetadata.clientSource,
+                    protocolVersion: mcpClientMetadata.protocolVersion,
+                    userAgent: mcpClientMetadata.userAgent,
                 },
             });
         } catch (error) {
