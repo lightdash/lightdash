@@ -3,9 +3,9 @@ import {
     useCallback,
     useEffect,
     type FC,
-    type MouseEvent,
     type ReactNode,
     type SVGProps,
+    type SyntheticEvent,
 } from 'react';
 import styles from './MetricCatalogColumnHeaderCell.module.css';
 
@@ -54,7 +54,7 @@ export const MetricCatalogColumnHeaderCell = ({
     Icon: FC<SVGProps<SVGSVGElement>>;
 }) => {
     const handleShowTooltip = useCallback(
-        (event: MouseEvent<HTMLElement>) => {
+        (event: SyntheticEvent<HTMLElement>) => {
             if (!tooltipLabel || disabled) return;
 
             showTooltip(tooltipLabel, event.currentTarget);
