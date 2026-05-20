@@ -1,3 +1,10 @@
+# [0.2994.0](https://github.com/lightdash/lightdash/compare/0.2993.0...0.2994.0) (2026-05-20)
+
+
+### Features
+
+* use ai-agent-revamp feature flag for built-in skills ([#23335](https://github.com/lightdash/lightdash/issues/23335)) ([d2963c9](https://github.com/lightdash/lightdash/commit/d2963c98a2e9d912b38a9c1aa22e74652a92f73d))
+
 # [0.2993.0](https://github.com/lightdash/lightdash/compare/0.2992.0...0.2993.0) (2026-05-20)
 
 
