@@ -15,6 +15,8 @@ import {
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
     type ToolGetDashboardChartsArgs,
+    type ToolGetKnowledgeDocumentContentArgs,
+    type ToolGetKnowledgeDocumentContentOutput,
     type ToolListWarehouseTablesArgs,
     type ToolName,
     type ToolRunQueryArgs,
@@ -32,6 +34,7 @@ import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTa
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
@@ -197,8 +200,19 @@ export const ToolCallDescription: FC<{
                     schema={describeWarehouseTableArgs.schema ?? null}
                 />
             );
-        case 'listKnowledgeDocuments':
         case 'getKnowledgeDocumentContent':
+            const getKnowledgeDocumentContentArgs =
+                toolCall.toolArgs as ToolGetKnowledgeDocumentContentArgs;
+            const knowledgeDocumentOutput = toolCall.toolOutput as
+                | ToolGetKnowledgeDocumentContentOutput
+                | undefined;
+            return (
+                <KnowledgeDocumentToolCallDescription
+                    documentUuid={getKnowledgeDocumentContentArgs.documentUuid}
+                    toolOutput={knowledgeDocumentOutput}
+                />
+            );
+        case 'listKnowledgeDocuments':
         case 'discoverFields':
         case 'improveContext':
         case 'loadSkill':
