@@ -191,5 +191,57 @@ describe('getPivotConfig', () => {
             );
             expect(result?.hiddenDimensionFieldIds).toBeUndefined();
         });
+
+        it('routes hidden dimensions into hiddenDimensionFieldIds (not hiddenMetricFieldIds) when getPivotConfig receives metricQuery', () => {
+            // Regression guard: ChartDownloadMenu now passes metricQuery, so
+            // sort-helper dimensions must land in hiddenDimensionFieldIds and be
+            // excluded from the downloaded file.
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            sort_helper_dim: { visible: false },
+                        },
+                        showSubtotals: false,
+                    },
+                },
+                pivotConfig: { columns: ['shipping_method'] },
+                tableConfig: { columnOrder: [] },
+                metricQuery: {
+                    dimensions: ['shipping_method', 'sort_helper_dim'],
+                },
+            });
+
+            expect(result?.hiddenDimensionFieldIds).toEqual([
+                'sort_helper_dim',
+            ]);
+            // The hidden dim must NOT appear in hiddenMetricFieldIds, otherwise
+            // pivotQueryResults would ignore it and the dim leaks into the export.
+            expect(result?.hiddenMetricFieldIds).toBeUndefined();
+        });
+
+        it('falls back to hiddenMetricFieldIds when metricQuery is omitted (footgun: callers must pass metricQuery for dim hiding to work)', () => {
+            // Documentation test: demonstrates why ChartDownloadMenu MUST pass
+            // metricQuery. Without it the hidden sort-helper dim ends up in
+            // hiddenMetricFieldIds, which pivotQueryResults ignores for
+            // dimension-typed columns — so the dim leaks into the CSV/XLSX export.
+            const result = getPivotConfig({
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: { sort_helper_dim: { visible: false } },
+                    },
+                },
+                pivotConfig: { columns: ['shipping_method'] },
+                tableConfig: { columnOrder: [] },
+                // metricQuery intentionally omitted
+            });
+
+            // Footgun: without metricQuery we can't classify, so hidden dims end up
+            // in hiddenMetricFieldIds — where pivotQueryResults will ignore them.
+            expect(result?.hiddenMetricFieldIds).toEqual(['sort_helper_dim']);
+            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
+        });
     });
 });
