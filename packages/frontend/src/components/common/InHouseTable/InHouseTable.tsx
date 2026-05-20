@@ -53,6 +53,8 @@ type SanitizedMantineProps<TElement extends HTMLElement> = Omit<
     style?: CSSProperties;
 };
 
+export const MantineReactTable = InHouseTable;
+
 const assignRef = <TElement,>(
     ref: React.Ref<TElement> | undefined,
     value: TElement | null,

@@ -37,6 +37,8 @@ const toRenderedValue = (value: unknown): ReactNode => {
     return value as ReactNode;
 };
 
+export const useMantineReactTable = useInHouseTable;
+
 const resolveNextState = <TValue,>(
     updater: TValue | ((old: TValue) => TValue),
     previous: TValue,
