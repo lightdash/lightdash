@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     isDashboardScheduler,
+    isTileInSelectedTabs,
     SessionStorageKeys,
 } from '@lightdash/common';
 import { useSessionStorage } from '@mantine/hooks';
@@ -318,8 +319,11 @@ const MinimalDashboard: FC = () => {
         const filteredTiles =
             dashboard?.tiles.filter((tile) => {
                 // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
+                // Orphan tiles (tabUuid null/undefined) are always included so picked-tab PDF
+                // exports surface legacy tiles on the first tab, matching the backend rule in
+                // isTileInSelectedTabs (PROD-2505).
                 if (schedulerTabsSelected) {
-                    return schedulerTabsSelected.includes(tile.tabUuid);
+                    return isTileInSelectedTabs(tile, schedulerTabsSelected);
                 }
 
                 // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
