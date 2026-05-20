@@ -55,7 +55,10 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
                 tabName: (value, values) => {
                     if (values.saveInNewTab) {
                         if (!value) return 'Tab name is required';
-                        if (value.toLowerCase() === 'metadata') {
+                        if (
+                            typeof value === 'string' &&
+                            value.toLowerCase() === 'metadata'
+                        ) {
                             return 'Tab name cannot be "metadata"';
                         }
                     }
