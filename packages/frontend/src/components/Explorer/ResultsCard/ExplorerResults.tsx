@@ -262,6 +262,36 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         [itemsMap, columnProperties],
     );
 
+    // Hidden field IDs from chart config, split by kind. Dims drop out of pivot
+    // headers / row index; metrics drop out of data columns. Both ship to the
+    // pivot reducer worker so the user's "Hide column" toggle takes effect
+    // without waiting for a new query.
+    const queryDimensions = query.data?.metricQuery?.dimensions;
+    const { hiddenDimensionFieldIds, hiddenMetricFieldIds } = useMemo(() => {
+        if (!columnProperties) {
+            return {
+                hiddenDimensionFieldIds: undefined,
+                hiddenMetricFieldIds: undefined,
+            };
+        }
+        const dimensionSet = new Set(queryDimensions ?? []);
+        const hiddenDims: string[] = [];
+        const hiddenMets: string[] = [];
+        for (const [fieldId, props] of Object.entries(columnProperties)) {
+            if (props.visible === false) {
+                if (dimensionSet.has(fieldId)) {
+                    hiddenDims.push(fieldId);
+                } else {
+                    hiddenMets.push(fieldId);
+                }
+            }
+        }
+        return {
+            hiddenDimensionFieldIds: hiddenDims,
+            hiddenMetricFieldIds: hiddenMets,
+        };
+    }, [columnProperties, queryDimensions]);
+
     // Convert pivoted query results to PivotData format for PivotTable
     // Only process when user is actually viewing grouped results
     const pivotTableQuery = usePivotTableData({
@@ -273,6 +303,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getFieldLabel,
         columnLimit,
         parameters,
+        hiddenDimensionFieldIds,
+        hiddenMetricFieldIds,
     });
 
     const cellContextMenu = useCallback(
