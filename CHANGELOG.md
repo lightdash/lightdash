@@ -1,3 +1,10 @@
+# [0.2986.0](https://github.com/lightdash/lightdash/compare/0.2985.0...0.2986.0) (2026-05-20)
+
+
+### Features
+
+* add ai context compaction ui ([#23277](https://github.com/lightdash/lightdash/issues/23277)) ([6b0f976](https://github.com/lightdash/lightdash/commit/6b0f976b042ea0ca548a8bddc5892ff62d62134e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2985.0](https://github.com/lightdash/lightdash/compare/0.2984.4...0.2985.0) (2026-05-20)
 
 
