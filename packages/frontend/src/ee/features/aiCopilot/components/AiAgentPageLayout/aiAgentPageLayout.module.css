@@ -62,6 +62,21 @@
     }
 }
 
+.artifactResizeHandle {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    background-color: transparent;
+    position: relative;
+    z-index: 2;
+
+    &[data-resize-handle-state='hover'],
+    &[data-resize-handle-state='drag'] {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
 .artifact {
     box-shadow: var(--mantine-shadow-lg);
 }
@@ -79,13 +94,11 @@
 }
 
 .floatingArtifactRegion {
-    flex: 0 0 50%;
-    min-width: 420px;
-    max-width: 50vw;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm) 0;
     min-height: 0;
     display: flex;
+    overflow: hidden;
 }
 
 .floatingArtifactRegion > * {

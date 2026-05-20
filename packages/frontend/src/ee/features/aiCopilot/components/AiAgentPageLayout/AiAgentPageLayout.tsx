@@ -89,6 +89,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 defaultSize={20}
                                 minSize={10}
                                 maxSize={40}
+                                order={1}
                                 collapsible
                                 className={`${styles.sidebar} ${
                                     !isResizing ? styles.sidebarTransition : ''
@@ -133,7 +134,12 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 )}
 
                 <ErrorBoundary>
-                    <Panel className={styles.chat} id="chat" minSize={25}>
+                    <Panel
+                        className={styles.chat}
+                        id="chat"
+                        minSize={25}
+                        order={2}
+                    >
                         {Header && (
                             <Box className={styles.chatHeader}>{Header}</Box>
                         )}
@@ -141,15 +147,33 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         <Box className={styles.chatContent}>{children}</Box>
                     </Panel>
                 </ErrorBoundary>
-            </PanelGroup>
 
-            {!isMobile && artifact && (
-                <ErrorBoundary>
-                    <div className={styles.floatingArtifactRegion}>
-                        <AiArtifactPanel artifact={artifact} />
-                    </div>
-                </ErrorBoundary>
-            )}
+                {!isMobile && artifact && (
+                    <Fragment>
+                        <PanelResizeHandle
+                            aria-label="Resize artifact panel"
+                            className={`${styles.resizeHandle} ${styles.artifactResizeHandle}`}
+                            hitAreaMargins={{ coarse: 16, fine: 8 }}
+                            onDragging={(isDragging) =>
+                                setIsResizing(isDragging)
+                            }
+                        />
+
+                        <ErrorBoundary>
+                            <Panel
+                                className={styles.floatingArtifactRegion}
+                                defaultSize={50}
+                                id="artifact"
+                                minSize={30}
+                                maxSize={70}
+                                order={3}
+                            >
+                                <AiArtifactPanel artifact={artifact} />
+                            </Panel>
+                        </ErrorBoundary>
+                    </Fragment>
+                )}
+            </PanelGroup>
 
             {isMobile && (
                 <Drawer
