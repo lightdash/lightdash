@@ -41,13 +41,13 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link } from 'react-router';
+} from '../../../components/common/InHouseTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';

@@ -16,13 +16,13 @@ import {
 } from '@mantine-8/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { useMemo, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useMemo, type FC } from 'react';
-import { useNavigate } from 'react-router';
+} from '../../../../../components/common/InHouseTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluationRunResults,
