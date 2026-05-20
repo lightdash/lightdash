@@ -48,6 +48,9 @@ describe('MCP server', () => {
             'Lightdash MCP Server',
         );
         expect(response.body.result.serverInfo).toHaveProperty('version');
+        expect(response.body.result.capabilities).toMatchObject({
+            resources: { listChanged: true },
+        });
     });
 
     it('should list available tools', async () => {
@@ -85,12 +88,176 @@ describe('MCP server', () => {
         expect(versionTool).toHaveProperty('inputSchema');
     });
 
+    it('should list the analyst prompt without skill prompts', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                prompts: Array<{
+                    name: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 3,
+                method: 'prompts/list',
+                params: {},
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.jsonrpc).toBe('2.0');
+        expect(response.body.id).toBe(3);
+
+        const promptNames = response.body.result.prompts.map(
+            (prompt) => prompt.name,
+        );
+        expect(promptNames).toContain('lightdash-analyst');
+        expect(
+            promptNames.some((name) => name.startsWith('lightdash-skill-')),
+        ).toBe(false);
+    });
+
+    it('should list built-in skill resources', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                resources: Array<{
+                    uri: string;
+                    name: string;
+                    title: string;
+                    mimeType?: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 4,
+                method: 'resources/list',
+                params: {},
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.jsonrpc).toBe('2.0');
+        expect(response.body.id).toBe(4);
+
+        const overviewResource = response.body.result.resources.find(
+            (resource) =>
+                resource.uri === 'lightdash://skills/developing-in-lightdash',
+        );
+        const nestedResource = response.body.result.resources.find((resource) =>
+            resource.uri.startsWith(
+                'lightdash://skills/developing-in-lightdash/resources/',
+            ),
+        );
+
+        expect(overviewResource).toMatchObject({
+            uri: 'lightdash://skills/developing-in-lightdash',
+            name: 'developing-in-lightdash',
+            title: 'Developing in Lightdash',
+            mimeType: 'text/markdown',
+        });
+        expect(nestedResource).toMatchObject({
+            mimeType: 'text/markdown',
+        });
+        expect(nestedResource?.name).toMatch(
+            /^developing-in-lightdash\/[^/]+$/,
+        );
+        expect(nestedResource?.title).toMatch(/^Developing in Lightdash \/ /);
+    });
+
+    it('should read a listed skill resource', async () => {
+        const listResponse = await admin.post<
+            McpResponse<{
+                resources: Array<{
+                    uri: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 5,
+                method: 'resources/list',
+                params: {},
+            },
+            { headers: mcpHeaders },
+        );
+
+        const nestedResource = listResponse.body.result.resources.find(
+            (resource) =>
+                resource.uri.startsWith(
+                    'lightdash://skills/developing-in-lightdash/resources/',
+                ),
+        );
+
+        expect(nestedResource).toBeDefined();
+
+        const readResponse = await admin.post<
+            McpResponse<{
+                contents: Array<{
+                    uri: string;
+                    mimeType?: string;
+                    text: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 6,
+                method: 'resources/read',
+                params: {
+                    uri: nestedResource!.uri,
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(readResponse.status).toBe(200);
+        expect(readResponse.body.result.contents).toHaveLength(1);
+        expect(readResponse.body.result.contents[0]).toMatchObject({
+            uri: nestedResource!.uri,
+            mimeType: 'text/markdown',
+        });
+        expect(
+            readResponse.body.result.contents[0].text.length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('should return an MCP error for an unknown skill resource', async () => {
+        const response = await admin.post<{
+            jsonrpc: string;
+            id: number;
+            error?: { code?: number };
+        }>(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 7,
+                method: 'resources/read',
+                params: {
+                    uri: 'lightdash://skills/developing-in-lightdash/resources/does-not-exist',
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.jsonrpc).toBe('2.0');
+        expect(response.body.id).toBe(7);
+        expect(response.body.error?.code).toBe(-32602);
+    });
+
     it('should handle ping request', async () => {
         const response = await admin.post<McpResponse>(
             '/api/v1/mcp',
             {
                 jsonrpc: '2.0',
-                id: 4,
+                id: 8,
                 method: 'ping',
                 params: {},
             },
@@ -98,7 +265,7 @@ describe('MCP server', () => {
         );
         expect(response.status).toBe(200);
         expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(4);
+        expect(response.body.id).toBe(8);
         expect(response.body.result).toEqual({});
     });
 });
