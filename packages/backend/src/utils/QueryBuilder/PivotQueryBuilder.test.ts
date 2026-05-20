@@ -5309,8 +5309,11 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('sortOnlyDimensions with no sort entry — does not affect SQL (no column_ranking emitted for dim)', () => {
-            // When sortOnlyDimensions is set but the dim is NOT in sortBy, it should still
-            // appear in group_by_query but column_ranking should NOT be emitted (no hasDimSort).
+            // Defensive guard: derivePivotConfigFromChart only routes a dim into
+            // sortOnlyDimensions when it has a sort entry, so {sortOnlyDimensions: [...],
+            // sortBy: undefined} is not a state the data layer would produce. This test
+            // verifies the SQL builder degrades gracefully if it ever did (no
+            // column_ranking emitted, falls back to base group_by ordering).
             const pivotConfiguration = {
                 indexColumn: [
                     {

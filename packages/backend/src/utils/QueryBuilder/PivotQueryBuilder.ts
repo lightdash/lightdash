@@ -1050,10 +1050,9 @@ export class PivotQueryBuilder {
         // there is no metric sort. This keeps Databricks/Spark from emitting
         // inline Window functions that reference cross-CTE columns.
         const hasDimSort =
-            (sortOnlyDimensions?.length ?? 0) > 0 &&
             sortOnlyDimensions?.some((dim) =>
                 sortBy?.some((sort) => sort.reference === dim.reference),
-            );
+            ) ?? false;
         const needsColumnRanking = hasMetricSort || hasDimSort;
         const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
