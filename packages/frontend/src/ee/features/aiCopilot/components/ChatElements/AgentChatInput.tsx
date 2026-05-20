@@ -82,6 +82,7 @@ interface AgentChatInputProps {
     onSqlModeChange?: (enabled: boolean) => void;
     defaultValue?: string;
     onValueChange?: (value: string) => void;
+    fullWidth?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -118,6 +119,7 @@ export const AgentChatInput = ({
     onSqlModeChange,
     defaultValue,
     onValueChange,
+    fullWidth = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -412,7 +414,12 @@ export const AgentChatInput = ({
 
     if (isMinimalMode) {
         return (
-            <Box className={styles.minimalContainer} ref={rootRef}>
+            <Box
+                className={`${styles.minimalContainer} ${
+                    fullWidth ? styles.minimalContainerFullWidth : ''
+                }`}
+                ref={rootRef}
+            >
                 {showWarningBanner && (
                     <Paper className={styles.warningBanner}>
                         <Text size="xs" c="ldGray.7" ta="center">
