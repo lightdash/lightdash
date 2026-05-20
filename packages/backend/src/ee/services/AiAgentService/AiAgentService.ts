@@ -4880,19 +4880,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     user.userUuid,
                 ),
         });
-        const { enabled: builtInSkillsEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiBuiltInSkills,
-            });
-        const availableSkills = builtInSkillsEnabled
-            ? await BuiltInSkills.getAiAgentSkills()
-            : [];
         const { enabled: agentRevampEnabled } =
             await this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.AiAgentRevamp,
             });
+        const availableSkills = agentRevampEnabled
+            ? await BuiltInSkills.getAiAgentSkills()
+            : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
