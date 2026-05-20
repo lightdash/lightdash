@@ -363,9 +363,14 @@ export const AgentChatInput = ({
         [track, projectUuid, agentUuid],
     );
 
+    const { data: contextCompactionFlag } = useServerFeatureFlag(
+        FeatureFlags.AiContextCompaction,
+    );
+
     const hasValue = value.trim().length > 0;
     const showWarningBanner =
-        messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT;
+        messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT &&
+        !contextCompactionFlag?.enabled;
     const showDisabledBanner = disabled && disabledReason;
 
     const handleSubmit = () => {
