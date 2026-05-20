@@ -107,12 +107,8 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Enable built-in agent skills and the loadSkill tool.
-     */
-    AiBuiltInSkills = 'ai-built-in-skills',
-
-    /**
-     * Enable AI agent content editing tools like readContent/editContent.
+     * Enable AI agent revamp features including built-in skills, the
+     * loadSkill tool, and content editing tools like readContent/editContent.
      * When enabled, these replace older dashboard-specific content lookup
      * tools in the agent tool surface.
      */
