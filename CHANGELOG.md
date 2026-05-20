@@ -1,3 +1,10 @@
+# [0.2985.0](https://github.com/lightdash/lightdash/compare/0.2984.4...0.2985.0) (2026-05-20)
+
+
+### Features
+
+* ai context compaction backend ([#23276](https://github.com/lightdash/lightdash/issues/23276)) ([6acc28a](https://github.com/lightdash/lightdash/commit/6acc28a8578611d51d63d4876c8c2eb4fd8673fd)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2984.4](https://github.com/lightdash/lightdash/compare/0.2984.3...0.2984.4) (2026-05-20)
 
 
