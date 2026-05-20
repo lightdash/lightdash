@@ -35,13 +35,13 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from 'react';
-import { EmptyState } from '../components/common/EmptyState';
-import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import {
     ContentTable,
     useContentTable,
     type MRT_ColumnDef,
 } from '../components/common/ContentTable';
+import { EmptyState } from '../components/common/EmptyState';
+import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     useDashboardQuery,
