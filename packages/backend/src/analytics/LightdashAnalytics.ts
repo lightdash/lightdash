@@ -1757,6 +1757,29 @@ export type AiAgentUpdatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentDocumentCreatedEvent = BaseTrack & {
+    event: 'ai_agent_document.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+        mimeType: string;
+        contentSizeBytes: number;
+        agentAccessCount: number;
+    };
+};
+
+export type AiAgentDocumentDeletedEvent = BaseTrack & {
+    event: 'ai_agent_document.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+    };
+};
+
 export type AiAgentPromptCreatedEvent = BaseTrack & {
     event: 'ai_agent_prompt.created';
     userId: string;
@@ -2129,6 +2152,8 @@ type TypedEvent =
     | AiAgentCreatedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
+    | AiAgentDocumentCreatedEvent
+    | AiAgentDocumentDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent

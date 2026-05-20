@@ -13,6 +13,11 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    AiAgentDocumentCreatedEvent,
+    AiAgentDocumentDeletedEvent,
+    LightdashAnalytics,
+} from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../../services/BaseService';
 import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
@@ -54,6 +59,7 @@ const normalizeMimeType = (mimeType: string, filename: string): string => {
 };
 
 type AiAgentDocumentServiceDependencies = {
+    analytics: LightdashAnalytics;
     aiAgentDocumentModel: AiAgentDocumentModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     aiAgentService: AiAgentService;
@@ -61,6 +67,8 @@ type AiAgentDocumentServiceDependencies = {
 };
 
 export class AiAgentDocumentService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
@@ -71,6 +79,7 @@ export class AiAgentDocumentService extends BaseService {
 
     constructor(dependencies: AiAgentDocumentServiceDependencies) {
         super();
+        this.analytics = dependencies.analytics;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
@@ -263,7 +272,7 @@ export class AiAgentDocumentService extends BaseService {
             mimeType === 'text/markdown' ? 'md' : 'txt'
         }`;
 
-        return this.aiAgentDocumentModel.create({
+        const document = await this.aiAgentDocumentModel.create({
             organizationUuid,
             projectUuid: body.projectUuid ?? null,
             name: body.name,
@@ -275,6 +284,21 @@ export class AiAgentDocumentService extends BaseService {
             agentUuids: body.agentAccess ?? [],
             createdByUserUuid: user.userUuid,
         });
+
+        this.analytics.track<AiAgentDocumentCreatedEvent>({
+            event: 'ai_agent_document.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: document.projectUuid,
+                documentId: document.uuid,
+                mimeType: document.mimeType,
+                contentSizeBytes: contentBytes,
+                agentAccessCount: body.agentAccess?.length ?? 0,
+            },
+        });
+
+        return document;
     }
 
     async deleteDocument(
@@ -288,5 +312,15 @@ export class AiAgentDocumentService extends BaseService {
             existing.projectUuid,
         );
         await this.aiAgentDocumentModel.delete(documentUuid);
+
+        this.analytics.track<AiAgentDocumentDeletedEvent>({
+            event: 'ai_agent_document.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: existing.organizationUuid,
+                projectId: existing.projectUuid,
+                documentId: documentUuid,
+            },
+        });
     }
 }
