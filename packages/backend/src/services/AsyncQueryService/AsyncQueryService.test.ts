@@ -537,6 +537,118 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        // Regression: persisted metric_query.timezone must follow the gated
+        // displayTimezone, not the ungated resolvedTimezone — otherwise
+        // downstream readers (formatTimestamp, downloads, worker re-exec)
+        // apply a +TZ shift on flag-off orgs that have a project timezone.
+        test('persists displayTimezone=null when flag is off, even if a resolved timezone exists', async () => {
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    // Resolved tz is set (project has query_timezone) but
+                    // the gating flag is off — SQL was built without a
+                    // timezone-aware DATE_TRUNC, so the persisted snapshot
+                    // must not carry the resolved value either.
+                    timezone: 'Asia/Tokyo',
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        timezone: undefined,
+                    }),
+                }),
+            );
+        });
+
+        test('persists displayTimezone when flag is on', async () => {
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    timezone: 'Asia/Tokyo',
+                    displayTimezone: 'Asia/Tokyo',
+                    useTimezoneAwareDateTrunc: true,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        timezone: 'Asia/Tokyo',
+                    }),
+                }),
+            );
+        });
+
         test('Cache Invalidation - Complete Flow', async () => {
             // GIVEN: invalidateCache: true is set
             const mockCacheResult: MissCacheResult = {
