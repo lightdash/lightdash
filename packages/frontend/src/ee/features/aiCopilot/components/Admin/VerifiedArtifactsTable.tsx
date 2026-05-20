@@ -12,13 +12,13 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconCircleX, IconDots, IconEye } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-} from 'mantine-react-table';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+} from '../../../../../components/common/InHouseTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
