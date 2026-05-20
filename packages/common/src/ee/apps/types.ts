@@ -45,6 +45,16 @@ export const DATA_APP_TEMPLATES = [
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
 /**
+ * Claude model used to generate / iterate the data app inside the sandbox.
+ * Mapped to the Claude CLI's `--model <alias>` flag verbatim. Persisted
+ * per-version on `AppVersionResources.claudeModel` so the user can switch
+ * mid-iteration without losing the record of which model built which version.
+ */
+export const DATA_APP_CLAUDE_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
+export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
+
+/**
  * A saved-chart reference attached to a generation request.
  * `includeSampleData` is opt-in per chart: when true the backend runs the
  * underlying metric query and inlines a small sample of rows into the
@@ -107,6 +117,11 @@ export type GenerateAppRequestBody = {
     // EDITOR/ADMIN, or project admin). When omitted, the app is created as
     // personal and can be moved into a space later.
     spaceUuid?: string;
+    // Claude model to use for this version's generation. Defaults to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL on the backend when absent. Can be
+    // switched between iterations — `claude --continue` keeps the prior
+    // conversation context but accepts a fresh `--model` flag per turn.
+    claudeModel?: DataAppClaudeModel;
 };
 
 export type ApiClarifyAppRequest = {
@@ -150,6 +165,11 @@ export type AppVersionResources = {
     // own card on the user message — rather than mashing them into the
     // prompt text. Empty array when the user skipped or wasn't asked.
     clarifications: AppClarification[];
+    // Claude model the user picked for this version (sonnet / haiku).
+    // Optional for backwards compatibility — versions built before the picker
+    // shipped don't carry the field; readers should fall back to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL.
+    claudeModel?: DataAppClaudeModel;
 };
 
 export type ApiAppImageUrlResponse = ApiSuccess<{

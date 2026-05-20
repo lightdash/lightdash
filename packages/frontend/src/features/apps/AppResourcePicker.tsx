@@ -1,4 +1,8 @@
-import { ChartKind, type ChartContent } from '@lightdash/common';
+import {
+    ChartKind,
+    type ChartContent,
+    type DataAppClaudeModel,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -21,6 +25,7 @@ import {
     IconCamera,
     IconChartBar,
     IconCheck,
+    IconChevronDown,
     IconClick,
     IconDatabase,
     IconDatabasePlus,
@@ -123,6 +128,139 @@ export const InspectButton: FC<{
         </ActionIcon>
     </Tooltip>
 );
+
+type ModelOption = {
+    value: DataAppClaudeModel;
+    label: string;
+    // Short advantage line shown in the popover. Together with the order
+    // below, these form a capability spectrum (premium → balanced → budget)
+    // so the trade-off is legible at a glance.
+    tagline: string;
+    isDefault?: boolean;
+};
+
+// Order: capability descending — Opus (highest quality) → Sonnet (default) →
+// Haiku (fastest). The "Default" tag on Sonnet anchors the recommendation
+// without forcing it to position 0.
+const MODEL_OPTIONS: ModelOption[] = [
+    {
+        value: 'opus',
+        label: 'Opus',
+        tagline: 'Highest quality. Best for complex apps. Slowest.',
+    },
+    {
+        value: 'sonnet',
+        label: 'Sonnet',
+        tagline: 'Balanced quality and speed. Good fit for most apps.',
+        isDefault: true,
+    },
+    {
+        value: 'haiku',
+        label: 'Haiku',
+        tagline: 'Fastest. Best for quick iterations and simple tweaks.',
+    },
+];
+
+// Lookup helper. The type union and MODEL_OPTIONS are kept in sync via
+// DATA_APP_CLAUDE_MODELS, but the underlying value can ultimately come from
+// the JSONB `resources.claudeModel` column — so a stale or hand-edited row
+// could land here as a string outside the union at runtime. Fall back to the
+// default option rather than throw, so a corrupt row never crashes the
+// AppGenerate page; the user can still pick a valid model from the popover.
+const findModelOption = (value: DataAppClaudeModel): ModelOption =>
+    MODEL_OPTIONS.find((o) => o.value === value) ??
+    MODEL_OPTIONS.find((o) => o.isDefault) ??
+    MODEL_OPTIONS[0];
+
+/**
+ * Picker for the Claude model the agent uses to build the data app.
+ *
+ * Inline next to the send button so the choice is visible at submit time;
+ * also editable mid-iteration — `claude --continue` accepts a fresh
+ * `--model` flag each turn while preserving the prior conversation context.
+ *
+ * The label of the current choice ("Sonnet" / "Haiku") is shown on the
+ * trigger so the user doesn't have to open the popover to confirm what
+ * they're about to run with. The advantages are summarised in the popover
+ * itself rather than a tooltip, so both options are visible at the same time.
+ */
+export const ModelPicker: FC<{
+    value: DataAppClaudeModel;
+    onChange: (value: DataAppClaudeModel) => void;
+    disabled?: boolean;
+}> = ({ value, onChange, disabled }) => {
+    const [opened, setOpened] = useState(false);
+    const current = findModelOption(value);
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="top-end"
+            offset={8}
+            shadow="md"
+            trapFocus
+        >
+            <Popover.Target>
+                <Button
+                    variant="default"
+                    size="md"
+                    radius="md"
+                    color="gray"
+                    onClick={() => setOpened((o) => !o)}
+                    disabled={disabled}
+                    rightSection={
+                        <MantineIcon icon={IconChevronDown} size={14} />
+                    }
+                    aria-label={`Claude model: ${current.label}`}
+                >
+                    {current.label}
+                </Button>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.queryDropdown} p={0}>
+                <Box py="xs">
+                    {MODEL_OPTIONS.map((opt) => {
+                        const isActive = opt.value === value;
+                        return (
+                            <UnstyledButton
+                                key={opt.value}
+                                className={classes.attachMenuItem}
+                                onClick={() => {
+                                    onChange(opt.value);
+                                    setOpened(false);
+                                }}
+                                aria-pressed={isActive}
+                            >
+                                <Box flex={1}>
+                                    <Group gap="xs" align="center">
+                                        <Text size="sm" fw={500}>
+                                            {opt.label}
+                                        </Text>
+                                        {opt.isDefault && (
+                                            <Text size="xs" c="dimmed">
+                                                Default
+                                            </Text>
+                                        )}
+                                        {isActive && (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                                color="indigo.6"
+                                            />
+                                        )}
+                                    </Group>
+                                    <Text size="xs" c="dimmed">
+                                        {opt.tagline}
+                                    </Text>
+                                </Box>
+                            </UnstyledButton>
+                        );
+                    })}
+                </Box>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
 
 /**
  * Internal: chart list with search. Used inside `AttachButton`'s popover.

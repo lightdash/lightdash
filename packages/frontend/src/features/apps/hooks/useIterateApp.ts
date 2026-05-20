@@ -3,6 +3,7 @@ import {
     type ApiGenerateAppResponse,
     type AppChartReference,
     type AppDashboardReference,
+    type DataAppClaudeModel,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -14,6 +15,7 @@ type IterateAppParams = {
     imageIds?: string[];
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
+    claudeModel?: DataAppClaudeModel;
 };
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
@@ -25,11 +27,18 @@ const iterateApp = async ({
     imageIds,
     charts,
     dashboard,
+    claudeModel,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
-        body: JSON.stringify({ prompt, imageIds, charts, dashboard }),
+        body: JSON.stringify({
+            prompt,
+            imageIds,
+            charts,
+            dashboard,
+            claudeModel,
+        }),
     });
     return data;
 };

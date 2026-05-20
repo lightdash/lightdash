@@ -11,6 +11,8 @@ import {
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    DATA_APP_CLAUDE_MODELS,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -29,6 +31,7 @@ import {
     type CatalogItemSummary,
     type ChartReference,
     type ChartSampleData,
+    type DataAppClaudeModel,
     type DataAppTemplate,
     type SessionUser,
     type TogglePinnedItemInfo,
@@ -456,6 +459,29 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Resolve the user-supplied Claude model to a known value, defaulting when
+     * absent. Rejects unknown strings outright so a stray value can't shell
+     * out as `--model <anything>` against the Claude CLI inside the sandbox.
+     */
+    private static resolveClaudeModel(
+        claudeModel: DataAppClaudeModel | undefined,
+    ): DataAppClaudeModel {
+        if (claudeModel === undefined) {
+            return DEFAULT_DATA_APP_CLAUDE_MODEL;
+        }
+        if (
+            !(DATA_APP_CLAUDE_MODELS as readonly string[]).includes(claudeModel)
+        ) {
+            throw new ParameterError(
+                `Invalid claudeModel: ${claudeModel}. Allowed: ${DATA_APP_CLAUDE_MODELS.join(
+                    ', ',
+                )}`,
+            );
+        }
+        return claudeModel;
+    }
+
+    /**
      * Read the first few bytes of a stream, validate image magic bytes,
      * then return a new Readable that replays those bytes followed by
      * the rest of the original stream.
@@ -687,6 +713,8 @@ export class AppGenerateService extends BaseService {
                 appUuid: payload.appUuid,
                 version: payload.version,
                 isIteration: payload.isIteration,
+                claudeModel:
+                    payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -1265,6 +1293,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         continueSession: boolean,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         durationMs: number;
         responseText: string | null;
@@ -1297,7 +1326,7 @@ export class AppGenerateService extends BaseService {
 
             const result = await sandbox.commands.run(
                 `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                    `--model sonnet ` +
+                    `--model ${claudeModel} ` +
                     `--verbose --output-format stream-json --include-partial-messages ` +
                     `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
                     `--append-system-prompt-file /app/skill.md`,
@@ -1365,7 +1394,7 @@ export class AppGenerateService extends BaseService {
             const toolCallCount = processor.totalToolCalls;
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
 
             if (result.exitCode === 0) {
@@ -1432,6 +1461,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         name: string;
         description: string;
@@ -1455,6 +1485,7 @@ export class AppGenerateService extends BaseService {
             version,
             true, // --continue: Claude remembers what it just built
             anthropicApiKey,
+            claudeModel,
         );
 
         const durationMs = AppGenerateService.elapsed(start);
@@ -1573,6 +1604,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         buildMs: number;
         fixAttempts: number;
@@ -1636,6 +1668,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 true, // --continue: keep conversation context from generation
                 anthropicApiKey,
+                claudeModel,
             );
             fixGenerationMs += generation.durationMs;
 
@@ -1831,7 +1864,9 @@ export class AppGenerateService extends BaseService {
         const durations: Record<string, number> = {};
 
         this.logger.info(
-            `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration})`,
+            `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
+                payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
+            })`,
         );
 
         // --- Stage: sandbox ---
@@ -1995,6 +2030,11 @@ export class AppGenerateService extends BaseService {
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
+        // Resolve the model once per pipeline run. Jobs enqueued before the
+        // picker shipped (or any future caller that omits the field) fall back
+        // to the default so we never run with `--model undefined`.
+        const claudeModel: DataAppClaudeModel =
+            payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
@@ -2091,6 +2131,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     continueSession,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
@@ -2137,6 +2178,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     version,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 durations.buildMs = buildResult.buildMs;
                 buildFixAttempts = buildResult.fixAttempts;
@@ -2178,6 +2220,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     version,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 if (metadata) {
                     // Only fills fields the user hasn't already set — the
@@ -2295,7 +2338,7 @@ export class AppGenerateService extends BaseService {
 
         const totalMs = AppGenerateService.elapsed(overallStart);
         this.logger.info(
-            `App ${appUuid}: generation completed successfully in ${totalMs}ms (${Object.entries(
+            `App ${appUuid}: generation completed successfully in ${totalMs}ms (model=${claudeModel}, ${Object.entries(
                 durations,
             )
                 .map(([k, v]) => `${k}=${v}ms`)
@@ -2311,6 +2354,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 isIteration: payload.isIteration,
+                claudeModel,
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -2853,6 +2897,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         template?: DataAppTemplate,
         clarifications?: AppClarification[],
         spaceUuid?: string,
+        claudeModelInput?: DataAppClaudeModel,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2863,6 +2908,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
+        const claudeModel =
+            AppGenerateService.resolveClaudeModel(claudeModelInput);
 
         // When the caller wants the app to live in a space directly, also
         // require manage rights on that space — same gate space EDITOR/ADMIN
@@ -2898,7 +2945,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         );
 
         this.logger.info(
-            `App ${appUuid}: generation started (promptLength=${prompt.length}, clarifications=${
+            `App ${appUuid}: generation started (model=${claudeModel}, promptLength=${prompt.length}, clarifications=${
                 clarifications?.length ?? 0
             })`,
         );
@@ -2920,6 +2967,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             dashboardName,
             clarifications: clarifications ?? [],
+            claudeModel,
         };
 
         // Persist app record so we can track status immediately. 'custom' is
@@ -2957,6 +3005,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 promptLength: prompt.length,
                 imageCount: imageIds.length,
                 template: template ?? null,
+                claudeModel,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
@@ -2975,6 +3024,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            claudeModel,
         });
 
         return { appUuid, version };
@@ -2988,10 +3038,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         imageIds: string[],
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
+        claudeModelInput?: DataAppClaudeModel,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateImageIds(imageIds);
+        const claudeModel =
+            AppGenerateService.resolveClaudeModel(claudeModelInput);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -3013,7 +3066,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const newVersion = (latestVersion?.version ?? 0) + 1;
 
         this.logger.info(
-            `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
+            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length})`,
         );
 
         const { refs, dashboardName } = await this.collectChartReferences(
@@ -3032,6 +3085,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             dashboardName,
             clarifications: [],
+            claudeModel,
         };
 
         await this.appModel.createVersion(
@@ -3053,6 +3107,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
                 imageCount: imageIds.length,
+                claudeModel,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
@@ -3073,6 +3128,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            claudeModel,
         });
 
         return { appUuid, version: newVersion };

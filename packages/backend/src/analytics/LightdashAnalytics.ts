@@ -26,6 +26,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type DataAppClaudeModel,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -1205,6 +1206,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         version: number;
         promptLength: number;
         imageCount: number;
+        claudeModel: DataAppClaudeModel;
     };
 };
 
@@ -1219,6 +1221,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         iterationNumber: number;
         promptLength: number;
         imageCount: number;
+        claudeModel: DataAppClaudeModel;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
     };
@@ -1246,6 +1249,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
         wasResumed: boolean;
         totalDurationMs: number;
         sandboxMs?: number;
@@ -1277,6 +1281,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
         failureStage:
             | 'sandbox'
             | 'catalog'

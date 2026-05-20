@@ -4,6 +4,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type DataAppClaudeModel,
     type DataAppTemplate,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
@@ -19,6 +20,7 @@ type GenerateAppParams = {
     dashboard?: AppDashboardReference;
     clarifications?: AppClarification[];
     spaceUuid?: string; // create directly inside this space (skips the personal-app step)
+    claudeModel?: DataAppClaudeModel;
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -33,6 +35,7 @@ const generateApp = async ({
     dashboard,
     clarifications,
     spaceUuid,
+    claudeModel,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
@@ -46,6 +49,7 @@ const generateApp = async ({
             dashboard,
             clarifications,
             spaceUuid,
+            claudeModel,
         }),
     });
     return data;

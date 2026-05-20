@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     ContentType,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     isAppVersionInProgress,
     ResourceViewItemType,
@@ -9,6 +10,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type DataAppClaudeModel,
     type DataAppTemplate,
 } from '@lightdash/common';
 import {
@@ -83,6 +85,7 @@ import AppPromptEditor, {
 import {
     AttachButton,
     InspectButton,
+    ModelPicker,
     ScreenshotButton,
     SelectedDashboardSection,
     SelectedImageSection,
@@ -301,6 +304,20 @@ const AppGenerate: FC = () => {
     //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
+    // Claude model used for the next submit. By default, derived from the
+    // most recent version's persisted `resources.claudeModel` so reopening
+    // an app pre-selects whatever model it was last built with. The user's
+    // explicit pick (tracked in `modelOverride` below) wins until they
+    // navigate to a different app. Per-version persistence happens
+    // server-side on `AppVersionResources.claudeModel`.
+    //
+    // Keyed by appUuid (mirrors the `pin` lifecycle) so the override
+    // self-invalidates when the user navigates — no useEffect+setState
+    // chain (lightdash frontend rule).
+    const [modelOverride, setModelOverride] = useState<{
+        appUuid: string | null; // null = override set from the new-app page
+        model: DataAppClaudeModel;
+    } | null>(null);
     const [wizardStage, setWizardStage] = useState<'pick' | 'confirm'>('pick');
     const [imageAttachments, setImageAttachments] = useState<
         Array<{
@@ -460,6 +477,10 @@ const AppGenerate: FC = () => {
         charts: AppChartReference[] | undefined;
         dashboard: AppDashboardReference | undefined;
         spaceUuid: string | undefined;
+        // Snapshot of `selectedModel` at submit time so a mid-clarification
+        // model switch doesn't change which model the build kicks off with —
+        // the user's intent was captured when they pressed send.
+        claudeModel: DataAppClaudeModel;
     } | null>(null);
     const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
         [],
@@ -785,6 +806,46 @@ const AppGenerate: FC = () => {
                 .find((v) => v.status === 'ready') ?? null
         );
     }, [allVersions]);
+
+    // Last Claude model used on this app, sourced from the most recent
+    // version (any status — a still-building version's model is already a
+    // valid signal of the user's intent). `null` when no version data is
+    // loaded yet or older versions didn't persist the field.
+    const latestVersionModel: DataAppClaudeModel | null = useMemo(() => {
+        if (allVersions.length === 0) return null;
+        const latest = [...allVersions].sort(
+            (a, b) => b.version - a.version,
+        )[0];
+        return latest.resources?.claudeModel ?? null;
+    }, [allVersions]);
+
+    // Effective model for the picker / next submit:
+    // user's explicit pick (if it's for this app) > latest version's model
+    // > default. Pure derivation; no useEffect+setState chain.
+    //
+    // A `null` appUuid on the override means the pick was made from the
+    // new-app page (no activeAppUuid yet). It keeps matching even after
+    // `activeAppUuid` materialises to the newly created app's UUID, so the
+    // trigger button doesn't briefly flash the default model between submit
+    // and the first version fetch. The route mount boundary
+    // (/apps/generate → /apps/:appUuid) drops local state on real
+    // navigation, which keeps this from leaking across apps.
+    const selectedModel: DataAppClaudeModel = useMemo(() => {
+        if (modelOverride) {
+            const overrideAppUuid = modelOverride.appUuid;
+            if (overrideAppUuid === null || overrideAppUuid === activeAppUuid) {
+                return modelOverride.model;
+            }
+        }
+        return latestVersionModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+    }, [modelOverride, activeAppUuid, latestVersionModel]);
+
+    const handleModelChange = useCallback(
+        (model: DataAppClaudeModel) => {
+            setModelOverride({ appUuid: activeAppUuid ?? null, model });
+        },
+        [activeAppUuid],
+    );
 
     // User-pinned version override. `null` = follow latest ready (default).
     // We snapshot the app uuid and the latest ready version at the moment of
@@ -1252,6 +1313,7 @@ const AppGenerate: FC = () => {
                             charts,
                             dashboard,
                             spaceUuid: targetSpaceUuid,
+                            claudeModel: selectedModel,
                         });
                         setClarificationAnswers(
                             new Array(questions.length).fill(''),
@@ -1282,6 +1344,7 @@ const AppGenerate: FC = () => {
                         imageIds,
                         charts,
                         dashboard,
+                        claudeModel: selectedModel,
                     },
                     callbacks,
                 );
@@ -1296,6 +1359,7 @@ const AppGenerate: FC = () => {
                         charts,
                         dashboard,
                         spaceUuid: targetSpaceUuid,
+                        claudeModel: selectedModel,
                     },
                     callbacks,
                 );
@@ -1363,6 +1427,7 @@ const AppGenerate: FC = () => {
                 clarifications:
                     clarifications.length > 0 ? clarifications : undefined,
                 spaceUuid: captured.spaceUuid,
+                claudeModel: captured.claudeModel,
             },
             buildSubmitCallbacks(),
         );
@@ -2099,6 +2164,11 @@ const AppGenerate: FC = () => {
                                                     )
                                                 }
                                                 disabled={!inspectorAvailable}
+                                            />
+                                            <ModelPicker
+                                                value={selectedModel}
+                                                onChange={handleModelChange}
+                                                disabled={isLoading}
                                             />
                                             {isBuilding ? (
                                                 <ActionIcon
