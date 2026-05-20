@@ -5171,4 +5171,202 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(`"${longRef}_ra" AS (`);
         });
     });
+
+    describe('sortOnlyDimensions — hidden pivot-column dims that drive column ORDER BY', () => {
+        // Fixture: orders_status is the visible pivot column; orders_status_priority
+        // is a hidden helper dim that drives column sort order (lower number = higher priority).
+        // The user sees column headers by orders_status only, sorted by status_priority ASC.
+
+        test('sortOnlyDimensions are included in group_by_query SELECT and GROUP BY', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: [
+                    {
+                        reference: 'orders_status_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyDimensions: [{ reference: 'orders_status_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // orders_status_priority must appear in group_by_query's SELECT and GROUP BY
+            expect(replaceWhitespace(result)).toContain(
+                '"orders_status", "orders_status_priority", "customer_id"',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'group by "orders_status", "orders_status_priority", "customer_id"',
+            );
+        });
+
+        test('sortOnlyDimensions does NOT spread orders_status_priority as a pivot column (no CASE WHEN for it)', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: [
+                    {
+                        reference: 'orders_status_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyDimensions: [{ reference: 'orders_status_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // pivot_query must pivot only on orders_status (the visible groupByColumn)
+            // and NOT include orders_status_priority in the DISTINCT SELECT of column_ranking
+            const collapsed = replaceWhitespace(result);
+
+            // column_ranking DISTINCT SELECT should only contain orders_status
+            const colRankingStart = collapsed.indexOf(
+                'column_ranking AS (SELECT DISTINCT',
+            );
+            expect(colRankingStart).toBeGreaterThanOrEqual(0);
+            // The DISTINCT SELECT should reference orders_status but not orders_status_priority
+            const colRankingEnd = collapsed.indexOf(
+                ', DENSE_RANK()',
+                colRankingStart,
+            );
+            const colRankingSelect = collapsed.slice(
+                colRankingStart,
+                colRankingEnd,
+            );
+            expect(colRankingSelect).toContain('"orders_status"');
+            expect(colRankingSelect).not.toContain('"orders_status_priority"');
+        });
+
+        test('sortOnlyDimensions influences column ORDER BY in column_ranking', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: [
+                    {
+                        reference: 'orders_status_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyDimensions: [{ reference: 'orders_status_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // column_ranking ORDER BY should include orders_status_priority
+            expect(collapsed).toContain(
+                'column_ranking AS (SELECT DISTINCT g."orders_status", DENSE_RANK() OVER (ORDER BY g."orders_status" ASC, g."orders_status_priority" ASC) AS "col_idx"',
+            );
+        });
+
+        test('sortOnlyDimensions with no sort entry — does not affect SQL (no column_ranking emitted for dim)', () => {
+            // When sortOnlyDimensions is set but the dim is NOT in sortBy, it should still
+            // appear in group_by_query but column_ranking should NOT be emitted (no hasDimSort).
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: undefined,
+                sortOnlyDimensions: [{ reference: 'orders_status_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // No column_ranking CTE since there's no sort on the dim
+            expect(result).not.toContain('column_ranking');
+        });
+
+        test('existing metric sort tests are unaffected when sortOnlyDimensions is absent', () => {
+            // Regression guard: standard metric sort path must not be broken
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+                // No sortOnlyDimensions
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Standard metric sort anchor CTEs must still be emitted
+            expect(result).toContain('"revenue_ca" AS (');
+            expect(result).toContain('column_ranking AS (');
+        });
+    });
 });
