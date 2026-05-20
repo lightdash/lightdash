@@ -3162,11 +3162,14 @@ export class AsyncQueryService extends ProjectService {
                             fields: fieldsMap,
                             compiledSql: query,
                             requestParameters,
-                            // Persist the fully resolved timezone (chart >
-                            // user > project fallback) on the snapshot so
-                            // worker paths read it back without re-resolving
-                            // against an absent request account.
-                            metricQuery: { ...metricQuery, timezone },
+                            // Persist the gated display timezone (matches
+                            // what the SQL was built with). Storing the
+                            // ungated resolvedTimezone leaks a +TZ shift
+                            // through formatTimestamp on flag-off orgs.
+                            metricQuery: {
+                                ...metricQuery,
+                                timezone: displayTimezone ?? undefined,
+                            },
                             cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
