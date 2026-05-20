@@ -44,6 +44,8 @@ tiles:
 
 **Chart scoping:** Charts can be scoped to a dashboard (via `dashboardSlug` on the chart YAML) or live independently in a space. See [Chart Types](../SKILL.md#chart-types) for guidance.
 
+**Nested `spaceSlug`:** Use `parent/child` syntax to put a dashboard in a sub-space, e.g. `spaceSlug: sales/forecasts`. A bare slug is a flat top-level space; the slash is what creates the hierarchy.
+
 ### SQL Chart Tile
 
 Display a SQL-based chart:

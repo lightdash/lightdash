@@ -259,6 +259,16 @@ version: 1
 
 **Chart scoping:** Use `spaceSlug` only for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard (it won't appear in the space).
 
+**Nested spaces:** Spaces can be nested. In YAML, `spaceSlug` uses `parent/child` syntax to address a sub-space — the `/` denotes hierarchy. Examples:
+
+```yaml
+spaceSlug: sales              # Top-level space "sales"
+spaceSlug: sales/maps         # Sub-space "maps" inside "sales"
+spaceSlug: sales/eu/forecasts # Deeper nesting works the same way
+```
+
+Each path segment must be the slug of an existing (or to-be-created) space at that level. A bare slug like `sales-maps` is a flat top-level space, NOT a sub-space — the slash is the only thing that creates the hierarchy.
+
 ### Choosing the Right Chart Type
 
 | Data Pattern | Recommended Chart | Why |
