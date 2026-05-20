@@ -1,3 +1,10 @@
+# [0.2991.0](https://github.com/lightdash/lightdash/compare/0.2990.0...0.2991.0) (2026-05-20)
+
+
+### Features
+
+* make AI artifact panel resizable ([#23340](https://github.com/lightdash/lightdash/issues/23340)) ([c9d5829](https://github.com/lightdash/lightdash/commit/c9d5829e7110487288d3cacae731fdabfea518e2))
+
 # [0.2990.0](https://github.com/lightdash/lightdash/compare/0.2989.3...0.2990.0) (2026-05-20)
 
 
