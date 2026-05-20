@@ -55,6 +55,7 @@ import {
     Body,
     Delete,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -544,6 +545,7 @@ export class AiAgentController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}')
     @OperationId('getAgentThread')
+    @Hidden()
     async getAgentThread(
         @Request() req: express.Request,
         @Path() projectUuid: string,
