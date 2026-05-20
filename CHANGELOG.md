@@ -1,3 +1,10 @@
+## [0.2989.3](https://github.com/lightdash/lightdash/compare/0.2989.2...0.2989.3) (2026-05-20)
+
+
+### Bug Fixes
+
+* **sum-distinct:** update sum distinct to partition only on distinct_keys ([#23213](https://github.com/lightdash/lightdash/issues/23213)) ([a19df23](https://github.com/lightdash/lightdash/commit/a19df23a39ba6a3c6faf8d41f6e07b72725e1bb5))
+
 ## [0.2989.2](https://github.com/lightdash/lightdash/compare/0.2989.1...0.2989.2) (2026-05-20)
 
 
