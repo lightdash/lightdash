@@ -10,9 +10,9 @@ import {
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { AssistantBubble } from './AgentChatAssistantBubble';
+import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
 import ThreadScrollToBottom from './ScrollToBottom';
-import styles from './AgentChatDisplay.module.css';
 import { ChatElementsUtils } from './utils';
 
 type Props = {
