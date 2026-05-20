@@ -40,6 +40,14 @@ export type PivotConfiguration = {
      * but excluded from pivotDetails so they don't appear as chart series.
      */
     sortOnlyColumns?: ValuesColumn[];
+    /**
+     * Dimensions referenced by ORDER BY but NOT spread into pivot columns.
+     * Used when a user hides a dim that's part of `pivotConfig.columns` and has
+     * a sort entry on it: the dim still ranks column order via the GROUP BY /
+     * ORDER BY pipeline, but it doesn't become a pivot column header level.
+     * Mirrors `sortOnlyColumns` (which serves the same purpose for metrics).
+     */
+    sortOnlyDimensions?: GroupByColumn[];
 };
 
 type Field =
