@@ -34,19 +34,19 @@ import {
     type CSSProperties,
 } from 'react';
 import MantineIcon from '../MantineIcon';
-import classes from './InHouseTable.module.css';
+import classes from './ContentTable.module.css';
 import {
-    type InHouseTableColumnDef,
-    type InHouseTableInstance,
-    type InHouseTableMantineProps,
-    type InHouseTablePropFactory,
+    type ContentTableColumnDef,
+    type ContentTableInstance,
+    type ContentTableMantineProps,
+    type ContentTablePropFactory,
 } from './types';
 
 const cx = (...classNames: Array<false | null | string | undefined>) =>
     classNames.filter(Boolean).join(' ');
 
 type SanitizedMantineProps<TElement extends HTMLElement> = Omit<
-    InHouseTableMantineProps<TElement>,
+    ContentTableMantineProps<TElement>,
     'ref' | 'styles' | 'sx'
 > & {
     className?: string;
@@ -83,7 +83,7 @@ const sxToStyle = (sx: unknown): CSSProperties => {
 };
 
 const sanitizeMantineProps = <TElement extends HTMLElement>(
-    props?: InHouseTableMantineProps<TElement>,
+    props?: ContentTableMantineProps<TElement>,
     options?: { includeSxStyle?: boolean },
 ): SanitizedMantineProps<TElement> => {
     if (!props) {
@@ -113,7 +113,7 @@ const mergeMantineProps = <TElement extends HTMLElement>(
 });
 
 const resolveProps = <TElement extends HTMLElement, TArgs>(
-    propFactory: InHouseTablePropFactory<TElement, TArgs> | undefined,
+    propFactory: ContentTablePropFactory<TElement, TArgs> | undefined,
     args: TArgs,
 ) =>
     typeof propFactory === 'function' ? propFactory(args) : (propFactory ?? {});
@@ -123,7 +123,7 @@ const getLightdashColumnDef = <TData extends RowData>(
 ) =>
     (
         column.columnDef.meta as
-            | { lightdashColumnDef?: InHouseTableColumnDef<TData> }
+            | { lightdashColumnDef?: ContentTableColumnDef<TData> }
             | undefined
     )?.lightdashColumnDef;
 
@@ -133,13 +133,13 @@ const sanitizeColumnIdForVar = (id: string) =>
     id.replace(/[^a-zA-Z0-9_-]/g, '_');
 
 const getColumnSizeVarName = (type: 'col' | 'header', id: string) =>
-    `--in-house-table-${type}-${sanitizeColumnIdForVar(id)}-size` as const;
+    `--content-table-${type}-${sanitizeColumnIdForVar(id)}-size` as const;
 
 const getColumnSizeVar = (type: 'col' | 'header', id: string) =>
     `calc(var(${getColumnSizeVarName(type, id)}) * 1px)`;
 
 const useColumnSizeVars = <TData extends RowData>(
-    table: InHouseTableInstance<TData>,
+    table: ContentTableInstance<TData>,
 ) => {
     const columnSizing = table.getState().columnSizing;
     const columnSizingInfo = table.getState().columnSizingInfo;
@@ -193,7 +193,7 @@ const isRowSelectColumn = (columnId: string) =>
     columnId === ROW_SELECT_COLUMN_ID;
 
 const getSkeletonRowHeight = <TData extends RowData>(
-    table: InHouseTableInstance<TData>,
+    table: ContentTableInstance<TData>,
 ) =>
     table.lightdashOptions.rowVirtualizerProps?.estimateSize?.() ??
     defaultEstimateSize();
@@ -212,7 +212,7 @@ const SortIcon = <TData extends RowData>({
     table,
 }: {
     header: Header<TData, unknown>;
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const sortState = header.column.getIsSorted();
     const icons = table.lightdashOptions.icons;
@@ -245,7 +245,7 @@ const HeaderContent = <TData extends RowData>({
 }: {
     header: Header<TData, unknown>;
     isResizingColumn: boolean;
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
     sortState: false | 'asc' | 'desc';
 }) => {
     if (header.isPlaceholder) return null;
@@ -271,7 +271,7 @@ const HeaderCell = <TData extends RowData>({
     table,
 }: {
     header: Header<TData, unknown>;
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const options = table.lightdashOptions;
     const columnDef = getLightdashColumnDef(header.column);
@@ -362,7 +362,7 @@ const FooterCell = <TData extends RowData>({
     table,
 }: {
     header: Header<TData, unknown>;
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const options = table.lightdashOptions;
     const footerCellProps = sanitizeMantineProps(
@@ -399,7 +399,7 @@ const FooterCell = <TData extends RowData>({
 const SkeletonRows = <TData extends RowData>({
     table,
 }: {
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const columns = table.getVisibleLeafColumns();
     const skeletonRowHeight = getSkeletonRowHeight(table);
@@ -447,7 +447,7 @@ const SkeletonRows = <TData extends RowData>({
 };
 
 type BodyRowsProps<TData extends RowData> = {
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
     rows: Row<TData>[];
     virtualRows?: VirtualItem[];
     measureElement?: (element: HTMLTableRowElement | null) => void;
@@ -620,7 +620,7 @@ const MemoizedBodyRows = memo(BodyRows, (previous, next) => {
 const DefaultBottomToolbar = <TData extends RowData>({
     table,
 }: {
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     if (table.lightdashOptions.enablePagination === false) {
         return null;
@@ -655,7 +655,7 @@ const DefaultBottomToolbar = <TData extends RowData>({
 const DefaultEmptyState = <TData extends RowData>({
     table,
 }: {
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const emptyState = table.lightdashOptions.emptyState;
     const search = emptyState?.search?.trim();
@@ -697,10 +697,10 @@ const DefaultEmptyState = <TData extends RowData>({
     );
 };
 
-export const InHouseTable = <TData extends RowData>({
+export const ContentTable = <TData extends RowData>({
     table,
 }: {
-    table: InHouseTableInstance<TData>;
+    table: ContentTableInstance<TData>;
 }) => {
     const options = table.lightdashOptions;
     const runtimeState = table.lightdashState;
@@ -971,5 +971,3 @@ export const InHouseTable = <TData extends RowData>({
         </Paper>
     );
 };
-
-export const MantineReactTable = InHouseTable;

@@ -1,6 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine-8/core';
-import { type MRT_Row } from '../../../components/common/InHouseTable';
+import { type MRT_Row } from '../../../components/common/ContentTable';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';

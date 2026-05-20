@@ -50,11 +50,11 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
 import {
-    InHouseTableSearchInput,
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTableSearchInput,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import {
@@ -592,7 +592,7 @@ const ProjectManagementPanel: FC = () => {
         setActiveFilter(ProjectTypeFilter.ALL);
     }, []);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredProjects,
         enableColumnActions: false,
@@ -658,7 +658,7 @@ const ProjectManagementPanel: FC = () => {
                         variant="xs"
                         label="Search by project name"
                     >
-                        <InHouseTableSearchInput
+                        <ContentTableSearchInput
                             placeholder="Search projects..."
                             value={search}
                             onChange={setSearch}
@@ -1002,7 +1002,7 @@ const ProjectManagementPanel: FC = () => {
                 )}
             </Group>
 
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             {deletingProjectUuid ? (
                 <ProjectDeleteModal

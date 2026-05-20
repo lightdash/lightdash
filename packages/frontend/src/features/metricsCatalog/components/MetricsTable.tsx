@@ -31,11 +31,11 @@ import {
     type UIEvent,
 } from 'react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_SortingState,
     type MRT_Virtualizer,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -311,7 +311,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [columnConfig.columnVisibility, canManageTags, dataHasCategories],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns: MetricsCatalogColumns,
         data: flatData,
         enableColumnResizing: true,
@@ -611,7 +611,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         case MetricCatalogView.LIST:
             return (
                 <>
-                    <MantineReactTable table={table} />
+                    <ContentTable table={table} />
                     {isMetricExploreModalOpen && (
                         <MetricExploreModal
                             opened={isMetricExploreModalOpen}

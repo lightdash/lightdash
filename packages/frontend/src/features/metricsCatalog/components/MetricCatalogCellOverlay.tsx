@@ -10,7 +10,7 @@ import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
 import { useEffect, useRef, type FC } from 'react';
-import { type MRT_TableInstance } from '../../../components/common/InHouseTable';
+import { type MRT_TableInstance } from '../../../components/common/ContentTable';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 
 type Props = {

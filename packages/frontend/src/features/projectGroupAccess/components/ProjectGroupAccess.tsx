@@ -29,10 +29,10 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -374,7 +374,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         rolesData,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: enrichedGroups,
         enableColumnResizing: false,
@@ -503,7 +503,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             type={PageType.PAGE}
             category={CategoryName.SETTINGS}
         >
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             {availableGroups && isAddingGroupAccess && (
                 <AddProjectGroupAccessModal

@@ -43,11 +43,11 @@ import {
 } from '../../features/scheduler/hooks/useScheduler';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
-} from '../common/InHouseTable';
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
@@ -566,7 +566,7 @@ const LogsTable: FC<LogsTableProps> = ({
         [allColumns, isResourceScoped],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: true,
@@ -716,7 +716,7 @@ const LogsTable: FC<LogsTableProps> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             <ConfirmSendNowModal
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}

@@ -15,12 +15,12 @@ import {
     type VisibilityState,
 } from '@tanstack/react-table';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import classes from './InHouseTable.module.css';
+import classes from './ContentTable.module.css';
 import {
-    type InHouseTableColumnDef,
-    type InHouseTableHeaderColumn,
-    type InHouseTableInstance,
-    type InHouseTableOptions,
+    type ContentTableColumnDef,
+    type ContentTableHeaderColumn,
+    type ContentTableInstance,
+    type ContentTableOptions,
 } from './types';
 
 const EMPTY_VISIBILITY: VisibilityState = {};
@@ -46,7 +46,7 @@ const resolveNextState = <TValue,>(
         : updater;
 
 const getColumnId = <TData extends RowData>(
-    column: InHouseTableColumnDef<TData>,
+    column: ContentTableColumnDef<TData>,
 ) => column.id ?? column.accessorKey;
 
 const DEFAULT_COLUMN_SIZE = 180;
@@ -60,21 +60,21 @@ const getDerivedMinSize = (size: number) =>
     Math.max(DEFAULT_COLUMN_MIN_SIZE, Math.min(180, Math.round(size * 0.55)));
 
 const getDataColumnSize = <TData extends RowData>(
-    column: InHouseTableColumnDef<TData>,
-    defaultColumn?: Partial<InHouseTableColumnDef<TData>>,
+    column: ContentTableColumnDef<TData>,
+    defaultColumn?: Partial<ContentTableColumnDef<TData>>,
 ) => column.size ?? defaultColumn?.size ?? DEFAULT_COLUMN_SIZE;
 
 const getDataColumnMinSize = <TData extends RowData>(
-    column: InHouseTableColumnDef<TData>,
-    defaultColumn?: Partial<InHouseTableColumnDef<TData>>,
+    column: ContentTableColumnDef<TData>,
+    defaultColumn?: Partial<ContentTableColumnDef<TData>>,
 ) =>
     column.minSize ??
     defaultColumn?.minSize ??
     getDerivedMinSize(getDataColumnSize(column, defaultColumn));
 
 const getDataColumnMaxSize = <TData extends RowData>(
-    column: InHouseTableColumnDef<TData>,
-    defaultColumn?: Partial<InHouseTableColumnDef<TData>>,
+    column: ContentTableColumnDef<TData>,
+    defaultColumn?: Partial<ContentTableColumnDef<TData>>,
 ) =>
     Math.max(
         column.maxSize ?? defaultColumn?.maxSize ?? DEFAULT_COLUMN_MAX_SIZE,
@@ -82,8 +82,8 @@ const getDataColumnMaxSize = <TData extends RowData>(
     );
 
 const toTanStackColumn = <TData extends RowData>(
-    column: InHouseTableColumnDef<TData>,
-    defaultColumn?: Partial<InHouseTableColumnDef<TData>>,
+    column: ContentTableColumnDef<TData>,
+    defaultColumn?: Partial<ContentTableColumnDef<TData>>,
 ): ColumnDef<TData, unknown> => {
     const childColumns = column.columns?.map((childColumn) =>
         toTanStackColumn(childColumn, defaultColumn),
@@ -106,14 +106,14 @@ const toTanStackColumn = <TData extends RowData>(
             lightdashColumnDef: column,
         } as ColumnDef<TData, unknown>['meta'],
         header: (headerContext) => {
-            const table = headerContext.table as InHouseTableInstance<TData>;
+            const table = headerContext.table as ContentTableInstance<TData>;
             const compatColumn = {
                 ...headerContext.column,
                 columnDef: {
                     ...headerContext.column.columnDef,
                     header: compatHeader,
                 },
-            } as InHouseTableHeaderColumn<TData>;
+            } as ContentTableHeaderColumn<TData>;
 
             if (column.Header) {
                 return column.Header({
@@ -134,7 +134,7 @@ const toTanStackColumn = <TData extends RowData>(
             return compatHeader;
         },
         footer: (footerContext) => {
-            const table = footerContext.table as InHouseTableInstance<TData>;
+            const table = footerContext.table as ContentTableInstance<TData>;
 
             return column.Footer?.({
                 column: footerContext.column,
@@ -143,7 +143,7 @@ const toTanStackColumn = <TData extends RowData>(
             });
         },
         cell: (cellContext) => {
-            const table = cellContext.table as InHouseTableInstance<TData>;
+            const table = cellContext.table as ContentTableInstance<TData>;
             const renderedCellValue = toRenderedValue(cellContext.getValue());
 
             if (column.Cell) {
@@ -161,8 +161,8 @@ const toTanStackColumn = <TData extends RowData>(
 };
 
 const getDisplayColumnSize = <TData extends RowData>(
-    displayColumnDefOptions: InHouseTableOptions<TData>['displayColumnDefOptions'],
-    defaultDisplayColumn: InHouseTableOptions<TData>['defaultDisplayColumn'],
+    displayColumnDefOptions: ContentTableOptions<TData>['displayColumnDefOptions'],
+    defaultDisplayColumn: ContentTableOptions<TData>['defaultDisplayColumn'],
     columnId: string,
     fallback: number,
 ) =>
@@ -176,8 +176,8 @@ const getDisplayColumnSize = <TData extends RowData>(
     );
 
 const getDisplayColumnMinSize = <TData extends RowData>(
-    displayColumnDefOptions: InHouseTableOptions<TData>['displayColumnDefOptions'],
-    defaultDisplayColumn: InHouseTableOptions<TData>['defaultDisplayColumn'],
+    displayColumnDefOptions: ContentTableOptions<TData>['displayColumnDefOptions'],
+    defaultDisplayColumn: ContentTableOptions<TData>['defaultDisplayColumn'],
     columnId: string,
 ) =>
     Math.max(
@@ -188,8 +188,8 @@ const getDisplayColumnMinSize = <TData extends RowData>(
     );
 
 const getDisplayColumnMaxSize = <TData extends RowData>(
-    displayColumnDefOptions: InHouseTableOptions<TData>['displayColumnDefOptions'],
-    defaultDisplayColumn: InHouseTableOptions<TData>['defaultDisplayColumn'],
+    displayColumnDefOptions: ContentTableOptions<TData>['displayColumnDefOptions'],
+    defaultDisplayColumn: ContentTableOptions<TData>['defaultDisplayColumn'],
     columnId: string,
 ) =>
     Math.max(
@@ -203,9 +203,9 @@ const getDisplayColumnMaxSize = <TData extends RowData>(
         ),
     );
 
-export const useInHouseTable = <TData extends RowData>(
-    options: InHouseTableOptions<TData>,
-): InHouseTableInstance<TData> => {
+export const useContentTable = <TData extends RowData>(
+    options: ContentTableOptions<TData>,
+): ContentTableInstance<TData> => {
     const [internalSorting, setInternalSorting] = useState<SortingState>(
         options.initialState?.sorting ?? [],
     );
@@ -367,12 +367,12 @@ export const useInHouseTable = <TData extends RowData>(
                                 ...headerContext.column.columnDef,
                                 header: '',
                             },
-                        } as InHouseTableHeaderColumn<TData>;
+                        } as ContentTableHeaderColumn<TData>;
 
                         return actionsHeader({
                             column: compatColumn,
                             header: headerContext.header,
-                            table: headerContext.table as InHouseTableInstance<TData>,
+                            table: headerContext.table as ContentTableInstance<TData>,
                         });
                     }
                     return actionsHeader ?? '';
@@ -396,7 +396,7 @@ export const useInHouseTable = <TData extends RowData>(
                 cell: ({ row, table }) =>
                     renderRowActions?.({
                         row,
-                        table: table as InHouseTableInstance<TData>,
+                        table: table as ContentTableInstance<TData>,
                     }) ?? null,
             };
 
@@ -472,15 +472,15 @@ export const useInHouseTable = <TData extends RowData>(
             showProgressBars: options.state?.showProgressBars ?? false,
             showSkeletons: options.state?.showSkeletons ?? false,
             sorting,
-        } as InHouseTableInstance<TData>['getState'] extends () => infer TState
+        } as ContentTableInstance<TData>['getState'] extends () => infer TState
             ? TState
             : never,
-    }) as unknown as InHouseTableInstance<TData>;
+    }) as unknown as ContentTableInstance<TData>;
 
     table.lightdashOptions = options;
     table.lightdashState = {
         editingCell:
-            editingCell as InHouseTableInstance<TData>['lightdashState']['editingCell'],
+            editingCell as ContentTableInstance<TData>['lightdashState']['editingCell'],
         globalFilter,
         isLoading: options.state?.isLoading ?? false,
         showAlertBanner: options.state?.showAlertBanner ?? false,
@@ -495,5 +495,3 @@ export const useInHouseTable = <TData extends RowData>(
 
     return table;
 };
-
-export const useMantineReactTable = useInHouseTable;

@@ -3,7 +3,7 @@ import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
-import { type MRT_ColumnDef } from '../../../components/common/InHouseTable';
+import { type MRT_ColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     createMetricPreviewUnsavedChartVersion,
