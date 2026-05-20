@@ -1,3 +1,10 @@
+## [0.2984.2](https://github.com/lightdash/lightdash/compare/0.2984.1...0.2984.2) (2026-05-20)
+
+
+### Bug Fixes
+
+* dedupe identical SCIM roles before validation to handle Entra PATCH Add duplicates ([#22988](https://github.com/lightdash/lightdash/issues/22988)) ([91c7379](https://github.com/lightdash/lightdash/commit/91c7379ed3a0f575c72f84f24cab932bd9840bd3))
+
 ## [0.2984.1](https://github.com/lightdash/lightdash/compare/0.2984.0...0.2984.1) (2026-05-20)
 
 
