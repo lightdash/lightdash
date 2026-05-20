@@ -1,3 +1,11 @@
+# [0.2995.0](https://github.com/lightdash/lightdash/compare/0.2994.1...0.2995.0) (2026-05-20)
+
+
+### Features
+
+* add content table compatibility layer ([#23314](https://github.com/lightdash/lightdash/issues/23314)) ([b032f8a](https://github.com/lightdash/lightdash/commit/b032f8afa2494f986c4a1038313c33e5f7a95472))
+* **ai-agents:** add analytics tracking for document created/deleted events ([#23348](https://github.com/lightdash/lightdash/issues/23348)) ([bd0b253](https://github.com/lightdash/lightdash/commit/bd0b2532cea0b91b982976f688edaea2a6cfd2a0))
+
 ## [0.2994.1](https://github.com/lightdash/lightdash/compare/0.2994.0...0.2994.1) (2026-05-20)
 
 
