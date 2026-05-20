@@ -10,6 +10,7 @@ import {
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
@@ -272,6 +273,33 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             version,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Duplicate an existing app into a new personal app owned by the
+     * requester. Latest ready version is copied; no sandbox is created.
+     * @summary Duplicate app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/duplicate')
+    @OperationId('duplicateApp')
+    async duplicateApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiDuplicateAppResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().duplicateApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
         );
         this.setStatus(200);
         return {

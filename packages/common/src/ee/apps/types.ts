@@ -229,6 +229,11 @@ export type ApiRestoreAppVersionResponse = ApiSuccess<{
     version: number;
 }>;
 
+export type ApiDuplicateAppResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+}>;
+
 export type ApiDeleteAppResponse = ApiSuccessEmpty;
 
 export type ApiAppSummary = {
