@@ -40,11 +40,11 @@ import {
 } from 'react';
 import Callout from '../../../components/common/Callout';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -477,7 +477,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         ],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnResizing: true,
@@ -686,7 +686,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 </Group>
             </Card>
 
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
         </>
     );
 };

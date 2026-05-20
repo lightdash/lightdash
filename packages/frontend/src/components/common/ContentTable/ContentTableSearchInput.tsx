@@ -7,11 +7,11 @@ import {
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type CSSProperties } from 'react';
 import MantineIcon from '../MantineIcon';
-import classes from './InHouseTable.module.css';
+import classes from './ContentTable.module.css';
 
 type CssSize = number | string;
 
-export type InHouseTableSearchInputProps = Omit<
+export type ContentTableSearchInputProps = Omit<
     TextInputProps,
     | 'classNames'
     | 'leftSection'
@@ -32,7 +32,7 @@ export type InHouseTableSearchInputProps = Omit<
 const toCssSize = (value: CssSize | undefined) =>
     typeof value === 'number' ? `${value}px` : value;
 
-const InHouseTableSearchInputComponent = ({
+const ContentTableSearchInputComponent = ({
     collapsedWidth,
     expandedWidth,
     onChange,
@@ -41,7 +41,7 @@ const InHouseTableSearchInputComponent = ({
     tooltipLabel,
     value,
     ...rest
-}: InHouseTableSearchInputProps) => {
+}: ContentTableSearchInputProps) => {
     const hasValue = value.length > 0;
     const input = (
         <TextInput
@@ -76,8 +76,8 @@ const InHouseTableSearchInputComponent = ({
             onChange={(event) => onChange(event.currentTarget.value)}
             style={
                 {
-                    '--in-house-table-search-width': toCssSize(collapsedWidth),
-                    '--in-house-table-search-expanded-width':
+                    '--content-table-search-width': toCssSize(collapsedWidth),
+                    '--content-table-search-expanded-width':
                         toCssSize(expandedWidth),
                     ...style,
                 } as CSSProperties
@@ -96,5 +96,5 @@ const InHouseTableSearchInputComponent = ({
     );
 };
 
-export const InHouseTableSearchInput = memo(InHouseTableSearchInputComponent);
-InHouseTableSearchInput.displayName = 'InHouseTableSearchInput';
+export const ContentTableSearchInput = memo(ContentTableSearchInputComponent);
+ContentTableSearchInput.displayName = 'ContentTableSearchInput';

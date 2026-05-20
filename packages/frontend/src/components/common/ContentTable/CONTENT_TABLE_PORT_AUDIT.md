@@ -1,4 +1,4 @@
-# Mantine React Table Port Audit
+# Content Table Port Audit
 
 Source of truth: `origin/main` MRT call sites, plus local `mantine-react-table@1.3.4` for display-column behavior. MRT puts row selection in the leading display columns even when row actions are last.
 
@@ -6,7 +6,7 @@ Source of truth: `origin/main` MRT call sites, plus local `mantine-react-table@1
 
 | Behavior                               | Port Status                                                                                                                                         |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Row selection column                   | In-house table now places selection before data columns, matching MRT.                                                                              |
+| Row selection column                   | Content table now places selection before data columns, matching MRT.                                                                               |
 | Row selection checkbox sizing          | Selection cells remove generic data padding so 20px display columns do not crop checkboxes.                                                         |
 | Row actions column                     | Supported via `enableRowActions`, `renderRowActions`, and `positionActionsColumn`.                                                                  |
 | Hover row background                   | Supported by `mantineTableProps.highlightOnHover`.                                                                                                  |
@@ -34,7 +34,7 @@ Source of truth: `origin/main` MRT call sites, plus local `mantine-react-table@1
 | `SchedulersTable`                            | Virtualized table, conditional row selection, top toolbar and bulk actions, no pagination.                                                   | Selection now leads on the left like MRT.                                 |
 | `ValidatorTable`                             | Virtualized table, pinned row class, top toolbar, loading/error states.                                                                      | Row classes supported.                                                    |
 | `MyAppsPanel`                                | Non-paginated settings table, right-aligned actions, custom empty text.                                                                      | Alignment props supported.                                                |
-| `ProjectManagementPanel`                     | Non-paginated project table, expanding search, top toolbar filters/modals, filtered empty state, right-aligned action cells.                 | Search and filtered empty state now use shared in-house table primitives. |
+| `ProjectManagementPanel`                     | Non-paginated project table, expanding search, top toolbar filters/modals, filtered empty state, right-aligned action cells.                 | Search and filtered empty state now use shared content table primitives.  |
 | `UserAttributesPanel`                        | Non-paginated table, top toolbar, custom empty states, compact sizing.                                                                       | Toolbar and empty states supported.                                       |
 | `GroupsTable`                                | Virtualized users/groups table, top toolbar, compact sizing.                                                                                 | Virtual scroll and toolbar supported.                                     |
 | `UsersTable`                                 | Virtualized users table, top toolbar, compact sizing.                                                                                        | Virtual scroll and toolbar supported.                                     |

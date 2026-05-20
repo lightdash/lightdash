@@ -27,12 +27,12 @@ import {
     type ProjectCompileLog,
 } from '../../hooks/useProjectCompileLogs';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
     type MRT_Virtualizer,
-} from '../common/InHouseTable';
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
 import { CompilationLogDrawer } from './CompilationLogDrawer';
@@ -266,7 +266,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         [theme],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: compileLogs,
         enableColumnResizing: false,
@@ -385,7 +385,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             <CompilationLogDrawer
                 opened={drawerOpened}
                 onClose={handleDrawerClose}

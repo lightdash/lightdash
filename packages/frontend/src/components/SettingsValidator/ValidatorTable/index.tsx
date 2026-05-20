@@ -35,11 +35,11 @@ import {
 } from 'react';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
@@ -322,7 +322,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         ],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: false,
@@ -408,5 +408,5 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         },
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };

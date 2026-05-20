@@ -51,12 +51,12 @@ import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import GoogleChatSvg from '../../svgs/googlechat.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
     type MRT_Virtualizer,
-} from '../common/InHouseTable';
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
@@ -790,7 +790,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         handleReassignOwner,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnResizing: true,
@@ -1000,7 +1000,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             {reassignProjectUuid && (
                 <ReassignSchedulerOwnerModal
                     opened={reassignModalOpen}

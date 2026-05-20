@@ -40,10 +40,10 @@ import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import { useContentAction } from '../../../hooks/useContent';
 import {
-    InHouseTable,
-    useInHouseTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
@@ -390,7 +390,7 @@ const MyAppsPanel: FC = () => {
         [],
     );
 
-    const table = useInHouseTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnActions: false,
@@ -433,7 +433,7 @@ const MyAppsPanel: FC = () => {
 
     return (
         <Stack gap="md">
-            <InHouseTable table={table} />
+            <ContentTable table={table} />
             {appToDelete && (
                 <AppDeleteModal
                     opened

@@ -57,13 +57,13 @@ import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
     type MRT_TableOptions,
     type MRT_Virtualizer,
-} from '../InHouseTable';
+} from '../ContentTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
@@ -406,7 +406,7 @@ const InfiniteResourceTable = ({
         [columnVisibility],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns: ResourceColumns,
         data: tableData,
         enableColumnResizing: true,
@@ -857,7 +857,7 @@ const InfiniteResourceTable = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             <ResourceActionHandlers action={action} onAction={handleAction} />
 
             {isTransferItemsModalOpen && (

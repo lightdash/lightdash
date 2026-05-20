@@ -25,16 +25,16 @@ import {
     type UIEventHandler,
 } from 'react';
 
-export type InHouseTableVirtualizer<
+export type ContentTableVirtualizer<
     TScrollElement extends Element | Window = HTMLDivElement,
     TItemElement extends Element = HTMLTableRowElement,
 > = Virtualizer<TScrollElement, TItemElement>;
 
-export type InHouseTableSortingState = SortingState;
+export type ContentTableSortingState = SortingState;
 
-export type InHouseTableDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type ContentTableDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-export type InHouseTableHeaderColumn<TData extends RowData> = Omit<
+export type ContentTableHeaderColumn<TData extends RowData> = Omit<
     Column<TData, unknown>,
     'columnDef'
 > & {
@@ -43,61 +43,61 @@ export type InHouseTableHeaderColumn<TData extends RowData> = Omit<
     };
 };
 
-export type InHouseTableColumnDef<TData extends RowData> = {
+export type ContentTableColumnDef<TData extends RowData> = {
     id?: string;
     accessorKey?: string;
     accessorFn?: (originalRow: TData, index: number) => unknown;
     header?:
         | ReactNode
         | ((props: {
-              column: InHouseTableHeaderColumn<TData>;
+              column: ContentTableHeaderColumn<TData>;
               header: Header<TData, unknown>;
-              table: InHouseTableInstance<TData>;
+              table: ContentTableInstance<TData>;
           }) => ReactNode);
     Header?: (props: {
-        column: InHouseTableHeaderColumn<TData>;
+        column: ContentTableHeaderColumn<TData>;
         header: Header<TData, unknown>;
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
     Cell?: (
         props: Omit<CellContext<TData, unknown>, 'table' | 'row'> & {
             renderedCellValue: ReactNode;
             row: Row<TData>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         },
     ) => ReactNode;
     Edit?: (
         props: Omit<CellContext<TData, unknown>, 'cell' | 'row' | 'table'> & {
             cell: Cell<TData, unknown>;
             row: Row<TData>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         },
     ) => ReactNode;
     Footer?: (props: {
         column: Column<TData, unknown>;
         header: Header<TData, unknown>;
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
-    columns?: InHouseTableColumnDef<TData>[];
+    columns?: ContentTableColumnDef<TData>[];
     enableEditing?: boolean;
     enableResizing?: boolean;
     enableSorting?: boolean;
     grow?: boolean;
-    mantineTableBodyCellProps?: InHouseTablePropFactory<
+    mantineTableBodyCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
             cell: Cell<TData, unknown>;
             column: Column<TData, unknown>;
             row: Row<TData>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         }
     >;
-    mantineTableHeadCellProps?: InHouseTablePropFactory<
+    mantineTableHeadCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
             column: Column<TData, unknown>;
             header: Header<TData, unknown>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         }
     >;
     maxSize?: number;
@@ -107,10 +107,10 @@ export type InHouseTableColumnDef<TData extends RowData> = {
     meta?: Record<string, unknown>;
 };
 
-export type InHouseTableState = {
+export type ContentTableState = {
     columnOrder?: ColumnOrderState;
     columnVisibility?: VisibilityState;
-    density?: InHouseTableDensity;
+    density?: ContentTableDensity;
     editingCell?: Cell<RowData, unknown> | null;
     globalFilter?: string;
     isLoading?: boolean;
@@ -122,7 +122,7 @@ export type InHouseTableState = {
     sorting?: SortingState;
 };
 
-export type InHouseTableInitialState = {
+export type ContentTableInitialState = {
     columnOrder?: ColumnOrderState;
     columnVisibility?: VisibilityState;
     globalFilter?: string;
@@ -130,12 +130,12 @@ export type InHouseTableInitialState = {
         pageIndex?: number;
         pageSize?: number;
     };
-    density?: InHouseTableDensity;
+    density?: ContentTableDensity;
     showGlobalFilter?: boolean;
     sorting?: SortingState;
 };
 
-export type InHouseTableMantineProps<TElement extends HTMLElement> = {
+export type ContentTableMantineProps<TElement extends HTMLElement> = {
     bg?: unknown;
     className?: string;
     h?: unknown;
@@ -150,19 +150,19 @@ export type InHouseTableMantineProps<TElement extends HTMLElement> = {
     [key: string]: unknown;
 };
 
-export type InHouseTablePropFactory<TElement extends HTMLElement, TArgs> =
-    | InHouseTableMantineProps<TElement>
-    | ((args: TArgs) => InHouseTableMantineProps<TElement>);
+export type ContentTablePropFactory<TElement extends HTMLElement, TArgs> =
+    | ContentTableMantineProps<TElement>
+    | ((args: TArgs) => ContentTableMantineProps<TElement>);
 
-export type InHouseTableOptions<TData extends RowData> = {
-    columns: InHouseTableColumnDef<TData>[];
+export type ContentTableOptions<TData extends RowData> = {
+    columns: ContentTableColumnDef<TData>[];
     data: TData[];
     columnResizeMode?: 'onChange' | 'onEnd';
-    defaultColumn?: Partial<InHouseTableColumnDef<TData>>;
-    defaultDisplayColumn?: Partial<InHouseTableColumnDef<TData>>;
+    defaultColumn?: Partial<ContentTableColumnDef<TData>>;
+    defaultDisplayColumn?: Partial<ContentTableColumnDef<TData>>;
     displayColumnDefOptions?: Record<
         string,
-        Partial<InHouseTableColumnDef<TData>>
+        Partial<ContentTableColumnDef<TData>>
     >;
     editDisplayMode?: 'cell' | 'row' | 'table' | 'modal' | 'custom';
     emptyState?: {
@@ -204,49 +204,49 @@ export type InHouseTableOptions<TData extends RowData> = {
         IconSortAscending?: () => ReactNode;
         IconSortDescending?: () => ReactNode;
     };
-    initialState?: InHouseTableInitialState;
+    initialState?: ContentTableInitialState;
     manualFiltering?: boolean;
     manualPagination?: boolean;
     manualSorting?: boolean;
     mantineLoadingOverlayProps?: Record<string, unknown>;
     mantinePaginationProps?: Record<string, unknown>;
-    mantinePaperProps?: InHouseTableMantineProps<HTMLDivElement>;
+    mantinePaperProps?: ContentTableMantineProps<HTMLDivElement>;
     mantineSelectAllCheckboxProps?: Record<string, unknown>;
     mantineSelectCheckboxProps?: Record<string, unknown>;
-    mantineTableBodyCellProps?: InHouseTablePropFactory<
+    mantineTableBodyCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
             cell: Cell<TData, unknown>;
             column: Column<TData, unknown>;
             row: Row<TData>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         }
     >;
-    mantineTableBodyProps?: InHouseTableMantineProps<HTMLTableSectionElement>;
-    mantineTableBodyRowProps?: InHouseTablePropFactory<
+    mantineTableBodyProps?: ContentTableMantineProps<HTMLTableSectionElement>;
+    mantineTableBodyRowProps?: ContentTablePropFactory<
         HTMLTableRowElement,
-        { row: Row<TData>; table: InHouseTableInstance<TData> }
+        { row: Row<TData>; table: ContentTableInstance<TData> }
     >;
-    mantineTableContainerProps?: InHouseTableMantineProps<HTMLDivElement>;
-    mantineTableFooterCellProps?: InHouseTablePropFactory<
+    mantineTableContainerProps?: ContentTableMantineProps<HTMLDivElement>;
+    mantineTableFooterCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
             column: Column<TData, unknown>;
             header: Header<TData, unknown>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         }
     >;
-    mantineTableHeadProps?: InHouseTableMantineProps<HTMLTableSectionElement>;
-    mantineTableHeadCellProps?: InHouseTablePropFactory<
+    mantineTableHeadProps?: ContentTableMantineProps<HTMLTableSectionElement>;
+    mantineTableHeadCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
             column: Column<TData, unknown>;
             header: Header<TData, unknown>;
-            table: InHouseTableInstance<TData>;
+            table: ContentTableInstance<TData>;
         }
     >;
-    mantineTableHeadRowProps?: InHouseTableMantineProps<HTMLTableRowElement>;
-    mantineTableProps?: InHouseTableMantineProps<HTMLTableElement> & {
+    mantineTableHeadRowProps?: ContentTableMantineProps<HTMLTableRowElement>;
+    mantineTableProps?: ContentTableMantineProps<HTMLTableElement> & {
         highlightOnHover?: boolean;
         withColumnBorders?: boolean;
     };
@@ -260,20 +260,20 @@ export type InHouseTableOptions<TData extends RowData> = {
     positionActionsColumn?: 'first' | 'last';
     positionGlobalFilter?: 'left' | 'right';
     renderBottomToolbar?: (props: {
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
     renderEmptyRowsFallback?: (props: {
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
     renderRowActions?: (props: {
         row: Row<TData>;
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
     renderTopToolbar?: (props: {
-        table: InHouseTableInstance<TData>;
+        table: ContentTableInstance<TData>;
     }) => ReactNode;
     rowCount?: number;
-    rowVirtualizerInstanceRef?: React.MutableRefObject<InHouseTableVirtualizer<
+    rowVirtualizerInstanceRef?: React.MutableRefObject<ContentTableVirtualizer<
         HTMLDivElement,
         HTMLTableRowElement
     > | null>;
@@ -281,10 +281,10 @@ export type InHouseTableOptions<TData extends RowData> = {
         estimateSize?: () => number;
         overscan?: number;
     };
-    state?: InHouseTableState;
+    state?: ContentTableState;
 };
 
-export type InHouseTableRuntimeState = {
+export type ContentTableRuntimeState = {
     editingCell: Cell<RowData, unknown> | null;
     globalFilter: string;
     isLoading: boolean;
@@ -294,36 +294,36 @@ export type InHouseTableRuntimeState = {
     showSkeletons: boolean;
 };
 
-export type InHouseTableStateWithCompat<TData extends RowData> = TableState & {
+export type ContentTableStateWithCompat<TData extends RowData> = TableState & {
     editingCell?: Cell<TData, unknown> | null;
     showLoadingOverlay?: boolean;
     showProgressBars?: boolean;
     showSkeletons?: boolean;
 };
 
-export type InHouseTableInstance<TData extends RowData> = Omit<
+export type ContentTableInstance<TData extends RowData> = Omit<
     TanStackTable<TData>,
     'getState'
 > & {
-    getState: () => InHouseTableStateWithCompat<TData>;
-    lightdashOptions: InHouseTableOptions<TData>;
-    lightdashState: InHouseTableRuntimeState;
+    getState: () => ContentTableStateWithCompat<TData>;
+    lightdashOptions: ContentTableOptions<TData>;
+    lightdashState: ContentTableRuntimeState;
     refs: {
         tableContainerRef: MutableRefObject<HTMLDivElement | null>;
     };
     setEditingCell: (cell: Cell<TData, unknown> | null) => void;
 };
 
-export type InHouseTableUpdater<TValue> = Updater<TValue>;
+export type ContentTableUpdater<TValue> = Updater<TValue>;
 
-export type MRT_ColumnDef<TData extends RowData> = InHouseTableColumnDef<TData>;
+export type MRT_ColumnDef<TData extends RowData> = ContentTableColumnDef<TData>;
 export type MRT_Row<TData extends RowData> = Row<TData>;
-export type MRT_SortingState = InHouseTableSortingState;
+export type MRT_SortingState = ContentTableSortingState;
 export type MRT_TableInstance<TData extends RowData> =
-    InHouseTableInstance<TData>;
+    ContentTableInstance<TData>;
 export type MRT_TableOptions<TData extends RowData> =
-    InHouseTableOptions<TData>;
+    ContentTableOptions<TData>;
 export type MRT_Virtualizer<
     TScrollElement extends Element | Window = HTMLDivElement,
     TItemElement extends Element = HTMLTableRowElement,
-> = InHouseTableVirtualizer<TScrollElement, TItemElement>;
+> = ContentTableVirtualizer<TScrollElement, TItemElement>;

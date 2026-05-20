@@ -20,7 +20,7 @@ import { forwardRef, useCallback, useEffect, useState } from 'react';
 import {
     type MRT_Row,
     type MRT_TableInstance,
-} from '../../../components/common/InHouseTable';
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';

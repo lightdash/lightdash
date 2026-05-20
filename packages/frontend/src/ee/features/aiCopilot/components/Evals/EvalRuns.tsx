@@ -21,10 +21,10 @@ import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../../../components/common/InHouseTable';
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluationRuns,
@@ -210,7 +210,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: runs,
         enableSorting: false,
@@ -323,7 +323,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     </Text>
                 </Paper>
             ) : (
-                <MantineReactTable table={table} />
+                <ContentTable table={table} />
             )}
         </Stack>
     );

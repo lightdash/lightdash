@@ -314,7 +314,7 @@
         width 250ms cubic-bezier(0.23, 1, 0.32, 1),
         border-color 160ms ease,
         box-shadow 160ms ease;
-    width: var(--in-house-table-search-width, 200px);
+    width: var(--content-table-search-width, 200px);
 }
 
 .searchInput:hover {
@@ -325,7 +325,7 @@
     border-color: var(--mantine-color-indigo-4);
     box-shadow: 0 0 0 2px
         color-mix(in oklch, var(--mantine-color-indigo-4) 20%, transparent);
-    width: var(--in-house-table-search-expanded-width, 280px);
+    width: var(--content-table-search-expanded-width, 280px);
 }
 
 .searchInputWithValue {
@@ -333,7 +333,7 @@
     transition:
         border-color 160ms ease,
         box-shadow 160ms ease;
-    width: var(--in-house-table-search-expanded-width, 280px);
+    width: var(--content-table-search-expanded-width, 280px);
 }
 
 @mixin dark {

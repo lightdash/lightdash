@@ -15,10 +15,10 @@ import { IconCircleX, IconDots, IconEye } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
-} from '../../../../../components/common/InHouseTable';
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -246,7 +246,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         [canManageAgent, handleUnverify, handleViewArtifact],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: artifacts,
         enableSorting: false,
@@ -388,7 +388,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             <MantineModal
                 opened={unverifyModalOpened}

@@ -27,11 +27,11 @@ import {
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import useApp from '../../../providers/App/useApp';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
 import { GroupsTopToolbar } from './GroupsTopToolbar';
@@ -221,7 +221,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         [canManageGroups, flatData.length, onEditGroup, theme],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnResizing: false,
@@ -330,7 +330,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         },
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default GroupsTable;

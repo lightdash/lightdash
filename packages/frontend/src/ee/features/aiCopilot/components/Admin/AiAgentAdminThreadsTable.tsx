@@ -42,12 +42,12 @@ import {
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
     type MRT_Virtualizer,
-} from '../../../../../components/common/InHouseTable';
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -472,7 +472,7 @@ const AiAgentAdminThreadsTable = ({
         },
     ];
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: true,
@@ -717,7 +717,7 @@ const AiAgentAdminThreadsTable = ({
         enableRowActions: false,
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default AiAgentAdminThreadsTable;

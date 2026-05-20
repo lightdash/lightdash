@@ -39,11 +39,11 @@ import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUser
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_Virtualizer,
-} from '../../common/InHouseTable';
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
@@ -351,7 +351,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         handleInviteSent,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnResizing: false,
@@ -460,7 +460,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         },
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default UsersTable;
