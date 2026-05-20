@@ -1,3 +1,10 @@
+# [0.2989.0](https://github.com/lightdash/lightdash/compare/0.2988.0...0.2989.0) (2026-05-20)
+
+
+### Features
+
+* add dashboard AI agent context bridge for live content refresh ([#23298](https://github.com/lightdash/lightdash/issues/23298)) ([6d55629](https://github.com/lightdash/lightdash/commit/6d556298d8601c7df9ad33e1259d856ce66ce3e2))
+
 # [0.2988.0](https://github.com/lightdash/lightdash/compare/0.2987.0...0.2988.0) (2026-05-20)
 
 
