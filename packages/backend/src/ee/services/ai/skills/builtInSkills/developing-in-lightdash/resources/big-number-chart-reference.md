@@ -1,5 +1,6 @@
 ---
 name: big-number-chart-reference
+title: Big Number Chart Reference
 description: Big number chart configuration, comparisons, conditional formatting, and examples for Lightdash charts.
 ---
 

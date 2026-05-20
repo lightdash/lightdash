@@ -1,5 +1,6 @@
 ---
 name: developing-in-lightdash
+title: Developing in Lightdash
 description: Use when reading, creating, and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.
 ---
 

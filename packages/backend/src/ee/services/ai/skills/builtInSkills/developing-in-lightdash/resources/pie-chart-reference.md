@@ -1,5 +1,6 @@
 ---
 name: pie-chart-reference
+title: Pie Chart Reference
 description: Pie and donut chart structure, grouping, labels, legend options, and examples for Lightdash charts.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: treemap-chart-reference
+title: Treemap Chart Reference
 description: Treemap chart configuration, hierarchies, size and color metrics, and examples for Lightdash charts.
 ---
 

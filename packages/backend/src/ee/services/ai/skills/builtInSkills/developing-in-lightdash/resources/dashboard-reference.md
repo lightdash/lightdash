@@ -1,5 +1,6 @@
 ---
 name: dashboard-reference
+title: Dashboard Reference
 description: Full dashboard structure, tile types, grid layout, filters, config, examples, and best practices for editing dashboards in Lightdash.
 ---
 

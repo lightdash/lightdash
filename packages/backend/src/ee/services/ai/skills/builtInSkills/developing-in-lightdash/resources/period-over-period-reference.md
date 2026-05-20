@@ -1,5 +1,6 @@
 ---
 name: period-over-period-reference
+title: Period over Period Reference
 description: Period over period comparison configuration for Lightdash chart JSON.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: gauge-chart-reference
+title: Gauge Chart Reference
 description: Gauge chart configuration, ranges, sections, labels, and examples for Lightdash charts.
 ---
 

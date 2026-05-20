@@ -101,6 +101,7 @@ import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -168,6 +169,7 @@ const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
+const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -310,35 +312,32 @@ export class McpService extends BaseService {
         this.aiAgentToolsService = aiAgentToolsService;
         this.aiWritebackService = aiWritebackService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
-        try {
-            this.mcpServer = Sentry.wrapMcpServerWithSentry(
-                new McpServer({
-                    name: 'Lightdash MCP Server',
-                    version: VERSION,
-                    websiteUrl: this.lightdashConfig.siteUrl,
-                    icons: [
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
-                            mimeType: 'image/svg+xml',
-                        },
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
-                            mimeType: 'image/png',
-                            sizes: ['32x32'],
-                        },
-                        {
-                            src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
-                            mimeType: 'image/png',
-                            sizes: ['152x152'],
-                        },
-                    ],
-                }),
-            );
-            this.setupHandlers();
-        } catch (error) {
+        this.mcpServer = Sentry.wrapMcpServerWithSentry(
+            new McpServer({
+                name: 'Lightdash MCP Server',
+                version: VERSION,
+                websiteUrl: this.lightdashConfig.siteUrl,
+                icons: [
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
+                        mimeType: 'image/svg+xml',
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
+                        mimeType: 'image/png',
+                        sizes: ['32x32'],
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
+                        mimeType: 'image/png',
+                        sizes: ['152x152'],
+                    },
+                ],
+            }),
+        );
+        void this.setupHandlers().catch((error) => {
             this.logger.error('Error initializing MCP server:', error);
-            throw error;
-        }
+        });
     }
 
     private async getScopeInfo(
@@ -1056,12 +1055,12 @@ export class McpService extends BaseService {
         );
     }
 
-    setupHandlers(
+    async setupHandlers(
         options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
             projectPinned: false,
             aiWritebackEnabled: false,
         },
-    ): void {
+    ): Promise<void> {
         this.mcpServer.registerTool(
             mcpGetLightdashVersionTool.name,
             {
@@ -2383,6 +2382,52 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        await this.setupSkillResourceHandlers();
+    }
+
+    private async setupSkillResourceHandlers(): Promise<void> {
+        const resources = await BuiltInSkills.listMcpResources();
+
+        resources.forEach((resource) => {
+            this.mcpServer.registerResource(
+                resource.name,
+                resource.uri,
+                {
+                    title: resource.title,
+                    description: resource.description,
+                    mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                },
+                async () => {
+                    const text = await BuiltInSkills.getMcpResourceBody(
+                        resource.uri,
+                    );
+
+                    if (text === undefined) {
+                        throw new NotFoundError(
+                            `Resource "${resource.uri}" was not found`,
+                        );
+                    }
+
+                    return {
+                        contents: [
+                            {
+                                uri: resource.uri,
+                                mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                                text,
+                            },
+                        ],
+                    };
+                },
+            );
+        });
+
+        // The SDK auto-advertises `resources.listChanged: true` when
+        // registerResource is called, but we never emit list_changed
+        // notifications, so override it to avoid misleading clients.
+        this.mcpServer.server.registerCapabilities({
+            resources: { listChanged: false },
+        });
     }
 
     async getProjectUuidFromContext(context: McpProtocolContext) {
@@ -2655,10 +2700,10 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public createServer(options?: {
+    public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-    }): McpServer {
+    }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2686,11 +2731,14 @@ export class McpService extends BaseService {
         // Temporarily swap the server to register handlers on the new instance
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
-        this.setupHandlers({
-            projectPinned: options?.projectPinned ?? false,
-            aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
-        });
-        this.mcpServer = originalServer;
+        try {
+            await this.setupHandlers({
+                projectPinned: options?.projectPinned ?? false,
+                aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            });
+        } finally {
+            this.mcpServer = originalServer;
+        }
 
         return newServer;
     }

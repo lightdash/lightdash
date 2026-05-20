@@ -1,5 +1,6 @@
 ---
 name: map-chart-reference
+title: Map Chart Reference
 description: Map chart configuration for scatter, area, and heatmap layers, plus map-specific examples for Lightdash charts.
 ---
 
