@@ -78,6 +78,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             tableConfig: {
                 columnOrder,
             },
+            metricQuery: resultsData?.metricQuery,
         });
 
         const getChartDownloadQueryUuid = useCallback(

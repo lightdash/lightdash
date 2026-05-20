@@ -985,6 +985,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         | 'columnTotals'
         | 'metricsAsRows'
         | 'hiddenMetricFieldIds'
+        | 'hiddenDimensionFieldIds'
         | 'visibleMetricFieldIds'
         | 'columnOrder'
     >; // only use properties that are not part of pivot details metadata
@@ -999,6 +1000,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const hiddenDimensionFieldIds = pivotConfig.hiddenDimensionFieldIds || [];
     const { visibleMetricFieldIds } = pivotConfig;
     const columnOrder = pivotConfig.columnOrder || [];
 
@@ -1009,17 +1011,28 @@ export const convertSqlPivotedRowsToPivotData = ({
         return !hiddenMetricFieldIds.includes(fieldId);
     };
 
-    // Extract information from pivot details metadata
+    const isDimVisibleInPivot = (fieldId: string): boolean =>
+        !hiddenDimensionFieldIds.includes(fieldId);
+
+    // Extract information from pivot details metadata. Row-index dims that the
+    // user has hidden are dropped from the rendered index column list — the
+    // underlying SQL row grouping is unchanged, so data rows still align with
+    // the visible index values; we just don't render the hidden column.
     let indexColumns: string[];
     if (pivotDetails.indexColumn) {
         if (Array.isArray(pivotDetails.indexColumn)) {
             indexColumns = pivotDetails.indexColumn
                 .map((col) => col.reference)
+                .filter(isDimVisibleInPivot)
                 .sort(
                     (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
                 );
         } else {
-            indexColumns = [pivotDetails.indexColumn.reference];
+            indexColumns = isDimVisibleInPivot(
+                pivotDetails.indexColumn.reference,
+            )
+                ? [pivotDetails.indexColumn.reference]
+                : [];
         }
     } else {
         indexColumns = [];
