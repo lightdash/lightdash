@@ -15,7 +15,9 @@ const toolEditContentArgsSchema = z
             .describe('Type of Lightdash content to edit.'),
         patch: z
             .unknown()
-            .describe('Patch to apply to the current dashboard or chart JSON.'),
+            .describe(
+                'RFC6902 Patch to apply to the current dashboard or chart JSON.',
+            ),
     })
     .describe(
         'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.',
