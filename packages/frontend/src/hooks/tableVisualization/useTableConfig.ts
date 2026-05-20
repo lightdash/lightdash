@@ -350,11 +350,12 @@ const useTableConfig = (
 
         const hiddenDimensionFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
+            if (!field || isColumnVisible(fieldId)) return false;
+            // Custom SQL dimensions are not `Field`s but still behave as dims
+            // in the pivot (they can drive sort order via sortOnlyDimensions).
             return (
-                !isColumnVisible(fieldId) &&
-                field &&
-                isField(field) &&
-                isDimension(field)
+                (isField(field) && isDimension(field)) ||
+                isCustomDimension(field)
             );
         });
 
