@@ -1,3 +1,10 @@
+## [0.2984.4](https://github.com/lightdash/lightdash/compare/0.2984.3...0.2984.4) (2026-05-20)
+
+
+### Bug Fixes
+
+* **warehouses:** coerce non-string BigQuery label values before lowercasing ([#23322](https://github.com/lightdash/lightdash/issues/23322)) ([c9ae92b](https://github.com/lightdash/lightdash/commit/c9ae92bfadd6e3ba9755e04eae1a61b173300b00))
+
 ## [0.2984.3](https://github.com/lightdash/lightdash/compare/0.2984.2...0.2984.3) (2026-05-20)
 
 
