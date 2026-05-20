@@ -497,6 +497,9 @@ const getJobStatus = async (
 };
 
 export const pollJobStatus = async (jobId: string) => {
+    if (!jobId) {
+        throw new Error('Cannot poll job status: jobId is required');
+    }
     return new Promise<Record<string, AnyType> | null>((resolve, reject) =>
         getJobStatus(
             jobId,
@@ -604,7 +607,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
 };
 
 export const useSendNowScheduler = () => {
-    const { showToastInfo, showToastApiError } = useToaster();
+    const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -623,15 +626,13 @@ export const useSendNowScheduler = () => {
         {
             mutationKey: ['sendNowScheduler'],
             onSuccess: (res) => {
-                pollJobStatus(res.jobId || '')
-                    .then((data) => {
-                        if (data?.status === SchedulerJobStatus.ERROR) {
-                            throw new Error(data?.details?.error);
-                        }
-                    })
-                    .catch((e) => {
-                        throw e;
+                if (!res.jobId) {
+                    notifications.hide('toast-info-job-status');
+                    showToastError({
+                        title: 'Failed to send scheduled delivery',
+                        subtitle: 'No job ID returned from server',
                     });
+                }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
@@ -650,6 +651,8 @@ export const useSendNowScheduler = () => {
     const isLoading = useMemo(
         () =>
             sendNowMutation.isLoading ||
+            scheduledDeliveryJobStatus?.status ===
+                SchedulerJobStatus.SCHEDULED ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
         [scheduledDeliveryJobStatus?.status, sendNowMutation.isLoading],
     );
@@ -661,7 +664,7 @@ export const useSendNowScheduler = () => {
 };
 
 export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
-    const { showToastInfo, showToastApiError } = useToaster();
+    const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -680,15 +683,13 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
         {
             mutationKey: ['sendNowSchedulerByUuid', schedulerUuid],
             onSuccess: (res) => {
-                pollJobStatus(res.jobId || '')
-                    .then((data) => {
-                        if (data?.status === SchedulerJobStatus.ERROR) {
-                            throw new Error(data?.details?.error);
-                        }
-                    })
-                    .catch((e) => {
-                        throw e;
+                if (!res.jobId) {
+                    notifications.hide('toast-info-job-status');
+                    showToastError({
+                        title: 'Failed to send scheduled delivery',
+                        subtitle: 'No job ID returned from server',
                     });
+                }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
@@ -707,6 +708,8 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
     const isLoading = useMemo(
         () =>
             sendNowMutation.isLoading ||
+            scheduledDeliveryJobStatus?.status ===
+                SchedulerJobStatus.SCHEDULED ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
         [scheduledDeliveryJobStatus?.status, sendNowMutation.isLoading],
     );
