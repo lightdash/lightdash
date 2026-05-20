@@ -28,6 +28,7 @@ import {
     ExecuteAsyncDashboardSqlChartRequestParams,
     Explore,
     FieldValueSearchResult,
+    ForbiddenError,
     GetEmbedDashboardRequest,
     Item,
     MetricQueryResponse,
@@ -59,6 +60,7 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import { EmbedService } from '../services/EmbedService/EmbedService';
 
 export type ApiEmbedDashboardResponse = {
@@ -581,6 +583,106 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
         });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Synthesized user info for the embed JWT. Used by data app tiles to
+     * answer the SDK's `client.auth.getUser()` call without ever forwarding
+     * a request to the session-only `/api/v1/user` endpoint.
+     * @summary Get embed user info
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/user-info')
+    @OperationId('getEmbedUserInfo')
+    async getEmbedUserInfo(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<{
+        status: 'ok';
+        results: {
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            role: string;
+            organizationUuid: string;
+            userAttributes: Record<string, string>;
+        };
+    }> {
+        this.setStatus(200);
+        assertEmbeddedAuth(req.account);
+        const { account } = req;
+
+        // Path projectUuid is authoritative on the URL but the JWT is the
+        // trust source — fail loudly on mismatch instead of silently serving
+        // the JWT's project.
+        if (projectUuid !== account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        // SDK's `getUser()` expects flat `string` values per attribute. The
+        // embed attribute store is `string[]` (an attribute can have multiple
+        // values). Take the first — the same compromise as how the embed
+        // explore filter consumes these today.
+        const userAttributes = Object.fromEntries(
+            Object.entries(account.access.controls?.userAttributes ?? {}).map(
+                ([key, values]) => [key, values[0] ?? ''],
+            ),
+        );
+
+        return {
+            status: 'ok',
+            results: {
+                userUuid: account.user.id,
+                firstName: '',
+                lastName: '',
+                email: account.user.email ?? '',
+                role: 'embed',
+                organizationUuid:
+                    account.embed.organization.organizationUuid ?? '',
+                userAttributes,
+            },
+        };
+    }
+
+    /**
+     * Resolve the latest ready version of a data app and mint a short-lived
+     * preview token for it. The token authorizes the iframe to load the
+     * built app bundle from `/api/apps/{appUuid}/versions/{version}/`.
+     * The app must be referenced by a tile on a dashboard in the embed's
+     * allowlist (or `allowAllDashboards` must be set).
+     * @summary Get embed data app preview token
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/apps/{appUuid}/preview-token')
+    @OperationId('getEmbedAppPreviewToken')
+    async getEmbedAppPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<{
+        status: 'ok';
+        results: { token: string; version: number };
+    }> {
+        this.setStatus(200);
+        assertEmbeddedAuth(req.account);
+
+        if (projectUuid !== req.account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        const results = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getEmbedAppPreviewToken(req.account, appUuid);
+
         return {
             status: 'ok',
             results,

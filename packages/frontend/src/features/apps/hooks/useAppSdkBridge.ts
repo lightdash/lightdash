@@ -1,5 +1,24 @@
-import { type DashboardFilters } from '@lightdash/common';
+import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
 import { useCallback, useEffect, type RefObject } from 'react';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
+
+// Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
+// Duplicated rather than imported to avoid threading a shared export through
+// the SDK build. Keep in sync if the key changes there.
+const LIGHTDASH_SDK_INSTANCE_URL_KEY = '__lightdash_sdk_instance_url';
+
+/**
+ * In SDK embeds the host page is the consuming app's origin, so a relative
+ * `fetch('/api/v2/...')` would hit *their* dev server, not Lightdash. When
+ * the SDK has stashed an instance URL in sessionStorage, prepend it.
+ */
+const resolveFetchUrl = (path: string): string => {
+    if (typeof window === 'undefined') return path;
+    const instanceUrl = sessionStorage.getItem(LIGHTDASH_SDK_INSTANCE_URL_KEY);
+    if (!instanceUrl) return path;
+    // SDK persists with a trailing slash; `path` always starts with `/`.
+    return `${instanceUrl.replace(/\/$/, '')}${path}`;
+};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -120,6 +139,15 @@ export function useAppSdkBridge(
      */
     dashboardFilters?: DashboardFilters,
 ) {
+    // Embed mode adapts the bridge's outgoing fetches in two ways:
+    //   - Attaches the embed JWT header in lieu of session cookies
+    //     (the parent in embed mode has no session, only the JWT).
+    //   - Rewrites `GET /api/v1/user` to the embed-specific user-info
+    //     endpoint so that existing data apps built before embedding existed
+    //     don't break on `client.auth.getUser()`. The SDK protocol is
+    //     unchanged — the rewrite happens entirely on the parent side.
+    const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
@@ -222,10 +250,29 @@ export function useAppSdkBridge(
                 }
             }
 
+            // In embed mode, rewrite the user-info fetch to the embed
+            // endpoint so the SDK's getUser() resolves against the JWT's
+            // synthesized user instead of a session-only route.
+            const effectivePath =
+                embedToken &&
+                embedProjectUuid &&
+                method.toUpperCase() === 'GET' &&
+                path === '/api/v1/user'
+                    ? `/api/v1/embed/${embedProjectUuid}/user-info`
+                    : path;
+
             try {
-                const res = await fetch(path, {
+                // SDK embeds: a bare `fetch(path)` resolves against the
+                // host's origin, not Lightdash. Rewrite to an absolute URL
+                // against the SDK's stashed instance URL when present.
+                const res = await fetch(resolveFetchUrl(effectivePath), {
                     method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(embedToken
+                            ? { [JWT_HEADER_NAME]: embedToken }
+                            : {}),
+                    },
                     ...(effectiveBody
                         ? { body: JSON.stringify(effectiveBody) }
                         : {}),
@@ -347,6 +394,8 @@ export function useAppSdkBridge(
             onInspectorAvailable,
             onScreenshotAvailable,
             dashboardFilters,
+            embedToken,
+            embedProjectUuid,
         ],
     );
 

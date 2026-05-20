@@ -563,11 +563,27 @@ export default class App {
         // APPS_RUNTIME_ENABLED env var or the enable-data-apps feature flag.
         if (this.lightdashConfig.appRuntime.s3) {
             const analyticsModel = this.models.getAnalyticsModel();
+            // Frame-ancestors for the data-app preview iframe. Mirrors the
+            // `/embed/*` policy ('self' https://*) plus any explicit
+            // domains from `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` so SDK-
+            // hosted dashboards can render data-app tiles from customer
+            // origins (and local dev http origins like localhost:5173).
+            // Applied uniformly to session- and embed-minted tokens — the
+            // iframe's own CSP (`connect-src 'none'`, `script-src 'self'`)
+            // is the real protection; frame-ancestors is clickjacking
+            // defense-in-depth.
+            const previewFrameAncestors = [
+                "'self'",
+                'https://*',
+                ...this.lightdashConfig.security.contentSecurityPolicy
+                    .frameAncestors,
+            ];
             expressApp.use(
                 '/api/apps',
                 createAppPreviewRouter(
                     this.lightdashConfig.appRuntime,
                     this.lightdashConfig.lightdashSecret,
+                    previewFrameAncestors,
                     (p) => {
                         void analyticsModel.addAppViewEvent(
                             p.appUuid,

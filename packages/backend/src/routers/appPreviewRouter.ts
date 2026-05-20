@@ -28,8 +28,11 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.map': 'application/json',
 };
 
-const buildCspHeader = (config: AppRuntimeConfig): string => {
-    const { lightdashOrigin, cdnOrigin, cspAllowedOrigins } = config;
+const buildCspHeader = (
+    config: AppRuntimeConfig,
+    frameAncestors: string[],
+): string => {
+    const { cdnOrigin, cspAllowedOrigins } = config;
 
     const extra = cspAllowedOrigins.length
         ? ` ${cspAllowedOrigins.join(' ')}`
@@ -42,7 +45,7 @@ const buildCspHeader = (config: AppRuntimeConfig): string => {
         `connect-src 'none'`,
         `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `frame-ancestors ${lightdashOrigin}`,
+        `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
         `base-uri 'none'`,
     ];
@@ -75,6 +78,17 @@ const injectTokenIntoAssetUrls = (html: string, token: string): string =>
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecret: string,
+    /**
+     * Frame-ancestor allowlist applied to every preview iframe. Matches the
+     * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
+     * `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` — see App.ts. Both session and
+     * embed-minted tokens use the same list; the broader allowlist costs
+     * little since the iframe is sandboxed (`allow-scripts allow-modals`)
+     * and the `connect-src 'none'` directive blocks the iframe from
+     * exfiltrating data on its own — backend traffic only flows through
+     * the parent-mediated postMessage bridge.
+     */
+    frameAncestors: string[],
     onPreviewView?: (payload: PreviewTokenPayload) => void,
 ): Router => {
     const router = express.Router({ strict: true });
@@ -114,7 +128,7 @@ export const createAppPreviewRouter = (
               })
             : null;
 
-    const cspHeaderValue = buildCspHeader(config);
+    const cspHeaderValue = buildCspHeader(config, frameAncestors);
 
     const setSecurityHeaders = (res: express.Response): void => {
         res.setHeader('Content-Security-Policy', cspHeaderValue);
