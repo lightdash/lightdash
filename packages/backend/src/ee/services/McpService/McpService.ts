@@ -87,6 +87,7 @@ import {
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
 import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -135,6 +136,8 @@ export enum McpToolName {
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
 }
+
+const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1527,7 +1530,7 @@ export class McpService extends BaseService {
             {
                 title: 'Lightdash Data Analyst',
                 description:
-                    'Guidelines for querying Lightdash data using MCP tools. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.',
+                    'Guidelines for querying Lightdash data using MCP tools. Includes explore selection, query building, visualization rules, active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.',
                 argsSchema: {},
             },
             async (_args, extra) => {
@@ -1572,6 +1575,48 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.setupSkillResourceHandlers();
+    }
+
+    private setupSkillResourceHandlers(): void {
+        BuiltInSkills.listMcpResources().forEach((resource) => {
+            this.mcpServer.registerResource(
+                resource.name,
+                resource.uri,
+                {
+                    title: resource.title,
+                    description: resource.description,
+                    mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                },
+                async () => {
+                    const text = resource.resourceName
+                        ? await BuiltInSkills.getMcpSkillResourceBody(
+                              resource.skillName,
+                              resource.resourceName,
+                          )
+                        : await BuiltInSkills.getMcpSkillBody(
+                              resource.skillName,
+                          );
+
+                    if (!text) {
+                        throw new NotFoundError(
+                            `Resource "${resource.uri}" was not found`,
+                        );
+                    }
+
+                    return {
+                        contents: [
+                            {
+                                uri: resource.uri,
+                                mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                                text,
+                            },
+                        ],
+                    };
+                },
+            );
+        });
     }
 
     private async pollSqlJobToCompletion(
