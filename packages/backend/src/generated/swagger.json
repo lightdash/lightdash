@@ -11807,6 +11807,10 @@
                     "authType": {
                         "$ref": "#/components/schemas/AiMcpServerAuthType"
                     },
+                    "iconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "url": {
                         "type": "string"
                     },
@@ -11829,6 +11833,7 @@
                     "credentialScope",
                     "hasCredentials",
                     "authType",
+                    "iconUrl",
                     "url",
                     "name",
                     "projectUuid",
@@ -12974,6 +12979,26 @@
             "AiAgentMcpToolName": {
                 "type": "string"
             },
+            "Pick_AiMcpServer.uuid-or-name-or-iconUrl_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "iconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["name", "uuid", "iconUrl"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentToolCallMcpServer": {
+                "$ref": "#/components/schemas/Pick_AiMcpServer.uuid-or-name-or-iconUrl_"
+            },
             "AiAgentToolCall": {
                 "allOf": [
                     {
@@ -12997,6 +13022,14 @@
                             },
                             {
                                 "properties": {
+                                    "mcpServer": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentToolCallMcpServer"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
                                     "toolName": {
                                         "$ref": "#/components/schemas/AiAgentMcpToolName"
                                     },
@@ -13006,7 +13039,11 @@
                                         "nullable": false
                                     }
                                 },
-                                "required": ["toolName", "toolType"],
+                                "required": [
+                                    "mcpServer",
+                                    "toolName",
+                                    "toolType"
+                                ],
                                 "type": "object"
                             }
                         ]
@@ -13086,8 +13123,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13145,8 +13182,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -33798,7 +33835,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3001.1",
+        "version": "0.3002.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

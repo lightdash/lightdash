@@ -149,6 +149,25 @@ describe('AiAgentService MCP support', () => {
             hasCredentials: true,
         });
 
+        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
+            serverUuid: mcpServer.uuid,
+            tools: [
+                {
+                    toolName: 'search',
+                    title: 'Search docs',
+                    description: 'Search documentation',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string' },
+                        },
+                    },
+                    annotations: null,
+                    meta: null,
+                },
+            ],
+        });
+
         const agent = await services.aiAgentService.createAgent(
             context.testUser,
             {
@@ -180,6 +199,134 @@ describe('AiAgentService MCP support', () => {
             mcpServer.uuid,
         ]);
         expect(agentMcpServers[0]).not.toHaveProperty('credentials');
+
+        const initialAgentToolSettings =
+            await models.aiAgentModel.listAgentMcpServerTools({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            });
+
+        expect(
+            initialAgentToolSettings.map((tool) => ({
+                toolName: tool.toolName,
+                enabled: tool.enabled,
+            })),
+        ).toEqual([
+            {
+                toolName: 'search',
+                enabled: true,
+            },
+        ]);
+        await expect(
+            models.aiAgentModel.getEnabledMcpServerToolNames({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            }),
+        ).resolves.toEqual(['search']);
+
+        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
+            serverUuid: mcpServer.uuid,
+            tools: [
+                {
+                    toolName: 'search',
+                    title: 'Search docs',
+                    description: 'Search documentation',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string' },
+                        },
+                    },
+                    annotations: null,
+                    meta: null,
+                },
+                {
+                    toolName: 'lookup',
+                    title: 'Lookup doc',
+                    description: 'Lookup a single document',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                        },
+                    },
+                    annotations: null,
+                    meta: null,
+                },
+            ],
+        });
+
+        await expect(
+            models.aiAgentModel.listAgentMcpServerTools({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            }),
+        ).resolves.toMatchObject([
+            {
+                toolName: 'lookup',
+                enabled: false,
+            },
+            {
+                toolName: 'search',
+                enabled: true,
+            },
+        ]);
+
+        await models.aiAgentModel.upsertAgentMcpServerToolSettings({
+            agentUuid: agent.uuid,
+            serverUuid: mcpServer.uuid,
+            toolSettings: [{ toolName: 'lookup', enabled: true }],
+        });
+
+        await expect(
+            models.aiAgentModel.getEnabledMcpServerToolNames({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            }),
+        ).resolves.toEqual(['lookup', 'search']);
+
+        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
+            serverUuid: mcpServer.uuid,
+            tools: [
+                {
+                    toolName: 'lookup',
+                    title: 'Lookup doc',
+                    description: 'Lookup a single document',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                        },
+                    },
+                    annotations: null,
+                    meta: null,
+                },
+            ],
+        });
+
+        const refreshedAgentToolSettings =
+            await models.aiAgentModel.listAgentMcpServerTools({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            });
+
+        expect(
+            refreshedAgentToolSettings.map((tool) => ({
+                toolName: tool.toolName,
+                enabled: tool.enabled,
+            })),
+        ).toEqual([
+            {
+                toolName: 'lookup',
+                enabled: true,
+            },
+        ]);
+        await expect(
+            models.aiAgentModel.getEnabledMcpServerToolNames({
+                agentUuid: agent.uuid,
+                serverUuid: mcpServer.uuid,
+            }),
+        ).resolves.toEqual(['lookup']);
 
         const sensitiveMcpServers =
             await models.aiAgentModel.getAgentMcpServersWithSensitiveData(

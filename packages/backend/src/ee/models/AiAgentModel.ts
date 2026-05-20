@@ -9,6 +9,8 @@ import {
     AiAgentEvaluationRunResult,
     AiAgentEvaluationRunSummary,
     AiAgentEvaluationSummary,
+    AiAgentMcpServerTool,
+    AiAgentMcpServerToolUpdate,
     AiAgentMessage,
     AiAgentMessageAssistant,
     AiAgentMessageAssistantArtifact,
@@ -27,6 +29,8 @@ import {
     AiMcpCredentialScope,
     AiMcpServer,
     AiMcpServerConnectionStatus,
+    AiMcpServerTool,
+    AiMcpServerToolInput,
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
@@ -117,18 +121,22 @@ import {
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentMcpServerTableName,
+    AiAgentMcpServerToolTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentSpaceAccessTableName,
     AiAgentTableName,
     AiAgentUserAccessTableName,
     AiMcpServerCredentialTableName,
     AiMcpServerTableName,
+    AiMcpServerToolTableName,
     DbAiAgent,
     DbAiAgentIntegration,
     DbAiAgentMcpServer,
+    DbAiAgentMcpServerTool,
     DbAiAgentSlackIntegration,
     DbAiMcpServer,
     DbAiMcpServerCredential,
+    DbAiMcpServerTool,
 } from '../database/entities/aiAgent';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
@@ -711,6 +719,85 @@ export class AiAgentModel {
         };
     }
 
+    private static toAiMcpServerTool(row: DbAiMcpServerTool): AiMcpServerTool {
+        return {
+            uuid: row.ai_mcp_server_tool_uuid,
+            mcpServerUuid: row.ai_mcp_server_uuid,
+            toolName: row.tool_name,
+            title: row.title,
+            description: row.description,
+            inputSchema: row.input_schema,
+            annotations: row.annotations,
+            meta: row.meta,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
+
+    private static toAiAgentMcpServerTool(args: {
+        agentUuid: string;
+        tool: DbAiMcpServerTool;
+        setting?: DbAiAgentMcpServerTool;
+    }): AiAgentMcpServerTool {
+        return {
+            ...AiAgentModel.toAiMcpServerTool(args.tool),
+            agentUuid: args.agentUuid,
+            enabled: args.setting?.enabled ?? false,
+        };
+    }
+
+    private static getMcpServerToolSelect(trx: Knex | Knex.Transaction) {
+        return {
+            ai_mcp_server_tool_uuid: `${AiMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+            ai_mcp_server_uuid: `${AiMcpServerToolTableName}.ai_mcp_server_uuid`,
+            tool_name: `${AiMcpServerToolTableName}.tool_name`,
+            title: `${AiMcpServerToolTableName}.title`,
+            description: `${AiMcpServerToolTableName}.description`,
+            input_schema: `${AiMcpServerToolTableName}.input_schema`,
+            annotations: `${AiMcpServerToolTableName}.annotations`,
+            meta: `${AiMcpServerToolTableName}.meta`,
+            created_at: `${AiMcpServerToolTableName}.created_at`,
+            updated_at: `${AiMcpServerToolTableName}.updated_at`,
+        } satisfies Record<keyof DbAiMcpServerTool, Knex.Value>;
+    }
+
+    private static getAgentMcpServerToolSelect(trx: Knex | Knex.Transaction) {
+        return {
+            ai_agent_uuid: `${AiAgentMcpServerToolTableName}.ai_agent_uuid`,
+            ai_mcp_server_uuid: `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
+            ai_mcp_server_tool_uuid: `${AiAgentMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+            enabled: `${AiAgentMcpServerToolTableName}.enabled`,
+            created_at: `${AiAgentMcpServerToolTableName}.created_at`,
+            updated_at: `${AiAgentMcpServerToolTableName}.updated_at`,
+        } satisfies Record<keyof DbAiAgentMcpServerTool, Knex.Value>;
+    }
+
+    private static getAgentMcpServerAttachmentSelect(
+        trx: Knex | Knex.Transaction,
+    ) {
+        return {
+            ai_agent_uuid: `${AiAgentMcpServerTableName}.ai_agent_uuid`,
+            ai_mcp_server_uuid: `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
+            created_at: `${AiAgentMcpServerTableName}.created_at`,
+        } satisfies Record<keyof DbAiAgentMcpServer, Knex.Value>;
+    }
+
+    private async getAgentMcpServerAttachment(args: {
+        agentUuid: string;
+        serverUuid: string;
+        trx?: Knex;
+    }): Promise<DbAiAgentMcpServer | undefined> {
+        const trx = args.trx ?? this.database;
+
+        return trx(AiAgentMcpServerTableName)
+            .select<DbAiAgentMcpServer[]>(
+                AiAgentModel.getAgentMcpServerAttachmentSelect(trx),
+            )
+            .where('ai_agent_uuid', args.agentUuid)
+            .andWhere('ai_mcp_server_uuid', args.serverUuid)
+            .first();
+    }
+
     private encryptMcpCredentialPayload(
         credential: AiMcpCredentialPayload,
     ): Buffer {
@@ -827,6 +914,353 @@ export class AiAgentModel {
         });
 
         return AiAgentModel.toAiMcpServer(row, credential ?? null);
+    }
+
+    async listMcpServerTools(args: {
+        projectUuid: string;
+        serverUuid: string;
+        trx?: Knex;
+    }): Promise<AiMcpServerTool[]> {
+        const trx = args.trx ?? this.database;
+
+        const server = await trx(AiMcpServerTableName)
+            .select('ai_mcp_server_uuid')
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .andWhere('project_uuid', args.projectUuid)
+            .first();
+
+        if (!server) {
+            throw new NotFoundError('MCP server not found for this project');
+        }
+
+        const rows = await trx(AiMcpServerToolTableName)
+            .select<DbAiMcpServerTool[]>(
+                AiAgentModel.getMcpServerToolSelect(trx),
+            )
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .orderBy('tool_name', 'asc');
+
+        return rows.map(AiAgentModel.toAiMcpServerTool);
+    }
+
+    async upsertDiscoveredMcpServerTools(args: {
+        serverUuid: string;
+        tools: AiMcpServerToolInput[];
+        defaultEnabledForExistingAttachments?: boolean;
+        trx?: Knex;
+    }): Promise<AiMcpServerTool[]> {
+        const trx = args.trx ?? this.database;
+        const toolMap = new Map(
+            args.tools.map((tool) => [tool.toolName, tool] as const),
+        );
+        const tools = [...toolMap.values()];
+        const toolNames = tools.map((tool) => tool.toolName);
+
+        const server = await trx(AiMcpServerTableName)
+            .select('ai_mcp_server_uuid', 'project_uuid')
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .first();
+
+        if (!server) {
+            throw new NotFoundError('MCP server not found');
+        }
+
+        if (tools.length > 0) {
+            await trx(AiMcpServerToolTableName)
+                .insert(
+                    tools.map((tool) => ({
+                        ai_mcp_server_uuid: args.serverUuid,
+                        tool_name: tool.toolName,
+                        title: tool.title,
+                        description: tool.description,
+                        input_schema: tool.inputSchema,
+                        annotations: tool.annotations,
+                        meta: tool.meta,
+                        created_at: trx.fn.now(),
+                        updated_at: trx.fn.now(),
+                    })),
+                )
+                .onConflict(['ai_mcp_server_uuid', 'tool_name'])
+                .merge({
+                    title: trx.raw('excluded.title'),
+                    description: trx.raw('excluded.description'),
+                    input_schema: trx.raw('excluded.input_schema'),
+                    annotations: trx.raw('excluded.annotations'),
+                    meta: trx.raw('excluded.meta'),
+                    updated_at: trx.fn.now(),
+                });
+        }
+
+        const removedToolsQuery = trx(AiMcpServerToolTableName).where(
+            'ai_mcp_server_uuid',
+            args.serverUuid,
+        );
+
+        if (toolNames.length > 0) {
+            void removedToolsQuery.whereNotIn('tool_name', toolNames);
+        }
+
+        await removedToolsQuery.delete();
+
+        if (toolNames.length > 0) {
+            const discoveredToolRows = await trx(AiMcpServerToolTableName)
+                .select<DbAiMcpServerTool[]>(
+                    AiAgentModel.getMcpServerToolSelect(trx),
+                )
+                .where('ai_mcp_server_uuid', args.serverUuid)
+                .whereIn('tool_name', toolNames);
+
+            const attachmentRows = await trx(AiAgentMcpServerTableName)
+                .select<DbAiAgentMcpServer[]>(
+                    AiAgentModel.getAgentMcpServerAttachmentSelect(trx),
+                )
+                .where('ai_mcp_server_uuid', args.serverUuid);
+
+            if (attachmentRows.length > 0 && discoveredToolRows.length > 0) {
+                await trx(AiAgentMcpServerToolTableName)
+                    .insert(
+                        attachmentRows.flatMap((row) =>
+                            discoveredToolRows.map((tool) => ({
+                                ai_agent_uuid: row.ai_agent_uuid,
+                                ai_mcp_server_uuid: row.ai_mcp_server_uuid,
+                                ai_mcp_server_tool_uuid:
+                                    tool.ai_mcp_server_tool_uuid,
+                                enabled:
+                                    args.defaultEnabledForExistingAttachments ??
+                                    false,
+                                created_at: trx.fn.now(),
+                                updated_at: trx.fn.now(),
+                            })),
+                        ),
+                    )
+                    .onConflict([
+                        'ai_agent_uuid',
+                        'ai_mcp_server_uuid',
+                        'ai_mcp_server_tool_uuid',
+                    ])
+                    .ignore();
+            }
+        }
+
+        return this.listMcpServerTools({
+            projectUuid: server.project_uuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+    }
+
+    async listAgentMcpServerTools(args: {
+        agentUuid: string;
+        serverUuid: string;
+        trx?: Knex;
+    }): Promise<AiAgentMcpServerTool[]> {
+        const trx = args.trx ?? this.database;
+
+        const attachment = await this.getAgentMcpServerAttachment({
+            agentUuid: args.agentUuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+
+        if (!attachment) {
+            throw new NotFoundError('MCP server is not attached to this agent');
+        }
+
+        const toolRows = await trx(AiMcpServerToolTableName)
+            .select<DbAiMcpServerTool[]>(
+                AiAgentModel.getMcpServerToolSelect(trx),
+            )
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .orderBy('tool_name', 'asc');
+
+        const settingRows = await trx(AiAgentMcpServerToolTableName)
+            .select<DbAiAgentMcpServerTool[]>(
+                AiAgentModel.getAgentMcpServerToolSelect(trx),
+            )
+            .where('ai_agent_uuid', attachment.ai_agent_uuid)
+            .andWhere('ai_mcp_server_uuid', attachment.ai_mcp_server_uuid)
+            .whereIn(
+                'ai_mcp_server_tool_uuid',
+                toolRows.map((tool) => tool.ai_mcp_server_tool_uuid),
+            );
+
+        const settingMap = new Map(
+            settingRows.map(
+                (row) => [row.ai_mcp_server_tool_uuid, row] as const,
+            ),
+        );
+
+        return toolRows.map((tool) =>
+            AiAgentModel.toAiAgentMcpServerTool({
+                agentUuid: args.agentUuid,
+                tool,
+                setting: settingMap.get(tool.ai_mcp_server_tool_uuid),
+            }),
+        );
+    }
+
+    async upsertAgentMcpServerToolSettings(args: {
+        agentUuid: string;
+        serverUuid: string;
+        toolSettings: AiAgentMcpServerToolUpdate[];
+        trx?: Knex;
+    }): Promise<AiAgentMcpServerTool[]> {
+        const trx = args.trx ?? this.database;
+        const settingMap = new Map(
+            args.toolSettings.map((tool) => [tool.toolName, tool] as const),
+        );
+        const toolSettings = [...settingMap.values()];
+
+        const attachment = await this.getAgentMcpServerAttachment({
+            agentUuid: args.agentUuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+
+        if (!attachment) {
+            throw new NotFoundError('MCP server is not attached to this agent');
+        }
+
+        if (toolSettings.length === 0) {
+            return this.listAgentMcpServerTools({
+                agentUuid: args.agentUuid,
+                serverUuid: args.serverUuid,
+                trx,
+            });
+        }
+
+        const toolNames = toolSettings.map((tool) => tool.toolName);
+        const existingTools = await trx(AiMcpServerToolTableName)
+            .select<DbAiMcpServerTool[]>(
+                AiAgentModel.getMcpServerToolSelect(trx),
+            )
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .whereIn('tool_name', toolNames);
+
+        if (existingTools.length !== toolNames.length) {
+            throw new NotFoundError('One or more MCP tools were not found');
+        }
+
+        const toolUuidByName = new Map(
+            existingTools.map(
+                (tool) =>
+                    [tool.tool_name, tool.ai_mcp_server_tool_uuid] as const,
+            ),
+        );
+
+        await trx(AiAgentMcpServerToolTableName)
+            .insert(
+                toolSettings.map((tool) => ({
+                    ai_agent_uuid: attachment.ai_agent_uuid,
+                    ai_mcp_server_uuid: attachment.ai_mcp_server_uuid,
+                    ai_mcp_server_tool_uuid: toolUuidByName.get(tool.toolName)!,
+                    enabled: tool.enabled,
+                    created_at: trx.fn.now(),
+                    updated_at: trx.fn.now(),
+                })),
+            )
+            .onConflict([
+                'ai_agent_uuid',
+                'ai_mcp_server_uuid',
+                'ai_mcp_server_tool_uuid',
+            ])
+            .merge({
+                enabled: trx.raw('excluded.enabled'),
+                updated_at: trx.fn.now(),
+            });
+
+        return this.listAgentMcpServerTools({
+            agentUuid: args.agentUuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+    }
+
+    async initializeAgentMcpServerToolSettings(args: {
+        agentUuid: string;
+        serverUuid: string;
+        enabled: boolean;
+        trx?: Knex;
+    }): Promise<void> {
+        const trx = args.trx ?? this.database;
+        const attachment = await this.getAgentMcpServerAttachment({
+            agentUuid: args.agentUuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+
+        if (!attachment) {
+            throw new NotFoundError('MCP server is not attached to this agent');
+        }
+
+        const tools = await trx(AiMcpServerToolTableName)
+            .select<DbAiMcpServerTool[]>(
+                AiAgentModel.getMcpServerToolSelect(trx),
+            )
+            .where('ai_mcp_server_uuid', args.serverUuid);
+
+        if (tools.length === 0) {
+            return;
+        }
+
+        await trx(AiAgentMcpServerToolTableName)
+            .insert(
+                tools.map((tool) => ({
+                    ai_agent_uuid: attachment.ai_agent_uuid,
+                    ai_mcp_server_uuid: attachment.ai_mcp_server_uuid,
+                    ai_mcp_server_tool_uuid: tool.ai_mcp_server_tool_uuid,
+                    enabled: args.enabled,
+                    created_at: trx.fn.now(),
+                    updated_at: trx.fn.now(),
+                })),
+            )
+            .onConflict([
+                'ai_agent_uuid',
+                'ai_mcp_server_uuid',
+                'ai_mcp_server_tool_uuid',
+            ])
+            .ignore();
+    }
+
+    async getEnabledMcpServerToolNames(args: {
+        agentUuid: string;
+        serverUuid: string;
+        trx?: Knex;
+    }): Promise<string[]> {
+        const trx = args.trx ?? this.database;
+        const attachment = await this.getAgentMcpServerAttachment({
+            agentUuid: args.agentUuid,
+            serverUuid: args.serverUuid,
+            trx,
+        });
+
+        if (!attachment) {
+            throw new NotFoundError('MCP server is not attached to this agent');
+        }
+
+        const rows = await trx(AiAgentMcpServerToolTableName)
+            .innerJoin(AiMcpServerToolTableName, function joinMcpToolRows() {
+                this.on(
+                    `${AiAgentMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+                    '=',
+                    `${AiMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+                );
+            })
+            .select<{ tool_name: string }[]>({
+                tool_name: `${AiMcpServerToolTableName}.tool_name`,
+            })
+            .where(
+                `${AiAgentMcpServerToolTableName}.ai_agent_uuid`,
+                attachment.ai_agent_uuid,
+            )
+            .andWhere(
+                `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
+                attachment.ai_mcp_server_uuid,
+            )
+            .andWhere(`${AiAgentMcpServerToolTableName}.enabled`, true)
+            .orderBy(`${AiMcpServerToolTableName}.tool_name`, 'asc');
+
+        return rows.map((row) => row.tool_name);
     }
 
     async getCredential(
@@ -1623,13 +2057,12 @@ export class AiAgentModel {
         mcpServerUuids: string[],
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<AiMcpServer[]> {
-        await trx(AiAgentMcpServerTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .delete();
-
         const uniqueMcpServerUuids = [...new Set(mcpServerUuids)];
 
         if (uniqueMcpServerUuids.length === 0) {
+            await trx(AiAgentMcpServerTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .delete();
             return [];
         }
 
@@ -1655,12 +2088,50 @@ export class AiAgentModel {
             );
         }
 
-        await trx(AiAgentMcpServerTableName).insert(
-            uniqueMcpServerUuids.map((mcpServerUuid) => ({
-                ai_agent_uuid: agentUuid,
-                ai_mcp_server_uuid: mcpServerUuid,
-            })),
+        const existingRows = await trx(AiAgentMcpServerTableName)
+            .select<DbAiAgentMcpServer[]>(
+                AiAgentModel.getAgentMcpServerAttachmentSelect(trx),
+            )
+            .where('ai_agent_uuid', agentUuid);
+
+        const existingServerUuids = new Set(
+            existingRows.map((row) => row.ai_mcp_server_uuid),
         );
+        const nextServerUuids = new Set(uniqueMcpServerUuids);
+
+        const serverUuidsToDetach = [...existingServerUuids].filter(
+            (serverUuid) => !nextServerUuids.has(serverUuid),
+        );
+        const serverUuidsToAttach = uniqueMcpServerUuids.filter(
+            (serverUuid) => !existingServerUuids.has(serverUuid),
+        );
+
+        if (serverUuidsToDetach.length > 0) {
+            await trx(AiAgentMcpServerTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .whereIn('ai_mcp_server_uuid', serverUuidsToDetach)
+                .delete();
+        }
+
+        if (serverUuidsToAttach.length > 0) {
+            await trx(AiAgentMcpServerTableName).insert(
+                serverUuidsToAttach.map((mcpServerUuid) => ({
+                    ai_agent_uuid: agentUuid,
+                    ai_mcp_server_uuid: mcpServerUuid,
+                })),
+            );
+
+            await Promise.all(
+                serverUuidsToAttach.map((serverUuid) =>
+                    this.initializeAgentMcpServerToolSettings({
+                        agentUuid,
+                        serverUuid,
+                        enabled: true,
+                        trx,
+                    }),
+                ),
+            );
+        }
 
         const rowMap = new Map(
             rows.map((row) => [row.ai_mcp_server_uuid, row]),
