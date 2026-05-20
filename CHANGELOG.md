@@ -1,3 +1,10 @@
+# [0.2993.0](https://github.com/lightdash/lightdash/compare/0.2992.0...0.2993.0) (2026-05-20)
+
+
+### Features
+
+* **ai-agents:** allow uploading documents as knowledge context ([#23239](https://github.com/lightdash/lightdash/issues/23239)) ([daaeb45](https://github.com/lightdash/lightdash/commit/daaeb45a814764915afc2201090f24ac5b5fb678))
+
 # [0.2992.0](https://github.com/lightdash/lightdash/compare/0.2991.0...0.2992.0) (2026-05-20)
 
 
