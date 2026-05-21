@@ -35,6 +35,7 @@ import {
     explorerActions,
     selectIsFieldActive,
     selectIsFieldFiltered,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
     type ExplorerStoreState,
@@ -148,8 +149,12 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     );
     const isSelected = useExplorerSelector(selectIsActive, (a, b) => a === b);
 
-    const exploreTableName = useTableTree((context) => context.tableName);
-    const { data: exploreData } = useExplore(exploreTableName);
+    // Use the active explore name (base table) rather than the section's
+    // table name — for sections that represent joined tables, the section
+    // name is the join alias, which is not a valid explore identifier and
+    // would 404 the /explores/{name} endpoint.
+    const activeTableName = useExplorerSelector(selectTableName);
+    const { data: exploreData } = useExplore(activeTableName);
 
     const metricInfo = useMemo(() => {
         if (isCompiledMetric(item)) {
