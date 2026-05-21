@@ -122,6 +122,11 @@ export type GenerateAppRequestBody = {
     // switched between iterations — `claude --continue` keeps the prior
     // conversation context but accepts a fresh `--model` flag per turn.
     claudeModel?: DataAppClaudeModel;
+    // Theme (org design) to apply to this app's source tree and system
+    // prompt. Only honored on initial creation — iterations always inherit
+    // from the parent app's `apps.design_uuid`. Omit (or null) for "no
+    // theme"; the org default is resolved server-side when this is null.
+    designUuid?: string | null;
 };
 
 export type ApiClarifyAppRequest = {
@@ -156,6 +161,12 @@ export type AppVersionChartResource = {
     chartKind: string | null;
 };
 
+export type AppVersionDesignSnapshot = {
+    designUuid: string;
+    name: string;
+    fileCount: number;
+};
+
 export type AppVersionResources = {
     images: AppVersionImageResource[];
     charts: AppVersionChartResource[];
@@ -170,6 +181,11 @@ export type AppVersionResources = {
     // shipped don't carry the field; readers should fall back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL.
     claudeModel?: DataAppClaudeModel;
+    // Snapshot of the theme used to generate this version (org design). Null
+    // when no theme was applied. Captured at generation time so the chat
+    // history reflects which theme was active even if it was later renamed
+    // or deleted.
+    design?: AppVersionDesignSnapshot | null;
 };
 
 export type ApiAppImageUrlResponse = ApiSuccess<{

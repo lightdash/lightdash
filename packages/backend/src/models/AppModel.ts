@@ -48,6 +48,7 @@ export class AppModel {
                     | 'description'
                     | 'template'
                     | 'space_uuid'
+                    | 'design_uuid'
                 >
             >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,

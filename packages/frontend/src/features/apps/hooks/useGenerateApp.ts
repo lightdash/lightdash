@@ -21,6 +21,10 @@ type GenerateAppParams = {
     clarifications?: AppClarification[];
     spaceUuid?: string; // create directly inside this space (skips the personal-app step)
     claudeModel?: DataAppClaudeModel;
+    // Theme (org design) to apply. `undefined` lets the server fall back to
+    // the org default; `null` explicitly opts out of any theme; a uuid picks
+    // a specific theme.
+    designUuid?: string | null;
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -36,6 +40,7 @@ const generateApp = async ({
     clarifications,
     spaceUuid,
     claudeModel,
+    designUuid,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
@@ -50,6 +55,10 @@ const generateApp = async ({
             clarifications,
             spaceUuid,
             claudeModel,
+            // Send only when defined: `null` means "no theme"; `undefined`
+            // means "honor org default" and omitting from the JSON body lets
+            // the backend distinguish the two.
+            ...(designUuid !== undefined ? { designUuid } : {}),
         }),
     });
     return data;

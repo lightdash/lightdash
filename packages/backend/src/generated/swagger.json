@@ -9558,6 +9558,10 @@
             },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "designUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
                     },
@@ -9717,8 +9721,32 @@
                 "required": ["chartKind", "chartName", "chartUuid"],
                 "type": "object"
             },
+            "AppVersionDesignSnapshot": {
+                "properties": {
+                    "fileCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "designUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fileCount", "name", "designUuid"],
+                "type": "object"
+            },
             "AppVersionResources": {
                 "properties": {
+                    "design": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppVersionDesignSnapshot"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "claudeModel": {
                         "$ref": "#/components/schemas/DataAppClaudeModel"
                     },
