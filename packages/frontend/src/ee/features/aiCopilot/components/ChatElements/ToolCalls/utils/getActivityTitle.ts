@@ -1,8 +1,8 @@
 import {
     IconChartLine,
     IconLayoutDashboard,
+    IconRoute,
     IconSearch,
-    IconSparkles,
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
@@ -41,7 +41,7 @@ export const getActivityTitle = (
     toolGroups: LiveActivityToolGroup[],
 ): ActivityTitle => {
     if (toolGroups.length === 0) {
-        return { title: 'Steps taken', icon: IconSparkles };
+        return { title: 'Steps taken', icon: IconRoute };
     }
     const toolNames = toolGroups.map((g) => g.toolName);
     const hasDashboard = toolNames.includes('generateDashboard');
@@ -65,5 +65,5 @@ export const getActivityTitle = (
     if (onlySearches) {
         return { title: 'Research steps', icon: IconSearch };
     }
-    return { title: 'Steps taken', icon: IconSparkles };
+    return { title: 'Steps taken', icon: IconRoute };
 };

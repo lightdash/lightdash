@@ -17,6 +17,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
@@ -97,6 +98,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     showAddToEvalsButton = false,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
+    const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
+        enabled: !!projectUuid && !!agentUuid,
+    });
     const [addToEvalsPromptUuid, setAddToEvalsPromptUuid] = useState<
         string | null
     >(null);
@@ -167,6 +171,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 showAddToEvalsButton={
                                                     showAddToEvalsButton
                                                 }
+                                                mcpServers={mcpServers}
                                                 renderArtifactsInline={
                                                     renderArtifactsInline
                                                 }

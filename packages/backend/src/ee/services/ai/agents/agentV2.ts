@@ -75,6 +75,7 @@ const withToolHints = (
 
 export type AgentMcpToolSetup = {
     tools: ToolSet;
+    mcpToolNameToServerUuid: Record<string, string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -431,6 +432,10 @@ export const generateAgentResponse = async ({
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
                                     toolArgs: toolCall.input as object,
+                                    mcpServerUuid:
+                                        mcpToolSetup.mcpToolNameToServerUuid[
+                                            toolCall.toolName
+                                        ] ?? null,
                                     parentToolCallId: null,
                                 });
                             }
@@ -642,6 +647,10 @@ export const streamAgentResponse = async ({
                                 toolCallId: event.chunk.toolCallId,
                                 toolName: event.chunk.toolName,
                                 toolArgs: event.chunk.input as object,
+                                mcpServerUuid:
+                                    mcpToolSetup.mcpToolNameToServerUuid[
+                                        event.chunk.toolName
+                                    ] ?? null,
                                 parentToolCallId: null,
                             })
                             .catch((error) => {

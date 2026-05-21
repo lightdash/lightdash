@@ -1,4 +1,8 @@
-import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
+import {
+    createMCPClient,
+    type Configuration,
+    type MCPClient,
+} from '@ai-sdk/mcp';
 import {
     assertUnreachable,
     type AiMcpCredentialScope,
@@ -37,8 +41,25 @@ type Dependencies = {
 
 export type ResolvedMcpTools = {
     tools: ToolSet;
+    mcpToolNameToServerUuid: Record<string, string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
+};
+
+export type McpConnectionMetadata = {
+    iconUrl: string | null;
+};
+
+type McpServerIcon = {
+    src: string;
+    mimeType?: string;
+    sizes?: string[];
+    theme?: 'light' | 'dark';
+};
+
+type McpServerInfoWithIcons = Configuration & {
+    icons?: McpServerIcon[];
+    websiteUrl?: string;
 };
 
 const buildDefaultClientMetadata = (
@@ -80,6 +101,49 @@ const fromSdkTokens = (
     tokenType: tokens.token_type,
     scope: tokens.scope,
 });
+
+const resolveMcpIconUrl = (
+    icon: McpServerIcon | undefined,
+    serverUrl: string,
+): string | null => {
+    if (!icon?.src) {
+        return null;
+    }
+
+    if (icon.src.startsWith('data:image/')) {
+        return icon.src;
+    }
+
+    try {
+        const iconUrl = new URL(icon.src, serverUrl);
+        if (!['http:', 'https:'].includes(iconUrl.protocol)) {
+            return null;
+        }
+
+        return iconUrl.toString();
+    } catch {
+        return null;
+    }
+};
+
+const getMcpServerIconUrl = (
+    serverInfo: Configuration,
+    serverUrl: string,
+): string | null => {
+    const { icons, websiteUrl } = serverInfo as McpServerInfoWithIcons;
+
+    if (icons?.length) {
+        const preferredIcon =
+            icons.find((icon) => icon.theme !== 'dark') ?? icons[0];
+        return resolveMcpIconUrl(preferredIcon, serverUrl);
+    }
+
+    try {
+        return new URL('/favicon.svg', websiteUrl ?? serverUrl).toString();
+    } catch {
+        return null;
+    }
+};
 
 export class McpAuthorizationRequiredError extends Error {
     constructor(
@@ -468,11 +532,14 @@ export const createHttpMcpClient = async (
 export const testMcpConnection = async (
     mcpServer: McpServerConnectionArgs,
     onUncaughtError?: (error: unknown) => void,
-): Promise<void> => {
+): Promise<McpConnectionMetadata> => {
     const client = await createHttpMcpClient(mcpServer, onUncaughtError);
 
     try {
         await client.tools();
+        return {
+            iconUrl: getMcpServerIconUrl(client.serverInfo, mcpServer.url),
+        };
     } catch (error) {
         throw normalizeMcpError(mcpServer, error);
     } finally {
@@ -494,6 +561,7 @@ export class AiAgentMcpRuntimeClient {
         serverUuid: string;
         connectionStatus: AiMcpServerConnectionStatus;
         error: string | null;
+        iconUrl?: string | null;
     }) {
         try {
             await this.aiAgentModel.updateMcpServerRuntimeState(args);
@@ -550,8 +618,8 @@ export class AiAgentMcpRuntimeClient {
         authType: 'none' | 'bearer';
         bearerToken?: string;
         onUncaughtError?: (error: unknown) => void;
-    }): Promise<void> {
-        await testMcpConnection(
+    }): Promise<McpConnectionMetadata> {
+        return testMcpConnection(
             {
                 uuid: 'create-mcp-server-validation',
                 name: args.name,
@@ -694,6 +762,7 @@ export class AiAgentMcpRuntimeClient {
         if (args.mcpServers.length === 0) {
             return {
                 tools: {},
+                mcpToolNameToServerUuid: {},
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -702,6 +771,7 @@ export class AiAgentMcpRuntimeClient {
         const connectedClients: MCPClient[] = [];
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
+        const mcpToolNameToServerUuid: Record<string, string> = {};
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -725,6 +795,10 @@ export class AiAgentMcpRuntimeClient {
                         serverUuid: mcpServer.uuid,
                         connectionStatus: 'connected',
                         error: null,
+                        iconUrl: getMcpServerIconUrl(
+                            mcpClient.serverInfo,
+                            mcpServer.url,
+                        ),
                     });
 
                     return {
@@ -799,6 +873,8 @@ export class AiAgentMcpRuntimeClient {
                     }
 
                     usedToolNames.add(namespacedToolName);
+                    mcpToolNameToServerUuid[namespacedToolName] =
+                        serverResult.mcpServer.uuid;
                     resolvedTools[namespacedToolName] =
                         toolDefinition as ToolSet[string];
                 }
@@ -807,6 +883,7 @@ export class AiAgentMcpRuntimeClient {
 
         return {
             tools: resolvedTools,
+            mcpToolNameToServerUuid,
             unavailableMcpServers,
             closeMcpClients: async () => {
                 const results = await Promise.allSettled(

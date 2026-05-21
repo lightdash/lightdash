@@ -3,7 +3,7 @@ import {
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type AiAgentToolResult,
     type AiAgentToolName,
-    friendlyName,
+    type AiMcpServer,
     isToolName,
     type ToolName,
 } from '@lightdash/common';
@@ -20,9 +20,13 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
+import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
-import { getToolIcon } from './utils/toolIcons';
+import {
+    getMcpServerForToolName,
+    getMcpToolDisplayMetadata,
+} from './utils/mcpToolDisplay';
 import { type ToolCallSummary } from './utils/types';
 
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
@@ -39,18 +43,13 @@ const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
 
-const getMcpDisplayName = (toolName: string) => {
-    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
-
-    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
-};
-
 export type ToolCallRowStatus = 'running' | 'done' | 'error';
 
 type Props = {
     toolName: AiAgentToolName;
     toolCalls: ToolCallSummary[];
     status?: ToolCallRowStatus;
+    mcpServers?: AiMcpServer[];
     /**
      * Optional extra content rendered inside the expanded body, below the
      * per-call descriptions. Used to surface things like the discoverFields
@@ -64,11 +63,20 @@ export const ToolCallRow: FC<Props> = ({
     toolName,
     toolCalls,
     status = 'done',
+    mcpServers,
     extraBody,
     toolResults,
 }) => {
-    const Icon = getToolIcon(toolName);
     const builtInToolName = isToolName(toolName) ? toolName : null;
+    const linkedMcpServer =
+        toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+        undefined;
+    const mcpServer = builtInToolName
+        ? undefined
+        : (linkedMcpServer ?? getMcpServerForToolName(toolName, mcpServers));
+    const mcpDisplayMetadata = builtInToolName
+        ? undefined
+        : getMcpToolDisplayMetadata(toolName, mcpServer);
     const label = builtInToolName
         ? status === 'running'
             ? TOOL_DISPLAY_MESSAGES[builtInToolName]
@@ -145,11 +153,12 @@ export const ToolCallRow: FC<Props> = ({
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <MantineIcon
-                icon={Icon}
+            <ToolCallIcon
+                toolName={toolName}
                 size={13}
                 stroke={1.6}
                 className={styles.icon}
+                mcpServer={mcpServer}
                 data-status={status}
             />
             {label ? (
@@ -158,7 +167,7 @@ export const ToolCallRow: FC<Props> = ({
                 </Text>
             ) : (
                 <Text size="xs" className={styles.label}>
-                    Used MCP {getMcpDisplayName(toolName)}:{' '}
+                    Used MCP {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
                     <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
                         {toolName}
                     </ToolCallChip>
@@ -173,9 +182,7 @@ export const ToolCallRow: FC<Props> = ({
                     icon={IconChevronRight}
                     size={11}
                     stroke={1.6}
-                    className={`${styles.chevron} ${
-                        expanded ? styles.chevronOpen : ''
-                    }`}
+                    className={`${styles.chevron} ${expanded ? styles.chevronOpen : ''}`}
                 />
             )}
         </Group>

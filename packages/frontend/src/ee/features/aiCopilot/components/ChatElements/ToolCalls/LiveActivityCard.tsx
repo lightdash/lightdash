@@ -4,7 +4,7 @@ import {
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
-    friendlyName,
+    type AiMcpServer,
     isToolName,
 } from '@lightdash/common';
 import {
@@ -26,9 +26,14 @@ import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { ToolCallChip } from './ToolCallChip';
+import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
+import {
+    getMcpServerForToolName,
+    getMcpToolDisplayMetadata,
+} from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
@@ -50,6 +55,7 @@ type Props = {
     toolResults?: AiAgentToolResult[];
     /** All tool calls for the message. Used to resolve subagent children via parentToolCallId. */
     toolCalls?: AiAgentToolCall[];
+    mcpServers?: AiMcpServer[];
     /**
      * Pending interactive content (e.g. SqlApprovalCard awaiting user
      * decision). When present, the card auto-expands and renders this in the
@@ -68,10 +74,64 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSavedChart',
 ]);
 
-const getMcpDisplayName = (toolName: string) => {
-    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
+const MCP_SUMMARY_ICON_LIMIT = 4;
 
-    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
+const getMcpSummaryIcons = (
+    toolGroups: LiveActivityToolGroup[],
+    mcpServers?: AiMcpServer[],
+) => {
+    const seen = new Set<string>();
+
+    return toolGroups.flatMap((group) => {
+        if (isToolName(group.toolName)) return [];
+
+        const linkedMcpServer =
+            group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+            undefined;
+        const mcpServer =
+            linkedMcpServer ??
+            getMcpServerForToolName(group.toolName, mcpServers);
+        const metadata = getMcpToolDisplayMetadata(group.toolName, mcpServer);
+        const key = mcpServer?.uuid ?? metadata.label;
+
+        if (seen.has(key)) return [];
+        seen.add(key);
+
+        return [{ toolName: group.toolName, mcpServer, key }];
+    });
+};
+
+const McpSummaryIconStack: FC<{
+    toolGroups: LiveActivityToolGroup[];
+    mcpServers?: AiMcpServer[];
+}> = ({ toolGroups, mcpServers }) => {
+    const icons = getMcpSummaryIcons(toolGroups, mcpServers);
+    if (icons.length === 0) return null;
+
+    const visibleIcons = icons.slice(0, MCP_SUMMARY_ICON_LIMIT);
+    const overflow = icons.length - visibleIcons.length;
+
+    return (
+        <Group gap={0} wrap="nowrap" className={styles.mcpSummaryIconStack}>
+            {visibleIcons.map((icon, idx) => (
+                <ToolCallIcon
+                    key={icon.key}
+                    toolName={icon.toolName}
+                    mcpServer={icon.mcpServer}
+                    className={styles.mcpSummaryIcon}
+                    style={
+                        {
+                            '--mcp-summary-icon-z-index':
+                                visibleIcons.length - idx,
+                        } as React.CSSProperties
+                    }
+                />
+            ))}
+            {overflow > 0 && (
+                <Box className={styles.mcpSummaryOverflow}>+{overflow}</Box>
+            )}
+        </Group>
+    );
 };
 
 export const ReasoningHistoryRow: FC<{
@@ -137,9 +197,7 @@ export const ReasoningHistoryRow: FC<{
                         icon={IconChevronRight}
                         size={11}
                         stroke={1.6}
-                        className={`${styles.chevron} ${
-                            open ? styles.chevronOpen : ''
-                        }`}
+                        className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
                     />
                 </Group>
             </UnstyledButton>
@@ -169,12 +227,22 @@ export const ReasoningHistoryRow: FC<{
     );
 };
 
-const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
-    group,
-    isLive,
-}) => {
-    const Icon = getToolIcon(group.toolName);
+const LatestRow: FC<{
+    group: LiveActivityToolGroup;
+    isLive: boolean;
+    mcpServers?: AiMcpServer[];
+}> = ({ group, isLive, mcpServers }) => {
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
+    const linkedMcpServer =
+        group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+        undefined;
+    const mcpServer = builtInToolName
+        ? undefined
+        : (linkedMcpServer ??
+          getMcpServerForToolName(group.toolName, mcpServers));
+    const mcpDisplayMetadata = builtInToolName
+        ? undefined
+        : getMcpToolDisplayMetadata(group.toolName, mcpServer);
     const label = builtInToolName
         ? isLive
             ? TOOL_DISPLAY_MESSAGES[builtInToolName]
@@ -205,11 +273,12 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
                     className={styles.iconChip}
                     data-live={isLive ? 'true' : 'false'}
                 >
-                    <MantineIcon
-                        icon={Icon}
+                    <ToolCallIcon
+                        toolName={group.toolName}
                         size={12}
                         stroke={1.7}
                         className={styles.latestIcon}
+                        mcpServer={mcpServer}
                         data-live={isLive ? 'true' : 'false'}
                     />
                 </Box>
@@ -230,7 +299,7 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
                     <Text size="xs" className={styles.latestLabel}>
-                        Using MCP {getMcpDisplayName(group.toolName)}:
+                        Using MCP {mcpDisplayMetadata?.label ?? 'MCP'}:
                     </Text>
                     <ToolCallChip
                         maxWidth={260}
@@ -399,6 +468,7 @@ export const LiveActivityCard: FC<Props> = ({
     isLive,
     toolResults,
     toolCalls,
+    mcpServers,
     pendingContent,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
@@ -489,11 +559,19 @@ export const LiveActivityCard: FC<Props> = ({
                                         >
                                             {summary.title}
                                         </Text>
+                                        <McpSummaryIconStack
+                                            toolGroups={toolGroups}
+                                            mcpServers={mcpServers}
+                                        />
                                     </Group>
                                 );
                             })()
                         ) : latest ? (
-                            <LatestRow group={latest} isLive={isLive} />
+                            <LatestRow
+                                group={latest}
+                                isLive={isLive}
+                                mcpServers={mcpServers}
+                            />
                         ) : hasPending ? (
                             <Group
                                 gap={8}
@@ -646,6 +724,7 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolCalls={group.calls}
                                             status="done"
                                             toolResults={toolResults}
+                                            mcpServers={mcpServers}
                                             extraBody={
                                                 groupTrace ? (
                                                     <DiscoverFieldsTrace

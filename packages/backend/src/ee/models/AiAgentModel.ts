@@ -18,6 +18,7 @@ import {
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentToolCall,
+    AiAgentToolCallMcpServer,
     AiAgentToolResult,
     AiAgentUser,
     AiAgentUserPreferences,
@@ -209,6 +210,12 @@ export type AiMcpCredential = {
 export type AiMcpServerWithSensitiveData = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: AiMcpCredentialScope | null;
+};
+
+type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
+    mcp_server_uuid: string | null;
+    mcp_server_name: string | null;
+    mcp_server_icon_url: string | null;
 };
 
 export class AiAgentModel {
@@ -648,6 +655,7 @@ export class AiAgentModel {
             projectUuid: row.project_uuid,
             name: row.name,
             url: row.url,
+            iconUrl: row.icon_url,
             authType: row.auth_type,
             ...credentialStatus,
             createdAt: row.created_at,
@@ -747,6 +755,7 @@ export class AiAgentModel {
                 project_uuid: `${AiMcpServerTableName}.project_uuid`,
                 name: `${AiMcpServerTableName}.name`,
                 url: `${AiMcpServerTableName}.url`,
+                icon_url: `${AiMcpServerTableName}.icon_url`,
                 auth_type: `${AiMcpServerTableName}.auth_type`,
                 connection_status: `${AiMcpServerTableName}.connection_status`,
                 error: `${AiMcpServerTableName}.error`,
@@ -799,6 +808,7 @@ export class AiAgentModel {
                 project_uuid: `${AiMcpServerTableName}.project_uuid`,
                 name: `${AiMcpServerTableName}.name`,
                 url: `${AiMcpServerTableName}.url`,
+                icon_url: `${AiMcpServerTableName}.icon_url`,
                 auth_type: `${AiMcpServerTableName}.auth_type`,
                 connection_status: `${AiMcpServerTableName}.connection_status`,
                 error: `${AiMcpServerTableName}.error`,
@@ -940,6 +950,7 @@ export class AiAgentModel {
         projectUuid: string;
         name: string;
         url: string;
+        iconUrl?: string | null;
         authType: ApiCreateAiMcpServer['authType'];
         credentialScope: AiMcpCredentialScope;
         credentials: ApiCreateAiMcpServer['credentials'];
@@ -951,6 +962,7 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     name: args.name,
                     url: args.url,
+                    icon_url: args.iconUrl ?? null,
                     auth_type: args.authType,
                     connection_status:
                         args.authType === 'oauth' ? null : 'connected',
@@ -984,6 +996,7 @@ export class AiAgentModel {
         serverUuid: string;
         connectionStatus: AiMcpServerConnectionStatus;
         error: string | null;
+        iconUrl?: string | null;
         actorUserUuid?: string | null;
         trx?: Knex;
     }): Promise<void> {
@@ -1000,6 +1013,15 @@ export class AiAgentModel {
         }
 
         if (row.auth_type === 'oauth') {
+            if (args.iconUrl !== undefined) {
+                await trx(AiMcpServerTableName)
+                    .where('ai_mcp_server_uuid', args.serverUuid)
+                    .update({
+                        icon_url: args.iconUrl,
+                        updated_at: trx.fn.now(),
+                    });
+            }
+
             const credential = await this.getCredential(
                 args.serverUuid,
                 'shared',
@@ -1037,6 +1059,9 @@ export class AiAgentModel {
             .update({
                 connection_status: args.connectionStatus,
                 error: args.error,
+                ...(args.iconUrl !== undefined
+                    ? { icon_url: args.iconUrl }
+                    : {}),
                 updated_at: trx.fn.now(),
             });
     }
@@ -1507,6 +1532,7 @@ export class AiAgentModel {
                 project_uuid: `${AiMcpServerTableName}.project_uuid`,
                 name: `${AiMcpServerTableName}.name`,
                 url: `${AiMcpServerTableName}.url`,
+                icon_url: `${AiMcpServerTableName}.icon_url`,
                 auth_type: `${AiMcpServerTableName}.auth_type`,
                 connection_status: `${AiMcpServerTableName}.connection_status`,
                 error: `${AiMcpServerTableName}.error`,
@@ -1565,6 +1591,7 @@ export class AiAgentModel {
                 project_uuid: `${AiMcpServerTableName}.project_uuid`,
                 name: `${AiMcpServerTableName}.name`,
                 url: `${AiMcpServerTableName}.url`,
+                icon_url: `${AiMcpServerTableName}.icon_url`,
                 auth_type: `${AiMcpServerTableName}.auth_type`,
                 connection_status: `${AiMcpServerTableName}.connection_status`,
                 error: `${AiMcpServerTableName}.error`,
@@ -1612,6 +1639,7 @@ export class AiAgentModel {
                 project_uuid: `${AiMcpServerTableName}.project_uuid`,
                 name: `${AiMcpServerTableName}.name`,
                 url: `${AiMcpServerTableName}.url`,
+                icon_url: `${AiMcpServerTableName}.icon_url`,
                 auth_type: `${AiMcpServerTableName}.auth_type`,
                 connection_status: `${AiMcpServerTableName}.connection_status`,
                 error: `${AiMcpServerTableName}.error`,
@@ -4025,6 +4053,7 @@ export class AiAgentModel {
         toolCallId: string;
         toolName: string;
         toolArgs: object;
+        mcpServerUuid?: string | null;
         parentToolCallId: string | null;
     }): Promise<string> {
         const [toolCall] = await this.database(AiAgentToolCallTableName)
@@ -4033,6 +4062,7 @@ export class AiAgentModel {
                 tool_call_id: data.toolCallId,
                 tool_name: data.toolName,
                 tool_args: data.toolArgs,
+                ai_mcp_server_uuid: data.mcpServerUuid ?? null,
                 parent_tool_call_id: data.parentToolCallId,
             })
             .returning('ai_agent_tool_call_uuid');
@@ -4041,7 +4071,27 @@ export class AiAgentModel {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private parseToolCall(row: DbAiAgentToolCall): AiAgentToolCall {
+    private parseMcpServerForToolCall(
+        row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
+    ): AiAgentToolCallMcpServer | null {
+        if (!row.ai_mcp_server_uuid) {
+            return null;
+        }
+
+        return {
+            uuid: row.ai_mcp_server_uuid,
+            name:
+                'mcp_server_name' in row && row.mcp_server_name
+                    ? row.mcp_server_name
+                    : 'MCP',
+            iconUrl:
+                'mcp_server_icon_url' in row ? row.mcp_server_icon_url : null,
+        };
+    }
+
+    private parseToolCall(
+        row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
+    ): AiAgentToolCall {
         const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
 
         if (parsedToolName.success) {
@@ -4066,6 +4116,7 @@ export class AiAgentModel {
                 createdAt: row.created_at,
                 toolType: 'mcp',
                 toolName: row.tool_name,
+                mcpServer: this.parseMcpServerForToolCall(row),
                 toolArgs: row.tool_args,
             };
         }
@@ -4182,10 +4233,21 @@ export class AiAgentModel {
 
     async getToolCallsForPrompt(
         promptUuid: string,
-    ): Promise<DbAiAgentToolCall[]> {
+    ): Promise<DbAiAgentToolCallWithMcpServer[]> {
         return this.database(AiAgentToolCallTableName)
-            .where('ai_prompt_uuid', promptUuid)
-            .orderBy('created_at', 'asc');
+            .leftJoin(
+                AiMcpServerTableName,
+                `${AiAgentToolCallTableName}.ai_mcp_server_uuid`,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+            )
+            .select<DbAiAgentToolCallWithMcpServer[]>(
+                `${AiAgentToolCallTableName}.*`,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid as mcp_server_uuid`,
+                `${AiMcpServerTableName}.name as mcp_server_name`,
+                `${AiMcpServerTableName}.icon_url as mcp_server_icon_url`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
     }
 
     async findSqlApprovalContext(toolCallId: string): Promise<
@@ -5719,6 +5781,7 @@ export class AiAgentModel {
                         'tool_call_id',
                         'tool_name',
                         'tool_args',
+                        'ai_mcp_server_uuid',
                         'parent_tool_call_id',
                         'created_at',
                     )
@@ -5729,6 +5792,7 @@ export class AiAgentModel {
                     tool_call_id: toolCall.tool_call_id,
                     tool_name: toolCall.tool_name,
                     tool_args: toolCall.tool_args,
+                    ai_mcp_server_uuid: toolCall.ai_mcp_server_uuid,
                     parent_tool_call_id: toolCall.parent_tool_call_id,
                 }));
 

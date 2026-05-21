@@ -22,6 +22,7 @@ const getMcpServer = (
     projectUuid: 'project-uuid',
     name: 'Docs MCP',
     url: 'https://docs.example.com/mcp',
+    iconUrl: null,
     authType: 'none',
     hasCredentials: false,
     credentialScope: null,
@@ -76,6 +77,15 @@ describe('resolveMcpTools', () => {
                 }
 
                 return {
+                    serverInfo: {
+                        name: 'Docs MCP',
+                        version: '1.0.0',
+                        icons: [
+                            {
+                                src: '/docs-icon.svg',
+                            },
+                        ],
+                    },
                     tools: async () => ({
                         search: { description: 'search tool' },
                     }),
@@ -90,6 +100,9 @@ describe('resolveMcpTools', () => {
         });
 
         expect(Object.keys(result.tools)).toEqual(['mcp_docs_mcp__search']);
+        expect(result.mcpToolNameToServerUuid).toEqual({
+            mcp_docs_mcp__search: healthyServer.uuid,
+        });
         expect(result.unavailableMcpServers).toEqual([
             {
                 serverUuid: 'broken-server',
@@ -103,11 +116,48 @@ describe('resolveMcpTools', () => {
             serverUuid: healthyServer.uuid,
             connectionStatus: 'connected',
             error: null,
+            iconUrl: 'https://docs.example.com/docs-icon.svg',
         });
         expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
             serverUuid: 'broken-server',
             connectionStatus: 'error',
             error: 'We could not connect to the MCP server. Check that it is available and try again.',
+        });
+
+        await result.closeMcpClients();
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects non-image data URI MCP icons', async () => {
+        const close = jest.fn().mockResolvedValue(undefined);
+        const mcpServer = getMcpServer({ name: 'Docs MCP' });
+
+        createHttpMcpClientSpy.mockResolvedValue({
+            serverInfo: {
+                name: 'Docs MCP',
+                version: '1.0.0',
+                icons: [
+                    {
+                        src: 'data:text/html,<script>alert(1)</script>',
+                    },
+                ],
+            },
+            tools: async () => ({
+                search: { description: 'search tool' },
+            }),
+            close,
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [mcpServer],
+            debugLoggingEnabled: false,
+        });
+
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
+            serverUuid: mcpServer.uuid,
+            connectionStatus: 'connected',
+            error: null,
+            iconUrl: null,
         });
 
         await result.closeMcpClients();
