@@ -500,17 +500,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         const timezoneQuery = options?.timezone || 'UTC';
+        console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
         sessionParams.push(`TIMEZONE = '${timezoneQuery}'`);
 
         // Force FALSE to avoid casing inconsistencies between Snowflake and Lightdash.
+        console.debug(
+            'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
+        );
         sessionParams.push(`QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`);
 
         const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
-        sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
-
         console.debug(
-            `Setting Snowflake session params: ${sessionParams.join(', ')}`,
+            `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
+        sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
 
         await this.executeStatements(
             connection,
