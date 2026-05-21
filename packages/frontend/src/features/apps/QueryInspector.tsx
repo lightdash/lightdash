@@ -36,8 +36,26 @@ type Props = {
     queries: TrackedQuery[];
     projectUuid: string;
     onClear: () => void;
-    persistLogs: boolean;
-    onPersistLogsChange: (value: boolean) => void;
+    /** Persist preference + handler — when omitted, the "Persist" switch is
+     *  hidden. The builder wires this up; the preview omits it because the
+     *  preview iframe doesn't reload mid-session so the toggle would be a
+     *  no-op, and sharing the localStorage key would let viewers flip
+     *  builder behavior. */
+    persistLogs?: boolean;
+    onPersistLogsChange?: (value: boolean) => void;
+    /** Initial value of the internal `collapsed` state. Defaults to `true`
+     *  so the builder's panel boots as a collapsed title bar. The preview
+     *  passes `false` to open expanded when the user clicks "View queries". */
+    defaultCollapsed?: boolean;
+    /** Called when the user clicks the X. The parent owns visibility and
+     *  should unmount the panel in response — both builder and preview
+     *  re-open it via a "View queries" menu item. */
+    onDismiss: () => void;
+    /** When `false`, the panel stays visible (as a collapsed title bar) even
+     *  with no queries. The builder defaults to `true` so the panel hides
+     *  until queries arrive; the preview passes `false` so once opened from
+     *  the menu the panel remains visible. */
+    hideWhenEmpty?: boolean;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -336,9 +354,11 @@ const QueryInspector: FC<Props> = ({
     onClear,
     persistLogs,
     onPersistLogsChange,
+    defaultCollapsed = true,
+    onDismiss,
+    hideWhenEmpty = true,
 }) => {
-    const [collapsed, setCollapsed] = useState(true);
-    const [dismissed, setDismissed] = useState(false);
+    const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
     const dragRef = useRef<{
         startY: number;
@@ -373,11 +393,13 @@ const QueryInspector: FC<Props> = ({
         dragRef.current = null;
     }, []);
 
-    const handleDismiss = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        setDismissed(true);
-        setCollapsed(true);
-    }, []);
+    const handleDismiss = useCallback(
+        (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onDismiss();
+        },
+        [onDismiss],
+    );
 
     const handleClear = useCallback(
         (e: React.MouseEvent) => {
@@ -390,25 +412,10 @@ const QueryInspector: FC<Props> = ({
     // Hide the panel entirely only when there's nothing to show *and* the
     // user hasn't engaged with it. If they've expanded it (e.g. cleared the
     // log to wait for fresh queries), keep it mounted with an empty state so
-    // the next query lands somewhere visible.
-    if (queries.length === 0 && collapsed) return null;
-
-    // Dismissed — show a small icon to reopen
-    if (dismissed) {
-        return (
-            <Box className={classes.iconOnly}>
-                <ActionIcon
-                    variant="filled"
-                    color="gray"
-                    size="md"
-                    radius="xl"
-                    onClick={() => setDismissed(false)}
-                >
-                    <MantineIcon icon={IconDatabase} size={14} />
-                </ActionIcon>
-            </Box>
-        );
-    }
+    // the next query lands somewhere visible. The preview opts out of this
+    // hide-when-empty behavior (`hideWhenEmpty={false}`) so once opened from
+    // the menu the panel stays visible even before queries arrive.
+    if (hideWhenEmpty && queries.length === 0 && collapsed) return null;
 
     return (
         <Box
@@ -442,24 +449,26 @@ const QueryInspector: FC<Props> = ({
                                 <MantineIcon icon={IconTrash} size={12} />
                             </ActionIcon>
                         </Tooltip>
-                        <Tooltip
-                            label="Preserve queries across iframe refreshes and new app versions"
-                            withArrow
-                            position="top"
-                        >
-                            <Box onClick={(e) => e.stopPropagation()}>
-                                <Switch
-                                    size="xs"
-                                    label="Persist"
-                                    checked={persistLogs}
-                                    onChange={(e) =>
-                                        onPersistLogsChange(
-                                            e.currentTarget.checked,
-                                        )
-                                    }
-                                />
-                            </Box>
-                        </Tooltip>
+                        {onPersistLogsChange && (
+                            <Tooltip
+                                label="Preserve queries across iframe refreshes and new app versions"
+                                withArrow
+                                position="top"
+                            >
+                                <Box onClick={(e) => e.stopPropagation()}>
+                                    <Switch
+                                        size="xs"
+                                        label="Persist"
+                                        checked={persistLogs ?? false}
+                                        onChange={(e) =>
+                                            onPersistLogsChange(
+                                                e.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                </Box>
+                            </Tooltip>
+                        )}
                     </>
                 )}
                 <ActionIcon variant="subtle" size="xs" color="gray">

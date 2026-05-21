@@ -29,12 +29,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
 import {
     IconAppsOff,
     IconAppWindow,
     IconArrowUp,
     IconCopy,
+    IconDatabase,
     IconDots,
     IconExternalLink,
     IconArrowBackUp,
@@ -110,6 +110,7 @@ import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
+import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
@@ -125,8 +126,6 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
-
-const PERSIST_LOGS_STORAGE_KEY = 'data-apps:persist-logs';
 
 /**
  * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
@@ -348,48 +347,19 @@ const AppGenerate: FC = () => {
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
     const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
     const previewRef = useRef<AppIframePreviewHandle>(null);
-    const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
-    // Mirrors Chrome DevTools "Preserve log". When off (default), the queries
-    // panel is cleared on iframe refresh and on new-version load — fresh
-    // bundles re-run their queries, so stale entries would only confuse the
-    // user. Stored in localStorage so the preference survives a tab close
-    // and stays consistent across tabs.
-    const [persistLogs, setPersistLogs] = useLocalStorage<boolean>({
-        key: PERSIST_LOGS_STORAGE_KEY,
-        defaultValue: false,
-    });
-    // Request IDs of queries we marked as interrupted on iframe reload. The
-    // bridge's parent-side fetch keeps running after the iframe dies and will
-    // emit a late `running` event for them — without this guard that event
-    // would resurrect the entry as 'running', or (if not matched) get appended
-    // as a fresh ghost entry. The set grows for the page session; entries are
-    // short request IDs, so the footprint is negligible.
-    const interruptedRequestIdsRef = useRef<Set<string>>(new Set());
-    const handleClearQueries = useCallback(() => {
-        setTrackedQueries([]);
-    }, []);
-    // Move pending/running entries into a terminal `error` state. Used when
-    // the preview iframe reloads with persistLogs on — the iframe that would
-    // have polled their queryUuids is dead, so they would otherwise sit
-    // non-terminal forever.
-    const interruptInFlightQueries = useCallback(() => {
-        setTrackedQueries((prev) => {
-            let mutated = false;
-            const next = prev.map((q) => {
-                if (q.status !== 'pending' && q.status !== 'running') {
-                    return q;
-                }
-                mutated = true;
-                interruptedRequestIdsRef.current.add(q.id);
-                return {
-                    ...q,
-                    status: 'error' as const,
-                    error: 'Interrupted by reload',
-                };
-            });
-            return mutated ? next : prev;
-        });
-    }, []);
+    const {
+        queries: trackedQueries,
+        persistLogs,
+        setPersistLogs,
+        handleQueryEvent,
+        clearQueries,
+        interruptInFlightQueries,
+    } = useTrackedAppQueries();
+    // Parent-owned visibility so the X dismisses the panel completely and the
+    // user re-opens it from the dots menu — same model as preview, for
+    // consistency. Defaults to visible because the builder is the technical
+    // workflow where seeing queries as they fire is the point.
+    const [queriesPanelHidden, setQueriesPanelHidden] = useState(false);
     const handleElementSelected = useCallback((event: { label: string }) => {
         const ref = parseElementRefLabel(event.label);
         if (!ref) {
@@ -405,65 +375,6 @@ const AppGenerate: FC = () => {
     // every render of this page.
     const handleInspectorCancelled = useCallback(() => {
         setInspectorEnabled(false);
-    }, []);
-    const handleQueryEvent = useCallback((event: QueryEvent) => {
-        // Drop late events (typically the POST-resolution `running` event)
-        // for requests we already marked interrupted — without this they
-        // either un-terminal the entry or get appended as a ghost.
-        if (interruptedRequestIdsRef.current.has(event.id)) {
-            return;
-        }
-        setTrackedQueries((prev) => {
-            // If this event has a queryUuid, merge it with an existing entry
-            if (event.queryUuid) {
-                const existing = prev.find(
-                    (q) => q.queryUuid === event.queryUuid,
-                );
-                if (existing) {
-                    // Don't resurrect a terminal entry. Covers the rare race
-                    // where iframe-1 managed to issue a poll GET before
-                    // dying, so a late `ready` event arrives keyed on the
-                    // (already-interrupted) queryUuid.
-                    if (
-                        existing.status === 'ready' ||
-                        existing.status === 'error'
-                    ) {
-                        return prev;
-                    }
-                    return prev.map((q) =>
-                        q.queryUuid === event.queryUuid
-                            ? {
-                                  ...q,
-                                  label: event.label ?? q.label,
-                                  status: event.status,
-                                  rowCount: event.rowCount ?? q.rowCount,
-                                  durationMs: event.durationMs ?? q.durationMs,
-                                  error: event.error ?? q.error,
-                                  rawMetricQuery:
-                                      event.rawMetricQuery ?? q.rawMetricQuery,
-                              }
-                            : q,
-                    );
-                }
-            }
-            // If this is a POST initiation with queryUuid, check if we
-            // have a pending entry from the same request id to merge
-            const pendingIdx = prev.findIndex(
-                (q) => q.id === event.id && q.status === 'pending',
-            );
-            if (pendingIdx >= 0) {
-                return prev.map((q, i) =>
-                    i === pendingIdx
-                        ? {
-                              ...event,
-                              rawMetricQuery:
-                                  event.rawMetricQuery ?? q.rawMetricQuery,
-                          }
-                        : q,
-                );
-            }
-            return [...prev, event];
-        });
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Pre-build clarification round: captured submission args that we need
@@ -511,7 +422,7 @@ const AppGenerate: FC = () => {
         setImageAttachments([]);
         setLocalMessages([]);
         setPin(null);
-        setTrackedQueries([]);
+        clearQueries();
         setInspectorEnabled(false);
         setInspectorAvailable(false);
         setScreenshotAvailable(false);
@@ -526,7 +437,7 @@ const AppGenerate: FC = () => {
             urls.forEach((url) => URL.revokeObjectURL(url)),
         );
         sentImagesByPrompt.current.clear();
-    }, []);
+    }, [clearQueries]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
@@ -945,9 +856,14 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
         } else {
-            setTrackedQueries([]);
+            clearQueries();
         }
-    }, [previewApp?.version, persistLogs, interruptInFlightQueries]);
+    }, [
+        previewApp?.version,
+        persistLogs,
+        interruptInFlightQueries,
+        clearQueries,
+    ]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds
     // this value, so bumping it forces the browser to reload the iframe and
@@ -960,9 +876,9 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
         } else {
-            setTrackedQueries([]);
+            clearQueries();
         }
-    }, [persistLogs, interruptInFlightQueries]);
+    }, [persistLogs, interruptInFlightQueries, clearQueries]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -2306,7 +2222,20 @@ const AppGenerate: FC = () => {
                                                 Preview latest
                                             </Menu.Item>
                                         )}
-                                        {previewApp && <Menu.Divider />}
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconDatabase}
+                                                    size={14}
+                                                />
+                                            }
+                                            onClick={() =>
+                                                setQueriesPanelHidden(false)
+                                            }
+                                        >
+                                            View queries
+                                        </Menu.Item>
+                                        <Menu.Divider />
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
@@ -2542,13 +2471,18 @@ const AppGenerate: FC = () => {
                                     </Text>
                                 </Box>
                             )}
-                            <QueryInspector
-                                queries={trackedQueries}
-                                projectUuid={projectUuid!}
-                                onClear={handleClearQueries}
-                                persistLogs={persistLogs}
-                                onPersistLogsChange={setPersistLogs}
-                            />
+                            {!queriesPanelHidden && (
+                                <QueryInspector
+                                    queries={trackedQueries}
+                                    projectUuid={projectUuid!}
+                                    onClear={clearQueries}
+                                    persistLogs={persistLogs}
+                                    onPersistLogsChange={setPersistLogs}
+                                    onDismiss={() =>
+                                        setQueriesPanelHidden(true)
+                                    }
+                                />
+                            )}
                         </Box>
                     </Box>
                 </Panel>
