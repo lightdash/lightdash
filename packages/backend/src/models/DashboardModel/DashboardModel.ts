@@ -1091,8 +1091,13 @@ export class DashboardModel {
                 dashboard.dashboard_id,
             );
 
-        const tableCalculationFilters = view?.filters?.tableCalculations;
-        view.filters.tableCalculations = tableCalculationFilters || [];
+        // A version may have no dashboard_views row (e.g. legacy or partially
+        // written data). Guard the backfill — the return below already defaults
+        // `filters` when `view` is absent.
+        if (view?.filters) {
+            view.filters.tableCalculations =
+                view.filters.tableCalculations || [];
+        }
 
         const verification =
             (await this.contentVerificationModel?.getByContent(
@@ -2127,8 +2132,13 @@ export class DashboardModel {
                 dashboard.dashboard_id,
             );
 
-        const tableCalculationFilters = view?.filters?.tableCalculations;
-        view.filters.tableCalculations = tableCalculationFilters || [];
+        // A version may have no dashboard_views row (e.g. legacy or partially
+        // written data). Guard the backfill — the return below already defaults
+        // `filters` when `view` is absent.
+        if (view?.filters) {
+            view.filters.tableCalculations =
+                view.filters.tableCalculations || [];
+        }
 
         const verification =
             (await this.contentVerificationModel?.getByContent(
