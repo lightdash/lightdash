@@ -1,3 +1,10 @@
+# [0.3001.0](https://github.com/lightdash/lightdash/compare/0.3000.0...0.3001.0) (2026-05-21)
+
+
+### Features
+
+* add content validation for AI agent patch operations ([#23350](https://github.com/lightdash/lightdash/issues/23350)) ([f2e13db](https://github.com/lightdash/lightdash/commit/f2e13db295b200d6cffdc6be70332a7d38a17320))
+
 # [0.3000.0](https://github.com/lightdash/lightdash/compare/0.2999.2...0.3000.0) (2026-05-21)
 
 
