@@ -1,3 +1,10 @@
+## [0.3001.1](https://github.com/lightdash/lightdash/compare/0.3001.0...0.3001.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **backend:** move Express Request augmentation to ambient .d.ts ([#23386](https://github.com/lightdash/lightdash/issues/23386)) ([7f4bab7](https://github.com/lightdash/lightdash/commit/7f4bab72a77d952afcedf8684bf967feef01a0c6)), closes [#23250](https://github.com/lightdash/lightdash/issues/23250)
+
 # [0.3001.0](https://github.com/lightdash/lightdash/compare/0.3000.0...0.3001.0) (2026-05-21)
 
 
