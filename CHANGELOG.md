@@ -1,3 +1,10 @@
+## [0.2997.2](https://github.com/lightdash/lightdash/compare/0.2997.1...0.2997.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **data-apps:** add `allow-popups` to sandbox ([#23365](https://github.com/lightdash/lightdash/issues/23365)) ([46aa51d](https://github.com/lightdash/lightdash/commit/46aa51d85ccb8dde07a0390771cb10920a4fbdc7))
+
 ## [0.2997.1](https://github.com/lightdash/lightdash/compare/0.2997.0...0.2997.1) (2026-05-21)
 
 
