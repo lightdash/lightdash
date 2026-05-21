@@ -3,6 +3,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import {
     IconAppsOff,
+    IconDatabase,
     IconDots,
     IconPencil,
     IconSend,
@@ -14,7 +15,9 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import QueryInspector from '../features/apps/QueryInspector';
 import { AppSchedulersModal } from '../features/scheduler/components/SchedulerModals';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -78,6 +81,13 @@ export default function AppPreviewTest() {
 
     const [menuOpened, setMenuOpened] = useState(false);
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
+
+    // Query tracking from the preview iframe. The panel is opt-in (hidden by
+    // default in preview because most viewers aren't technical), but we wire
+    // up the SDK bridge callback unconditionally so queries that run before
+    // the user opens the panel are still captured.
+    const { queries, handleQueryEvent, clearQueries } = useTrackedAppQueries();
 
     // Close menu when the iframe receives focus (i.e. user clicked on it)
     const handleBlur = useCallback(() => {
@@ -174,25 +184,25 @@ export default function AppPreviewTest() {
 
     return (
         <Box className={classes.previewContainer}>
-            {canEditApp && (
-                <Box className={classes.menuOverlay}>
-                    <Menu
-                        position="bottom-end"
-                        withinPortal
-                        opened={menuOpened}
-                        onChange={setMenuOpened}
-                    >
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="filled"
-                                color="gray"
-                                size="lg"
-                                radius="xl"
-                            >
-                                <IconDots size={18} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
+            <Box className={classes.menuOverlay}>
+                <Menu
+                    position="bottom-end"
+                    withinPortal
+                    opened={menuOpened}
+                    onChange={setMenuOpened}
+                >
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="filled"
+                            color="gray"
+                            size="lg"
+                            radius="xl"
+                        >
+                            <IconDots size={18} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        {canEditApp && (
                             <Menu.Item
                                 leftSection={<IconPencil size={14} />}
                                 onClick={() =>
@@ -203,7 +213,9 @@ export default function AppPreviewTest() {
                             >
                                 Continue building
                             </Menu.Item>
-                            {scheduledDeliveriesFlag.data?.enabled && (
+                        )}
+                        {canEditApp &&
+                            scheduledDeliveriesFlag.data?.enabled && (
                                 <Menu.Item
                                     leftSection={<IconSend size={14} />}
                                     onClick={() => setSchedulerModalOpen(true)}
@@ -211,15 +223,31 @@ export default function AppPreviewTest() {
                                     Schedule delivery
                                 </Menu.Item>
                             )}
-                        </Menu.Dropdown>
-                    </Menu>
-                </Box>
-            )}
+                        <Menu.Item
+                            leftSection={<IconDatabase size={14} />}
+                            onClick={() => setQueriesPanelHidden(false)}
+                        >
+                            View queries
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Box>
             <AppIframePreview
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
                 identityKey={`${appUuid}:${version}`}
+                onQueryEvent={handleQueryEvent}
             />
+            {!queriesPanelHidden && (
+                <QueryInspector
+                    queries={queries}
+                    projectUuid={projectUuid}
+                    onClear={clearQueries}
+                    defaultCollapsed={false}
+                    hideWhenEmpty={false}
+                    onDismiss={() => setQueriesPanelHidden(true)}
+                />
+            )}
             {schedulerModalOpen && (
                 <AppSchedulersModal
                     projectUuid={projectUuid}
