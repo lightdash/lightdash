@@ -58,6 +58,7 @@ describe('MCP server', () => {
             McpResponse<{
                 tools: Array<{
                     name: string;
+                    title: string;
                     description: string;
                     inputSchema: unknown;
                 }>;
@@ -85,6 +86,7 @@ describe('MCP server', () => {
         expect(versionTool?.description).toBe(
             'Get the current Lightdash version',
         );
+        expect(versionTool?.title).toBe('Get Lightdash Version');
         expect(versionTool).toHaveProperty('inputSchema');
     });
 
