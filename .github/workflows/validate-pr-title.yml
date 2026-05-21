@@ -9,6 +9,9 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
+    - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
     - name: Validate PR Title
       uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
       env:
