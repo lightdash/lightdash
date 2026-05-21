@@ -52,6 +52,7 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
+    enabledToolNames?: string[];
 };
 
 export type UnavailableMcpServer = {

@@ -11909,6 +11909,75 @@
                 "required": ["authType", "url", "name"],
                 "type": "object"
             },
+            "AiMcpServerTool": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "meta": {
+                        "nullable": true
+                    },
+                    "annotations": {
+                        "nullable": true
+                    },
+                    "inputSchema": {},
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "toolName": {
+                        "type": "string"
+                    },
+                    "mcpServerUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "meta",
+                    "annotations",
+                    "inputSchema",
+                    "description",
+                    "title",
+                    "toolName",
+                    "mcpServerUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiMcpServerTool-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiMcpServerTool"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiMcpServerToolListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiMcpServerTool-Array_"
+            },
             "ApiSuccess__authorizationUrl-string__": {
                 "properties": {
                     "results": {
@@ -12056,6 +12125,73 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentMcpServerTool": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiMcpServerTool"
+                    },
+                    {
+                        "properties": {
+                            "enabled": {
+                                "type": "boolean"
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["enabled", "agentUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AiAgentMcpServerTool-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentMcpServerTool"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentMcpServerToolListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentMcpServerTool-Array_"
+            },
+            "Pick_AiAgentMcpServerTool.toolName-or-enabled_": {
+                "properties": {
+                    "toolName": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["toolName", "enabled"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentMcpServerToolUpdate": {
+                "$ref": "#/components/schemas/Pick_AiAgentMcpServerTool.toolName-or-enabled_"
+            },
+            "ApiUpdateAiAgentMcpServerToolsRequest": {
+                "properties": {
+                    "toolSettings": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentMcpServerToolUpdate"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["toolSettings"],
                 "type": "object"
             },
             "AiModelOption": {
@@ -35626,6 +35762,98 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools": {
+            "get": {
+                "operationId": "listMcpServerTools",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerToolListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools/refresh": {
+            "post": {
+                "operationId": "refreshMcpServerTools",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerToolListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/oauth/start": {
             "post": {
                 "operationId": "startMcpOAuthConnection",
@@ -35906,6 +36134,122 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/mcpServers/{mcpServerUuid}/tools": {
+            "get": {
+                "operationId": "listAgentMcpServerTools",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMcpServerToolListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateAgentMcpServerTools",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMcpServerToolListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAiAgentMcpServerToolsRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/models": {
