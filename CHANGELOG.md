@@ -1,3 +1,11 @@
+# [0.2999.0](https://github.com/lightdash/lightdash/compare/0.2998.1...0.2999.0) (2026-05-21)
+
+
+### Features
+
+* **ai-agents:** add scroll area and reveal animation to document summary ([#23367](https://github.com/lightdash/lightdash/issues/23367)) ([cb3d77c](https://github.com/lightdash/lightdash/commit/cb3d77ccd4d64f3a2c4d6457109b14f5f84bf53d))
+* **ai-agents:** render runSql SQL Runner links ([#23358](https://github.com/lightdash/lightdash/issues/23358)) ([2924de9](https://github.com/lightdash/lightdash/commit/2924de9b156180e570b16aad99bdc4b5311aaa31))
+
 ## [0.2998.1](https://github.com/lightdash/lightdash/compare/0.2998.0...0.2998.1) (2026-05-21)
 
 
