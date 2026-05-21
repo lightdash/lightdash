@@ -29,6 +29,7 @@ import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
+import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSsoModel } from './OrganizationSsoModel';
@@ -89,6 +90,7 @@ export type ModelManifest = {
     onboardingModel: OnboardingModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
     organizationSsoModel: OrganizationSsoModel;
@@ -418,6 +420,13 @@ export class ModelRepository
         return this.getModel(
             'organizationModel',
             () => new OrganizationModel(this.database, this.lightdashConfig),
+        );
+    }
+
+    public getOrganizationDesignModel(): OrganizationDesignModel {
+        return this.getModel(
+            'organizationDesignModel',
+            () => new OrganizationDesignModel({ database: this.database }),
         );
     }
 

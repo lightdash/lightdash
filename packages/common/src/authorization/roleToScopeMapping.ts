@@ -36,6 +36,7 @@ const BASE_ROLE_SCOPES = {
         'view:SpotlightTableConfig',
         'view:AiAgentThread@self',
         'view:DataApp',
+        'view:OrganizationDesign',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -138,6 +139,7 @@ const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:OrganizationDesign',
         'delete:Project', // Any project
         'view:Analytics',
         'manage:Dashboard', // All dashboards
@@ -249,6 +251,8 @@ export const getNonEnterpriseScopesForRole = (
         'create:DataApp',
         'view:DataApp@self',
         'manage:DataApp@self',
+        'view:OrganizationDesign',
+        'manage:OrganizationDesign',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

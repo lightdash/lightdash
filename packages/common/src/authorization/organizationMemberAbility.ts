@@ -80,6 +80,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+        can('view', 'OrganizationDesign', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });
@@ -356,6 +359,10 @@ export const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
         can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+        });
+
+        can('manage', 'OrganizationDesign', {
             organizationUuid: member.organizationUuid,
         });
 

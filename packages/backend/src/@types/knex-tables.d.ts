@@ -126,6 +126,14 @@ import {
     OrganizationColorPaletteTableName,
 } from '../database/entities/organizationColorPalettes';
 import {
+    OrganizationDesignFilesTable,
+    OrganizationDesignFilesTableName,
+} from '../database/entities/organizationDesignFiles';
+import {
+    OrganizationDesignsTable,
+    OrganizationDesignsTableName,
+} from '../database/entities/organizationDesigns';
+import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
@@ -521,6 +529,8 @@ declare module 'knex/types/tables' {
         [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [OrganizationDesignsTableName]: OrganizationDesignsTable;
+        [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;

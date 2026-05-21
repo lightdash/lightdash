@@ -36,6 +36,7 @@ import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorer
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
+import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
@@ -87,6 +88,7 @@ interface ServiceManifest {
     notificationService: NotificationsService;
     oauthService: OAuthService;
 
+    organizationDesignService: OrganizationDesignService;
     organizationService: OrganizationService;
     organizationSsoService: OrganizationSsoService;
     organizationAccessService: OrganizationAccessService;
@@ -508,6 +510,18 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
+    public getOrganizationDesignService(): OrganizationDesignService {
+        return this.getService(
+            'organizationDesignService',
+            () =>
+                new OrganizationDesignService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationDesignModel:
+                        this.models.getOrganizationDesignModel(),
                 }),
         );
     }
