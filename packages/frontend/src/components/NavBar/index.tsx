@@ -1,9 +1,10 @@
-import { ProjectType } from '@lightdash/common';
+import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { clsx } from '@mantine/core';
 import { memo } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
@@ -15,6 +16,7 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
+import { TrialWarningBanner } from './TrialWarningBanner';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -69,12 +71,19 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
     const { isImpersonating } = useImpersonation();
+    const { data: organizationAccess } = useOrganizationAccess();
 
     const { navBarMode } = useNavBarMode();
 
-    const hasBanner = isImpersonating || isCurrentProjectPreview;
+    const showTrialWarning =
+        !isImpersonating &&
+        !isCurrentProjectPreview &&
+        organizationAccess?.status === OrganizationAccessStatus.TRIAL_WARNING;
 
-    // Calculate placeholder height: navbar + banner (if preview or impersonating)
+    const hasBanner =
+        isImpersonating || isCurrentProjectPreview || showTrialWarning;
+
+    // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
         NAVBAR_HEIGHT + (hasBanner ? BANNER_HEIGHT : 0);
 
@@ -91,9 +100,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />
+                ) : isCurrentProjectPreview ? (
+                    <PreviewBanner expiresAt={project?.expiresAt ?? null} />
                 ) : (
-                    isCurrentProjectPreview && (
-                        <PreviewBanner expiresAt={project?.expiresAt ?? null} />
+                    organizationAccess && (
+                        <TrialWarningBanner access={organizationAccess} />
                     )
                 )}
                 <Box

@@ -193,6 +193,12 @@ export enum FeatureFlags {
      * Enable AI thread context compaction for streamed web-app conversations.
      */
     AiContextCompaction = 'ai-context-compaction',
+
+    /**
+     * Show a persistent trial warning banner for an organization on shared
+     * instances. This does not block product access.
+     */
+    OrganizationTrialWarning = 'organization-trial-warning',
 }
 
 export type FeatureFlag = {
