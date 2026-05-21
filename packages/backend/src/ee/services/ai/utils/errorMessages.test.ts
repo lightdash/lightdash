@@ -1,3 +1,4 @@
+import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 import { getUserFacingErrorMessage } from './errorMessages';
 
 const CONTEXT_LIMIT_MESSAGE =
@@ -75,6 +76,20 @@ describe('getUserFacingErrorMessage', () => {
     });
 
     describe('default fallback', () => {
+        it('returns MCP authorization required errors directly', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new McpAuthorizationRequiredError(
+                        'Shared Docs MCP',
+                        'server-uuid',
+                        'shared',
+                    ),
+                ),
+            ).toBe(
+                'MCP server "Shared Docs MCP" requires authorization before this agent can use it.',
+            );
+        });
+
         it('returns default message for unknown errors', () => {
             expect(
                 getUserFacingErrorMessage(new Error('Something unexpected')),

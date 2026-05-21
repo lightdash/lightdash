@@ -1,4 +1,5 @@
 import {
+    Accordion,
     Badge,
     Button,
     Card,
@@ -26,7 +27,16 @@ import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
 // eslint-disable-next-line css-modules/no-unused-class
+import accordionStyles from './styles/mantine-overrides/accordion.module.css';
+// eslint-disable-next-line css-modules/no-unused-class
 import styles from './styles/mantine-overrides/tooltip.module.css';
+
+declare module '@mantine-8/core' {
+    interface AccordionProps {
+        // When true, the active item won't get the variant's filled background.
+        transparentActiveItem?: boolean;
+    }
+}
 
 declare module '@mantine-8/core' {
     export interface ButtonProps {
@@ -72,6 +82,24 @@ const subtleInputStyles = (theme: MantineTheme) => ({
     },
 });
 
+const subtlePasswordInputStyles = (theme: MantineTheme) => {
+    const subtleStyles = subtleInputStyles(theme);
+
+    return {
+        input: {
+            '--input-bd': theme.colors.ldGray[2],
+            borderRadius: theme.radius.md,
+            boxShadow: theme.shadows.subtle,
+        },
+        innerInput: {
+            fontWeight: subtleStyles.input.fontWeight,
+            fontSize: subtleStyles.input.fontSize,
+            color: subtleStyles.input.color,
+        },
+        label: subtleStyles.label,
+    };
+};
+
 const paperDottedStyles = (theme: MantineTheme) => ({
     border: `1px dashed ${theme.colors.ldGray[3]}`,
     background: 'inherit',
@@ -108,6 +136,12 @@ export const getMantine8ThemeOverride = (
 
         components: {
             ...legacyComponentsTheme,
+            Accordion: Accordion.extend({
+                classNames: (_theme, props) =>
+                    props.transparentActiveItem
+                        ? { item: accordionStyles.transparentActiveItem }
+                        : {},
+            }),
             Badge: Badge.extend({
                 defaultProps: {
                     radius: 'sm',
@@ -259,6 +293,10 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     radius: 'md',
                 },
+                styles: (theme, props) =>
+                    props.variant === 'subtle'
+                        ? subtlePasswordInputStyles(theme)
+                        : {},
             }),
 
             Textarea: Textarea.extend({

@@ -40,6 +40,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 
@@ -114,6 +115,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 
@@ -850,6 +852,92 @@ describe('ScimService', () => {
                 ScimService.validateRolesArray(roles, validRoleValues);
             }).toThrow(
                 'Roles array can only contain one role per project. Duplicate project UUIDs: project-1-uuid',
+            );
+        });
+
+        test('should dedupe identical organization roles (Entra PATCH Add on top of existing role)', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: true,
+                },
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: false,
+                },
+            ];
+
+            const result = ScimService.validateRolesArray(
+                roles,
+                validRoleValues,
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].value).toBe('admin');
+        });
+
+        test('should dedupe identical project roles', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: 'Project - Project 1',
+                    primary: false,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: 'Project - Project 1',
+                    primary: false,
+                },
+            ];
+
+            const result = ScimService.validateRolesArray(
+                roles,
+                validRoleValues,
+            );
+            expect(result).toHaveLength(2);
+            expect(result.map((r) => r.value)).toEqual([
+                'admin',
+                'project-1-uuid:viewer',
+            ]);
+        });
+
+        test('should still throw for two different organization roles after dedupe', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: true,
+                },
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: false,
+                },
+                {
+                    value: 'editor',
+                    display: 'Editor',
+                    type: 'Organization',
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array must contain exactly one organization role, found 2',
             );
         });
 

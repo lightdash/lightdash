@@ -51,6 +51,8 @@ import {
     DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileDataAppsTable,
+    DashboardTileDataAppsTableName,
     DashboardTileHeadingsTable,
     DashboardTileHeadingsTableName,
     DashboardTileLoomsTable,
@@ -137,6 +139,10 @@ import {
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
+import {
+    OrganizationSsoConfigurationsTable,
+    OrganizationSsoConfigurationsTableName,
+} from '../database/entities/organizationSsoConfigurations';
 import {
     OrganizationWarehouseCredentialsTable,
     OrganizationWarehouseCredentialsTableName,
@@ -300,12 +306,18 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiPromptContextTable,
+    AiPromptContextTableName,
     AiPromptTable,
     AiPromptTableName,
     AiSlackPromptTable,
     AiSlackPromptTableName,
     AiSlackThreadTable,
     AiSlackThreadTableName,
+    AiSqlApprovalTable,
+    AiSqlApprovalTableName,
+    AiThreadCompactionTable,
+    AiThreadCompactionTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
@@ -316,12 +328,25 @@ import {
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTable,
     AiAgentInstructionVersionsTableName,
+    AiAgentIntegrationTable,
     AiAgentIntegrationTableName,
+    AiAgentMcpServerTable,
+    AiAgentMcpServerTableName,
     AiAgentSlackIntegrationTable,
     AiAgentSlackIntegrationTableName,
     AiAgentTable,
     AiAgentTableName,
+    AiMcpServerCredentialTable,
+    AiMcpServerCredentialTableName,
+    AiMcpServerTable,
+    AiMcpServerTableName,
 } from '../ee/database/entities/aiAgent';
+import {
+    AiAgentDocumentAccessTable,
+    AiAgentDocumentAccessTableName,
+    AiAgentDocumentTable,
+    AiAgentDocumentTableName,
+} from '../ee/database/entities/aiAgentDocument';
 import {
     AiAgentUserPreferencesTable,
     AiAgentUserPreferencesTableName,
@@ -348,6 +373,14 @@ import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
+import {
+    ManagedAgentActionsTable,
+    ManagedAgentActionsTableName,
+    ManagedAgentRunsTable,
+    ManagedAgentRunsTableName,
+    ManagedAgentSettingsTable,
+    ManagedAgentSettingsTableName,
+} from '../ee/database/entities/managedAgent';
 import {
     PreAggregateDailyStatsTable,
     PreAggregateDailyStatsTableName,
@@ -398,6 +431,7 @@ declare module 'knex/types/tables' {
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
+        [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
@@ -432,6 +466,7 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
+        [OrganizationSsoConfigurationsTableName]: OrganizationSsoConfigurationsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
@@ -450,19 +485,27 @@ declare module 'knex/types/tables' {
         [AiThreadTableName]: AiThreadTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
+        [AiPromptContextTableName]: AiPromptContextTable;
+        [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
+        [AiAgentDocumentTableName]: AiAgentDocumentTable;
+        [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
+        [AiMcpServerTableName]: AiMcpServerTable;
+        [AiMcpServerCredentialTableName]: AiMcpServerCredentialTable;
+        [AiAgentMcpServerTableName]: AiAgentMcpServerTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
@@ -493,6 +536,9 @@ declare module 'knex/types/tables' {
         [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
         [ChangesetsTableName]: ChangesetsTable;
         [ChangesTableName]: ChangesTable;
+        [ManagedAgentSettingsTableName]: ManagedAgentSettingsTable;
+        [ManagedAgentActionsTableName]: ManagedAgentActionsTable;
+        [ManagedAgentRunsTableName]: ManagedAgentRunsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;

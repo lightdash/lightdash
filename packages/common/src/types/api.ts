@@ -2,6 +2,7 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
+    ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentEvaluationResponse,
@@ -29,6 +30,9 @@ import type {
     ApiGenerateAppResponse,
     ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiManagedAgentActionResponse,
+    ApiManagedAgentRunResponse,
+    ApiManagedAgentRunsListResponse,
     ApiMyAppsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
@@ -130,6 +134,7 @@ import {
 } from './openIdIdentity';
 import {
     type AllowedEmailDomains,
+    type ApiProjectColorPaletteResponse,
     type OnboardingStatus,
     type Organization,
     type OrganizationProject,
@@ -140,6 +145,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
+import { type AzureAdSsoConfigSummary } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -206,7 +212,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
-import { type TableBase } from './table';
+import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import {
     type LightdashUser,
@@ -278,6 +284,8 @@ export type ApiCompiledQueryResults = {
 export type ApiExploresResults = SummaryExplore[];
 
 export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
+
+export type ApiTableGroupsResults = Record<string, GroupType>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
@@ -424,13 +432,6 @@ export type HealthState = {
             enabled: boolean;
         };
     };
-    posthog:
-        | {
-              projectApiKey: string;
-              feApiHost: string;
-              beApiHost: string;
-          }
-        | undefined;
     siteUrl: string;
     intercom: {
         appId: string;
@@ -470,7 +471,6 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
-    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
@@ -505,14 +505,20 @@ export type HealthState = {
         enabled: boolean;
         retentionDays: number;
     };
+    dashboardComments: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
     };
     dataApps: {
-        enabled: boolean;
-    };
-    managedAgent: {
-        enabled: boolean;
+        /**
+         * Origin where data-app preview iframes are served (e.g.,
+         * `https://analytics.lightdash.app`). Used by the frontend to construct
+         * the iframe URL and to validate postMessage origins. `null` means
+         * previews are served same-origin (dev / pre-cutover).
+         */
+        previewOrigin: string | null;
     };
 };
 
@@ -603,13 +609,20 @@ export type CreateProject = Omit<
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'queryTimezone'
+    | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
+    | 'expiresAt'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
+    expiresInHours?: number;
 };
 
 export type CreateProjectOptionalCredentials = Omit<
@@ -634,8 +647,14 @@ export type UpdateProject = Omit<
     | 'type'
     | 'schedulerTimezone'
     | 'queryTimezone'
+    | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
+    | 'expiresAt'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -808,6 +827,9 @@ export type UpdateUserArgs = {
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
     isActive: boolean;
+    /* IANA timezone (e.g. 'America/New_York') used as the user's per-viewer
+       default. Null clears the preference and falls back to the project. */
+    timezone: string | null;
 };
 
 export type PasswordResetLink = {
@@ -902,6 +924,7 @@ type ApiResults =
     | FieldValueSearchResult
     | ApiDownloadCsv
     | AllowedEmailDomains
+    | AzureAdSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring
@@ -1009,6 +1032,7 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResultsResponse['results']
     | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
+    | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
@@ -1036,6 +1060,10 @@ type ApiResults =
     | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiProjectColorPaletteResponse['results']
+    | ApiManagedAgentRunResponse['results']
+    | ApiManagedAgentRunsListResponse['results']
+    | ApiManagedAgentActionResponse['results']
     | DashboardPreAggregateAudit;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

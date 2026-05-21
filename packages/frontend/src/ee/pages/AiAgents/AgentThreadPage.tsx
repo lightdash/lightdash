@@ -1,17 +1,26 @@
 import { Center, Loader } from '@mantine-8/core';
-import { useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
+import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import {
+    selectThreadSqlMode,
+    setThreadSqlMode,
+} from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../features/aiCopilot/store/hooks';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -50,32 +59,71 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid,
         threadUuid,
     );
-    const isPending = thread?.messages?.some(
-        (message) =>
-            message.role === 'assistant' && message.status === 'pending',
+
+    const { isStreaming, isPending } = usePendingThreadRefetch(
+        thread,
+        threadUuid!,
+        refetch,
     );
 
-    const isStreaming = useAiAgentThreadStreaming(threadUuid!);
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const sqlMode = useAiAgentStoreSelector(
+        selectThreadSqlMode(threadUuid ?? ''),
+    );
+    const dispatch = useAiAgentStoreDispatch();
 
-    useEffect(() => {
-        if (!isPending) return;
-        if (isStreaming) return;
+    const firstAssistantMessage = thread?.messages?.find(
+        (m) => m.role === 'assistant',
+    );
+    const threadModelConfig = firstAssistantMessage?.modelConfig ?? null;
 
-        const interval = setInterval(() => {
-            void refetch();
-        }, 2000);
+    const { data: availableModels } = useModelOptions({
+        projectUuid,
+        agentUuid,
+        options: { enabled: !!threadModelConfig },
+    });
 
-        return () => clearInterval(interval);
-    }, [isPending, refetch, isStreaming]);
-
-    const handleSubmit = (prompt: string) => {
-        // Use modelConfig from first assistant message for follow-up messages
-        const firstAssistantMessage = thread?.messages?.find(
-            (m) => m.role === 'assistant',
+    const isThreadModelUnavailable =
+        !!threadModelConfig &&
+        !!availableModels &&
+        !availableModels.some(
+            (m) =>
+                m.provider === threadModelConfig.modelProvider &&
+                m.name === threadModelConfig.modelName,
         );
-        const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
 
-        void createAgentThreadMessage({ prompt, modelConfig });
+    const disabledReasons: { when: boolean; message: string }[] = [
+        {
+            when: thread?.createdFrom === 'slack',
+            message:
+                'This thread is read-only. To continue the conversation, reply in Slack.',
+        },
+        {
+            when: !!thread && !isThreadFromCurrentUser,
+            message: 'This thread is read-only. It belongs to another user.',
+        },
+        {
+            when: isThreadModelUnavailable,
+            message: `The model used in this thread (${threadModelConfig?.modelProvider} ${threadModelConfig?.modelName}) is no longer available. Start a new thread to continue.`,
+        },
+    ];
+    const activeDisabledReason = disabledReasons.find((r) => r.when);
+    const inputDisabled = !!activeDisabledReason;
+    const inputDisabledReason = activeDisabledReason?.message;
+
+    const handleSubmit = ({
+        message,
+        toolHints,
+    }: {
+        message: string;
+        toolHints: string[];
+    }) => {
+        void createAgentThreadMessage({
+            prompt: message,
+            modelConfig: threadModelConfig ?? undefined,
+            enableSqlMode: sqlModeAvailable && sqlMode,
+            toolHints,
+        });
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
@@ -98,16 +146,32 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             showAddToEvalsButton={canManage}
         >
             <AgentChatInput
-                disabled={
-                    thread.createdFrom === 'slack' || !isThreadFromCurrentUser
-                }
-                disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                disabled={inputDisabled}
+                disabledReason={inputDisabledReason}
                 loading={isCreatingMessage || isStreaming || isPending}
                 onSubmit={handleSubmit}
                 placeholder={`Ask ${agent.name} anything about your data...`}
                 messageCount={thread.messages?.length || 0}
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
+                threadUuid={threadUuid}
+                latestAssistantMessageUuid={
+                    [...(thread.messages ?? [])]
+                        .reverse()
+                        .find((m) => m.role === 'assistant')?.uuid
+                }
+                sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                onSqlModeChange={
+                    sqlModeAvailable && threadUuid
+                        ? (enabled) =>
+                              dispatch(
+                                  setThreadSqlMode({
+                                      threadUuid,
+                                      enabled,
+                                  }),
+                              )
+                        : undefined
+                }
             />
         </AgentChatDisplay>
     );

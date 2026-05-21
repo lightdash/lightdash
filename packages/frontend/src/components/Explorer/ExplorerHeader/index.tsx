@@ -214,7 +214,6 @@ const ExplorerHeader: FC = memo(() => {
                     >
                         <div>
                             <SaveChartButton
-                                isExplorer
                                 disabled={buttonDisabledMessage !== null}
                             />
                         </div>

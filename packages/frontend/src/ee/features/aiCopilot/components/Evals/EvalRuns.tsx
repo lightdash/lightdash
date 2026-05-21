@@ -18,13 +18,13 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluationRuns,
@@ -210,7 +210,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: runs,
         enableSorting: false,
@@ -323,7 +323,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     </Text>
                 </Paper>
             ) : (
-                <MantineReactTable table={table} />
+                <ContentTable table={table} />
             )}
         </Stack>
     );

@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
@@ -12,6 +13,7 @@ import {
     type ItemsMap,
 } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
+import { type ParametersValuesMap } from '../types/parameters';
 import {
     type PivotColumn,
     type PivotConfig,
@@ -21,11 +23,39 @@ import {
 import { type ResultRow, type ResultValue } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue, getObjectValue } from '../utils/accessors';
-import { formatItemValue } from '../utils/formatting';
+import {
+    formatItemValue,
+    formatTemporalCellForSpreadsheet,
+    shouldShiftItemTimezone,
+    toIsoWithProjectOffset,
+} from '../utils/formatting';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
+
+// Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
+// (parameters live on the client). For flat tables, useColumns re-formats per
+// cell. The pivot path stores backend values verbatim, so we do the same
+// per-cell overlay here whenever the field's format references parameters.
+const reformatCellWithParameters = (
+    value: ResultValue | null | undefined,
+    item: ItemsMap[string] | undefined,
+    parameters: ParametersValuesMap | undefined,
+): ResultValue | null | undefined => {
+    if (!value || !item || !parameters) return value;
+    if (!('format' in item) || typeof item.format !== 'string') return value;
+    if (
+        !item.format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) &&
+        !item.format.includes(`\${${LightdashParameters.PREFIX}`)
+    ) {
+        return value;
+    }
+    return {
+        raw: value.raw,
+        formatted: formatItemValue(item, value.raw, false, parameters),
+    };
+};
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -44,6 +74,7 @@ type PivotQueryResultsArgs = {
     };
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
+    parameters?: ParametersValuesMap;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -227,6 +258,7 @@ const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
     getFieldLabel: FieldLabelFunction,
+    parameters?: ParametersValuesMap,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
@@ -259,7 +291,7 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -274,7 +306,7 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -525,12 +557,14 @@ export const pivotQueryResults = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    parameters,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const hiddenDimensionFieldIds = pivotConfig.hiddenDimensionFieldIds || [];
     const { visibleMetricFieldIds } = pivotConfig;
 
     const isMetricVisible = (metricId: string): boolean => {
@@ -558,20 +592,30 @@ export const pivotQueryResults = ({
     const dimensions = [...metricQuery.dimensions];
 
     // Headers (column index)
-    const headerDimensions = pivotConfig.pivotDimensions.filter(
-        (pivotDimension) => dimensions.includes(pivotDimension),
-    );
+    // hiddenDimensionFieldIds dims are excluded from rendered headers; they
+    // still participate in the underlying query and can drive sort order.
+    const headerDimensions = pivotConfig.pivotDimensions
+        .filter((pivotDimension) => dimensions.includes(pivotDimension))
+        .filter((d) => !hiddenDimensionFieldIds.includes(d));
     const headerValueTypes = getHeaderValueTypes({
         metricsAsRows: pivotConfig.metricsAsRows,
         pivotDimensionNames: headerDimensions,
     });
 
     // Indices (row index)
-    const indexDimensions = dimensions
+    // indexDimensionsForGrouping: full set used to build row-grouping keys so
+    // that hidden dims still correctly delineate rows. indexDimensionsForDisplay
+    // is the filtered set actually emitted into indexValueTypes / indexValues.
+    const indexDimensionsForGrouping = dimensions
         .filter((d) => !pivotConfig.pivotDimensions.includes(d))
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
-    const indexDimensionValueTypes = indexDimensions.map<{
+    const indexDimensionsForDisplay = indexDimensionsForGrouping.filter(
+        (d) => !hiddenDimensionFieldIds.includes(d),
+    );
+    // Keep legacy name as an alias for grouping to minimise diff surface.
+    const indexDimensions = indexDimensionsForGrouping;
+    const indexDimensionValueTypes = indexDimensionsForDisplay.map<{
         type: FieldType.DIMENSION;
         fieldId: string;
     }>((d) => ({
@@ -612,7 +656,30 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
-            const indexRowValues = indexDimensions
+            // indexRowKeysValues: derived from the FULL dimension set so hidden
+            // dims still correctly partition rows (grouping, not display).
+            const indexRowKeysValues = indexDimensions
+                .map<PivotData['indexValues'][number][number]>((fieldId) => ({
+                    type: 'value',
+                    fieldId,
+                    value: getObjectValue(row, fieldId).value,
+                    colSpan: 1,
+                }))
+                .concat(
+                    pivotConfig.metricsAsRows
+                        ? [
+                              {
+                                  type: 'label',
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
+                              },
+                          ]
+                        : [],
+                );
+
+            // indexRowValues: derived from display-only dims (hidden dims
+            // excluded). This is what gets pushed into indexValues / rendered.
+            const indexRowValues = indexDimensionsForDisplay
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
@@ -650,11 +717,13 @@ export const pivotQueryResults = ({
                           ],
                 );
 
-            // Write the index values
+            // Write the index values — use FULL key set for deduplication so
+            // that rows with the same display values but different hidden-dim
+            // values are not collapsed into one.
             if (
                 setIndexByKey(
                     rowIndices,
-                    indexRowValues.map((l) =>
+                    indexRowKeysValues.map((l) =>
                         l.type === 'value' ? String(l.value?.raw) : l.fieldId,
                     ),
                     rowCount,
@@ -717,11 +786,19 @@ export const pivotQueryResults = ({
             ),
         ) ?? [];
 
+    // hasIndex: for rendering/display — true when there are visible index
+    // dimension columns (display-only filter applied).
     const hasIndex = indexValueTypes.length > 0;
     const hasHeader = headerValueTypes.length > 0;
 
+    // hasIndexForGrouping: true when there are row-grouping dimensions
+    // regardless of whether they're hidden from display. Used to correctly
+    // size dataValues and look up row indices even when all row dims are hidden.
+    const hasIndexForGrouping =
+        indexDimensions.length > 0 || pivotConfig.metricsAsRows;
+
     // Compute the size of the data values
-    const N_DATA_ROWS = hasIndex ? rowCount : 1;
+    const N_DATA_ROWS = hasIndexForGrouping ? rowCount : 1;
     const N_DATA_COLUMNS = hasHeader ? columnCount : 1;
 
     // Compute the data values
@@ -739,7 +816,13 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row?.[metric.fieldId] ?? {};
+            const { value: rawCellValue } = row?.[metric.fieldId] ?? {};
+            const value =
+                reformatCellWithParameters(
+                    rawCellValue,
+                    getField(metric.fieldId),
+                    parameters,
+                ) ?? null;
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
@@ -753,7 +836,7 @@ export const pivotQueryResults = ({
             const rowKeysString = rowKeys.map(String);
             const columnKeysString = columnKeys.map(String);
 
-            const rowIndex = hasIndex
+            const rowIndex = hasIndexForGrouping
                 ? getIndexByKey(rowIndices, rowKeysString)
                 : 0;
             const columnIndex = hasHeader
@@ -876,7 +959,7 @@ export const pivotQueryResults = ({
         },
         groupedSubtotals,
     };
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 /**
@@ -892,6 +975,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     columnLimit,
+    parameters,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -901,6 +985,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         | 'columnTotals'
         | 'metricsAsRows'
         | 'hiddenMetricFieldIds'
+        | 'hiddenDimensionFieldIds'
         | 'visibleMetricFieldIds'
         | 'columnOrder'
     >; // only use properties that are not part of pivot details metadata
@@ -908,12 +993,14 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
     columnLimit?: number;
+    parameters?: ParametersValuesMap;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const hiddenDimensionFieldIds = pivotConfig.hiddenDimensionFieldIds || [];
     const { visibleMetricFieldIds } = pivotConfig;
     const columnOrder = pivotConfig.columnOrder || [];
 
@@ -924,17 +1011,28 @@ export const convertSqlPivotedRowsToPivotData = ({
         return !hiddenMetricFieldIds.includes(fieldId);
     };
 
-    // Extract information from pivot details metadata
+    const isDimVisibleInPivot = (fieldId: string): boolean =>
+        !hiddenDimensionFieldIds.includes(fieldId);
+
+    // Extract information from pivot details metadata. Row-index dims that the
+    // user has hidden are dropped from the rendered index column list — the
+    // underlying SQL row grouping is unchanged, so data rows still align with
+    // the visible index values; we just don't render the hidden column.
     let indexColumns: string[];
     if (pivotDetails.indexColumn) {
         if (Array.isArray(pivotDetails.indexColumn)) {
             indexColumns = pivotDetails.indexColumn
                 .map((col) => col.reference)
+                .filter(isDimVisibleInPivot)
                 .sort(
                     (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
                 );
         } else {
-            indexColumns = [pivotDetails.indexColumn.reference];
+            indexColumns = isDimVisibleInPivot(
+                pivotDetails.indexColumn.reference,
+            )
+                ? [pivotDetails.indexColumn.reference]
+                : [];
         }
     } else {
         indexColumns = [];
@@ -970,6 +1068,11 @@ export const convertSqlPivotedRowsToPivotData = ({
         .filter((field, index, self) => self.indexOf(field) === index)
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
 
+    // pivotDetails.groupByColumns comes from PivotConfiguration.groupByColumns,
+    // which only contains VISIBLE pivot-column dims. Hidden pivot-column dims
+    // that drive sort order (sortOnlyDimensions in PivotConfiguration) are
+    // deliberately excluded from groupByColumns before this point, so they
+    // never appear as column header rows here. No extra filtering needed.
     const headerValueTypes = getHeaderValueTypes({
         metricsAsRows: pivotConfig.metricsAsRows,
         pivotDimensionNames: (pivotDetails.groupByColumns ?? []).map(
@@ -1025,7 +1128,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               pivotValue.value,
                               true,
-                              undefined,
+                              parameters,
                           )
                         : String(pivotValue.value));
                 const allColumnsWithSamePivotValues = columns.filter(
@@ -1173,7 +1276,11 @@ export const convertSqlPivotedRowsToPivotData = ({
                     );
 
                     return matchingColumn && row[matchingColumn.pivotColumnName]
-                        ? row[matchingColumn.pivotColumnName].value
+                        ? (reformatCellWithParameters(
+                              row[matchingColumn.pivotColumnName].value,
+                              getField(metric),
+                              parameters,
+                          ) ?? null)
                         : null;
                 });
 
@@ -1192,7 +1299,11 @@ export const convertSqlPivotedRowsToPivotData = ({
 
             return filteredValuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
-                    ? row[valueCol.pivotColumnName].value
+                    ? (reformatCellWithParameters(
+                          row[valueCol.pivotColumnName].value,
+                          getField(valueCol.referenceField),
+                          parameters,
+                      ) ?? null)
                     : null,
             );
         });
@@ -1386,7 +1497,20 @@ export const convertSqlPivotedRowsToPivotData = ({
                       }__${colIndex}`;
 
                 if (row[valueCol.pivotColumnName]) {
-                    combinedRow[fieldId] = row[valueCol.pivotColumnName];
+                    const cell = row[valueCol.pivotColumnName];
+                    const reformatted = reformatCellWithParameters(
+                        cell.value,
+                        getField(valueCol.referenceField),
+                        parameters,
+                    );
+                    // Helper short-circuits to the input value reference when
+                    // no reformat is needed — fall back to `cell` in that case
+                    // so we don't allocate a fresh wrapper per non-parameterised
+                    // cell.
+                    combinedRow[fieldId] =
+                        reformatted && reformatted !== cell.value
+                            ? { value: reformatted }
+                            : cell;
                 }
             });
 
@@ -1403,7 +1527,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               rowTotalValue,
                               false,
-                              undefined,
+                              parameters,
                           )
                         : String(rowTotalValue);
 
@@ -1507,7 +1631,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 export type PivotResultsDataCell = {
@@ -1577,6 +1701,13 @@ type PivotResultsParams = {
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
+    // When set + onlyRaw + the cell's field is TIMESTAMP, the emitted value
+    // is the warehouse instant shifted into the project tz with an explicit
+    // offset suffix. No-op for other modes / fields.
+    timezone?: string;
+    // When true, shiftable temporal cells (header + body, both modes) emit
+    // the wall-clock format spreadsheet apps auto-detect as a date.
+    formatTemporalsForSpreadsheet?: boolean;
 };
 
 export const pivotResultsAsData = ({
@@ -1589,6 +1720,8 @@ export const pivotResultsAsData = ({
     maxColumnLimit,
     undefinedCharacter = '',
     pivotDetails,
+    timezone,
+    formatTemporalsForSpreadsheet = false,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1617,11 +1750,30 @@ export const pivotResultsAsData = ({
           });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
+    const pickValue = (
+        cellValue: ResultValue | undefined,
+        fieldId: string,
+    ): string => {
+        const item = itemMap[fieldId];
+        if (formatTemporalsForSpreadsheet) {
+            const spreadsheetTemporal = formatTemporalCellForSpreadsheet(
+                item,
+                cellValue?.raw,
+                timezone,
+            );
+            if (spreadsheetTemporal !== undefined) return spreadsheetTemporal;
+        }
+        const base = (cellValue?.[formatField] as string) ?? '';
+        if (!onlyRaw || !timezone) return base;
+        if (!shouldShiftItemTimezone(item)) return base;
+        const shifted = toIsoWithProjectOffset(cellValue?.raw, timezone);
+        return shifted ?? base;
+    };
     const headers = pivotedResults.headerValues.reduce<string[][]>(
         (acc, row, i) => {
             const values = row.map((header) =>
                 'value' in header
-                    ? (header.value[formatField] as string)
+                    ? pickValue(header.value, header.fieldId)
                     : getFieldLabel(header.fieldId),
             );
             const fields = pivotedResults.titleFields[i];
@@ -1654,8 +1806,7 @@ export const pivotResultsAsData = ({
         const cells: PivotResultsDataCell[] = fieldIds.map((fieldId) => ({
             raw: row[fieldId]?.value?.raw ?? '',
             formatted:
-                (row[fieldId]?.value?.[formatField] as string) ||
-                undefinedCharacter,
+                pickValue(row[fieldId]?.value, fieldId) || undefinedCharacter,
             fieldId,
         }));
         return [...noIndexPrefix, ...cells];

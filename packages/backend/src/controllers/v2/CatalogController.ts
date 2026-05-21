@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     type ApiPaginatedMetricsWithTimeDimensionResponse,
     type ApiSort,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
@@ -60,6 +62,7 @@ export class CatalogV2Controller extends BaseController {
         @Query() categories?: string[],
         @Query() tags?: string[],
     ): Promise<ApiPaginatedMetricsWithTimeDimensionResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const sortArgs: ApiSort | undefined = sort
@@ -69,7 +72,7 @@ export class CatalogV2Controller extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getPaginatedMetricsWithTimeDimensions(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
                 { page, pageSize },

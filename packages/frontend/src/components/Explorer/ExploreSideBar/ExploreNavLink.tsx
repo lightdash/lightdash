@@ -11,6 +11,7 @@ import {
     HoverCard,
     NavLink,
     Paper,
+    Stack,
     Text,
 } from '@mantine-8/core';
 import { useToggle } from '@mantine/hooks';
@@ -62,6 +63,13 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             ? `Pre-aggregate for ${preAggregateSource.sourceExploreName}`
             : explore.description;
 
+    const normalizedQuery = query?.trim().toLowerCase() ?? '';
+    const showUnderlyingName =
+        normalizedQuery !== '' &&
+        explore.name !== displayLabel &&
+        explore.name.toLowerCase().includes(normalizedQuery) &&
+        !displayLabel.toLowerCase().includes(normalizedQuery);
+
     // Determine rightSection
     let rightSection;
     if (isError) {
@@ -108,14 +116,27 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             onMouseLeave={needsHoverCard ? undefined : () => toggleHover(false)}
             label={
                 isError ? (
-                    <Highlight
-                        component={Text}
-                        highlight={query ?? ''}
-                        truncate
-                        fz="inherit"
-                    >
-                        {displayLabel}
-                    </Highlight>
+                    <Stack gap={2}>
+                        <Highlight
+                            component={Text}
+                            highlight={query ?? ''}
+                            truncate
+                            fz="inherit"
+                        >
+                            {displayLabel}
+                        </Highlight>
+                        {showUnderlyingName && (
+                            <Highlight
+                                component={Text}
+                                highlight={query ?? ''}
+                                truncate
+                                fz="xs"
+                                c="ldGray.7"
+                            >
+                                {explore.name}
+                            </Highlight>
+                        )}
+                    </Stack>
                 ) : (
                     <TableItemDetailPreview
                         label={displayLabel}
@@ -124,16 +145,29 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         closePreview={() => toggleHover(false)}
                         offset={0}
                     >
-                        <Highlight
-                            component={Text}
-                            highlight={query ?? ''}
-                            truncate
-                            fz="sm"
-                            fw={500}
-                            c="ldDark.8"
-                        >
-                            {displayLabel}
-                        </Highlight>
+                        <Stack gap={2}>
+                            <Highlight
+                                component={Text}
+                                highlight={query ?? ''}
+                                truncate
+                                fz="sm"
+                                fw={500}
+                                c="ldDark.8"
+                            >
+                                {displayLabel}
+                            </Highlight>
+                            {showUnderlyingName && (
+                                <Highlight
+                                    component={Text}
+                                    highlight={query ?? ''}
+                                    truncate
+                                    fz="xs"
+                                    c="ldGray.7"
+                                >
+                                    {explore.name}
+                                </Highlight>
+                            )}
+                        </Stack>
                     </TableItemDetailPreview>
                 )
             }

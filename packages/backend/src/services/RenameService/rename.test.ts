@@ -1262,6 +1262,63 @@ describe('renameSavedChart', () => {
         expect(updatedChart.pivotConfig?.columns).toEqual(['invoice_type']);
     });
 
+    // Regression test for PROD-7548: model rename silently skipped charts
+    // whose fields were all sourced from a joined table.
+    test('should rename tableName/exploreName when all fields come from a joined table', () => {
+        const chart = {
+            name: 'Joined-only Chart',
+            tableName: 'model_a',
+            metricQuery: {
+                exploreName: 'model_a',
+                dimensions: ['joined_b_id'],
+                metrics: ['joined_b_amount'],
+                sorts: [
+                    {
+                        fieldId: 'joined_b_id',
+                        descending: true,
+                    },
+                ],
+                filters: {},
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'joined_b_id',
+                        yField: ['joined_b_amount'],
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: ['joined_b_id', 'joined_b_amount'],
+            },
+        } as unknown as SavedChartDAO;
+
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.MODEL,
+            chart,
+            nameChanges: {
+                from: 'model_a',
+                fromReference: 'model_a',
+                to: 'model_a_v2',
+                toReference: 'model_a_v2',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart.tableName).toBe('model_a_v2');
+        expect(updatedChart.metricQuery.exploreName).toBe('model_a_v2');
+        // Joined-table field references should remain untouched
+        expect(updatedChart.metricQuery.dimensions).toEqual(['joined_b_id']);
+        expect(updatedChart.metricQuery.metrics).toEqual(['joined_b_amount']);
+    });
+
     test('should return unchanged chart when no matches found', () => {
         const chart = {
             name: 'Payment Analysis',

@@ -19,9 +19,13 @@ import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
+import {
+    getSeriesGroupedByField,
+    isPivotSeriesOrderDeterminedByQuery,
+} from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
@@ -52,13 +56,18 @@ export const Series: FC<Props> = ({ items }) => {
         colorPalette,
     } = useVisualizationContext();
 
+    const yField = isCartesianVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.dirtyLayout?.yField
+        : undefined;
+
     const sortedByPivot = useMemo(
         () =>
-            !!pivotDimensions?.length &&
-            !!resultsData?.metricQuery?.sorts?.some((sort) =>
-                pivotDimensions.includes(sort.fieldId),
+            isPivotSeriesOrderDeterminedByQuery(
+                pivotDimensions,
+                yField,
+                resultsData?.metricQuery?.sorts,
             ),
-        [pivotDimensions, resultsData?.metricQuery?.sorts],
+        [pivotDimensions, yField, resultsData?.metricQuery?.sorts],
     );
 
     const isCartesianChart =
@@ -170,6 +179,8 @@ export const Series: FC<Props> = ({ items }) => {
 
     return (
         <Stack spacing="md">
+            <ColorPaletteSection />
+            <Divider />
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="results-table-sort-fields">
                     {(dropProps) => (

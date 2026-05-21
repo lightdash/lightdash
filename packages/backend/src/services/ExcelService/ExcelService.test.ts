@@ -79,6 +79,19 @@ const mockItemMapWithFormats: ItemsMap = {
         fieldType: FieldType.DIMENSION,
         sql: '${TABLE}.timestamp_column',
     },
+    date_base_ts_column: {
+        name: 'date_base_ts_column',
+        description: undefined,
+        type: DimensionType.DATE,
+        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        timeInterval: TimeFrames.DAY,
+        hidden: false,
+        table: 'table',
+        tableLabel: 'table',
+        label: 'Date Base TS Column',
+        fieldType: FieldType.DIMENSION,
+        sql: '${TABLE}.date_base_ts_column',
+    } as Dimension,
     // Additional format test cases from Lightdash docs
     pounds_currency_rounded: {
         name: 'pounds_currency_rounded',
@@ -642,6 +655,120 @@ describe('ExcelService', () => {
             // Check that dates are correctly parsed (use moment for consistent comparison)
             expect(result[0]).toEqual(moment('2020-07-05').toDate());
             expect(result[1]).toEqual(new Date('2023-12-25T10:30:00.000Z'));
+        });
+
+        describe('timezone wall-clock shift', () => {
+            const TIMESTAMP_ROW = {
+                timestamp_column: '2024-01-16T05:30:45.000Z',
+            };
+            const SORTED = ['timestamp_column'];
+
+            it.each([
+                ['undefined', undefined],
+                ['UTC', 'UTC'],
+            ])(
+                'is a no-op when timezone is %s (silence guarantee)',
+                (_label, tz) => {
+                    const result = ExcelService.convertRowToExcel(
+                        TIMESTAMP_ROW,
+                        mockItemMapWithFormats,
+                        false,
+                        SORTED,
+                        tz,
+                    );
+
+                    expect(result[0]).toEqual(
+                        moment('2024-01-16T05:30:45.000Z').toDate(),
+                    );
+                },
+            );
+
+            it('shifts TIMESTAMP cells into project-tz wall-clock when tz is non-UTC', () => {
+                const result = ExcelService.convertRowToExcel(
+                    TIMESTAMP_ROW,
+                    mockItemMapWithFormats,
+                    false,
+                    SORTED,
+                    'America/New_York',
+                );
+
+                // 05:30:45 UTC == 00:30:45 NY (EST, -5).
+                const cell = result[0] as Date;
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCFullYear()).toBe(2024);
+                expect(cell.getUTCMonth()).toBe(0);
+                expect(cell.getUTCDate()).toBe(16);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(30);
+                expect(cell.getUTCSeconds()).toBe(45);
+            });
+
+            it('does not shift DATE cells (calendar values stay as-is)', () => {
+                const result = ExcelService.convertRowToExcel(
+                    { date_column: '2024-01-16' },
+                    mockItemMapWithFormats,
+                    false,
+                    ['date_column'],
+                    'America/New_York',
+                );
+
+                expect(result[0]).toEqual(moment('2024-01-16').toDate());
+            });
+
+            it('shifts DATE cells whose base is TIMESTAMP (DATE_TRUNC round-trip)', () => {
+                // 2024-01-16T05:00:00Z is midnight Jan 16 in NY (EST, -5)
+                // after the DATE_TRUNC round-trip — should land on the
+                // project-tz day boundary, not the UTC instant.
+                const result = ExcelService.convertRowToExcel(
+                    { date_base_ts_column: '2024-01-16T05:00:00.000Z' },
+                    mockItemMapWithFormats,
+                    false,
+                    ['date_base_ts_column'],
+                    'America/New_York',
+                );
+
+                const cell = result[0] as Date;
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCFullYear()).toBe(2024);
+                expect(cell.getUTCMonth()).toBe(0);
+                expect(cell.getUTCDate()).toBe(16);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(0);
+            });
+        });
+
+        describe('convertToExcelDate', () => {
+            it('returns the same Date as today when timezone is undefined or UTC', () => {
+                const iso = '2024-01-16T05:30:45.000Z';
+                const expected = moment(iso, moment.ISO_8601, true).toDate();
+
+                expect(ExcelService.convertToExcelDate(iso)).toEqual(expected);
+                expect(ExcelService.convertToExcelDate(iso, 'UTC')).toEqual(
+                    expected,
+                );
+            });
+
+            it('shifts ISO timestamp strings to project-tz wall-clock when tz is non-UTC', () => {
+                const cell = ExcelService.convertToExcelDate(
+                    '2024-01-16T05:30:45.000Z',
+                    'America/New_York',
+                ) as Date;
+
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(30);
+            });
+
+            it('does not shift bare date strings (no time component)', () => {
+                const cell = ExcelService.convertToExcelDate(
+                    '2024-01-16',
+                    'America/New_York',
+                );
+
+                expect(cell).toEqual(
+                    moment('2024-01-16', moment.ISO_8601, true).toDate(),
+                );
+            });
         });
 
         it('should preserve numeric metric values that resemble YYYYMM dates (PROD-6683)', () => {
@@ -1416,6 +1543,127 @@ describe('ExcelService', () => {
             // WEEK is a non-native timeframe, so timeIntervalToExcelNumFmt
             // returns null → no date conversion should happen
             expect(dateCells).toHaveLength(0);
+        });
+
+        it('omits a hidden row-index dimension from the XLSX pivot output (regression guard for hiddenDimensionFieldIds)', async () => {
+            // Regression guard: PivotConfig.hiddenDimensionFieldIds must cause the
+            // hidden dimension to be absent from the rendered headers and body cells.
+            // This mirrors the CSV regression guard in pivotResultsAsCsv.test.ts.
+            const pivotDimension = 'payments_payment_method';
+            const indexDimension = 'customers_created_month'; // will be hidden
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [indexDimension]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-01',
+                    [metric]: 200,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-02',
+                    [metric]: 150,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-02',
+                    [metric]: 250,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, indexDimension],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: indexDimension, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            // Hide the row-index dimension via hiddenDimensionFieldIds
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: [indexDimension],
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+                enableImprovedExcelDates: true,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore - Buffer type mismatch between exceljs and Node 20
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const allCellValues: unknown[] = [];
+            worksheet!.eachRow((row) => {
+                row.eachCell({ includeEmpty: false }, (cell) => {
+                    allCellValues.push(cell.value);
+                });
+            });
+
+            // The hidden dimension's field values must not appear anywhere
+            expect(allCellValues).not.toContain('2023-01');
+            expect(allCellValues).not.toContain('2023-02');
+            // The hidden dimension's label must not appear in headers
+            expect(allCellValues).not.toContain('Created month');
+
+            // The pivot-column-header and metric values should still be present
+            expect(allCellValues).toContain('credit_card');
+            expect(allCellValues).toContain('bank_transfer');
         });
     });
 

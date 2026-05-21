@@ -8,6 +8,7 @@ import {
     CompiledTable,
     CreateWarehouseCredentials,
     CustomDimensionType,
+    defaultNullSafeEqualSql,
     DimensionType,
     Explore,
     FieldType,
@@ -88,6 +89,7 @@ export const warehouseClientMock: WarehouseClient = {
     },
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -144,6 +146,7 @@ export const bigqueryClientMock: WarehouseClient = {
     } as CreateWarehouseCredentials,
     getFieldQuoteChar: () => '`',
     getFloatingType: () => 'FLOAT64',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getCatalog: async () => ({
         default: {
             public: {
@@ -2387,6 +2390,18 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
+                line_item_id: {
+                    type: DimensionType.STRING,
+                    name: 'line_item_id',
+                    label: 'Line Item ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.line_item_id',
+                    compiledSql: '"orders".line_item_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
             },
             metrics: {
                 total_revenue: {
@@ -2400,6 +2415,24 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     compiledSql: 'SUM("orders".amount)',
                     compiledValueSql: '"orders".amount',
                     compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                // Multi-key distinct: dedupes by (order_id, payment_method)
+                total_payment_by_method_per_order: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'total_payment_by_method_per_order',
+                    label: 'Total payment by method per order',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '"orders".amount',
+                    compiledDistinctKeys: [
+                        '"orders".order_id',
+                        '"orders".payment_method',
+                    ],
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
@@ -2421,6 +2454,64 @@ export const METRIC_QUERY_SUM_DISTINCT_WITH_DIMS: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+// Selected dimension matches the metric's distinct_key — exercises the INNER JOIN path
+// where the dedup CTE keeps one row per distinct-key value.
+export const METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_line_item_id'],
+        metrics: ['orders_total_revenue'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_total_revenue', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where both distinct_keys are selected as dimensions — reproduces
+// the case reported on feature/spk-450 where every output row was incorrectly the same.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id', 'orders_payment_method'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where only one of two distinct_keys is selected — outer CTE must
+// aggregate across the unselected key, INNER JOIN on the selected one.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_PARTIAL_JOIN: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
 
 export const METRIC_QUERY_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     exploreName: 'orders',
@@ -3011,6 +3102,174 @@ export const METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS: CompiledMetricQuery = {
     metrics: ['my_table_mixed_raw_agg_repro'],
     filters: {},
     sorts: [{ fieldId: 'my_table_mixed_raw_agg_repro', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// PROD-7503: base table has a hidden helper metric named `met_active_customers`
+// (type:number — raw column ref). A joined table has an aggregate metric with
+// the SAME name (type:average). The base table also has:
+//   - an outer mixed metric `met_active_customers_agg` whose SQL uses the short
+//     form `${met_active_customers}` to reference the base table's raw helper.
+//   - an outer pure-agg metric `met_active_customers_goal` whose SQL uses the
+//     qualified form `${joined_tbl.met_active_customers}` to reference the
+//     joined table's aggregate.
+// Selecting both triggers the nested_agg_mixed CTE with an aggregate inner dep
+// from the joined table whose name collides with the base helper's name.
+export const EXPLORE_NESTED_AGG_NAME_COLLISION: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'base_tbl',
+    label: 'base_tbl',
+    baseTable: 'base_tbl',
+    tags: [],
+    tables: {
+        base_tbl: {
+            name: 'base_tbl',
+            label: 'base_tbl',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."base_tbl"',
+            primaryKey: ['id'],
+            lineageGraph: {},
+            dimensions: {
+                category: {
+                    type: DimensionType.STRING,
+                    name: 'category',
+                    label: 'category',
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.category',
+                    compiledSql: '"base_tbl".category',
+                    tablesReferences: ['base_tbl'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                // Hidden helper: raw column ref. Same NAME as the joined
+                // table's aggregate metric — this is the collision.
+                met_active_customers: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers',
+                    label: 'met_active_customers',
+                    sql: '${TABLE}.active_customers',
+                    compiledSql: '"base_tbl".active_customers',
+                    tablesReferences: ['base_tbl'],
+                    hidden: true,
+                },
+                // Hidden helper: raw column ref (ordering column for MAX_BY).
+                met_updated_on: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_updated_on',
+                    label: 'met_updated_on',
+                    sql: '${TABLE}.updated_on',
+                    compiledSql: '"base_tbl".updated_on',
+                    tablesReferences: ['base_tbl'],
+                    hidden: true,
+                },
+                // Outer mixed metric: both inner deps are raw column helpers on
+                // base_tbl. The ${met_active_customers} short-form ref must
+                // resolve to base_tbl's helper, NOT the joined table's
+                // aggregate of the same name.
+                met_active_customers_agg: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers_agg',
+                    label: 'met_active_customers_agg',
+                    sql: 'MAX_BY(${met_active_customers}, ${met_updated_on})',
+                    compiledSql:
+                        'MAX_BY("base_tbl".active_customers, "base_tbl".updated_on)',
+                    tablesReferences: ['base_tbl'],
+                    hidden: false,
+                },
+                // Outer pure-agg metric: qualified ref to the joined table's
+                // aggregate. Forces joined_tbl.met_active_customers into
+                // aggregateInnerDeps for the nested_agg CTE.
+                met_active_customers_goal: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers_goal',
+                    label: 'met_active_customers_goal',
+                    sql: '${joined_tbl.met_active_customers}',
+                    compiledSql: 'AVG("joined_tbl".active_customers)',
+                    tablesReferences: ['base_tbl', 'joined_tbl'],
+                    hidden: false,
+                },
+            },
+        },
+        joined_tbl: {
+            name: 'joined_tbl',
+            label: 'joined_tbl',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."joined_tbl"',
+            primaryKey: ['base_id'],
+            lineageGraph: {},
+            dimensions: {
+                joined_dim: {
+                    type: DimensionType.STRING,
+                    name: 'joined_dim',
+                    label: 'joined_dim',
+                    table: 'joined_tbl',
+                    tableLabel: 'joined_tbl',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.joined_dim',
+                    compiledSql: '"joined_tbl".joined_dim',
+                    tablesReferences: ['joined_tbl'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                // Aggregate metric with the SAME name as base_tbl's helper.
+                met_active_customers: {
+                    type: MetricType.AVERAGE,
+                    fieldType: FieldType.METRIC,
+                    table: 'joined_tbl',
+                    tableLabel: 'joined_tbl',
+                    name: 'met_active_customers',
+                    label: 'met_active_customers',
+                    sql: '${TABLE}.active_customers',
+                    compiledSql: 'AVG("joined_tbl".active_customers)',
+                    tablesReferences: ['joined_tbl'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'joined_tbl',
+            sqlOn: '${base_tbl.id} = ${joined_tbl.base_id}',
+            compiledSqlOn: '("base_tbl".id) = ("joined_tbl".base_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_ONE,
+            tablesReferences: ['base_tbl', 'joined_tbl'],
+        },
+    ],
+};
+
+export const METRIC_QUERY_NESTED_AGG_NAME_COLLISION: CompiledMetricQuery = {
+    exploreName: 'base_tbl',
+    dimensions: ['base_tbl_category'],
+    metrics: [
+        'base_tbl_met_active_customers_agg',
+        'base_tbl_met_active_customers_goal',
+    ],
+    filters: {},
+    sorts: [{ fieldId: 'base_tbl_met_active_customers_agg', descending: true }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

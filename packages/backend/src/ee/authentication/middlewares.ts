@@ -1,12 +1,8 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
 import {
-    applyServiceAccountAbilities,
     AuthorizationError,
     getErrorMessage,
-    OrganizationMemberRole,
     ScimError,
     ServiceAccountScope,
-    type MemberAbility,
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
@@ -42,15 +38,6 @@ const logServiceAccountAuthFailure = (
     }
 };
 
-const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
-    if (
-        scopes.includes(ServiceAccountScope.SCIM_MANAGE) ||
-        scopes.includes(ServiceAccountScope.ORG_ADMIN)
-    ) {
-        return OrganizationMemberRole.ADMIN;
-    }
-    return OrganizationMemberRole.MEMBER;
-};
 // Middleware to extract SCIM user details
 export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
     // Check for SCIM headers or payload (assuming SCIM details are in the headers for this example)
@@ -90,47 +77,20 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
         }
         req.serviceAccount = serviceAccount;
 
-        // Build CASL abilities from the service account scopes so that
-        // SCIM operations go through the same audited authorization path
-        // as regular service-account API requests.
-        const builder = new AbilityBuilder<MemberAbility>(Ability);
-        applyServiceAccountAbilities({
-            scopes: serviceAccount.scopes,
-            organizationUuid: serviceAccount.organizationUuid,
-            builder,
-        });
-        const organization = await req.services
-            .getOrganizationService()
-            .getOrganizationByUuid(serviceAccount.organizationUuid);
-
-        const adminUser = await req.services
+        // Load the SA's dedicated `users` row. Abilities are derived from the
+        // SA's scopes via `applyServiceAccountAbilities` inside
+        // `UserModel.generateUserAbilityBuilder`, which detects internal users
+        // and bypasses the role/project ability builder.
+        const sessionUser = await req.services
             .getUserService()
-            .getAdminUser(
-                serviceAccount.createdByUserUuid,
-                serviceAccount.organizationUuid,
-            );
+            .getSessionUserForServiceAccount(serviceAccount);
 
-        // TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
-        // service-account/principle-user unrelated to a real admin-user.
-        // @see https://github.com/lightdash/lightdash/issues/15466
         req.user = {
-            userUuid: adminUser.userUuid,
-            email: 'service-account@lightdash.com',
-            firstName: 'service account',
-            lastName: serviceAccount.description,
-            organizationUuid: serviceAccount.organizationUuid,
-            organizationName: organization.name,
-            organizationCreatedAt: serviceAccount.createdAt,
-            isTrackingAnonymized: false,
-            isMarketingOptedIn: false,
-            isSetupComplete: true,
-            userId: adminUser.userId,
-            role: getRoleForScopes(serviceAccount.scopes),
-            ability: builder.build(),
-            isActive: true,
-            abilityRules: builder.rules,
-            createdAt: serviceAccount.createdAt,
-            updatedAt: serviceAccount.createdAt,
+            ...sessionUser,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
         };
 
         if (req?.account?.isAuthenticated()) {
@@ -204,47 +164,39 @@ export const authenticateServiceAccount: RequestHandler = async (
                 'Invalid service account token. Authentication failed.',
             );
         }
-        req.serviceAccount = serviceAccount;
-        // Create a SessionUser with abilities based on service account scopes
-        // Scope validation is done on casl abitly checks
-        const builder = new AbilityBuilder<MemberAbility>(Ability);
-        applyServiceAccountAbilities({
-            scopes: serviceAccount.scopes,
-            organizationUuid: serviceAccount.organizationUuid,
-            builder,
-        });
-        const organization = await req.services
-            .getOrganizationService()
-            .getOrganizationByUuid(serviceAccount.organizationUuid);
 
-        const adminUser = await req.services
-            .getUserService()
-            .getAdminUser(
-                serviceAccount.createdByUserUuid,
-                serviceAccount.organizationUuid,
+        // SCIM-only tokens are only valid for `/scim/v2/*` endpoints, which
+        // use `isScimAuthenticated`. Reject them here so they can't reach the
+        // regular API surface.
+        const isScimOnly =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SCIM_MANAGE;
+        if (isScimOnly) {
+            logServiceAccountAuthFailure(
+                req,
+                'SCIM-only token used outside /scim/* endpoints',
             );
+            throw new AuthorizationError(
+                'Invalid service account token. Authentication failed.',
+            );
+        }
 
-        // TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
-        // service-account/principle-user unrelated to a real admin-user.
-        // @see https://github.com/lightdash/lightdash/issues/15466
+        req.serviceAccount = serviceAccount;
+
+        // Load the SA's dedicated `users` row. Abilities are derived from the
+        // SA's scopes via `applyServiceAccountAbilities` inside
+        // `UserModel.generateUserAbilityBuilder`, which detects internal users
+        // and bypasses the role/project ability builder.
+        const sessionUser = await req.services
+            .getUserService()
+            .getSessionUserForServiceAccount(serviceAccount);
+
         req.user = {
-            userUuid: adminUser.userUuid,
-            email: 'service-account@lightdash.com',
-            firstName: 'service account',
-            lastName: serviceAccount.description,
-            organizationUuid: serviceAccount.organizationUuid,
-            organizationName: organization.name,
-            organizationCreatedAt: serviceAccount.createdAt, // TODO replace with organization.createdAt,
-            isTrackingAnonymized: false,
-            isMarketingOptedIn: false,
-            isSetupComplete: true,
-            userId: adminUser.userId,
-            role: getRoleForScopes(serviceAccount.scopes),
-            ability: builder.build(),
-            isActive: true,
-            abilityRules: builder.rules,
-            createdAt: serviceAccount.createdAt,
-            updatedAt: serviceAccount.createdAt,
+            ...sessionUser,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
         };
 
         if (req?.account?.isAuthenticated()) {

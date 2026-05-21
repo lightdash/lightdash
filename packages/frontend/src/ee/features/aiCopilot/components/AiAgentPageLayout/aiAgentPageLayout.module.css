@@ -62,6 +62,46 @@
     }
 }
 
+.artifactResizeHandle {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    background-color: transparent;
+    position: relative;
+    z-index: 2;
+
+    &[data-resize-handle-state='hover'],
+    &[data-resize-handle-state='drag'] {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
 .artifact {
     box-shadow: var(--mantine-shadow-lg);
+}
+
+.workspace {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    @mixin light {
+        background-color: white;
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
+}
+
+.floatingArtifactRegion {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm) 0;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+}
+
+.floatingArtifactRegion > * {
+    flex: 1;
+    min-height: 0;
 }

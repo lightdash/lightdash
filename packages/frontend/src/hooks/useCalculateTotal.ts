@@ -26,14 +26,12 @@ const calculateTotalFromQuery = async ({
     explore,
     invalidateCache,
     parameters,
-    savedChartUuid,
 }: {
     projectUuid: string;
     metricQuery?: MetricQuery;
     explore?: string;
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
-    savedChartUuid?: string;
 }): Promise<ApiCalculateTotalResponse['results']> => {
     if (!metricQuery || !explore) {
         throw new Error(
@@ -49,7 +47,6 @@ const calculateTotalFromQuery = async ({
         },
         parameters,
         invalidateCache,
-        savedChartUuid,
     };
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/projects/${projectUuid}/calculate-total`,
@@ -179,7 +176,6 @@ export const useCalculateTotal = ({
     showColumnCalculation,
     embedToken,
     parameters,
-    isEditMode,
 }: {
     metricQuery?: MetricQueryRequest;
     explore?: string;
@@ -191,7 +187,6 @@ export const useCalculateTotal = ({
     showColumnCalculation?: boolean;
     embedToken: string | undefined;
     parameters?: ParametersValuesMap;
-    isEditMode?: boolean;
 }) => {
     const metricsWithTotals = useMemo(() => {
         if (!fieldIds || !itemsMap) return [];
@@ -200,9 +195,8 @@ export const useCalculateTotal = ({
     }, [fieldIds, itemsMap, showColumnCalculation]);
     const projectUuid = useProjectUuid();
 
-    const useSavedChartEndpoint = Boolean(savedChartUuid && !isEditMode);
-
-    const queryKey = useSavedChartEndpoint
+    // only add relevant fields to the key (filters, metrics)
+    const queryKey = savedChartUuid
         ? { savedChartUuid, dashboardFilters, invalidateCache, parameters }
         : {
               filters: metricQuery?.filters,
@@ -210,7 +204,6 @@ export const useCalculateTotal = ({
               additionalMetrics: metricQuery?.additionalMetrics,
               invalidateCache,
               parameters,
-              savedChartUuid,
           };
 
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
@@ -235,15 +228,15 @@ export const useCalculateTotal = ({
                         invalidateCache,
                         parameters,
                     })
-                  : // Regular mode with saved chart (view)
-                    useSavedChartEndpoint && savedChartUuid
+                  : // Regular mode with saved chart
+                    savedChartUuid
                     ? calculateTotalFromSavedChart({
                           savedChartUuid,
                           dashboardFilters,
                           invalidateCache,
                           parameters,
                       })
-                    : // Regular mode with raw query (explore / edit)
+                    : // Regular mode with raw query
                       projectUuid
                       ? calculateTotalFromQuery({
                             projectUuid,
@@ -251,7 +244,6 @@ export const useCalculateTotal = ({
                             explore,
                             invalidateCache,
                             parameters,
-                            savedChartUuid,
                         })
                       : Promise.reject(),
         retry: false,

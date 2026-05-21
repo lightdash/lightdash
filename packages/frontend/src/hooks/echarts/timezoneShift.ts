@@ -1,4 +1,5 @@
 import {
+    extractableTimeFrames,
     isDimension,
     TimeFrames,
     type CartesianChart,
@@ -76,7 +77,12 @@ const detectTimezoneShiftedField = ({
     if (!field || !isDimension(field)) return undefined;
     const timeInterval = field.timeInterval;
     if (!timeInterval) return undefined;
-    if (TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(timeInterval)) {
+    // Skip non-timestamp axis values: category-axis intervals render as
+    // strings, EXTRACT-based intervals return ints/names.
+    if (
+        TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(timeInterval) ||
+        extractableTimeFrames.has(timeInterval)
+    ) {
         return undefined;
     }
     return { fieldId: timeFieldId, timezone: resolvedTimezone, flipAxes };

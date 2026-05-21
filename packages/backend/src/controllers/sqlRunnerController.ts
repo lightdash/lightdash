@@ -12,6 +12,7 @@ import {
     ApiUpdateSqlChart,
     ApiWarehouseTableFields,
     ApiWarehouseTablesCatalog,
+    assertRegisteredAccount,
     CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
     CreateVirtualViewPayload,
@@ -42,6 +43,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -65,12 +67,13 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiWarehouseTablesCatalog> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseTables(req.user!, projectUuid),
+                .getWarehouseTables(toSessionUser(req.account), projectUuid),
         };
     }
 
@@ -93,6 +96,7 @@ export class SqlRunnerController extends BaseController {
         @Query() schemaName?: string,
         @Query() databaseName?: string,
     ): Promise<ApiWarehouseTableFields> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
@@ -100,7 +104,7 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getWarehouseFields(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     QueryExecutionContext.SQL_RUNNER,
                     tableName,
@@ -127,6 +131,7 @@ export class SqlRunnerController extends BaseController {
         @Body() body: SqlRunnerBody,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
@@ -134,7 +139,7 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getSavedSqlService()
                 .getResultJobFromSql(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.sql,
                     body.limit,
@@ -159,6 +164,7 @@ export class SqlRunnerController extends BaseController {
         @Body() body: SqlRunnerPivotQueryBody,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
@@ -166,7 +172,7 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getSavedSqlService()
                 .getResultJobFromSqlPivotQuery(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body,
                     getContextFromQueryOrHeader(req),
@@ -190,12 +196,13 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<AnyType> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         this.setHeader('Content-Type', 'application/json');
 
         const readStream = await this.services
             .getProjectService()
-            .getFileStream(req.user!, projectUuid, fileId);
+            .getFileStream(toSessionUser(req.account), projectUuid, fileId);
 
         const { res } = req;
         if (res) {
@@ -225,12 +232,13 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSqlChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChart(req.user!, projectUuid, uuid),
+                .getSqlChart(toSessionUser(req.account), projectUuid, uuid),
         };
     }
 
@@ -250,12 +258,18 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSqlChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChart(req.user!, projectUuid, undefined, slug),
+                .getSqlChart(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    undefined,
+                    slug,
+                ),
         };
     }
 
@@ -275,13 +289,14 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
                 .getSqlChartResultJob(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     slug,
                     undefined,
@@ -306,13 +321,14 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
                 .getSqlChartResultJob(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     undefined,
                     uuid,
@@ -341,12 +357,13 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateSqlChart,
     ): Promise<ApiCreateSqlChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .createSqlChart(req.user!, projectUuid, body),
+                .createSqlChart(toSessionUser(req.account), projectUuid, body),
         };
     }
 
@@ -372,12 +389,18 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: UpdateSqlChart,
     ): Promise<ApiUpdateSqlChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .updateSqlChart(req.user!, projectUuid, uuid, body),
+                .updateSqlChart(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    uuid,
+                    body,
+                ),
         };
     }
 
@@ -401,8 +424,11 @@ export class SqlRunnerController extends BaseController {
         @Path() uuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
-        await this.services.getSavedSqlService().delete(req.user!, uuid);
+        await this.services
+            .getSavedSqlService()
+            .delete(toSessionUser(req.account), uuid);
         return {
             status: 'ok',
             results: undefined,
@@ -429,17 +455,18 @@ export class SqlRunnerController extends BaseController {
         @Path() uuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSqlChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const promotedSqlChart = await this.services
             .getPromoteService()
-            .promoteSqlChart(req.user!, projectUuid, uuid);
+            .promoteSqlChart(toSessionUser(req.account), projectUuid, uuid);
 
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
                 .getSqlChart(
-                    req.user!,
+                    toSessionUser(req.account),
                     promotedSqlChart.projectUuid,
                     promotedSqlChart.savedSqlUuid,
                 ),
@@ -462,12 +489,17 @@ export class SqlRunnerController extends BaseController {
         @Path() uuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPromotionChangesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .getPromoteSqlChartDiff(req.user!, projectUuid, uuid),
+                .getPromoteSqlChartDiff(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    uuid,
+                ),
         };
     }
 
@@ -489,10 +521,14 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getProjectService()
-            .populateWarehouseTablesCache(req.user!, projectUuid);
+            .populateWarehouseTablesCache(
+                toSessionUser(req.account),
+                projectUuid,
+            );
         return {
             status: 'ok',
             results: undefined,
@@ -580,10 +616,11 @@ export class SqlRunnerController extends BaseController {
         @Path() name: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getProjectService()
-            .deleteVirtualView(req.user!, projectUuid, name);
+            .deleteVirtualView(toSessionUser(req.account), projectUuid, name);
         return {
             status: 'ok',
             results: undefined,
@@ -607,6 +644,7 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiGithubDbtWritePreview> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const { name } = body;
 
@@ -614,7 +652,11 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .writeBackPreview(req.user!, projectUuid, name),
+                .writeBackPreview(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    name,
+                ),
         };
     }
 
@@ -635,6 +677,7 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiGithubDbtWriteBack> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const { name, sql, columns } = body;
 
@@ -643,7 +686,7 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequestFromSql(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     name,
                     sql,
@@ -665,12 +708,17 @@ export class SqlRunnerController extends BaseController {
         @Path() savedSqlUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: SchedulerAndTargets[] }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSchedulers(req.user!, projectUuid, savedSqlUuid),
+                .getSchedulers(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    savedSqlUuid,
+                ),
         };
     }
 
@@ -692,12 +740,18 @@ export class SqlRunnerController extends BaseController {
         @Body() body: CreateSchedulerAndTargetsWithoutIds,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: SchedulerAndTargets }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .createScheduler(req.user!, projectUuid, savedSqlUuid, body),
+                .createScheduler(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    savedSqlUuid,
+                    body,
+                ),
         };
     }
 }

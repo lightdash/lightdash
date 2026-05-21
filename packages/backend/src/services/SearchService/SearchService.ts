@@ -14,6 +14,7 @@ import {
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -29,6 +30,8 @@ type SearchServiceArguments = {
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
     spacePermissionService: SpacePermissionService;
+    // EE-only — undefined on OSS builds where data apps don't exist.
+    appGenerateService?: AppGenerateService;
 };
 
 export class SearchService extends BaseService {
@@ -44,6 +47,8 @@ export class SearchService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly appGenerateService?: AppGenerateService;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -52,6 +57,7 @@ export class SearchService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.appGenerateService = args.appGenerateService;
     }
 
     async getSearchResults(
@@ -214,6 +220,24 @@ export class SearchService extends BaseService {
             results.spaces.map(filterItem),
         );
 
+        // Data apps are EE-only and have a per-app permission shape (space
+        // access OR creator self-access). Skip entirely on OSS builds and
+        // when the feature flag is off; otherwise filter via the bulk helper.
+        let filteredDataApps: SearchResults['dataApps'] = [];
+        if (this.appGenerateService && results.dataApps.length > 0) {
+            const dataAppsEnabled =
+                await this.appGenerateService.dataAppsEnabledFor(user);
+            if (dataAppsEnabled) {
+                filteredDataApps =
+                    await this.appGenerateService.filterAppsUserCanView(
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                        results.dataApps,
+                    );
+            }
+        }
+
         const filteredResults = {
             ...results,
             tables: filteredTables,
@@ -240,6 +264,7 @@ export class SearchService extends BaseService {
             )
                 ? results.pages
                 : [], // For now there is only 1 page and it is for admins only
+            dataApps: filteredDataApps,
         };
 
         this.analytics.track({
@@ -254,6 +279,7 @@ export class SearchService extends BaseService {
                 tablesResultsCount: filteredResults.tables.length,
                 fieldsResultsCount: filteredResults.fields.length,
                 dashboardTabsResultsCount: filteredResults.dashboardTabs.length,
+                dataAppsResultsCount: filteredResults.dataApps.length,
                 source,
             },
         });

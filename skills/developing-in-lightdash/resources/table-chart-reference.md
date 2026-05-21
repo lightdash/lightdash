@@ -47,6 +47,8 @@ version: 1
 | `showResultsTotal` | boolean | Show total count of results |
 | `showSubtotals` | boolean | Show subtotal rows for grouped data |
 | `metricsAsRows` | boolean | Display metrics as rows instead of columns (pivoted view) |
+| `rowLimit` | object | Show or hide the first/last N rows client-side (see below) |
+| `columnLimit` | number | Maximum number of pivot groups to display as columns (pivoted tables only) |
 
 ### Column Configuration
 
@@ -80,6 +82,43 @@ Conditional formatting highlights cells based on their values. Each rule consist
 - **Numeric**: `lessThan`, `lessThanOrEqual`, `greaterThan`, `greaterThanOrEqual`
 - **Range**: `inBetween`, `notInBetween`
 - **Date**: `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`
+
+### Limiting Displayed Rows
+
+Use `rowLimit` to trim the rendered table to the first or last N rows without changing the underlying query. This is client-side slicing on already-fetched rows.
+
+```yaml
+chartConfig:
+  config:
+    rowLimit:
+      mode: show          # "show" or "hide"
+      direction: first    # "first" or "last"
+      count: 10
+```
+
+| User intent | Config |
+|---|---|
+| "Show only the top 10 rows" | `{ mode: show, direction: first, count: 10 }` |
+| "Hide the last row (a totals row)" | `{ mode: hide, direction: last, count: 1 }` |
+| "Show the bottom 5" (assumes ascending sort) | `{ mode: show, direction: last, count: 5 }` |
+
+**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` constrains how many rows are fetched from the warehouse. `rowLimit` only trims what is displayed. Use `metricQuery.limit` to fetch fewer rows; use `rowLimit` when the full dataset should remain queryable (e.g. for exports) but only a subset should appear.
+
+### Limiting Pivot Columns
+
+For pivoted tables, use `columnLimit` to cap how many pivot groups appear as columns. The limit applies to **distinct pivot dimension values**, not raw column count — so `columnLimit: 5` on a table pivoted by region keeps the first 5 regions, each potentially expanding into multiple metric columns.
+
+```yaml
+chartConfig:
+  config:
+    columnLimit: 10
+  type: "table"
+pivotConfig:
+  columns:
+    - orders_product_category
+```
+
+`columnLimit` is only meaningful when `pivotConfig.columns` is set. Omitting it (or setting `0`) means no limit. For non-pivoted tables, hide individual columns via `columns.<fieldId>.visible: false` instead.
 
 ## Example: Full-Featured Table
 

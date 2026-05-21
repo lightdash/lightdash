@@ -97,9 +97,8 @@ CASL is the underlying authorization library. Lightdash builds CASL abilities fr
 **CaslSubjectNames** (~35 subject types):
 ```
 AiAgent, AiAgentThread, Analytics, ChangeCsvResults, CompileProject,
-ContentAsCode, CustomSql, Dashboard, DashboardComments, DashboardCsv,
-DashboardImage, DashboardPdf, Explore, ExportCsv, GoogleSheets, Group,
-InviteLink, Job, JobStatus, MetricsTree, Organization,
+ContentAsCode, CustomSql, Dashboard, DashboardComments, Explore, ExportCsv, GoogleSheets, 
+Group, InviteLink, Job, JobStatus, MetricsTree, Organization,
 OrganizationMemberProfile, OrganizationWarehouseCredentials,
 PersonalAccessToken, PinnedItems, Project, SavedChart, ScheduledDeliveries,
 SemanticViewer, SourceCode, Space, SpotlightTableConfig, SqlRunner, Tags,

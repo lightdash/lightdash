@@ -30,10 +30,10 @@ export const mockScimAccount = {
         type: 'registered' as const,
         id: 'scim-service-account-user-uuid',
         userUuid: 'scim-service-account-user-uuid',
-        email: 'service-account@lightdash.com',
-        firstName: 'service account',
-        lastName: 'SCIM',
-        isActive: true,
+        email: undefined,
+        firstName: 'SCIM service account',
+        lastName: '',
+        isActive: false,
         role: OrganizationMemberRole.ADMIN,
         ability: new Ability<PossibleAbilities>([
             { subject: 'OrganizationMemberProfile', action: ['manage'] },
@@ -42,6 +42,7 @@ export const mockScimAccount = {
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        timezone: null,
         isSetupComplete: true,
         userId: 1,
         createdAt: new Date('2024-01-01'),

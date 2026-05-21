@@ -232,9 +232,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceViewItemType.DATA_APP:
+                    if (!projectUuid) return null;
                     return (
                         <AppUpdateModal
                             opened
+                            projectUuid={projectUuid}
                             uuid={action.item.data.uuid}
                             initialName={action.item.data.name}
                             initialDescription={

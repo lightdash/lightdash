@@ -42,6 +42,9 @@ const DashboardCellContextMenu: FC<
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -118,11 +121,21 @@ const DashboardCellContextMenu: FC<
             },
         });
 
+        // PROD-880: pass active date zoom so underlying-data uses the correct grain
+        const dateZoom =
+            dateZoomGranularity && metricQuery?.metadata?.hasADateDimension
+                ? {
+                      granularity: dateZoomGranularity,
+                      xAxisFieldId: `${metricQuery.metadata.hasADateDimension.table}_${metricQuery.metadata.hasADateDimension.name}`,
+                  }
+                : undefined;
+
         openUnderlyingDataModal({
             item: meta.item,
             value,
             fieldValues,
             pivotReference: meta?.pivotReference,
+            ...(dateZoom && { dateZoom }),
         });
     }, [
         track,
@@ -132,6 +145,8 @@ const DashboardCellContextMenu: FC<
         meta,
         value,
         fieldValues,
+        dateZoomGranularity,
+        metricQuery?.metadata?.hasADateDimension,
     ]);
 
     return (

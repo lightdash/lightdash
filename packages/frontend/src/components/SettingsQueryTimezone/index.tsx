@@ -10,6 +10,7 @@ import {
     Flex,
     LoadingOverlay,
     Stack,
+    Switch,
     Text,
     Title,
 } from '@mantine-8/core';
@@ -27,6 +28,7 @@ import TimeZonePicker from '../common/TimeZonePicker';
 
 const queryTimezoneSchema = z.object({
     timezone: z.string().nullable(),
+    useProjectTimezoneInFilters: z.boolean(),
 });
 
 type QueryTimezoneFormValues = z.infer<typeof queryTimezoneSchema>;
@@ -34,31 +36,55 @@ type QueryTimezoneFormValues = z.infer<typeof queryTimezoneSchema>;
 const QueryTimezoneForm: FC<{
     isLoading: boolean;
     project: Project;
+    showFilterInputsToggle: boolean;
     onSubmit: (data: QueryTimezoneFormValues) => void;
-}> = ({ isLoading, project, onSubmit }) => {
+}> = ({ isLoading, project, showFilterInputsToggle, onSubmit }) => {
     const form = useForm<QueryTimezoneFormValues>({
         validate: zodResolver(queryTimezoneSchema),
         initialValues: {
             timezone: project.queryTimezone ?? null,
+            useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
         },
     });
 
     const hasChanged = useMemo(
-        () => form.values.timezone !== (project.queryTimezone ?? null),
-        [form.values.timezone, project.queryTimezone],
+        () =>
+            form.values.timezone !== (project.queryTimezone ?? null) ||
+            form.values.useProjectTimezoneInFilters !==
+                project.useProjectTimezoneInFilters,
+        [
+            form.values.timezone,
+            form.values.useProjectTimezoneInFilters,
+            project.queryTimezone,
+            project.useProjectTimezoneInFilters,
+        ],
     );
+
+    const filterToggleDisabled = !form.values.timezone;
 
     return (
         <form onSubmit={form.onSubmit(onSubmit)}>
-            <TimeZonePicker
-                label="Default query time zone"
-                variant="default"
-                maw="100%"
-                searchable
-                clearable
-                placeholder="Server default (UTC)"
-                {...form.getInputProps('timezone')}
-            />
+            <Stack gap="md">
+                <TimeZonePicker
+                    label="Default time zone"
+                    variant="default"
+                    maw="100%"
+                    searchable
+                    clearable
+                    placeholder="Server default (UTC)"
+                    {...form.getInputProps('timezone')}
+                />
+                {showFilterInputsToggle && (
+                    <Switch
+                        label="Project time zone in filter inputs"
+                        description="Interpret absolute dates in the project's time zone instead of the user's browser."
+                        disabled={filterToggleDisabled}
+                        {...form.getInputProps('useProjectTimezoneInFilters', {
+                            type: 'checkbox',
+                        })}
+                    />
+                )}
+            </Stack>
             <Flex justify="flex-end" gap="sm" mt="sm">
                 <Button
                     type="submit"
@@ -90,19 +116,23 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
 
     const handleSubmit = useCallback(
         async (values: QueryTimezoneFormValues) => {
+            const queryTimezone = values.timezone ?? null;
             try {
                 await projectMutation.mutateAsync({
-                    queryTimezone: values.timezone ?? null,
+                    queryTimezone,
+                    useProjectTimezoneInFilters:
+                        queryTimezone !== null &&
+                        values.useProjectTimezoneInFilters,
                 });
                 showToastSuccess({
-                    title: `Successfully updated project's query timezone`,
+                    title: `Successfully updated project's time zone settings`,
                 });
             } catch (e) {
                 const errorMessage = isApiError(e)
                     ? e.error.message
                     : getErrorMessage(e);
                 showToastError({
-                    title: `Failed to update project's query timezone`,
+                    title: `Failed to update project's time zone settings`,
                     subtitle: errorMessage,
                 });
             }
@@ -115,7 +145,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Query time zone</Title>
+                    <Title order={4}>Project time zone</Title>
                     <Text c="ldGray.6" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>
@@ -153,6 +183,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                         <QueryTimezoneForm
                             isLoading={projectMutation.isLoading}
                             project={project}
+                            showFilterInputsToggle={timezoneSupportEnabled}
                             onSubmit={handleSubmit}
                         />
                     )}

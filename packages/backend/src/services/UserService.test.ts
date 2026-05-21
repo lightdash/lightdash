@@ -14,12 +14,14 @@ import { LightdashConfig } from '../config/parseConfig';
 import * as winston from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
@@ -96,6 +98,10 @@ const projectModel = {
     ensureDefaultUserSpace: jest.fn(async () => undefined),
 };
 
+const organizationSsoModel = {
+    findEnabledMethodsForEmailDomain: jest.fn(async () => []),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
@@ -114,9 +120,17 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         personalAccessTokenModel: {} as PersonalAccessTokenModel,
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
+        organizationSsoModel:
+            organizationSsoModel as unknown as OrganizationSsoModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: 'leave-organization',
+                enabled: true,
+            })),
+        } as unknown as FeatureFlagModel,
     });
 
 jest.spyOn(analyticsMock, 'track');
@@ -320,6 +334,273 @@ describe('UserService', () => {
             forceRedirect: false,
             redirectUri: undefined,
             showOptions: ['google', 'azuread', 'oneLogin', 'okta'],
+        });
+    });
+
+    describe('getLoginOptions per-org SSO discovery', () => {
+        const azureMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.AZUREAD as unknown as never,
+            config: {
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+                oauth2TenantId: 'tid',
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+        const googleMethod = {
+            ...azureMethod,
+            provider: OpenIdIdentityIssuerType.GOOGLE as unknown as never,
+        };
+
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                azuread: {
+                    ...lightdashConfigMock.auth.azuread,
+                    loginPath: '/login/azuread',
+                },
+            },
+        };
+
+        test('no per-org match → instance defaults shown', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@unknown.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'google'],
+            });
+        });
+
+        test('per-org Azure match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'azuread'],
+            });
+        });
+
+        test('per-org Azure match + allow_password=false hides password input', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([{ ...azureMethod, allowPassword: false }]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=user%40acme.com',
+                showOptions: ['azuread'],
+            });
+        });
+
+        test('brand-new user matching per-org Azure → forceRedirect with login_hint', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=newbie%40acme.com',
+                showOptions: ['azuread'],
+            });
+        });
+
+        test('multiple per-org matches → both buttons, no forceRedirect', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                { ...azureMethod, allowPassword: false },
+                googleMethod,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            // Lenient password rule: googleMethod.allowPassword=true → password shown
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'azuread', 'google'],
+            });
+        });
+
+        test('multiple per-org matches all allow_password=false → no password input', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                { ...azureMethod, allowPassword: false },
+                { ...googleMethod, allowPassword: false },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['azuread', 'google'],
+            });
+        });
+
+        test("returning user's prior Google identity is ignored when per-org Azure matches", async () => {
+            // Org migrated from instance Google to per-org Azure.
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.GOOGLE,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=user%40acme.com',
+                showOptions: ['azuread'],
+            });
+        });
+
+        test('returning user with linked SSO and password → single OIDC still forceRedirects (no other SSO option to show)', async () => {
+            // hasPassword=false, only one OIDC option (Azure), no password input
+            // ⇒ truly one option ⇒ forceRedirect
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.AZUREAD,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=user%40acme.com',
+                showOptions: ['azuread'],
+            });
+        });
+
+        test('no email → returns instance defaults, no SSO lookup', async () => {
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions()).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'google'],
+            });
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('existing user in a DIFFERENT org → per-org SSO method is filtered out (cross-org hijack defence)', async () => {
+            // The Azure SSO row belongs to org-1, but the user is in org-2.
+            // Without filtering, an attacker org could redirect this user's
+            // SSO flow to their tenant.
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]); // org-1
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'victim-uuid',
+                email: 'victim@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Victim Org' },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('victim@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                // No Azure — the matching method belonged to a different org
+                showOptions: ['email'],
+            });
+        });
+
+        test('existing user in the SAME org → per-org SSO method is kept', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]); // org-1
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'member-uuid',
+                email: 'member@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-1', organizationName: 'Acme Org' },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('member@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'azuread'],
+            });
+        });
+
+        test('brand-new user (no Lightdash account) → cross-org filter does not apply, discovery as normal', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([azureMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newcomer@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=newcomer%40acme.com',
+                showOptions: ['azuread'],
+            });
         });
     });
 
@@ -532,11 +813,22 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
+                organizationSsoModel: {
+                    findOrganizationUuidByProviderAndEmailDomain: jest.fn(
+                        async () => undefined,
+                    ),
+                } as unknown as OrganizationSsoModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: jest.fn(async () => ({
+                        id: 'leave-organization',
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
             });
 
             await expect(
@@ -590,11 +882,22 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
+                organizationSsoModel: {
+                    findOrganizationUuidByProviderAndEmailDomain: jest.fn(
+                        async () => undefined,
+                    ),
+                } as unknown as OrganizationSsoModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: jest.fn(async () => ({
+                        id: 'leave-organization',
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
             });
 
             await expect(
@@ -678,7 +981,7 @@ describe('UserService', () => {
                     inviteUser,
                 ),
             ).rejects.toThrowError(
-                'Email is already used by a user in another organization',
+                'Email is already used by a user in another organization. Ask them to leave their organisation before inviting them.',
             );
         });
         test('should throw error when email belongs to an active user in same org', async () => {
@@ -862,132 +1165,6 @@ describe('UserService', () => {
             expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
                 2,
             );
-        });
-    });
-
-    describe('getAdminUser', () => {
-        const orgUuid = 'org-uuid';
-        const creatorUuid = 'creator-uuid';
-        const oldestAdminUuid = 'oldest-admin-uuid';
-
-        const buildService = (overrides: {
-            findSessionUserAndOrgByUuid: jest.Mock;
-            findOldestAdminUserUuid: jest.Mock;
-        }) => {
-            const userModelOverride = {
-                ...userModel,
-                findSessionUserAndOrgByUuid:
-                    overrides.findSessionUserAndOrgByUuid,
-            } as unknown as UserModel;
-            const orgMemberModelOverride = {
-                findOldestAdminUserUuid: overrides.findOldestAdminUserUuid,
-            } as unknown as OrganizationMemberProfileModel;
-            return new UserService({
-                analytics: analyticsMock,
-                lightdashConfig: lightdashConfigMock,
-                inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
-                userModel: userModelOverride,
-                groupsModel: {} as GroupsModel,
-                sessionModel: {} as SessionModel,
-                emailModel: emailModel as unknown as EmailModel,
-                openIdIdentityModel:
-                    openIdIdentityModel as unknown as OpenIdIdentityModel,
-                passwordResetLinkModel: {} as PasswordResetLinkModel,
-                emailClient: emailClient as unknown as EmailClient,
-                organizationMemberProfileModel: orgMemberModelOverride,
-                organizationModel:
-                    organizationModel as unknown as OrganizationModel,
-                personalAccessTokenModel: {} as PersonalAccessTokenModel,
-                organizationAllowedEmailDomainsModel:
-                    {} as OrganizationAllowedEmailDomainsModel,
-                userWarehouseCredentialsModel:
-                    {} as UserWarehouseCredentialsModel,
-                warehouseAvailableTablesModel:
-                    {} as WarehouseAvailableTablesModel,
-                projectModel: projectModel as unknown as ProjectModel,
-            });
-        };
-
-        test('returns the creator when it still exists (no fallback)', async () => {
-            const findSessionUserAndOrgByUuid = jest
-                .fn()
-                .mockResolvedValueOnce(sessionUser);
-            const findOldestAdminUserUuid = jest.fn();
-            const service = buildService({
-                findSessionUserAndOrgByUuid,
-                findOldestAdminUserUuid,
-            });
-
-            const result = await service.getAdminUser(creatorUuid, orgUuid);
-
-            expect(result).toBe(sessionUser);
-            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
-                creatorUuid,
-                orgUuid,
-            );
-            expect(findOldestAdminUserUuid).not.toHaveBeenCalled();
-        });
-
-        test('falls back to the oldest admin when the creator no longer exists', async () => {
-            const findSessionUserAndOrgByUuid = jest
-                .fn()
-                .mockRejectedValueOnce(new Error('not found'))
-                .mockResolvedValueOnce(sessionUser);
-            const findOldestAdminUserUuid = jest
-                .fn()
-                .mockResolvedValueOnce(oldestAdminUuid);
-            const service = buildService({
-                findSessionUserAndOrgByUuid,
-                findOldestAdminUserUuid,
-            });
-
-            const result = await service.getAdminUser(creatorUuid, orgUuid);
-
-            expect(result).toBe(sessionUser);
-            expect(findOldestAdminUserUuid).toHaveBeenCalledWith(orgUuid);
-            expect(findSessionUserAndOrgByUuid).toHaveBeenLastCalledWith(
-                oldestAdminUuid,
-                orgUuid,
-            );
-        });
-
-        test('falls back when the creator uuid is null', async () => {
-            const findSessionUserAndOrgByUuid = jest
-                .fn()
-                .mockResolvedValueOnce(sessionUser);
-            const findOldestAdminUserUuid = jest
-                .fn()
-                .mockResolvedValueOnce(oldestAdminUuid);
-            const service = buildService({
-                findSessionUserAndOrgByUuid,
-                findOldestAdminUserUuid,
-            });
-
-            const result = await service.getAdminUser(null, orgUuid);
-
-            expect(result).toBe(sessionUser);
-            expect(findOldestAdminUserUuid).toHaveBeenCalledWith(orgUuid);
-            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
-                oldestAdminUuid,
-                orgUuid,
-            );
-        });
-
-        test('throws when no admin exists in the organization', async () => {
-            const findSessionUserAndOrgByUuid = jest
-                .fn()
-                .mockRejectedValueOnce(new Error('not found'));
-            const findOldestAdminUserUuid = jest
-                .fn()
-                .mockResolvedValueOnce(undefined);
-            const service = buildService({
-                findSessionUserAndOrgByUuid,
-                findOldestAdminUserUuid,
-            });
-
-            await expect(
-                service.getAdminUser(creatorUuid, orgUuid),
-            ).rejects.toThrow('No admin user found');
         });
     });
 });

@@ -26,6 +26,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type DataAppClaudeModel,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -492,6 +493,30 @@ type FormulaTableCalculationSavedEvent = BaseTrack & {
         // iterators in Lightdash analytics.
         action: 'created' | 'updated';
         formulaCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type SqlTableCalculationSavedEvent = BaseTrack & {
+    event: 'sql_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        sqlCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type TemplateTableCalculationSavedEvent = BaseTrack & {
+    event: 'template_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        templateCount: number;
         totalTableCalculationCount: number;
     };
 };
@@ -1180,8 +1205,8 @@ export type DataAppCreatedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         promptLength: number;
-        hasImage: boolean;
-        imageMimeType?: string;
+        imageCount: number;
+        claudeModel: DataAppClaudeModel;
     };
 };
 
@@ -1195,8 +1220,8 @@ export type DataAppIteratedEvent = BaseTrack & {
         version: number;
         iterationNumber: number;
         promptLength: number;
-        hasImage: boolean;
-        imageMimeType?: string;
+        imageCount: number;
+        claudeModel: DataAppClaudeModel;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
     };
@@ -1224,6 +1249,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
         wasResumed: boolean;
         totalDurationMs: number;
         sandboxMs?: number;
@@ -1255,6 +1281,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
         failureStage:
             | 'sandbox'
             | 'catalog'
@@ -1298,6 +1325,18 @@ export type DataAppViewedEvent = BaseTrack & {
     };
 };
 
+export type DataAppVersionRestoredEvent = BaseTrack & {
+    event: 'data_app.version.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        restoredFromVersion: number;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1305,7 +1344,8 @@ export type DataAppEvent =
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
     | DataAppImageUploadedEvent
-    | DataAppViewedEvent;
+    | DataAppViewedEvent
+    | DataAppVersionRestoredEvent;
 
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
@@ -1318,6 +1358,115 @@ export type CommentsEvent = BaseTrack & {
         isOwner?: boolean;
     };
 };
+
+export type ManagedAgentSettingsCreatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+    };
+};
+
+export type ManagedAgentSettingsUpdatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+        changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        >;
+        previousEnabled: boolean;
+        previousSchedule: string;
+    };
+};
+
+export type ManagedAgentRunNowTriggeredEvent = BaseTrack & {
+    event: 'managed_agent.run_now_triggered';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        schedule: string;
+    };
+};
+
+export type ManagedAgentActionReversedEvent = BaseTrack & {
+    event: 'managed_agent.action_reversed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        actionType: string;
+        actionCategory: 'undo' | 'dismiss';
+        targetType: string;
+        sessionId: string;
+        actionAgeMs: number;
+    };
+};
+
+export type ManagedAgentRunStartedEvent = BaseTrack & {
+    event: 'managed_agent.run_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        schedule: string;
+        hasSlackChannel: boolean;
+    };
+};
+
+export type ManagedAgentRunCompletedEvent = BaseTrack & {
+    event: 'managed_agent.run_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        status: 'completed' | 'error';
+        durationMs: number;
+        actionCount: number;
+        actionCountsByType: Record<string, number>;
+        slackPosted: boolean;
+        error: string | null;
+    };
+};
+
+export type ManagedAgentActionCreatedEvent = BaseTrack & {
+    event: 'managed_agent.action_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string | null;
+        sessionId: string;
+        actionType: string;
+        targetType: string;
+    };
+};
+
+export type ManagedAgentEvent =
+    | ManagedAgentSettingsCreatedEvent
+    | ManagedAgentSettingsUpdatedEvent
+    | ManagedAgentRunNowTriggeredEvent
+    | ManagedAgentActionReversedEvent
+    | ManagedAgentRunStartedEvent
+    | ManagedAgentRunCompletedEvent
+    | ManagedAgentActionCreatedEvent;
 
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
@@ -1608,6 +1757,29 @@ export type AiAgentUpdatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentDocumentCreatedEvent = BaseTrack & {
+    event: 'ai_agent_document.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+        mimeType: string;
+        contentSizeBytes: number;
+        agentAccessCount: number;
+    };
+};
+
+export type AiAgentDocumentDeletedEvent = BaseTrack & {
+    event: 'ai_agent_document.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+    };
+};
+
 export type AiAgentPromptCreatedEvent = BaseTrack & {
     event: 'ai_agent_prompt.created';
     userId: string;
@@ -1617,6 +1789,10 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string | undefined;
         context: 'slack' | 'web_app';
+        hasPinnedContext: boolean;
+        pinnedContextCount: number;
+        pinnedChartCount: number;
+        pinnedDashboardCount: number;
     };
 };
 
@@ -1780,6 +1956,74 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverageEvent = BaseTrack & {
+    event: 'ai_agent.find_content_coverage';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        threadId: string;
+        promptId: string;
+        searchQuery: string;
+        totalResultCount: number;
+        verifiedResultCount: number;
+        topResultVerified: boolean;
+    };
+};
+
+export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
+    event: 'ai_agent.suggestions_generated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+        exploreCount: number;
+        verifiedQuestionsCount: number;
+        latencyMs: number;
+        modelId: string;
+        usingFallback: boolean;
+    };
+};
+
+export type AiAgentSuggestionImpressionEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_impression';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+    };
+};
+
+export type AiAgentSuggestionClickEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_click';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipLabel: string;
+        chipTool: string;
+        chipIndex: number;
+    };
+};
+
+export type AiAgentSuggestionSubmitEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_submit';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        toolHints: string[];
+    };
+};
+
 export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     event: 'scheduler.ownership_reassigned';
     properties: {
@@ -1821,6 +2065,8 @@ type TypedEvent =
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
     | FormulaTableCalculationSavedEvent
+    | SqlTableCalculationSavedEvent
+    | TemplateTableCalculationSavedEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
@@ -1890,6 +2136,7 @@ type TypedEvent =
     | RestoredSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
+    | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
@@ -1905,6 +2152,8 @@ type TypedEvent =
     | AiAgentCreatedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
+    | AiAgentDocumentCreatedEvent
+    | AiAgentDocumentDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent
@@ -1914,6 +2163,11 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
+    | AiAgentFindContentCoverageEvent
+    | AiAgentSuggestionsGeneratedEvent
+    | AiAgentSuggestionImpressionEvent
+    | AiAgentSuggestionClickEvent
+    | AiAgentSuggestionSubmitEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;

@@ -22,6 +22,7 @@ const getChartSchedulers = async (
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
     formats?: SchedulerFormat[],
+    includeLatestRun?: boolean,
 ) => {
     const params = new URLSearchParams({
         page: paginateArgs.page.toString(),
@@ -34,6 +35,10 @@ const getChartSchedulers = async (
 
     if (formats && formats.length > 0) {
         params.set('formats', formats.join(','));
+    }
+
+    if (includeLatestRun) {
+        params.set('includeLatestRun', 'true');
     }
 
     return lightdashApi<ChartSchedulersResponse>({
@@ -49,6 +54,7 @@ export type UseChartSchedulersParams = {
     searchQuery?: string;
     pageSize?: number;
     formats?: SchedulerFormat[];
+    includeLatestRun?: boolean;
 };
 
 export const useChartSchedulers = ({
@@ -56,6 +62,7 @@ export const useChartSchedulers = ({
     searchQuery,
     pageSize = 25,
     formats,
+    includeLatestRun,
 }: UseChartSchedulersParams) =>
     useInfiniteQuery<ChartSchedulersResponse, ApiError>({
         queryKey: [
@@ -64,6 +71,7 @@ export const useChartSchedulers = ({
             searchQuery,
             pageSize,
             formats,
+            includeLatestRun,
         ],
         queryFn: ({ pageParam = 1 }) =>
             getChartSchedulers(
@@ -71,6 +79,7 @@ export const useChartSchedulers = ({
                 { page: pageParam as number, pageSize },
                 searchQuery,
                 formats,
+                includeLatestRun,
             ),
         getNextPageParam: (lastPage) => {
             const currentPage = lastPage.pagination?.page ?? 1;

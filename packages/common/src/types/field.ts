@@ -676,6 +676,7 @@ export interface Dimension extends Field {
     timeIntervalBaseDimensionType?: DimensionType;
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
+    skipTimezoneConversion?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];

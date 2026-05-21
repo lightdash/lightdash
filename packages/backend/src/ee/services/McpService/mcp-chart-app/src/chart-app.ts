@@ -1,10 +1,12 @@
+// Deep import bypasses @lightdash/common's barrel, which transitively pulls
+// in pegjs/postcss and breaks the browser bundle (path.isAbsolute externalized).
 import {
     formatCartesianTooltipRow,
     formatColorIndicator,
     formatTooltipHeader,
     formatTooltipRow,
     formatTooltipValue,
-} from '@lightdash/common';
+} from '@lightdash/common/src/visualizations/helpers/styles/tooltipStyles';
 import { App } from '@modelcontextprotocol/ext-apps';
 import * as echarts from 'echarts';
 import { lightdashTheme } from './lightdash-theme';

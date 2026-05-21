@@ -988,7 +988,6 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     license: {
         licenseKey: string | null;
@@ -1019,11 +1018,13 @@ export type LightdashConfig = {
         eventMetricsEnabled: boolean;
         eventMetricsConfigPath?: string;
         allQueryMetricsEnabled: boolean;
+        extendedMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -1033,8 +1034,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        useSqlPivotResults: boolean | undefined;
-        showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
     };
@@ -1129,9 +1128,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    scim: {
-        enabled: boolean;
-    };
     serviceAccount: {
         enabled: boolean;
     };
@@ -1159,18 +1155,14 @@ export type LightdashConfig = {
     microsoftTeams: {
         enabled: boolean;
     };
-    googleChat: {
-        enabled: boolean;
-    };
     googleCloudPlatform: {
         projectId?: string;
     };
     managedAgent: {
-        enabled: boolean;
         anthropicApiKey: string | null;
+        skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
-        agentId: string | null;
     };
 
     initialSetup?: {
@@ -1254,6 +1246,9 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    dashboardComments: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
@@ -1261,12 +1256,6 @@ export type LightdashConfig = {
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
-    };
-    userImpersonation: {
-        enabled: boolean | undefined;
-    };
-    metricDashboardFilters: {
-        enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
@@ -1283,7 +1272,6 @@ export type SlackConfig = {
     socketMode?: boolean;
     channelsCachedTime: number;
     supportUrl: string;
-    multiAgentChannelEnabled: boolean;
     /*
      This is the setting that controls whether we generate image previews for link shares in Slack
      @default true
@@ -1294,6 +1282,7 @@ export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
     internalLightdashHost: string;
+    internalLightdashHostIgnoreHttpsErrors: boolean;
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
@@ -1324,10 +1313,30 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
+    /**
+     * Origin where data-app preview iframes are served, distinct from the
+     * Lightdash app origin (e.g., `https://acme.lightdash.app`). When null,
+     * previews are served same-origin — dev / pre-cutover behavior. The
+     * host filter rejects requests on this hostname unless the path matches
+     * the preview-router prefix.
+     */
     previewOrigin: string | null;
+    /**
+     * Additional origins allowed in the preview iframe CSP for style-src
+     * and font-src directives. Parsed from a comma-separated env var
+     * (e.g. `https://fonts.googleapis.com,https://fonts.gstatic.com`).
+     */
+    cspAllowedOrigins: string[];
     s3: S3Config | null;
     e2bApiKey: string | null;
     e2bTemplateName: string;
+    /**
+     * Tag identifying which build of `e2bTemplateName` to launch sandboxes
+     * from. Composed into `name:tag` for `Sandbox.create`. Empty string falls
+     * back to E2B's implicit `default` tag — used as a transition state for
+     * deployments that haven't picked up a version-tagged build yet.
+     */
+    e2bTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1347,12 +1356,6 @@ type HeadwayConfig = {
 export type RudderConfig = {
     writeKey: string | undefined;
     dataPlaneUrl: string | undefined;
-};
-
-export type PosthogConfig = {
-    projectApiKey: string;
-    feApiHost: string;
-    beApiHost: string;
 };
 
 type JwtKeySetConfig = {
@@ -1395,6 +1398,13 @@ export type AuthGoogleConfig = {
     googleDriveApiKey: string | undefined;
     enabled: boolean;
     enableGCloudADC: boolean;
+    /**
+     * When true, the Google login flow also requests the BigQuery scope so
+     * users on BigQuery SSO complete a single consent screen instead of two
+     * separate OAuth flows (one for login, one for BigQuery warehouse access).
+     * See PROD-7783.
+     */
+    includeBigqueryScope: boolean;
 };
 
 type AuthOktaConfig = {
@@ -1533,9 +1543,18 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
+        cspAllowedOrigins: (process.env.APP_RUNTIME_CSP_ALLOWED_ORIGINS || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
         e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        // Default to the running Lightdash version so prod always launches
+        // sandboxes from the matching template build (the release workflow
+        // guarantees this tag exists). Operators can override to roll back
+        // or pin during incidents.
+        e2bTemplateTag: process.env.E2B_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
 
@@ -1544,8 +1563,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
  * operators should migrate to LIGHTDASH_ENABLE_FEATURE_FLAGS /
  * LIGHTDASH_DISABLE_FEATURE_FLAGS. Entries here translate the legacy var into
  * the unified allowlists for backward compatibility, so self-hosted
- * deployments don't regress when a per-flag handler is removed during
- * PostHog migration. Once an entry has soaked for ~6 months after the
+ * deployments don't regress when a per-flag handler is removed.
+ * Once an entry has soaked for ~6 months after the
  * unified pattern is documented, delete it.
  */
 const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
@@ -1553,15 +1572,41 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-    ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
-    ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+    ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
+    // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
+    // translating to enabledFeatureFlags ensures both existing and new cloud
+    // instances pick up the DB-backed flag as enabled without needing per-DB
+    // bootstrapping.
+    ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
+    ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
+    // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
+    // from the feature flag) — keep the config field, but translate the env
+    // var to the unified allowlist for the flag system too.
+    ['GROUPS_ENABLED', 'user-groups-enabled'],
+    ['SHOW_EXECUTION_TIME', 'show-execution-time'],
+    // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
+    // endpoint) and EmbedService (allowAll config). Keep the config field, but
+    // translate the env var to the unified allowlist for the flag system.
+    ['EMBEDDING_ENABLED', 'embedding'],
+    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
+    // health endpoint). Keep the config field, but translate the env var to
+    // the unified allowlist for the flag system.
+    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
+    ['SCIM_ENABLED', 'scim-token-management'],
+    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
+    // (exposed via the health endpoint). Keep the config field, but translate
+    // the env var to the unified allowlist for the flag system.
+    [
+        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
+        'organization-warehouse-credentials',
+    ],
+    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     readonly [envVar: string, flagId: string]
 > = [
     // Add per migration; truthy env value disables the flag.
-    ['DISABLE_DASHBOARD_COMMENTS', 'dashboard-comments-enabled'],
 ];
 
 export const parseConfig = (): LightdashConfig => {
@@ -1703,17 +1748,6 @@ export const parseConfig = (): LightdashConfig => {
                       process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
-        posthog: process.env.POSTHOG_PROJECT_API_KEY
-            ? {
-                  projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
-                  feApiHost:
-                      process.env.POSTHOG_FE_API_HOST ||
-                      'https://us.i.posthog.com',
-                  beApiHost:
-                      process.env.POSTHOG_BE_API_HOST ||
-                      'https://us.i.posthog.com',
-              }
-            : undefined,
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
@@ -1769,6 +1803,8 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            allowMissingMigrations:
+                process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
         auth: {
             pat: {
@@ -1796,6 +1832,8 @@ export const parseConfig = (): LightdashConfig => {
                 googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
                 enabled: process.env.AUTH_GOOGLE_ENABLED === 'true',
                 enableGCloudADC: process.env.AUTH_ENABLE_GCLOUD_ADC === 'true',
+                includeBigqueryScope:
+                    process.env.AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,
@@ -1937,6 +1975,9 @@ export const parseConfig = (): LightdashConfig => {
             allQueryMetricsEnabled:
                 process.env.LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED ===
                 'true', // defaults to false, tracks execution duration & S3 upload for all queries (not just pre-aggregate)
+            extendedMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_EXTENDED_METRICS_ENABLED ===
+                'true', // defaults to false
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -1958,12 +1999,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
-                ? process.env.USE_SQL_PIVOT_RESULTS !== 'false'
-                : undefined,
-            showExecutionTime: process.env.SHOW_EXECUTION_TIME
-                ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
@@ -2013,6 +2048,9 @@ export const parseConfig = (): LightdashConfig => {
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
+            internalLightdashHostIgnoreHttpsErrors:
+                process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS ===
+                'true',
             browserEndpoint,
             maxScreenshotRetries: parseInt(
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
@@ -2053,8 +2091,6 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 10 minutes
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
-            multiAgentChannelEnabled:
-                process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
@@ -2189,9 +2225,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        scim: {
-            enabled: process.env.SCIM_ENABLED === 'true',
-        },
         serviceAccount: {
             enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
         },
@@ -2234,22 +2267,23 @@ export const parseConfig = (): LightdashConfig => {
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
         },
-        googleChat: {
-            enabled: process.env.GOOGLE_CHAT_ENABLED === 'true',
-        },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         managedAgent: {
-            enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
             anthropicApiKey:
-                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY || null,
-            schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
+                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
+                process.env.ANTHROPIC_API_KEY ||
+                null,
+            skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
+                .split(',')
+                .map((skillId) => skillId.trim())
+                .filter(Boolean),
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
             sessionTimeoutMs: parseInt(
-                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
                 10,
-            ), // 5 minutes default
-            agentId: process.env.MANAGED_AGENT_AGENT_ID || null,
+            ), // 10 minutes default
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
@@ -2274,6 +2308,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
         },
+        dashboardComments: {
+            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
+        },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
             retentionDays:
@@ -2291,17 +2328,6 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
-        },
-        userImpersonation: {
-            enabled:
-                process.env.USER_IMPERSONATION_ENABLED === 'true'
-                    ? true
-                    : undefined,
-        },
-        metricDashboardFilters: {
-            enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
-                ? process.env.METRIC_DASHBOARD_FILTERS_ENABLED === 'true'
-                : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
         enabledFeatureFlags: new Set([

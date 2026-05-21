@@ -466,6 +466,29 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
                 'wss://headless-browser-host',
             );
         });
+
+        test('internalLightdashHostIgnoreHttpsErrors defaults to false', () => {
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(false);
+        });
+
+        test('internalLightdashHostIgnoreHttpsErrors is true when env var is "true"', () => {
+            process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS = 'true';
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(true);
+        });
+
+        test('internalLightdashHostIgnoreHttpsErrors is false for any other value', () => {
+            process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS = '1';
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(false);
+        });
     });
 
     describe('environment variables for API tokens', () => {
@@ -671,19 +694,6 @@ describe('scheduler poll interval', () => {
     });
 });
 
-test('should set useSqlPivotResults only when the environment variable is set', () => {
-    const undefinedConfig = parseConfig();
-    expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();
-
-    process.env.USE_SQL_PIVOT_RESULTS = 'true';
-    const trueConfig = parseConfig();
-    expect(trueConfig.query.useSqlPivotResults).toBe(true);
-
-    process.env.USE_SQL_PIVOT_RESULTS = 'false';
-    const falseConfig = parseConfig();
-    expect(falseConfig.query.useSqlPivotResults).toBe(false);
-});
-
 test('should set groups.enabled only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.groups.enabled).toBeUndefined();
@@ -841,14 +851,25 @@ describe('getMultiProjectSetupConfig', () => {
 });
 
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
-    // The change-chart-explore / show-hide-rows / show-hide-columns env-var
-    // parsers were removed when those flags were migrated to DB-backed
-    // resolution. Re-translating them via the legacy enable list preserves
-    // backward compat for self-hosted deployments that set these vars.
+    // The change-chart-explore env-var parser was removed when that flag was
+    // migrated to DB-backed resolution. Re-translating it via the legacy
+    // enable list preserves backward compat for self-hosted deployments that
+    // set the var.
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-        ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
-        ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+        ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
+        ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
+        ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
+        ['GROUPS_ENABLED', 'user-groups-enabled'],
+        ['SHOW_EXECUTION_TIME', 'show-execution-time'],
+        ['EMBEDDING_ENABLED', 'embedding'],
+        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
+        ['SCIM_ENABLED', 'scim-token-management'],
+        [
+            'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
+            'organization-warehouse-credentials',
+        ],
+        ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
@@ -873,21 +894,15 @@ describe('feature flag env-var allowlists', () => {
         expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
     });
 
-    test('legacy DISABLE_DASHBOARD_COMMENTS=true translates to disabledFeatureFlags', () => {
-        // Backward-compat for self-hosters who set the legacy env var before
-        // the unified LIGHTDASH_DISABLE_FEATURE_FLAGS pattern was introduced.
-        process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
-        const config = parseConfig();
-        expect(
-            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
-        ).toBe(true);
-    });
-
-    test('legacy DISABLE_DASHBOARD_COMMENTS unset leaves the flag out of disabledFeatureFlags', () => {
+    test('dashboardComments.enabled defaults to true when DISABLE_DASHBOARD_COMMENTS is unset', () => {
         delete process.env.DISABLE_DASHBOARD_COMMENTS;
         const config = parseConfig();
-        expect(
-            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
-        ).toBe(false);
+        expect(config.dashboardComments.enabled).toBe(true);
+    });
+
+    test('DISABLE_DASHBOARD_COMMENTS=true disables dashboardComments', () => {
+        process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
+        const config = parseConfig();
+        expect(config.dashboardComments.enabled).toBe(false);
     });
 });

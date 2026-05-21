@@ -30,7 +30,6 @@ import {
     ScimUpsertUser,
     ScimUser,
     ScimUserRole,
-    SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
@@ -121,13 +120,13 @@ export class ScimService extends BaseService {
         this.openIdIdentityModel = openIdIdentityModel;
     }
 
-    private throwForbiddenErrorOnNoPermission(user: SessionUser) {
-        const auditedAbility = this.createAuditedAbility(user);
+    private throwForbiddenErrorOnNoPermission(account: Account) {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -503,10 +502,14 @@ export class ScimService extends BaseService {
             }
             // Validate roles if provided
             const { allScimRoles } = await this.getAllRoles(organizationUuid);
+            let dedupedRoles: ScimUserRole[] | undefined;
             if (user.roles !== undefined) {
                 const validRoleValues = allScimRoles.map((role) => role.value);
-                // Throws error if roles are not valid
-                ScimService.validateRolesArray(user.roles, validRoleValues);
+                // Throws error if roles are not valid; returns deduped roles
+                dedupedRoles = ScimService.validateRolesArray(
+                    user.roles,
+                    validRoleValues,
+                );
             }
             const email = ScimService.getScimUserEmail(user);
 
@@ -581,7 +584,7 @@ export class ScimService extends BaseService {
             await this.upsertUserRoles({
                 organizationUuid,
                 userUuid: dbUser.userUuid,
-                roles: user.roles,
+                roles: dedupedRoles,
             });
 
             // verify user email on create if coming from scim
@@ -679,13 +682,17 @@ export class ScimService extends BaseService {
                 throw new ForbiddenError();
             }
             // Validate roles if provided
+            let dedupedRoles: ScimUserRole[] | undefined;
             if (user.roles !== undefined) {
                 const { allScimRoles } =
                     await this.getAllRoles(organizationUuid);
                 const validRoleValues = allScimRoles.map((role) => role.value);
 
-                // Throws error if roles are not valid
-                ScimService.validateRolesArray(user.roles, validRoleValues);
+                // Throws error if roles are not valid; returns deduped roles
+                dedupedRoles = ScimService.validateRolesArray(
+                    user.roles,
+                    validRoleValues,
+                );
             }
             const emailToUpdate = ScimService.getScimUserEmail(user);
             // get existing user (and make sure user is in the organization)
@@ -735,7 +742,7 @@ export class ScimService extends BaseService {
             await this.upsertUserRoles({
                 organizationUuid,
                 userUuid,
-                roles: user.roles,
+                roles: dedupedRoles,
             });
 
             // If active status changes, either true or false
@@ -1840,10 +1847,10 @@ export class ScimService extends BaseService {
     static validateRolesArray(
         roles: ScimUserRole[],
         validRoleValues: string[],
-    ): void {
+    ): ScimUserRole[] {
         // For backwards compatibility, when array is empty, skip validation and let caller skip updates
         if (roles.length === 0) {
-            return;
+            return roles;
         }
 
         // Check for invalid role values
@@ -1861,8 +1868,18 @@ export class ScimService extends BaseService {
             );
         }
 
+        // Dedupe roles by value. Entra "Update changed user" jobs sometimes emit
+        // a PATCH `Add` for `roles` on top of a user's existing role; without
+        // this, identical duplicates would trip "found 2" / "duplicate project"
+        // errors. Conflicting org roles or conflicting per-project roles still
+        // throw below.
+        const dedupedRoles = roles.filter(
+            (role, index, arr) =>
+                arr.findIndex((r) => r.value === role.value) === index,
+        );
+
         // Parse roles and categorize them
-        const parsedRoles = roles.map((role) => ({
+        const parsedRoles = dedupedRoles.map((role) => ({
             ...role,
             parsed: ScimService.parseRoleId(role.value),
         }));
@@ -1894,6 +1911,8 @@ export class ScimService extends BaseService {
                 ].join(', ')}`,
             );
         }
+
+        return dedupedRoles;
     }
 
     private convertLightdashRoleToScimRole(

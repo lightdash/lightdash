@@ -31,6 +31,7 @@ import { LockedDashboardModal } from '../../components/common/modal/LockedDashbo
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
+import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -82,7 +83,11 @@ type TabGridPanelProps = {
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
-    onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
+    onAddTiles: (
+        tiles: IDashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => Promise<void>;
 };
 
 /**
@@ -208,6 +213,8 @@ type DashboardTabsProps = {
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onParameterClearAll: () => void;
     onParameterPin: (parameterKey: string) => void;
+    parameterOrder: string[];
+    onParameterReorder: (order: string[]) => void;
 };
 
 const DashboardTabs: FC<DashboardTabsProps> = ({
@@ -232,6 +239,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     onParameterChange,
     onParameterClearAll,
     onParameterPin,
+    parameterOrder,
+    onParameterReorder,
 }) => {
     const gridProps = useMemo(() => getResponsiveGridLayoutProps(), []);
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
@@ -329,6 +338,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
+    const isLauncherMounted = useIsLauncherMounted(projectUuid);
+
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
     const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
@@ -338,11 +349,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const defaultTab = dashboardTabs?.[0];
+    // In view mode, hidden tabs are excluded from the bar and from the rendered grid.
+    // In edit mode all tabs are visible (hidden tabs are styled as such).
+    const visibleTabs = useMemo(
+        () =>
+            isEditMode
+                ? dashboardTabs
+                : dashboardTabs.filter((tab) => !tab.hidden),
+        [dashboardTabs, isEditMode],
+    );
     // Context: We don't want to show the "tabs mode" if there is only one tab in state
     // This is because the tabs mode is only useful when there are multiple tabs
-    const sortedTabs = dashboardTabs.length > 1 ? dashboardTabs : [];
+    const sortedTabs = visibleTabs.length > 1 ? visibleTabs : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
-    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+    const tabsEnabled = visibleTabs && visibleTabs.length > 1;
 
     // Track which tabs have been visited so we can lazy-mount tab content.
     // When keepTabsInMemory is enabled, tabs are mounted on first visit and
@@ -647,6 +667,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     uuid: uuid4(),
                     isDefault: true,
                     order: 0,
+                    hidden: false,
                 };
                 newTabs.push(firstTab);
                 // Move all tiles to the new default tab (immutable update)
@@ -664,6 +685,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 uuid: uuid4(),
                 isDefault: false,
                 order: lastOrd + 1,
+                hidden: false,
             };
             newTabs.push(newTab);
             setDashboardTabs(newTabs);
@@ -733,6 +755,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     };
 
+    const handleToggleTabHidden = (tabUuid: string) => {
+        setDashboardTabs((currentTabs) =>
+            currentTabs?.map((tab) =>
+                tab.uuid === tabUuid ? { ...tab, hidden: !tab.hidden } : tab,
+            ),
+        );
+        setHaveTabsChanged(true);
+    };
+
     const handleDuplicateTab = (tabUuid: string) => {
         const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
         if (tab) {
@@ -763,6 +794,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 uuid: uuid4(),
                 isDefault: false,
                 order: lastOrd + 1,
+                hidden: false,
             };
 
             setDashboardTabs((currentTabs) => [...currentTabs, newTab]);
@@ -902,6 +934,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 handleDuplicateTab={
                                                                     handleDuplicateTab
                                                                 }
+                                                                handleToggleTabHidden={
+                                                                    handleToggleTabHidden
+                                                                }
                                                                 setDeletingTab={
                                                                     setDeletingTab
                                                                 }
@@ -1008,6 +1043,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     onParameterPin={
                                                         onParameterPin
                                                     }
+                                                    parameterOrder={
+                                                        parameterOrder
+                                                    }
+                                                    onParameterReorder={
+                                                        onParameterReorder
+                                                    }
                                                     isDateZoomDisabled={
                                                         isDateZoomDisabled
                                                     }
@@ -1043,7 +1084,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         }
                                     >
                                         {tabsEnabled
-                                            ? dashboardTabs
+                                            ? visibleTabs
                                                   .filter((tab) =>
                                                       visitedTabs.has(tab.uuid),
                                                   )
@@ -1279,7 +1320,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop show={isHeaderStuck} />
+            <ScrollToTop
+                show={isHeaderStuck}
+                bottom={isLauncherMounted ? 52 : 24}
+            />
         </DragDropContext>
     );
 };

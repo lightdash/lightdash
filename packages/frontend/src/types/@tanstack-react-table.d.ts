@@ -20,6 +20,7 @@ declare module '@tanstack/react-table' {
         className?: string;
         style?: CSSProperties;
         frozen?: boolean;
+        frozenLayout?: { left: number; isLast: boolean };
         isVisible?: boolean;
         isReadOnly?: boolean; // For computed/derived columns like period-over-period
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;

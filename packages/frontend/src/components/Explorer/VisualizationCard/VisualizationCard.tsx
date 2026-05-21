@@ -6,6 +6,7 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    FeatureFlags,
     type ApiErrorDetail,
     type ChartConfig,
     type ChartType,
@@ -34,15 +35,20 @@ import {
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
     selectSavedChart,
+    selectSorts,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
+    selectUnsavedColorPaletteUuid,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -53,6 +59,7 @@ import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+import SortButton from '../../SortButton';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
@@ -83,15 +90,56 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const { colorScheme } = useMantineColorScheme();
     const dispatch = useExplorerDispatch();
 
-    const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
-        }
-        return org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, org?.chartColors, org?.chartDarkColors]);
-
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+
+    const sorts = useExplorerSelector(selectSorts);
+
+    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
+        FeatureFlags.PivotColumnSort,
+    );
+    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
+
+    const projectUuid = savedChart?.projectUuid || fallBackUUid;
+    const stagedColorPaletteUuid = useExplorerSelector(
+        selectUnsavedColorPaletteUuid,
+    );
+    const isPaletteStagedDirty =
+        savedChart !== undefined &&
+        stagedColorPaletteUuid !== savedChart.colorPaletteUuid;
+    const resolverChartUuid =
+        isPaletteStagedDirty && stagedColorPaletteUuid === null
+            ? undefined
+            : savedChart?.uuid;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        chartUuid: resolverChartUuid,
+        dashboardUuid: savedChart?.dashboardUuid ?? undefined,
+    });
+
+    const { data: palettes } = useColorPalettes({
+        enabled: isPaletteStagedDirty && stagedColorPaletteUuid !== null,
+    });
+    const stagedPalette = useMemo(() => {
+        if (!isPaletteStagedDirty || stagedColorPaletteUuid === null) {
+            return undefined;
+        }
+        return palettes?.find(
+            (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
+        );
+    }, [isPaletteStagedDirty, stagedColorPaletteUuid, palettes]);
+
+    const colorPalette = useMemo(() => {
+        if (stagedPalette) {
+            if (colorScheme === 'dark' && stagedPalette.darkColors) {
+                return stagedPalette.darkColors;
+            }
+            return stagedPalette.colors;
+        }
+        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
+            return resolvedPalette.darkColors;
+        }
+        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, resolvedPalette, stagedPalette]);
 
     const {
         query,
@@ -159,8 +207,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
     );
-
-    const projectUuid = savedChart?.projectUuid || fallBackUUid;
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
@@ -295,7 +341,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-                savedChartUuid={savedChart?.uuid}
+                savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}
@@ -315,17 +361,28 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (
-                            <VisualizationWarning
-                                dirtyPivotConfiguration={
-                                    dirtyPivotConfiguration
-                                }
-                                chartConfig={unsavedChartVersion.chartConfig}
-                                resultsData={resultsData}
-                                isLoading={isLoadingQueryResults}
-                                maxColumnLimit={
-                                    health.data?.pivotTable?.maxColumnLimit
-                                }
-                            />
+                            <>
+                                {isPivotColumnSortEnabled &&
+                                    sorts.length > 0 && (
+                                        <SortButton
+                                            sorts={sorts}
+                                            isEditMode={isEditMode}
+                                        />
+                                    )}
+                                <VisualizationWarning
+                                    dirtyPivotConfiguration={
+                                        dirtyPivotConfiguration
+                                    }
+                                    chartConfig={
+                                        unsavedChartVersion.chartConfig
+                                    }
+                                    resultsData={resultsData}
+                                    isLoading={isLoadingQueryResults}
+                                    maxColumnLimit={
+                                        health.data?.pivotTable?.maxColumnLimit
+                                    }
+                                />
+                            </>
                         )
                     }
                     rightHeaderElement={

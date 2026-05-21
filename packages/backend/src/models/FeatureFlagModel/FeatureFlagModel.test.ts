@@ -122,7 +122,7 @@ describe('FeatureFlagModel', () => {
     });
 
     describe('config handler resolution', () => {
-        it('resolves config-driven flags without PostHog or DB', async () => {
+        it('resolves config-driven flags without hitting the DB', async () => {
             const model = buildModel({
                 editYamlInUi: { enabled: true },
             });

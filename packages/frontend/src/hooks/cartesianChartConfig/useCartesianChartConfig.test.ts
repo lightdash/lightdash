@@ -30,6 +30,7 @@ import {
 import {
     getExpectedSeriesMap,
     getSeriesGroupedByField,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
     sortDimensions,
 } from './utils';
@@ -198,7 +199,7 @@ describe('getExpectedSeriesMap', () => {
             expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
         });
 
-        test('should return identical result when columnLimit is undefined (flag-off path)', () => {
+        test('should return identical result when columnLimit is undefined', () => {
             const withoutLimit = getExpectedSeriesMap(pivotSeriesMapArgs);
             const withUndefinedLimit = getExpectedSeriesMap({
                 ...pivotSeriesMapArgs,
@@ -221,6 +222,41 @@ describe('getExpectedSeriesMap', () => {
                 'my_dimension|my_second_metric.dimension_x.a',
             ]);
         });
+    });
+
+    // When a pivot value appears in the data that is NOT in the saved
+    // eChartsConfig.series, getExpectedSeriesMap synthesises a fresh series
+    // for it. That auto-generated series must inherit stack-label config
+    // from the saved series, otherwise getStackTotalSeries (which short-
+    // circuits when the first stacked series has no stackLabel.show) drops
+    // the synthetic stack-total series and total labels disappear from
+    // every bar. Surfaced after #22899 (0.2918.0) extended the
+    // metric-sort-driven reorder that can push the synthetic series to
+    // index 0.
+    test('should propagate defaultStackLabel to every pivoted series', () => {
+        const defaultStackLabel = { show: true };
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultStackLabel,
+        });
+        const series = Object.values(result);
+        expect(series.length).toBeGreaterThan(0);
+        series.forEach((s) =>
+            expect(s.stackLabel).toStrictEqual(defaultStackLabel),
+        );
+    });
+
+    test('should propagate defaultStackLabel to every non-pivoted series', () => {
+        const defaultStackLabel = { show: true };
+        const result = getExpectedSeriesMap({
+            ...simpleSeriesMapArgs,
+            defaultStackLabel,
+        });
+        const series = Object.values(result);
+        expect(series.length).toBeGreaterThan(0);
+        series.forEach((s) =>
+            expect(s.stackLabel).toStrictEqual(defaultStackLabel),
+        );
     });
 });
 
@@ -572,6 +608,180 @@ describe('mergeExistingAndExpectedSeries', () => {
             ['a', 'b', 'c'],
         );
     });
+
+    test('backend-driven series order from columnIndex DENSE_RANK overrides a saved-chart series order that disagrees (PROD-2927 / #20435)', () => {
+        // Repro: a chart was saved with pivot category order [c, a]. New
+        // results introduced category "b" and the backend re-ordered them
+        // by DENSE_RANK columnIndex into [a, b, c]. Before #20435 the merge
+        // preserved the saved [c, a] order and appended "b" at the end ->
+        // [c, a, b], so users had to manually re-order series after every
+        // run.
+        // Expectation: when sortedByPivot is true, the merged output
+        // matches expectedSeriesMap key order verbatim — backend wins over
+        // a stale saved-chart order, not just over a missing one. This
+        // strengthens the "insert in sorted position" test which only
+        // covered an existing series order that was a prefix of the
+        // backend order ([a, c] vs [a, b, c]).
+        const defaultProps = {
+            label: undefined,
+            type: CartesianSeriesType.BAR,
+            areaStyle: undefined,
+            stack: undefined,
+            showSymbol: undefined,
+            smooth: undefined,
+            yAxisIndex: 0,
+        };
+
+        // Existing series order is REVERSED relative to the new backend
+        // order — [c, a] vs backend's [a, b, c]. This is the case the
+        // existing #20435 test does not cover.
+        const existingSeries: Series[] = [
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+        ];
+
+        const expectedSeriesMap: Record<string, Series> = {
+            'date|metric.version.a': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+            'date|metric.version.b': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'b' }],
+                    },
+                },
+            },
+            'date|metric.version.c': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+        };
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries,
+            sortedByPivot: true,
+        });
+
+        // Backend order wins — exact equality, not just inclusion. A
+        // regression that re-introduces saved-chart order would either
+        // produce [c, a, b] or [c, a, ...] here.
+        expect(result.map((s) => s.encode.yRef.pivotValues?.[0].value)).toEqual(
+            ['a', 'b', 'c'],
+        );
+    });
+});
+
+describe('isPivotSeriesOrderDeterminedByQuery', () => {
+    test('returns false when chart is not pivoted', () => {
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                undefined,
+                ['metric'],
+                [{ fieldId: 'metric' }],
+            ),
+        ).toBe(false);
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                [],
+                ['metric'],
+                [{ fieldId: 'metric' }],
+            ),
+        ).toBe(false);
+    });
+
+    test('returns false when there are no sorts', () => {
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                ['status'],
+                ['metric'],
+                undefined,
+            ),
+        ).toBe(false);
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(['status'], ['metric'], []),
+        ).toBe(false);
+    });
+
+    test('returns true when sort is on a pivot dimension (PROD-2927)', () => {
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                ['status'],
+                ['metric'],
+                [{ fieldId: 'status' }],
+            ),
+        ).toBe(true);
+    });
+
+    test('returns true when sort is on a y-axis metric (PROD-2999)', () => {
+        // Repro: pivoted chart sorted by metric desc — saved series order
+        // ignores the SQL ranking and stays frozen across filter changes.
+        // Series order should track the query, so this predicate must fire.
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                ['status'],
+                ['total_amount'],
+                [{ fieldId: 'total_amount' }],
+            ),
+        ).toBe(true);
+    });
+
+    test('returns false when sort is on a non-pivot, non-metric field (e.g. x-axis dimension)', () => {
+        // Manual drag-reorder still wins when the chart sort doesn't
+        // determine pivot ranking — sorting by the x-axis dimension does
+        // not produce a meaningful series order via DENSE_RANK.
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                ['status'],
+                ['metric'],
+                [{ fieldId: 'order_date' }],
+            ),
+        ).toBe(false);
+    });
+
+    test('returns true when at least one sort matches even if others do not', () => {
+        expect(
+            isPivotSeriesOrderDeterminedByQuery(
+                ['status'],
+                ['metric'],
+                [{ fieldId: 'order_date' }, { fieldId: 'metric' }],
+            ),
+        ).toBe(true);
+    });
 });
 
 describe('getSeriesGroupedByField', () => {
@@ -692,7 +902,7 @@ describe('useCartesianChartConfig', () => {
         expect(result.current.columnLimit).toBeUndefined();
     });
 
-    test('should preserve saved columnLimit in validConfig when feature flag is off', () => {
+    test('should preserve saved columnLimit in validConfig', () => {
         const { result } = renderHook(() =>
             // @ts-expect-error partially mock params for hook
             useCartesianChartConfig({

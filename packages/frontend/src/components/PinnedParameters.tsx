@@ -1,3 +1,5 @@
+import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import {
     type LightdashProjectParameter,
     type ParameterValue,
@@ -10,9 +12,13 @@ import {
     Popover,
     Text,
 } from '@mantine-8/core';
+import { IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
+import { useDndSensors } from '../hooks/useDndSensors';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import { DraggableItem, DroppableArea } from './common/DndHelpers';
+import MantineIcon from './common/MantineIcon';
 
 interface PinnedParameterProps {
     parameterKey: string;
@@ -21,6 +27,7 @@ interface PinnedParameterProps {
     onChange: (key: string, value: ParameterValue | null) => void;
     onUnpin: (key: string) => void;
     isEditMode: boolean;
+    isDraggable?: boolean;
     projectUuid?: string;
 }
 
@@ -31,6 +38,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     onChange,
     onUnpin,
     isEditMode,
+    isDraggable = false,
     projectUuid,
 }) => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -78,6 +86,15 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                             textOverflow: 'ellipsis',
                         },
                     }}
+                    leftSection={
+                        isDraggable && (
+                            <MantineIcon
+                                icon={IconGripVertical}
+                                cursor="grab"
+                                size="sm"
+                            />
+                        )
+                    }
                     rightSection={
                         isEditMode ? (
                             <CloseButton
@@ -139,8 +156,13 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
         (c) => c.parameterDefinitions,
     );
     const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
+    const setPinnedParameters = useDashboardContext(
+        (c) => c.setPinnedParameters,
+    );
 
     const pinnedParameterKeys = useDashboardContext((c) => c.pinnedParameters);
+
+    const dragSensors = useDndSensors();
 
     const handleParameterChange = useCallback(
         (key: string, value: ParameterValue | null) => {
@@ -154,6 +176,18 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
             toggleParameterPin(key);
         },
         [toggleParameterPin],
+    );
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!active || !over || active.id === over.id) return;
+            const oldIndex = pinnedParameterKeys.indexOf(String(active.id));
+            const newIndex = pinnedParameterKeys.indexOf(String(over.id));
+            const newOrder = arrayMove(pinnedParameterKeys, oldIndex, newIndex);
+            setPinnedParameters(newOrder);
+        },
+        [pinnedParameterKeys, setPinnedParameters],
     );
 
     if (!pinnedParameterKeys.length || !parameterDefinitions) {
@@ -172,20 +206,31 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
     }
 
     return (
-        <Group gap="xs">
-            {pinnedParametersList.map(({ key, parameter }) => (
-                <PinnedParameter
-                    key={key}
-                    parameterKey={key}
-                    parameter={parameter}
-                    value={parameterValues[key] ?? null}
-                    onChange={handleParameterChange}
-                    onUnpin={handleUnpin}
-                    isEditMode={isEditMode}
-                    projectUuid={dashboard?.projectUuid}
-                />
-            ))}
-        </Group>
+        <DndContext sensors={dragSensors} onDragEnd={handleDragEnd}>
+            <Group gap="xs">
+                {pinnedParametersList.map(({ key, parameter }) => (
+                    <DroppableArea
+                        key={key}
+                        id={key}
+                        orderedKeys={pinnedParameterKeys}
+                    >
+                        <DraggableItem id={key} disabled={!isEditMode}>
+                            <PinnedParameter
+                                parameterKey={key}
+                                parameter={parameter}
+                                value={parameterValues[key] ?? null}
+                                onChange={handleParameterChange}
+                                onUnpin={handleUnpin}
+                                isEditMode={isEditMode}
+                                isDraggable={isEditMode}
+                                projectUuid={dashboard?.projectUuid}
+                            />
+                        </DraggableItem>
+                    </DroppableArea>
+                ))}
+            </Group>
+            <DragOverlay />
+        </DndContext>
     );
 };
 

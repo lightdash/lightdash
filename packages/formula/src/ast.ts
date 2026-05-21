@@ -19,6 +19,7 @@ export const isAggregateCall = (node: ASTNode): boolean => {
     switch (node.type) {
         case 'ConditionalAggregate':
         case 'CountIf':
+        case 'CountDistinct':
             return true;
         case 'SingleArgFn':
         case 'ZeroOrOneArgFn':
@@ -28,10 +29,15 @@ export const isAggregateCall = (node: ASTNode): boolean => {
                 (node.name === 'MIN' || node.name === 'MAX') &&
                 node.args.length === 1
             );
+        // WindowedAggregate carries its own OVER clause so the renderAggregate
+        // hook must NOT wrap it again — same treatment as native window fns.
+        case 'WindowedAggregate':
         case 'BinaryOp':
         case 'UnaryOp':
         case 'If':
         case 'ZeroArgFn':
+        case 'TwoArgFn':
+        case 'ThreeArgFn':
         case 'VariadicFn':
         case 'WindowFn':
         case 'MovingWindowFn':
@@ -74,11 +80,26 @@ export const extractColumnRefs = (node: ASTNode): string[] => {
             ];
         case 'CountIf':
             return extractColumnRefs(node.condition);
+        case 'CountDistinct':
+            return extractColumnRefs(node.arg);
+        case 'WindowedAggregate': {
+            const aggRefs = extractColumnRefs(node.aggregate);
+            const wc = node.windowClause;
+            const partRefs = wc.partitionBy
+                ? extractColumnRefs(wc.partitionBy)
+                : [];
+            const orderRefs = wc.orderBy
+                ? extractColumnRefs(wc.orderBy.column)
+                : [];
+            return [...aggRefs, ...partRefs, ...orderRefs];
+        }
         case 'SingleArgFn':
             return extractColumnRefs(node.arg);
         case 'ZeroOrOneArgFn':
             return node.arg ? extractColumnRefs(node.arg) : [];
         case 'OneOrTwoArgFn':
+        case 'TwoArgFn':
+        case 'ThreeArgFn':
         case 'VariadicFn':
         case 'DateFn':
             return node.args.flatMap(extractColumnRefs);

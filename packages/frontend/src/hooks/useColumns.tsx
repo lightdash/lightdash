@@ -52,10 +52,8 @@ import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectIsEditMode,
     selectMetricOverrides,
     selectParameters,
-    selectSavedChart,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -397,8 +395,6 @@ export const useColumns = (): TableColumn[] => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
-    const savedChart = useExplorerSelector(selectSavedChart);
-    const isEditMode = useExplorerSelector(selectIsEditMode);
 
     const { activeFields, query, validQueryArgs } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
@@ -512,8 +508,6 @@ export const useColumns = (): TableColumn[] => {
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsMetricQuery,
         explore: exploreData?.baseTable,
-        savedChartUuid: savedChart?.uuid,
-        isEditMode,
         fieldIds: resultsMetricQuery
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,

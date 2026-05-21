@@ -10,6 +10,7 @@ import {
     ParameterError,
     ProjectMemberRole,
     Role,
+    RoleAssignee,
     RoleAssignment,
     RoleWithScopes,
     UpdateRole,
@@ -795,6 +796,20 @@ export class RolesService extends BaseService {
             createdAt: new Date(),
             updatedAt: new Date(),
         };
+    }
+
+    async getRoleAssignees(
+        account: Account,
+        roleUuid: string,
+    ): Promise<RoleAssignee[]> {
+        if (isSystemRole(roleUuid)) {
+            return [];
+        }
+        const role = await this.rolesModel.getRoleByUuid(roleUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        RolesService.validateRoleOwnership(account, auditedAbility, role);
+
+        return this.rolesModel.getRoleAssignees(roleUuid);
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {

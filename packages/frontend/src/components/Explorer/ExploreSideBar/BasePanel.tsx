@@ -13,6 +13,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import MantineIcon from '../../common/MantineIcon';
@@ -20,12 +21,16 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import { buildExploreTree, sortExploreTree } from './exploreTree';
 import VirtualizedExploreList from './VirtualizedExploreList';
 
 const getPreAggregateName = (explore: SummaryExplore) =>
     'preAggregateSource' in explore
         ? explore.preAggregateSource?.preAggregateName
         : undefined;
+
+const exploreHasGroups = (explore: SummaryExplore): boolean =>
+    !!(explore.groups && explore.groups.length > 0) || !!explore.groupLabel;
 
 const BasePanel = () => {
     const navigate = useNavigate();
@@ -35,6 +40,7 @@ const BasePanel = () => {
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
     const exploresResult = useExplores(projectUuid, true, true);
+    const tableGroupsResult = useProjectTableGroups(projectUuid);
     const { data: org } = useOrganization();
 
     const filteredExplores = useMemo(() => {
@@ -46,9 +52,18 @@ const BasePanel = () => {
             if (validSearch !== '') {
                 explores = new Fuse(Object.values(exploresResult.data), {
                     keys: [
-                        'label',
-                        'preAggregateSource.preAggregateName',
-                        'preAggregateSource.sourceExploreName',
+                        { name: 'label', weight: 2 },
+                        { name: 'name', weight: 2 },
+                        {
+                            name: 'preAggregateSource.preAggregateName',
+                            weight: 2,
+                        },
+                        {
+                            name: 'preAggregateSource.sourceExploreName',
+                            weight: 2,
+                        },
+                        { name: 'groupLabel', weight: 1 },
+                        { name: 'groups', weight: 1 },
                     ],
                     ignoreLocation: true,
                     threshold: 0.3,
@@ -61,76 +76,56 @@ const BasePanel = () => {
         return undefined;
     }, [exploresResult.data, debouncedSearch]);
 
+    const tableGroupDetails = useMemo(
+        () => tableGroupsResult.data ?? {},
+        [tableGroupsResult.data],
+    );
+
     const [
-        sortedGroupLabels,
-        exploreGroupMap,
+        groupedExploreTree,
         defaultUngroupedExplores,
         customUngroupedExplores,
         sortedPreAggregateExplores,
-    ] = useMemo<
-        [
-            string[],
-            Record<string, SummaryExplore[]>,
-            SummaryExplore[],
-            SummaryExplore[],
-            SummaryExplore[],
-        ]
-    >(() => {
-        if (filteredExplores) {
-            // Pre-allocate collections for better performance
-            const groupMap: Record<string, SummaryExplore[]> = {};
-            const defaultExplores: SummaryExplore[] = [];
-            const customExplores: SummaryExplore[] = [];
-            const preAggregateExplores: SummaryExplore[] = [];
-
-            // Single-pass categorization without object spreads
-            for (const explore of filteredExplores) {
-                if (explore.type === ExploreType.PRE_AGGREGATE) {
-                    preAggregateExplores.push(explore);
-                } else if (explore.groupLabel) {
-                    if (groupMap[explore.groupLabel]) {
-                        groupMap[explore.groupLabel].push(explore);
-                    } else {
-                        groupMap[explore.groupLabel] = [explore];
-                    }
-                } else if (explore.type === ExploreType.VIRTUAL) {
-                    customExplores.push(explore);
-                } else {
-                    defaultExplores.push(explore);
-                }
-            }
-
-            // Pre-sort group labels once
-            const sortedLabels = Object.keys(groupMap).sort((a, b) =>
-                a.localeCompare(b),
-            );
-
-            // Sort explores within each group
-            for (const groupLabel of sortedLabels) {
-                groupMap[groupLabel].sort((a, b) =>
-                    a.label.localeCompare(b.label),
-                );
-            }
-
-            // Sort ungrouped explores
-            defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
-            customExplores.sort((a, b) => a.label.localeCompare(b.label));
-            preAggregateExplores.sort((a, b) =>
-                (getPreAggregateName(a) ?? '').localeCompare(
-                    getPreAggregateName(b) ?? '',
-                ),
-            );
-
+    ] = useMemo(() => {
+        if (!filteredExplores) {
             return [
-                sortedLabels,
-                groupMap,
-                defaultExplores,
-                customExplores,
-                preAggregateExplores,
+                [],
+                [] as SummaryExplore[],
+                [] as SummaryExplore[],
+                [] as SummaryExplore[],
             ];
         }
-        return [[], {}, [], [], []];
-    }, [filteredExplores]);
+        const groupedExplores: SummaryExplore[] = [];
+        const defaultExplores: SummaryExplore[] = [];
+        const customExplores: SummaryExplore[] = [];
+        const preAggregateExplores: SummaryExplore[] = [];
+
+        for (const explore of filteredExplores) {
+            if (explore.type === ExploreType.PRE_AGGREGATE) {
+                preAggregateExplores.push(explore);
+            } else if (exploreHasGroups(explore)) {
+                groupedExplores.push(explore);
+            } else if (explore.type === ExploreType.VIRTUAL) {
+                customExplores.push(explore);
+            } else {
+                defaultExplores.push(explore);
+            }
+        }
+
+        const tree = sortExploreTree(
+            buildExploreTree(groupedExplores, tableGroupDetails),
+        );
+
+        defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
+        customExplores.sort((a, b) => a.label.localeCompare(b.label));
+        preAggregateExplores.sort((a, b) =>
+            (getPreAggregateName(a) ?? '').localeCompare(
+                getPreAggregateName(b) ?? '',
+            ),
+        );
+
+        return [tree, defaultExplores, customExplores, preAggregateExplores];
+    }, [filteredExplores, tableGroupDetails]);
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
@@ -190,8 +185,7 @@ const BasePanel = () => {
                         />
 
                         <VirtualizedExploreList
-                            sortedGroupLabels={sortedGroupLabels}
-                            exploreGroupMap={exploreGroupMap}
+                            groupedExploreTree={groupedExploreTree}
                             defaultUngroupedExplores={defaultUngroupedExplores}
                             customUngroupedExplores={customUngroupedExplores}
                             preAggregateExplores={sortedPreAggregateExplores}

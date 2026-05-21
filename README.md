@@ -34,8 +34,6 @@
 
 connect your dbt project --> add metrics into dbt --> share insights with your team
 
-If you're a fan, star the repo ⭐️ (we [plant a tree](#the-lightdash-forest) for every GitHub star we get 🌱).
-
 Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-Board-a2c7d872794b45deb7b76ad68701d750).
 
 </div>
@@ -154,18 +152,6 @@ our [Lightdash documentation](https://docs.lightdash.com/) to check out our tuto
 ## Reporting bugs and feature requests
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
-
-## The Lightdash Forest
-
-We're planting trees with the help of the Lightdash community.
-
-Tree planting is one of the simplest and most cost-effective means of mitigating climate change, by absorbing CO2 from the atmosphere. So we thought it would be pretty neat to grow a forest while we grow Lightdash.
-
-Want to help us grow our forest?
-
-Just star this repo! We plant a tree for every star we get on Github. ⭐️ ➡️ 🌱
-
-We plant trees with TIST, you can read all about them here: https://program.tist.org/.
 
 ## Developing locally & Contributing
 
@@ -420,6 +406,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="http://spiss.dev"><img src="https://avatars.githubusercontent.com/u/35728419?v=4?s=100" width="100px;" alt="Lukas Spiss"/><br /><sub><b>Lukas Spiss</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Spissable" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=Spissable" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://ota2000.com"><img src="https://avatars.githubusercontent.com/u/16278388?v=4?s=100" width="100px;" alt="arakaki"/><br /><sub><b>arakaki</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ota2000" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/shu22203"><img src="https://avatars.githubusercontent.com/u/9993362?v=4?s=100" width="100px;" alt="Shu Murakami"/><br /><sub><b>Shu Murakami</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=shu22203" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/manish160993"><img src="https://avatars.githubusercontent.com/u/31579600?v=4?s=100" width="100px;" alt="Manish Biyani"/><br /><sub><b>Manish Biyani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=manish160993" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

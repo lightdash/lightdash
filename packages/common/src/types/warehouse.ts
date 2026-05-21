@@ -12,6 +12,10 @@ export type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    saved_sql_uuid?: string;
+    scheduler_uuid?: string;
+    scheduler_name?: string;
+    job_id?: string;
     explore_name?: string;
     query_context: QueryExecutionContext;
 };
@@ -101,6 +105,7 @@ export interface WarehouseSqlBuilder {
     getEscapeStringQuoteChar: () => string;
     getFieldQuoteChar: () => string;
     getFloatingType: () => string;
+    getNullSafeEqualSql: (left: string, right: string) => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
     escapeString: (value: string) => string;

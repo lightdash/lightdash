@@ -473,6 +473,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:OrganizationWarehouseCredentials',
+        description: 'View organization warehouse credentials',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationWarehouseCredentials',
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
@@ -544,14 +551,15 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SqlRunner',
-        description: 'Run SQL queries and execute SQL charts',
+        description:
+            'Run SQL queries, execute SQL charts, and browse warehouse schema',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:CustomSql',
-        description: 'Save SQL charts and browse warehouse schema',
+        description: 'Save SQL charts',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
@@ -559,6 +567,13 @@ const scopes: Scope[] = [
     {
         name: 'manage:CustomFields',
         description: 'Create and edit custom dimensions',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomSqlTableCalculations',
+        description: 'Create and edit SQL table calculations',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
@@ -620,29 +635,6 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
-    // Sharing Scopes
-    {
-        name: 'export:DashboardCsv',
-        description: 'Can export dashboards and charts to CSV',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardImage',
-        description: 'Can export dashboards and charts to images',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardPdf',
-        description: 'Can export dashboards and charts to PDF',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-
     // AI Agent
     {
         name: 'view:AiAgent',
@@ -654,6 +646,20 @@ const scopes: Scope[] = [
     {
         name: 'manage:AiAgent',
         description: 'Configure AI agent settings',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AiAgentDocument',
+        description: 'View AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentDocument',
+        description: 'Upload and manage AI agent documents',
         isEnterprise: true,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,

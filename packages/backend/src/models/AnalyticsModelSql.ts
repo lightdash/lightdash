@@ -19,6 +19,7 @@ from users
   LEFT JOIN project_group_access ON project_group_access.group_uuid = group_memberships.group_uuid
 WHERE
   emails.is_primary = true
+  AND users.is_internal = false
   AND (
       (organization_memberships.role != 'member'
         AND organization_uuid = '${organizationUuid}')

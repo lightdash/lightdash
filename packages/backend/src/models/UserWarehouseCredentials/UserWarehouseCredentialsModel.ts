@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     databricksOauthU2mUserCredentialsSchema,
     DatabricksTokenError,
@@ -487,5 +488,59 @@ export class UserWarehouseCredentialsModel {
             .delete()
             .where('user_uuid', userUuid)
             .andWhere('warehouse_type', warehouseType);
+    }
+
+    /** Compare-and-swap on the credential's stored refreshToken. Returns true on swap. */
+    async rotateRefreshToken(
+        userWarehouseCredentialsUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(UserWarehouseCredentialsTableName)
+                .select('name', 'warehouse_type', 'encrypted_credentials')
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                )
+                .forUpdate()
+                .first();
+            if (!row) {
+                return false;
+            }
+
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials;
+            } catch {
+                return false;
+            }
+
+            const stored = (credentials as Partial<{ refreshToken: string }>)
+                .refreshToken;
+            if (stored !== expectedOldRefreshToken) {
+                return false;
+            }
+
+            (credentials as { refreshToken: string }).refreshToken =
+                newRefreshToken;
+            const encryptedCredentials = this.encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            );
+            await trx(UserWarehouseCredentialsTableName)
+                .update({
+                    name: row.name,
+                    warehouse_type: row.warehouse_type,
+                    encrypted_credentials: encryptedCredentials,
+                    updated_at: new Date(),
+                })
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                );
+            return true;
+        });
     }
 }

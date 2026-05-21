@@ -21,6 +21,7 @@ const quoteChars: Record<SupportedDbtAdapter, string> = {
     trino: `"`,
     clickhouse: `"`,
     athena: `"`,
+    spark: '`',
 };
 
 const PAGE_SIZE = 500;

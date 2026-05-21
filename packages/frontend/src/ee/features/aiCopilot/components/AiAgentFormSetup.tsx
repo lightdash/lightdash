@@ -1,4 +1,4 @@
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import type { useForm } from '@mantine/form';
+import { type useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsAlt,
@@ -48,10 +48,9 @@ import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
-import {
-    InstructionsGuidelines,
-    InstructionsTemplates,
-} from './InstructionsSupport';
+import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
+import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
+import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
@@ -69,9 +68,9 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
-    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -135,14 +134,6 @@ export const AiAgentFormSetup = ({
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
-
-    const agentReasoningFeatureFlagQuery = useServerFeatureFlag(
-        CommercialFeatureFlags.AgentReasoning,
-    );
-
-    const isAgentReasoningEnabled =
-        agentReasoningFeatureFlagQuery.isSuccess &&
-        agentReasoningFeatureFlagQuery.data.enabled;
 
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
@@ -262,27 +253,6 @@ export const AiAgentFormSetup = ({
                                 </Text>
                             </Stack>
                             <Stack gap="sm">
-                                <Title
-                                    order={6}
-                                    c="ldGray.7"
-                                    size="sm"
-                                    fw={500}
-                                >
-                                    Quick Templates
-                                </Title>
-
-                                <InstructionsTemplates
-                                    onSelect={(instruction: string) => {
-                                        form.setFieldValue(
-                                            'instruction',
-                                            form.values.instruction
-                                                ? `${form.values.instruction}\n\n${instruction}`
-                                                : instruction,
-                                        );
-                                    }}
-                                />
-                            </Stack>
-                            <Stack gap="sm">
                                 <Box>
                                     <Title
                                         order={6}
@@ -310,6 +280,26 @@ export const AiAgentFormSetup = ({
                                     to learn more about instructions and how
                                     they work.
                                 </Text>
+                            </Stack>
+                            <AiAgentKnowledgeFilesSection
+                                agentUuid={agentUuid}
+                                projectUuid={projectUuid}
+                            />
+                            <Stack gap="sm">
+                                <Box>
+                                    <Title
+                                        order={6}
+                                        c="ldGray.7"
+                                        size="sm"
+                                        fw={500}
+                                    >
+                                        Configuration
+                                    </Title>
+                                    <Text c="dimmed" size="xs">
+                                        Control how this agent interacts with
+                                        your data and semantic layer.
+                                    </Text>
+                                </Box>
                             </Stack>
                             <Switch
                                 variant="subtle"
@@ -408,44 +398,16 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
-                            {isAgentReasoningEnabled && (
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <Group gap="xs">
-                                            <Text fz="sm" fw={500}>
-                                                Enable Reasoning
-                                            </Text>
-                                            <Tooltip
-                                                label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
-                                                withArrow
-                                                withinPortal
-                                                multiline
-                                                position="right"
-                                                maw="300px"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-                                    }
-                                    description={
-                                        <>
-                                            Displays the agent's reasoning
-                                            process while generating responses,
-                                            helping you understand how it thinks
-                                            through problems and reaches
-                                            conclusions.
-                                        </>
-                                    }
-                                    {...form.getInputProps('enableReasoning', {
-                                        type: 'checkbox',
-                                    })}
-                                />
-                            )}
                         </Stack>
                     </Paper>
+
+                    <AiAgentMcpServersInput
+                        projectUuid={projectUuid}
+                        value={form.values.mcpServerUuids}
+                        onChange={(value) => {
+                            form.setFieldValue('mcpServerUuids', value);
+                        }}
+                    />
 
                     <Paper p="xl">
                         <Group align="center" gap="xs" mb="md">

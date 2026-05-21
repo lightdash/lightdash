@@ -1,7 +1,12 @@
 import {
+    getManagedAgentScheduleCron,
+    getManagedAgentScheduleOption,
+    ManagedAgentRunStatus,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentRun,
+    type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
@@ -9,8 +14,10 @@ import { type Knex } from 'knex';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
+    ManagedAgentRunsTableName,
     ManagedAgentSettingsTableName,
-    type DbManagedAgentAction,
+    type DbManagedAgentActionWithReverser,
+    type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
 
@@ -36,9 +43,10 @@ export class ManagedAgentModel {
         return {
             projectUuid: row.project_uuid,
             enabled: row.enabled,
-            scheduleCron: row.schedule_cron,
+            schedule: getManagedAgentScheduleOption(row.schedule_cron),
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
+            toolSettings: row.tool_settings ?? {},
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -65,17 +73,45 @@ export class ManagedAgentModel {
             .update({ service_account_token: encrypted });
     }
 
-    async getAnthropicResourceIds(
-        projectUuid: string,
-    ): Promise<{ environmentId: string | null; vaultId: string | null }> {
+    async getAnthropicResourceIds(projectUuid: string): Promise<{
+        agentId: string | null;
+        agentConfigHash: string | null;
+        agentVersion: number | null;
+        environmentId: string | null;
+        vaultId: string | null;
+    }> {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
-            .select('anthropic_environment_id', 'anthropic_vault_id')
+            .select(
+                'anthropic_agent_id',
+                'anthropic_agent_config_hash',
+                'anthropic_agent_version',
+                'anthropic_environment_id',
+                'anthropic_vault_id',
+            )
             .first();
         return {
+            agentId: row?.anthropic_agent_id ?? null,
+            agentConfigHash: row?.anthropic_agent_config_hash ?? null,
+            agentVersion: row?.anthropic_agent_version ?? null,
             environmentId: row?.anthropic_environment_id ?? null,
             vaultId: row?.anthropic_vault_id ?? null,
         };
+    }
+
+    async setAnthropicAgentState(
+        projectUuid: string,
+        agentId: string,
+        agentConfigHash: string,
+        agentVersion: number,
+    ): Promise<void> {
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({
+                anthropic_agent_id: agentId,
+                anthropic_agent_config_hash: agentConfigHash,
+                anthropic_agent_version: agentVersion,
+            });
     }
 
     async setAnthropicResourceIds(
@@ -109,19 +145,23 @@ export class ManagedAgentModel {
             .insert({
                 project_uuid: projectUuid,
                 enabled: update.enabled ?? false,
-                schedule_cron: update.scheduleCron ?? '*/30 * * * *',
+                schedule_cron: getManagedAgentScheduleCron(update.schedule),
                 enabled_by_user_uuid: update.enabled ? userUuid : null,
                 slack_channel_id: update.slackChannelId ?? null,
+                tool_settings: update.toolSettings ?? {},
                 updated_at: new Date(),
             })
             .onConflict('project_uuid')
             .merge({
                 enabled: update.enabled,
-                ...(update.scheduleCron !== undefined && {
-                    schedule_cron: update.scheduleCron,
+                ...(update.schedule !== undefined && {
+                    schedule_cron: getManagedAgentScheduleCron(update.schedule),
                 }),
                 ...(update.slackChannelId !== undefined && {
                     slack_channel_id: update.slackChannelId,
+                }),
+                ...(update.toolSettings !== undefined && {
+                    tool_settings: update.toolSettings,
                 }),
                 enabled_by_user_uuid: update.enabled ? userUuid : undefined,
                 updated_at: new Date(),
@@ -139,7 +179,23 @@ export class ManagedAgentModel {
 
     // --- Actions ---
 
-    static mapDbAction(row: DbManagedAgentAction): ManagedAgentAction {
+    private actionsQuery() {
+        return this.database(ManagedAgentActionsTableName)
+            .leftJoin(
+                'users as reversed_by',
+                `${ManagedAgentActionsTableName}.reversed_by_user_uuid`,
+                'reversed_by.user_uuid',
+            )
+            .select<DbManagedAgentActionWithReverser[]>([
+                `${ManagedAgentActionsTableName}.*`,
+                'reversed_by.first_name as reversed_by_first_name',
+                'reversed_by.last_name as reversed_by_last_name',
+            ]);
+    }
+
+    static mapDbAction(
+        row: DbManagedAgentActionWithReverser,
+    ): ManagedAgentAction {
         return {
             actionUuid: row.action_uuid,
             projectUuid: row.project_uuid,
@@ -152,6 +208,16 @@ export class ManagedAgentModel {
             metadata: row.metadata,
             reversedAt: row.reversed_at,
             reversedByUserUuid: row.reversed_by_user_uuid,
+            reversedByUser:
+                row.reversed_by_user_uuid &&
+                row.reversed_by_first_name !== null &&
+                row.reversed_by_last_name !== null
+                    ? {
+                          userUuid: row.reversed_by_user_uuid,
+                          firstName: row.reversed_by_first_name,
+                          lastName: row.reversed_by_last_name,
+                      }
+                    : null,
             createdAt: row.created_at,
         };
     }
@@ -163,33 +229,54 @@ export class ManagedAgentModel {
             .insert({
                 project_uuid: action.projectUuid,
                 session_id: action.sessionId,
+                managed_agent_run_uuid: action.managedAgentRunUuid,
                 action_type: action.actionType,
                 target_type: action.targetType,
                 target_uuid: action.targetUuid,
                 target_name: action.targetName,
                 description: action.description,
-                metadata: JSON.stringify(action.metadata),
+                metadata: action.metadata,
             })
             .returning('*');
-        return ManagedAgentModel.mapDbAction(row);
+        // New actions have no reverser yet
+        return ManagedAgentModel.mapDbAction({
+            ...row,
+            reversed_by_first_name: null,
+            reversed_by_last_name: null,
+        });
     }
 
     async getActions(
         projectUuid: string,
         filters: ManagedAgentActionFilters = {},
     ): Promise<ManagedAgentAction[]> {
-        let query = this.database(ManagedAgentActionsTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'desc');
+        let query = this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.project_uuid`, projectUuid)
+            .orderBy(`${ManagedAgentActionsTableName}.created_at`, 'desc');
 
         if (filters.date) {
-            query = query.whereRaw('created_at::date = ?', [filters.date]);
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date = ?`,
+                [filters.date],
+            );
         }
         if (filters.actionType) {
-            query = query.where({ action_type: filters.actionType });
+            query = query.where(
+                `${ManagedAgentActionsTableName}.action_type`,
+                filters.actionType,
+            );
         }
         if (filters.sessionId) {
-            query = query.where({ session_id: filters.sessionId });
+            query = query.where(
+                `${ManagedAgentActionsTableName}.session_id`,
+                filters.sessionId,
+            );
+        }
+        if (filters.runUuid) {
+            query = query.where(
+                `${ManagedAgentActionsTableName}.managed_agent_run_uuid`,
+                filters.runUuid,
+            );
         }
 
         const rows = await query;
@@ -200,16 +287,16 @@ export class ManagedAgentModel {
         projectUuid: string,
         limit: number = 50,
     ): Promise<ManagedAgentAction[]> {
-        const rows = await this.database(ManagedAgentActionsTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'desc')
+        const rows = await this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.project_uuid`, projectUuid)
+            .orderBy(`${ManagedAgentActionsTableName}.created_at`, 'desc')
             .limit(limit);
         return rows.map(ManagedAgentModel.mapDbAction);
     }
 
     async getAction(actionUuid: string): Promise<ManagedAgentAction | null> {
-        const row = await this.database(ManagedAgentActionsTableName)
-            .where({ action_uuid: actionUuid })
+        const row = await this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.action_uuid`, actionUuid)
             .first();
         return row ? ManagedAgentModel.mapDbAction(row) : null;
     }
@@ -218,20 +305,23 @@ export class ManagedAgentModel {
         actionUuid: string,
         userUuid: string,
     ): Promise<ManagedAgentAction> {
-        const [row] = await this.database(ManagedAgentActionsTableName)
+        const updated = await this.database(ManagedAgentActionsTableName)
             .where({ action_uuid: actionUuid })
             .whereNull('reversed_at')
             .update({
                 reversed_at: new Date(),
                 reversed_by_user_uuid: userUuid,
-            })
-            .returning('*');
-        if (!row) {
+            });
+        if (updated === 0) {
             throw new Error(
                 `Action ${actionUuid} not found or already reversed`,
             );
         }
-        return ManagedAgentModel.mapDbAction(row);
+        const action = await this.getAction(actionUuid);
+        if (!action) {
+            throw new Error(`Action ${actionUuid} disappeared after reversal`);
+        }
+        return action;
     }
 
     async getUserQuestions(
@@ -360,5 +450,204 @@ export class ManagedAgentModel {
                 createdAt: r.created_at,
             }),
         );
+    }
+
+    // --- Runs ---
+
+    // Defensive: a run row stuck in 'started' for this long is treated as
+    // errored at read time. Covers worker-pod crashes between createRun and
+    // finishRun that would otherwise leave the row (and the play button)
+    // locked forever.
+    private static readonly STALE_RUN_THRESHOLD_MS = 15 * 60 * 1000;
+
+    // Backfilled historical runs (see 20260507114958_backfill_managed_agent_runs.ts)
+    // tag `error` with this sentinel so the down migration can distinguish them
+    // from future legitimate runs that happen to share the same fingerprint.
+    // We strip the sentinel here so it never reaches the API or UI.
+    private static readonly BACKFILL_ERROR_MARKER = '__backfilled__';
+
+    static mapDbRun(
+        row: DbManagedAgentRun & {
+            action_counts_by_type?: Record<string, number> | null;
+        },
+    ): ManagedAgentRun {
+        const rawStatus = row.status as ManagedAgentRunStatus;
+        const isStale =
+            rawStatus === ManagedAgentRunStatus.STARTED &&
+            row.started_at.getTime() <
+                Date.now() - ManagedAgentModel.STALE_RUN_THRESHOLD_MS;
+        // Synthesised finish for stale runs: pin to started_at + threshold
+        // (the latest moment the run could plausibly have been alive).
+        // Using `new Date()` instead would shift on every read, breaking
+        // duration display; using `started_at` would imply 0 duration.
+        const synthesisedFinishedAt = new Date(
+            row.started_at.getTime() + ManagedAgentModel.STALE_RUN_THRESHOLD_MS,
+        );
+        const cleanError =
+            row.error === ManagedAgentModel.BACKFILL_ERROR_MARKER
+                ? null
+                : row.error;
+        return {
+            runUuid: row.managed_agent_run_uuid,
+            projectUuid: row.project_uuid,
+            triggeredBy: row.triggered_by as ManagedAgentRunTriggeredBy,
+            status: isStale ? ManagedAgentRunStatus.ERROR : rawStatus,
+            sessionId: row.session_id,
+            startedAt: row.started_at,
+            finishedAt:
+                isStale && !row.finished_at
+                    ? synthesisedFinishedAt
+                    : row.finished_at,
+            actionCount: row.action_count,
+            actionCountsByType:
+                (row.action_counts_by_type as ManagedAgentRun['actionCountsByType']) ??
+                {},
+            summary: row.summary,
+            error: isStale
+                ? (cleanError ?? 'Run timed out — worker may have crashed')
+                : cleanError,
+            currentActivity: row.current_activity,
+        };
+    }
+
+    async createRun(input: {
+        projectUuid: string;
+        triggeredBy: ManagedAgentRunTriggeredBy;
+    }): Promise<ManagedAgentRun> {
+        const [row] = await this.database(ManagedAgentRunsTableName)
+            .insert({
+                project_uuid: input.projectUuid,
+                triggered_by: input.triggeredBy,
+                status: ManagedAgentRunStatus.STARTED,
+            })
+            .returning('*');
+        return ManagedAgentModel.mapDbRun(row);
+    }
+
+    async setRunSessionId(runUuid: string, sessionId: string): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({ session_id: sessionId });
+    }
+
+    async setCurrentActivity(
+        runUuid: string,
+        activity: string | null,
+    ): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({ current_activity: activity });
+    }
+
+    async finishRun(
+        runUuid: string,
+        update: {
+            status:
+                | ManagedAgentRunStatus.COMPLETED
+                | ManagedAgentRunStatus.ERROR;
+            actionCount: number;
+            summary: string | null;
+            error: string | null;
+        },
+    ): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({
+                status: update.status,
+                finished_at: new Date(),
+                action_count: update.actionCount,
+                summary: update.summary,
+                error: update.error,
+                current_activity: null,
+            });
+    }
+
+    async countActionsForRun(runUuid: string): Promise<number> {
+        const result = await this.database(ManagedAgentActionsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .count<{ count: string }[]>('* as count')
+            .first();
+        return result ? Number(result.count) : 0;
+    }
+
+    async getActionCountsByTypeForRun(
+        runUuid: string,
+    ): Promise<Record<string, number>> {
+        const rows = await this.database(ManagedAgentActionsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .groupBy('action_type')
+            .select<{ action_type: string; count: string }[]>(
+                'action_type',
+                this.database.raw('COUNT(*) AS count'),
+            );
+        return Object.fromEntries(
+            rows.map(({ action_type, count }) => [action_type, Number(count)]),
+        );
+    }
+
+    async getRun(runUuid: string): Promise<ManagedAgentRun | null> {
+        const row = await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .first();
+        return row ? ManagedAgentModel.mapDbRun(row) : null;
+    }
+
+    async getLatestRun(projectUuid: string): Promise<ManagedAgentRun | null> {
+        const row = await this.database(ManagedAgentRunsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('started_at', 'desc')
+            .first();
+        return row ? ManagedAgentModel.mapDbRun(row) : null;
+    }
+
+    async getRuns(
+        projectUuid: string,
+        opts: {
+            limit: number;
+            cursor: { startedAt: Date; runUuid: string } | null;
+        },
+    ): Promise<{
+        runs: ManagedAgentRun[];
+        nextCursor: { startedAt: Date; runUuid: string } | null;
+    }> {
+        let query = this.database(ManagedAgentRunsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy([
+                { column: 'started_at', order: 'desc' },
+                { column: 'managed_agent_run_uuid', order: 'desc' },
+            ])
+            .limit(opts.limit + 1)
+            .select(
+                `${ManagedAgentRunsTableName}.*`,
+                this.database.raw(
+                    `(SELECT json_object_agg(action_type, cnt) FROM (
+                        SELECT action_type, COUNT(*) AS cnt
+                        FROM ${ManagedAgentActionsTableName}
+                        WHERE managed_agent_run_uuid = ${ManagedAgentRunsTableName}.managed_agent_run_uuid
+                        GROUP BY action_type
+                    ) sub) AS action_counts_by_type`,
+                ),
+            );
+        if (opts.cursor) {
+            query = query.whereRaw(
+                '(started_at, managed_agent_run_uuid) < (?, ?)',
+                [opts.cursor.startedAt, opts.cursor.runUuid],
+            );
+        }
+        const rows: (DbManagedAgentRun & {
+            action_counts_by_type: Record<string, number> | null;
+        })[] = await query;
+        const hasMore = rows.length > opts.limit;
+        const page = hasMore ? rows.slice(0, opts.limit) : rows;
+        const last = hasMore ? page[page.length - 1] : null;
+        return {
+            runs: page.map(ManagedAgentModel.mapDbRun),
+            nextCursor: last
+                ? {
+                      startedAt: last.started_at,
+                      runUuid: last.managed_agent_run_uuid,
+                  }
+                : null,
+        };
     }
 }

@@ -1,4 +1,24 @@
+import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
 import { useCallback, useEffect, type RefObject } from 'react';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
+
+// Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
+// Duplicated rather than imported to avoid threading a shared export through
+// the SDK build. Keep in sync if the key changes there.
+const LIGHTDASH_SDK_INSTANCE_URL_KEY = '__lightdash_sdk_instance_url';
+
+/**
+ * In SDK embeds the host page is the consuming app's origin, so a relative
+ * `fetch('/api/v2/...')` would hit *their* dev server, not Lightdash. When
+ * the SDK has stashed an instance URL in sessionStorage, prepend it.
+ */
+const resolveFetchUrl = (path: string): string => {
+    if (typeof window === 'undefined') return path;
+    const instanceUrl = sessionStorage.getItem(LIGHTDASH_SDK_INSTANCE_URL_KEY);
+    if (!instanceUrl) return path;
+    // SDK persists with a trailing slash; `path` always starts with `/`.
+    return `${instanceUrl.replace(/\/$/, '')}${path}`;
+};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -68,6 +88,11 @@ const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/.test(path);
 
+export type ElementSelectedEvent = {
+    /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
+    label: string;
+};
+
 /**
  * Parent-side fetch proxy for sandboxed iframe SDK communication.
  *
@@ -78,16 +103,85 @@ const isQueryResultGet = (method: string, path: string): boolean =>
  *
  * When onQueryEvent is provided, metric query requests and their results
  * are intercepted and reported for the query inspector overlay.
+ *
+ * When onElementSelected is provided, click-to-edit selections from the
+ * iframe inspector are forwarded to the caller. Use the returned
+ * enableInspector / disableInspector helpers to toggle the iframe-side
+ * overlay.
+ *
+ * `onInspectorAvailable` and `onScreenshotAvailable` fire when the iframe
+ * SDK announces those capabilities on mount. The bridge doesn't track
+ * availability state itself — the parent owns it and is responsible for
+ * resetting on iframe `src` change.
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
+    /**
+     * The origin this iframe is expected to load from. When previews are
+     * served cross-origin this is `https://{customer}.lightdash.app`; in
+     * same-origin dev it's `window.location.origin`. The bridge accepts
+     * either this origin or the literal `"null"` — the latter is what
+     * sandboxed iframes without `allow-same-origin` report, since they
+     * have an opaque origin. Identity is established by `event.source`
+     * matching our iframe's contentWindow (unforgeable); origin is a
+     * defence-in-depth check for the non-sandboxed/dev case.
+     */
+    expectedPreviewOrigin: string,
     onQueryEvent?: (event: QueryEvent) => void,
+    onElementSelected?: (event: ElementSelectedEvent) => void,
+    onInspectorAvailable?: () => void,
+    onScreenshotAvailable?: () => void,
+    /**
+     * When set, these filters are stamped onto every intercepted metric-query
+     * POST before it reaches the backend. Used by dashboard data-app tiles so
+     * the dashboard filter bar applies to the app's queries. The iframe SDK
+     * is not involved — generated apps stay filter-agnostic.
+     */
+    dashboardFilters?: DashboardFilters,
 ) {
+    // Embed mode adapts the bridge's outgoing fetches in two ways:
+    //   - Attaches the embed JWT header in lieu of session cookies
+    //     (the parent in embed mode has no session, only the JWT).
+    //   - Rewrites `GET /api/v1/user` to the embed-specific user-info
+    //     endpoint so that existing data apps built before embedding existed
+    //     don't break on `client.auth.getUser()`. The SDK protocol is
+    //     unchanged — the rewrite happens entirely on the parent side.
+    const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
+            // Sandboxed iframes without `allow-same-origin` report `"null"`
+            // as their origin. The `event.source` check above is the strong
+            // identity guarantee; this is defence-in-depth for the
+            // non-sandboxed dev path.
+            if (
+                event.origin !== expectedPreviewOrigin &&
+                event.origin !== 'null'
+            ) {
+                return;
+            }
 
             const { data } = event;
+
+            if (data?.type === 'lightdash:inspect:available') {
+                onInspectorAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:screenshot-available') {
+                onScreenshotAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:inspect:selected') {
+                const label = typeof data.label === 'string' ? data.label : '';
+                if (label && onElementSelected) {
+                    onElementSelected({ label });
+                }
+                return;
+            }
+
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
             const { id, method, path, body, metadata } = data;
@@ -96,6 +190,10 @@ export function useAppSdkBridge(
                 result?: unknown;
                 error?: string;
             }) => {
+                // Wildcard targetOrigin — see handleIframeLoad below. The
+                // parent's `event.source` and route allowlist do the security
+                // work; matching against expectedPreviewOrigin only adds
+                // noise from race conditions during iframe (re)mount.
                 iframeRef.current?.contentWindow?.postMessage(
                     { type: 'lightdash:sdk:fetch-response', id, ...response },
                     '*',
@@ -106,6 +204,17 @@ export function useAppSdkBridge(
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
+
+            // Stamp dashboard filters onto outgoing metric-query bodies. The
+            // backend drops filters whose fields aren't in the query's
+            // explore, so it's safe to send the full set on every call.
+            const effectiveBody =
+                isMetricQueryPost(method, path) && dashboardFilters
+                    ? {
+                          ...(body as Record<string, unknown> | undefined),
+                          dashboardFilters,
+                      }
+                    : body;
 
             // Track metric query submissions
             if (isMetricQueryPost(method, path) && onQueryEvent && body) {
@@ -141,11 +250,32 @@ export function useAppSdkBridge(
                 }
             }
 
+            // In embed mode, rewrite the user-info fetch to the embed
+            // endpoint so the SDK's getUser() resolves against the JWT's
+            // synthesized user instead of a session-only route.
+            const effectivePath =
+                embedToken &&
+                embedProjectUuid &&
+                method.toUpperCase() === 'GET' &&
+                path === '/api/v1/user'
+                    ? `/api/v1/embed/${embedProjectUuid}/user-info`
+                    : path;
+
             try {
-                const res = await fetch(path, {
+                // SDK embeds: a bare `fetch(path)` resolves against the
+                // host's origin, not Lightdash. Rewrite to an absolute URL
+                // against the SDK's stashed instance URL when present.
+                const res = await fetch(resolveFetchUrl(effectivePath), {
                     method,
-                    headers: { 'Content-Type': 'application/json' },
-                    ...(body ? { body: JSON.stringify(body) } : {}),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(embedToken
+                            ? { [JWT_HEADER_NAME]: embedToken }
+                            : {}),
+                    },
+                    ...(effectiveBody
+                        ? { body: JSON.stringify(effectiveBody) }
+                        : {}),
                 });
 
                 const json = await res.json();
@@ -206,7 +336,11 @@ export function useAppSdkBridge(
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
-                                rowCount: result.rows?.length ?? null,
+                                // Use totalResults (full row count across all
+                                // pages), not rows.length (just this page).
+                                // The SDK paginates internally — the app sees
+                                // every row, so the inspector should too.
+                                rowCount: result.totalResults ?? null,
                                 durationMs:
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
@@ -252,7 +386,17 @@ export function useAppSdkBridge(
                 });
             }
         },
-        [iframeRef, onQueryEvent],
+        [
+            iframeRef,
+            expectedPreviewOrigin,
+            onQueryEvent,
+            onElementSelected,
+            onInspectorAvailable,
+            onScreenshotAvailable,
+            dashboardFilters,
+            embedToken,
+            embedProjectUuid,
+        ],
     );
 
     useEffect(() => {
@@ -261,11 +405,34 @@ export function useAppSdkBridge(
     }, [handleMessage]);
 
     const handleIframeLoad = useCallback(() => {
+        // `*` because the load event fires once for the initial about:blank
+        // (which inherits the parent's origin) and again after the iframe
+        // navigates to its actual src. With a specific targetOrigin the
+        // first call logs a noisy postMessage warning. The :ready signal
+        // carries no sensitive data, so wildcard is safe here.
         iframeRef.current?.contentWindow?.postMessage(
             { type: 'lightdash:sdk:ready' },
             '*',
         );
     }, [iframeRef]);
 
-    return { handleIframeLoad };
+    const enableInspector = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:inspect:enable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    const disableInspector = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:inspect:disable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    return {
+        handleIframeLoad,
+        enableInspector,
+        disableInspector,
+    };
 }

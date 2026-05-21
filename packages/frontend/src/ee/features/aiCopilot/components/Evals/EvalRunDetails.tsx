@@ -16,13 +16,13 @@ import {
 } from '@mantine-8/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluationRunResults,
@@ -194,7 +194,7 @@ export const EvalRunDetails: FC<Props> = ({
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: runData?.results ?? [],
         enableSorting: false,
@@ -372,7 +372,7 @@ export const EvalRunDetails: FC<Props> = ({
 
                 <Divider />
                 <Box>
-                    <MantineReactTable table={table} />
+                    <ContentTable table={table} />
                 </Box>
                 <Divider />
 

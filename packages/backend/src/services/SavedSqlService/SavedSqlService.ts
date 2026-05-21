@@ -247,12 +247,21 @@ export class SavedSqlService
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
         return {
             ...savedChart,
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
             },
+            resolvedColorPalette,
         };
     }
 
@@ -582,6 +591,7 @@ export class SavedSqlService
         projectUuid: string,
         sql: string,
         limit?: number,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -611,7 +621,7 @@ export class SavedSqlService
             projectUuid,
             sql,
             limit,
-            context: QueryExecutionContext.SQL_RUNNER,
+            context,
         });
 
         return { jobId };

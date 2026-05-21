@@ -2,6 +2,8 @@
   const zeroArgFns = options.zeroArgFns;
   const singleArgFns = options.singleArgFns;
   const oneOrTwoArgFns = options.oneOrTwoArgFns;
+  const twoArgFns = options.twoArgFns;
+  const threeArgFns = options.threeArgFns;
   const zeroOrOneArgFns = options.zeroOrOneArgFns;
   const variadicFns = options.variadicFns;
   const windowFns = options.windowFns;
@@ -11,6 +13,7 @@
   const dateUnits = options.dateUnits;
   const allFunctionNames = options.allFunctionNames;
   const booleanFns = options.booleanFns;
+  const booleanTwoArgFns = options.booleanTwoArgFns;
 }
 
 Formula
@@ -63,6 +66,10 @@ BooleanFn
     _ "(" _ arg:Expression _ ")" {
       return { type: "SingleArgFn", name: name.toUpperCase(), arg };
     }
+  / name:Identifier &{ return booleanTwoArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ ")" {
+      return { type: "TwoArgFn", name: name.toUpperCase(), args: [first, second] };
+    }
 
 // --- Arithmetic layer ---
 
@@ -100,8 +107,11 @@ UnaryExpr
 
 Primary
   = IfExpr
+  / CaseExpr
+  / WindowedAggregate
   / ConditionalAggregate
   / CountIf
+  / CountDistinctExpr
   / DateTruncExpr
   / DateAddOrSubExpr
   / DateDiffExpr
@@ -109,6 +119,8 @@ Primary
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
+  / TwoArgFn
+  / ThreeArgFn
   / ZeroOrOneArgFn
   / VariadicFn
   / WindowFn
@@ -125,6 +137,24 @@ IfExpr
       return { type: "If", condition, then, "else": else_ ? else_[3] : null };
     }
 
+// Searched CASE (CASE WHEN c1 THEN v1 [WHEN c2 THEN v2]* [ELSE v] END)
+// desugars to nested `If` nodes at parse time so the AST and per-dialect
+// codegen are identical to a hand-written nested IF.
+CaseExpr
+  = "CASE"i _ first:WhenClause rest:(_ WhenClause)* elseClause:(_ "ELSE"i _ Expression)? _ "END"i {
+      const clauses = [first, ...rest.map(r => r[1])];
+      const else_ = elseClause ? elseClause[3] : null;
+      return clauses.reduceRight(
+        (acc, c) => ({ type: "If", condition: c.condition, then: c.then, "else": acc }),
+        else_
+      );
+    }
+
+WhenClause
+  = "WHEN"i _ condition:BooleanOr _ "THEN"i _ then:Expression {
+      return { condition, then };
+    }
+
 ConditionalAggregate
   = name:Identifier &{ return conditionalAggFns.includes(name.toUpperCase()); }
     _ "(" _ value:Expression _ "," _ condition:BooleanOr _ ")" {
@@ -134,6 +164,69 @@ ConditionalAggregate
 CountIf
   = "COUNTIF"i _ "(" _ condition:BooleanOr _ ")" {
       return { type: "CountIf", condition };
+    }
+
+// COUNT(DISTINCT expr) is parsed as a dedicated AST node rather than smuggling
+// a `distinct` flag onto ZeroOrOneArgFn — keeps the AST shape per node strict.
+// Must be tried before the generic ZeroOrOneArgFn rule (which would otherwise
+// fail at the DISTINCT token and bubble through to InvalidFn).
+CountDistinctExpr
+  = "COUNT"i _ "(" _ "DISTINCT"i _ arg:Expression _ ")" {
+      return { type: "CountDistinct", arg };
+    }
+
+// `<aggregate> OVER (PARTITION BY … [ORDER BY … [ASC|DESC]])` — wraps any
+// aggregate call so users can write SQL-style windowed aggregates like
+// `SUM(amount) OVER (PARTITION BY category)`. WindowableAggregate matches
+// only aggregate-shape calls (so `ABS(x) OVER (...)` falls through to
+// InvalidFn / ColumnRef). Tried before the bare aggregate rules in Primary
+// so the OVER suffix wins when present; if OVER is missing, this rule fails
+// and Primary falls through to the bare-aggregate alternatives.
+WindowedAggregate
+  = agg:WindowableAggregate _ "OVER"i _ "(" _ wc:OverClauseContent? _ ")" {
+      return {
+        type: "WindowedAggregate",
+        aggregate: agg,
+        windowClause: wc || { type: "WindowClause" },
+      };
+    }
+
+WindowableAggregate
+  = ConditionalAggregate
+  / CountIf
+  / CountDistinctExpr
+  / name:Identifier &{
+      const u = name.toUpperCase();
+      return u === 'SUM' || u === 'AVG' || u === 'AVERAGE';
+    } _ "(" _ arg:Expression _ ")" {
+      return { type: "SingleArgFn", name: name.toUpperCase(), arg };
+    }
+  / "COUNT"i _ "(" _ arg:Expression? _ ")" {
+      return { type: "ZeroOrOneArgFn", name: "COUNT", arg: arg ?? null };
+    }
+  / name:Identifier &{
+      const u = name.toUpperCase();
+      return u === 'MIN' || u === 'MAX';
+    } _ "(" _ arg:Expression _ ")" {
+      return { type: "OneOrTwoArgFn", name: name.toUpperCase(), args: [arg] };
+    }
+
+OverClauseContent
+  = parts:OverClausePart+ {
+      const wc = { type: "WindowClause" };
+      for (const p of parts) {
+        if (p.partitionBy) wc.partitionBy = p.partitionBy;
+        if (p.orderBy) wc.orderBy = p.orderBy;
+      }
+      return wc;
+    }
+
+OverClausePart
+  = _ "PARTITION"i _ "BY"i _ col:Expression {
+      return { partitionBy: col };
+    }
+  / _ "ORDER"i _ "BY"i _ col:Expression dir:(_ ("ASC"i / "DESC"i))? {
+      return { orderBy: { column: col, direction: dir ? dir[1].toUpperCase() : undefined } };
     }
 
 // DATE_TRUNC("unit", date) — first arg must be a whitelisted string literal.
@@ -221,6 +314,18 @@ OneOrTwoArgFn
     _ "(" _ first:Expression _ second:("," _ Expression)? _ ")" {
       const args = second ? [first, second[2]] : [first];
       return { type: "OneOrTwoArgFn", name: name.toUpperCase(), args };
+    }
+
+TwoArgFn
+  = name:Identifier &{ return twoArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ ")" {
+      return { type: "TwoArgFn", name: name.toUpperCase(), args: [first, second] };
+    }
+
+ThreeArgFn
+  = name:Identifier &{ return threeArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ "," _ third:Expression _ ")" {
+      return { type: "ThreeArgFn", name: name.toUpperCase(), args: [first, second, third] };
     }
 
 ZeroOrOneArgFn

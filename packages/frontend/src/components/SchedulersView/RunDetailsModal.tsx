@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Button,
     Center,
     Code,
     Divider,
@@ -23,6 +24,7 @@ import {
 import {
     IconAlertTriangleFilled,
     IconChartBar,
+    IconChevronLeft,
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
@@ -52,6 +54,12 @@ type JobSummary = {
 type RunDetailsModalProps = {
     opened: boolean;
     onClose: () => void;
+    /**
+     * Optional back handler. When provided, renders a Back button in the
+     * modal footer for flows that swap content between sibling modals
+     * (e.g. run history → run details).
+     */
+    onBack?: () => void;
     run: SchedulerRun | null;
     childLogs: SchedulerRunLog[] | undefined;
     isLoading: boolean;
@@ -574,6 +582,7 @@ const BatchJobRow: FC<{
 const RunDetailsModal: FC<RunDetailsModalProps> = ({
     opened,
     onClose,
+    onBack,
     run,
     childLogs,
     isLoading,
@@ -744,6 +753,17 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
             size="lg"
             icon={getSchedulerIconRaw(run)}
             cancelLabel={false}
+            leftActions={
+                onBack ? (
+                    <Button
+                        onClick={onBack}
+                        variant="subtle"
+                        leftSection={<MantineIcon icon={IconChevronLeft} />}
+                    >
+                        Back
+                    </Button>
+                ) : undefined
+            }
         >
             <Stack gap="lg">
                 {/* Run metadata */}

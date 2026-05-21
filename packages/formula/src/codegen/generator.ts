@@ -7,6 +7,7 @@ import type {
     ComparisonNode,
     CompileOptions,
     ConditionalAggregateNode,
+    CountDistinctNode,
     CountIfNode,
     DateFnNode,
     DateUnit,
@@ -17,10 +18,13 @@ import type {
     OneOrTwoArgFnNode,
     SingleArgFnNode,
     StringLiteralNode,
+    ThreeArgFnNode,
+    TwoArgFnNode,
     UnaryOpNode,
     VariadicFnNode,
     WeekDay,
     WindowClauseNode,
+    WindowedAggregateNode,
     WindowFnNode,
     ZeroArgFnNode,
     ZeroOrOneArgFnNode,
@@ -64,12 +68,20 @@ export class SqlGenerator {
                 return this.generateConditionalAggregate(node);
             case 'CountIf':
                 return this.generateCountIf(node);
+            case 'CountDistinct':
+                return this.generateCountDistinct(node);
+            case 'WindowedAggregate':
+                return this.generateWindowedAggregate(node);
             case 'ZeroArgFn':
                 return this.generateZeroArgFn(node);
             case 'SingleArgFn':
                 return this.generateSingleArgFn(node);
             case 'OneOrTwoArgFn':
                 return this.generateOneOrTwoArgFn(node);
+            case 'TwoArgFn':
+                return this.generateTwoArgFn(node);
+            case 'ThreeArgFn':
+                return this.generateThreeArgFn(node);
             case 'ZeroOrOneArgFn':
                 return this.generateZeroOrOneArgFn(node);
             case 'VariadicFn':
@@ -110,7 +122,7 @@ export class SqlGenerator {
             case '*':
                 return `(${left} ${node.op} ${right})`;
             case '/':
-                return `(${left} / NULLIF(${right}, 0))`;
+                return this.generateDivision(left, right);
             case '^':
                 return `POWER(${left}, ${right})`;
             case '%':
@@ -166,6 +178,32 @@ export class SqlGenerator {
     protected generateCountIf(node: CountIfNode): string {
         const condition = this.generate(node.condition);
         return `COUNT(CASE WHEN ${condition} THEN 1 END)`;
+    }
+
+    protected generateCountDistinct(node: CountDistinctNode): string {
+        return `COUNT(DISTINCT ${this.generate(node.arg)})`;
+    }
+
+    // Emits `<aggregate-sql> OVER (PARTITION BY … ORDER BY …)`. The inner
+    // aggregate is generated via `generateNode` (not `generate`) so the
+    // renderAggregate hook does NOT wrap it — the explicit OVER replaces
+    // whatever wrapping the caller would have applied. Same contract as
+    // native window functions (RUNNING_TOTAL, LAG, …).
+    protected generateWindowedAggregate(node: WindowedAggregateNode): string {
+        const inner = this.generateNode(node.aggregate);
+        return `${inner} ${this.formatOverClause(node.windowClause)}`;
+    }
+
+    protected formatOverClause(wc: WindowClauseNode): string {
+        const parts: string[] = [];
+        if (wc.partitionBy) {
+            parts.push(`PARTITION BY ${this.generate(wc.partitionBy)}`);
+        }
+        if (wc.orderBy) {
+            const dir = wc.orderBy.direction ? ` ${wc.orderBy.direction}` : '';
+            parts.push(`ORDER BY ${this.generate(wc.orderBy.column)}${dir}`);
+        }
+        return parts.length === 0 ? 'OVER ()' : `OVER (${parts.join(' ')})`;
     }
 
     protected generateZeroArgFn(node: ZeroArgFnNode): string {
@@ -246,6 +284,92 @@ export class SqlGenerator {
                     `Unknown one-or-two-arg function: ${node.name}`,
                 );
         }
+    }
+
+    protected generateTwoArgFn(node: TwoArgFnNode): string {
+        const [a, b] = node.args.map((x) => this.generate(x));
+        switch (node.name) {
+            case 'LEFT':
+                return this.generateLeft(a, b);
+            case 'RIGHT':
+                return this.generateRight(a, b);
+            case 'STRPOS':
+                return this.generateStrpos(a, b);
+            case 'STARTS_WITH':
+                return this.generateStartsWith(a, b);
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown two-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateLeft(text: string, count: string): string {
+        return (
+            this.dialect.generateLeft?.(text, count) ??
+            `LEFT(${text}, ${count})`
+        );
+    }
+
+    protected generateRight(text: string, count: string): string {
+        return (
+            this.dialect.generateRight?.(text, count) ??
+            `RIGHT(${text}, ${count})`
+        );
+    }
+
+    protected generateStrpos(text: string, substring: string): string {
+        return (
+            this.dialect.generateStrpos?.(text, substring) ??
+            `STRPOS(${text}, ${substring})`
+        );
+    }
+
+    protected generateStartsWith(text: string, prefix: string): string {
+        return (
+            this.dialect.generateStartsWith?.(text, prefix) ??
+            `STARTS_WITH(${text}, ${prefix})`
+        );
+    }
+
+    protected generateThreeArgFn(node: ThreeArgFnNode): string {
+        const [a, b, c] = node.args.map((x) => this.generate(x));
+        switch (node.name) {
+            case 'REPLACE':
+                return `REPLACE(${a}, ${b}, ${c})`;
+            case 'SUBSTRING':
+                return this.generateSubstring(a, b, c);
+            case 'SPLIT_PART':
+                return this.generateSplitPart(a, b, c);
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown three-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateSplitPart(
+        text: string,
+        delimiter: string,
+        n: string,
+    ): string {
+        return (
+            this.dialect.generateSplitPart?.(text, delimiter, n) ??
+            `SPLIT_PART(${text}, ${delimiter}, ${n})`
+        );
+    }
+
+    protected generateSubstring(
+        text: string,
+        start: string,
+        length: string,
+    ): string {
+        return (
+            this.dialect.generateSubstring?.(text, start, length) ??
+            `SUBSTRING(${text}, ${start}, ${length})`
+        );
     }
 
     protected generateZeroOrOneArgFn(node: ZeroOrOneArgFnNode): string {
@@ -396,6 +520,13 @@ export class SqlGenerator {
         return (
             this.dialect.generateModulo?.(left, right) ??
             `MOD(${left}, ${right})`
+        );
+    }
+
+    protected generateDivision(left: string, right: string): string {
+        return (
+            this.dialect.generateDivision?.(left, right) ??
+            `(${left} / NULLIF(${right}, 0))`
         );
     }
 

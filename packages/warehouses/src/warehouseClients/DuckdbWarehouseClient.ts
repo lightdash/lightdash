@@ -399,6 +399,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
+    private static usesS3CredentialChain(
+        s3Config: DuckdbS3SessionConfig,
+    ): boolean {
+        return !(s3Config.accessKey && s3Config.secretKey);
+    }
+
+    private static async loadAwsExtensionForCredentialChain(
+        db: DuckdbConnection,
+        s3Config?: DuckdbS3SessionConfig,
+    ): Promise<void> {
+        if (s3Config && DuckdbWarehouseClient.usesS3CredentialChain(s3Config)) {
+            await db.run('INSTALL aws;');
+            await db.run('LOAD aws;');
+        }
+    }
+
     private static async bootstrapQuerySession(
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
@@ -407,6 +423,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         const httpfsStart = performance.now();
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
+        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+            db,
+            client.s3Config,
+        );
         const httpfsMs = performance.now() - httpfsStart;
 
         await db.run('SET enable_http_metadata_cache = true;');
@@ -585,6 +605,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     private static buildS3SecretSql(s3Config: DuckdbS3SessionConfig): string {
         const escape = (v: string) =>
             DuckdbWarehouseClient.sqlBuilder.escapeString(v);
+        const usesStaticCredentials =
+            !DuckdbWarehouseClient.usesS3CredentialChain(s3Config);
+        // Static keys may come from dedicated pre-aggregate env vars or fall back
+        // to the base S3 config. Without them, let DuckDB resolve AWS credentials
+        // through the SDK chain, including IRSA/web identity tokens.
+        const providerClause = usesStaticCredentials
+            ? ''
+            : `PROVIDER credential_chain,
+            REFRESH auto,
+            -- Defer credential validation to S3 operations so local bootstrap
+            -- does not require AWS credentials when using runtime-provided roles.
+            VALIDATION 'none',`;
         const regionClause = s3Config.region
             ? `REGION '${escape(s3Config.region)}',`
             : '';
@@ -597,6 +629,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
+            ${providerClause}
             ${keyIdClause}
             ${secretClause}
             ENDPOINT '${escape(s3Config.endpoint)}',
@@ -694,6 +727,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ): Promise<void> {
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
+        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+            db,
+            this.s3Config,
+        );
 
         await DuckdbWarehouseClient.hardenInstance(db);
 

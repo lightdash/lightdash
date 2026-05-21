@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
 } from '@lightdash/common';
@@ -7,12 +8,14 @@ import { lightdashApi } from '../../api';
 import { Limit } from '../../components/ExportResults/types';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useEmbedDashboardChartDownload = (
     tileUuid: string,
     projectUuid: string | undefined,
     originalQueryUuid: string,
+    canExportPivotedData: boolean,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -24,15 +27,30 @@ export const useEmbedDashboardChartDownload = (
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
 
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null, limitType: Limit): Promise<string> => {
+        async (
+            limit: number | null,
+            limitType: Limit,
+            exportPivotedData: boolean = true,
+        ): Promise<string> => {
             if (!projectUuid) {
                 throw new Error('Missing required parameters');
             }
 
+            const originalQueryIsPivoted =
+                canExportPivotedData && !!useSqlPivotResults?.enabled;
+            const shouldPivotResults =
+                exportPivotedData && originalQueryIsPivoted;
+
             // When limiting to the table, use the original query uuid
-            if (limitType === Limit.TABLE) {
+            if (
+                limitType === Limit.TABLE &&
+                originalQueryIsPivoted === shouldPivotResults
+            ) {
                 return originalQueryUuid;
             }
 
@@ -51,6 +69,7 @@ export const useEmbedDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
+                        pivotResults: shouldPivotResults,
                     }),
                 });
 
@@ -79,6 +98,8 @@ export const useEmbedDashboardChartDownload = (
             dashboardSorts,
             dateZoomGranularity,
             parameters,
+            canExportPivotedData,
+            useSqlPivotResults?.enabled,
             originalQueryUuid,
         ],
     );

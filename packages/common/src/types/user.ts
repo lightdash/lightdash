@@ -5,6 +5,10 @@ import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
 export type AccountUser = {
+    /**
+     * @deprecated Use `userUuid` for registered users. This field should only
+     * be used for anonymous users (where no `userUuid` exists).
+     */
     id: string;
     email: string | undefined;
     /* Whether the user can login */
@@ -33,6 +37,8 @@ export interface LightdashUser {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    /* IANA timezone the user prefers query results rendered in. */
+    timezone: string | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
@@ -51,6 +57,7 @@ export interface LightdashSessionUser extends AccountUser {
     isSetupComplete: boolean;
     createdAt: Date;
     updatedAt: Date;
+    timezone: string | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
     /* Set only when an admin is impersonating this user via session auth */
@@ -89,6 +96,17 @@ export interface SessionUser extends LightdashUserWithAbilityRules {
     };
     /* Set only when an admin is impersonating this user via session auth */
     impersonation?: ImpersonationContext;
+    /**
+     * Set only when the request was authenticated via a service-account token.
+     * `req.user` is loaded from the SA's dedicated `users` row (linked via
+     * `service_accounts.service_account_user_uuid`), so writes attribute the
+     * service account itself. This field carries the SA identity for code
+     * paths that receive `SessionUser` rather than `Account`.
+     */
+    serviceAccount?: {
+        uuid: string;
+        description?: string;
+    };
 }
 
 export interface ImpersonationContext {

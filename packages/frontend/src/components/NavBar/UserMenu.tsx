@@ -1,6 +1,5 @@
 import { getDefaultZIndex, Menu } from '@mantine-8/core';
 import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
-import posthog from 'posthog-js';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
@@ -12,7 +11,6 @@ const UserMenu: FC = () => {
     const { user } = useApp();
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {
-            posthog.reset();
             window.location.href = '/login';
         },
     });

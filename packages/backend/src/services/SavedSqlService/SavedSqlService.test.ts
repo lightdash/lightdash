@@ -41,6 +41,7 @@ const baseUser = {
     isMarketingOptedIn: false,
     isSetupComplete: true,
     isActive: true,
+    timezone: null,
     isPending: false,
     abilityRules: [],
     createdAt: new Date(),
@@ -121,6 +122,8 @@ const newSchedulerPayload = {
     targets: [],
     includeLinks: false,
     enabled: true,
+    appUuid: null,
+    appName: null,
 };
 
 describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {

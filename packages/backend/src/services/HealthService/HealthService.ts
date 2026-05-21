@@ -115,7 +115,6 @@ export class HealthService extends BaseService {
             staticIp: this.lightdashConfig.staticIp,
             signupUrl: this.lightdashConfig.signupUrl,
             helpMenuUrl: this.lightdashConfig.helpMenuUrl,
-            posthog: this.lightdashConfig.posthog,
             query: {
                 csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
                 maxLimit: this.lightdashConfig.query.maxLimit,
@@ -184,7 +183,6 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
                 this.lightdashConfig.results.autocompleteEnabled,
-            hasResultsCaching: this.lightdashConfig.results.cacheEnabled,
             appearance: {
                 overrideColorPalette:
                     this.lightdashConfig.appearance.overrideColorPalette,
@@ -232,14 +230,14 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.softDelete.enabled,
                 retentionDays: this.lightdashConfig.softDelete.retentionDays,
             },
+            dashboardComments: {
+                enabled: this.lightdashConfig.dashboardComments.enabled,
+            },
             preAggregates: {
                 enabled: this.lightdashConfig.preAggregates.enabled,
             },
             dataApps: {
-                enabled: this.lightdashConfig.appRuntime.enabled,
-            },
-            managedAgent: {
-                enabled: this.lightdashConfig.managedAgent.enabled,
+                previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
             },
         };
     }

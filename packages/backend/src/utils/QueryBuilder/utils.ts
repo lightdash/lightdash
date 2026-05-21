@@ -46,6 +46,7 @@ export const getDimensionFromId = ({
     adapterType,
     startOfWeek,
     timezone,
+    columnTimezone,
 }: {
     dimId: FieldId;
     dimensions: Record<string, CompiledDimension>;
@@ -53,6 +54,7 @@ export const getDimensionFromId = ({
     adapterType: SupportedDbtAdapter;
     startOfWeek: WeekDay | null | undefined;
     timezone?: string;
+    columnTimezone?: string;
 }): CompiledDimension => {
     const dimension = dimensions[dimId];
 
@@ -67,8 +69,12 @@ export const getDimensionFromId = ({
                 adapterType,
                 startOfWeek,
                 timezone,
+                columnTimezone,
             });
-            if (baseField && newTimeFrame)
+            if (baseField && newTimeFrame) {
+                const effectiveTimezone = baseField.skipTimezoneConversion
+                    ? undefined
+                    : timezone;
                 return {
                     ...baseField,
                     compiledSql: getSqlForTruncatedDate(
@@ -77,10 +83,12 @@ export const getDimensionFromId = ({
                         baseField.compiledSql,
                         baseField.type,
                         startOfWeek,
-                        timezone,
+                        effectiveTimezone,
+                        columnTimezone,
                     ),
                     timeInterval: newTimeFrame,
                 };
+            }
         }
 
         // At this point, we couldn't find the dimension with the given id

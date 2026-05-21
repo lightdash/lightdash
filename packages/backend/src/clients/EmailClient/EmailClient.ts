@@ -4,6 +4,7 @@ import {
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
+    MissingConfigError,
     PasswordResetLink,
     ProjectMemberRole,
     sanitizeHtml,
@@ -26,6 +27,17 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
+
+/**
+ * Appends `?ref=<id>` (or `&ref=`) to the URL so support can paste the
+ * correlation ID into Cloud Logging and land on the failing job directly,
+ * instead of triangulating from project UUID + approximate timestamp.
+ */
+function appendCorrelationRef(url: string, correlationId?: string): string {
+    if (!correlationId) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}ref=${encodeURIComponent(correlationId)}`;
+}
 
 function isNodemailerSmtpError(
     error: unknown,
@@ -368,6 +380,7 @@ export default class EmailClient {
         schedulerUrl: string,
         errorMessage?: string,
         disabledSync: boolean = true,
+        correlationId?: string,
     ) {
         // Sync failure but not disabled - will be retried
         if (!this.canSendEmail()) {
@@ -382,6 +395,8 @@ export default class EmailClient {
             throw new Error('Email transporter not configured');
         }
 
+        const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
+
         // Sync has been disabled
         if (disabledSync) {
             return this.sendEmail({
@@ -392,7 +407,7 @@ export default class EmailClient {
                     host: this.lightdashConfig.siteUrl,
                     subject: 'Google Sheets Sync disabled',
                     description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
-                    schedulerUrl,
+                    schedulerUrl: urlWithRef,
                 },
                 text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
             });
@@ -410,7 +425,7 @@ export default class EmailClient {
                       )}</p><br /><br />`
                     : ''
             }
-            <p>Please check your <a href="${schedulerUrl}">Google Sheets sync settings</a> and verify your Google Sheets connection and permissions.</p>
+            <p>Please check your <a href="${urlWithRef}">Google Sheets sync settings</a> and verify your Google Sheets connection and permissions.</p>
         `;
 
         return this.sendEmail({
@@ -424,7 +439,7 @@ export default class EmailClient {
             },
             text: `Warning: Your Google Sheets sync "${schedulerName}" failed. ${
                 errorMessage ? `Error: ${errorMessage}.` : ''
-            } Please check your settings at ${schedulerUrl}`,
+            } Please check your settings at ${urlWithRef}`,
         });
     }
 
@@ -433,6 +448,7 @@ export default class EmailClient {
         schedulerName: string,
         schedulerUrl: string,
         errorMessage: string,
+        correlationId?: string,
     ) {
         if (!this.canSendEmail()) {
             Logger.error(
@@ -445,6 +461,8 @@ export default class EmailClient {
             throw new Error('Email transporter not configured');
         }
 
+        const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
+
         const message = `
             <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
             <br />
@@ -453,7 +471,7 @@ export default class EmailClient {
             <p><strong>Error:</strong> ${sanitizeHtml(errorMessage)}</p>
             <br />
             <br />
-            <p>Please check your <a href="${schedulerUrl}">scheduled delivery settings</a> and try again.</p>
+            <p>Please check your <a href="${urlWithRef}">scheduled delivery settings</a> and try again.</p>
         `;
 
         return this.sendEmail({
@@ -465,7 +483,44 @@ export default class EmailClient {
                 title: 'Scheduled delivery failure',
                 message,
             },
-            text: `Warning: Your scheduled delivery "${schedulerName}" failed to send. Error: ${errorMessage}. Please check your settings at ${schedulerUrl}`,
+            text: `Warning: Your scheduled delivery "${schedulerName}" failed to send. Error: ${errorMessage}. Please check your settings at ${urlWithRef}`,
+        });
+    }
+
+    public async sendDeliveryFailureNotificationToRecipient(
+        recipient: string,
+        contentName: string | null,
+        contactSentence: string | null,
+    ) {
+        if (!this.canSendEmail()) {
+            throw new MissingConfigError('Email transporter not configured');
+        }
+
+        const baseSentenceHtml = contentName
+            ? `The scheduled delivery for <strong>"${sanitizeHtml(
+                  contentName,
+              )}"</strong> failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const baseSentenceText = contentName
+            ? `The scheduled delivery for "${contentName}" failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appendedHtml = contactSentence
+            ? ` ${sanitizeHtml(contactSentence)}`
+            : '';
+        const appendedText = contactSentence ? ` ${contactSentence}` : '';
+
+        return this.sendEmail({
+            to: recipient,
+            subject: contentName
+                ? `Scheduled delivery failed - "${contentName}"`
+                : 'Scheduled delivery failed',
+            template: 'genericNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                title: 'Scheduled delivery failure',
+                message: `<p>${baseSentenceHtml}${appendedHtml}</p>`,
+            },
+            text: `${baseSentenceText}${appendedText}`,
         });
     }
 
@@ -827,6 +882,50 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text,
+        });
+    }
+
+    public async sendSchedulerModifiedByOtherUserEmail({
+        recipient,
+        modifyingUserName,
+        schedulerName,
+        actionVerb,
+        timestamp,
+        resourceUrl,
+    }: {
+        recipient: string;
+        modifyingUserName: string;
+        schedulerName: string;
+        actionVerb: 'updated' | 'deleted' | 'enabled' | 'disabled';
+        timestamp: string;
+        resourceUrl: string | undefined;
+    }) {
+        const safeModifier = sanitizeHtml(modifyingUserName);
+        const safeName = sanitizeHtml(schedulerName);
+        const message = `
+            <p style="margin: 0 0 12px 0;">
+                <strong>${safeModifier}</strong>
+                ${actionVerb} your scheduled delivery
+                <strong>&ldquo;${safeName}&rdquo;</strong>
+                on ${sanitizeHtml(timestamp)}.
+            </p>${
+                resourceUrl
+                    ? `\n            <p style="margin: 0;"><a href="${resourceUrl}" style="color: #7262FF; text-decoration: underline;">View the scheduled delivery</a></p>`
+                    : ''
+            }
+        `;
+        return this.sendEmail({
+            to: recipient,
+            subject: `Your scheduled delivery "${schedulerName}" was ${actionVerb}`,
+            template: 'genericNotification',
+            context: {
+                title: `Your scheduled delivery was ${actionVerb}`,
+                message,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: `${modifyingUserName} ${actionVerb} your scheduled delivery "${schedulerName}" on ${timestamp}.${
+                resourceUrl ? ` View it at ${resourceUrl}` : ''
+            }`,
         });
     }
 

@@ -26,7 +26,11 @@ import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
-import { dateTruncTimezoneConversions, WeekDay } from '../utils/timeFrames';
+import {
+    dateTruncTimezoneConversions,
+    isTimezoneRoundTripNoOp,
+    WeekDay,
+} from '../utils/timeFrames';
 
 /**
  * Formats computed Date boundaries for relative date operators (IN_THE_PAST, etc.)
@@ -121,8 +125,8 @@ export const renderStringFilterSql = (
     // Apply UPPER() to both dimension and values when case insensitive (caseSensitive = false)
     const wrapDimension = (sql: string) =>
         !caseSensitive ? `UPPER(${sql})` : sql;
-    const wrapValue = (value: string) =>
-        !caseSensitive ? value.toUpperCase() : value;
+    const wrapValue = (value: unknown) =>
+        !caseSensitive ? String(value).toUpperCase() : value;
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
@@ -285,14 +289,23 @@ const renderDateOrTimestampFilterSql = (
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
+    sourceTimezone?: string,
 ): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
     const effectiveStartOfWeek =
         startOfWeek ?? getDefaultStartOfWeek(adapterType);
 
+    // Mirror the dim-side `resolveTimezoneWrap` short-circuit: when target tz
+    // equals source tz, dropping the literal's TIMESTAMP cast keeps both sides
+    // symmetric (a custom dim SQL emitting DATETIME can otherwise mismatch a
+    // TIMESTAMP boundary on BigQuery).
+    const wrapTimezoneLiteral =
+        !!useTimezoneAwareDateTrunc &&
+        !isTimezoneRoundTripNoOp(timezone, sourceTimezone);
+
     const castValue = (value: string): string => {
-        if (useTimezoneAwareDateTrunc) {
+        if (wrapTimezoneLiteral) {
             // Column is a timestamptz (round-trip through project TZ). Tag
             // the literal in project TZ so coercion aligns with the column.
             const { toUTC } = dateTruncTimezoneConversions[adapterType];
@@ -600,6 +613,7 @@ export const renderDateFilterSql = (
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
+    sourceTimezone?: string,
 ): string => {
     const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
     const effectiveFormatter =
@@ -615,6 +629,7 @@ export const renderDateFilterSql = (
         startOfWeek,
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
+        sourceTimezone,
     );
 };
 
@@ -628,6 +643,7 @@ export const renderTimestampFilterSql = (
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
+    sourceTimezone?: string,
 ): string =>
     renderDateOrTimestampFilterSql(
         dimensionSql,
@@ -639,6 +655,7 @@ export const renderTimestampFilterSql = (
         startOfWeek,
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
+        sourceTimezone,
     );
 
 export const renderBooleanFilterSql = (
@@ -751,6 +768,7 @@ export const renderFilterRuleSql = (
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
+    sourceTimezone?: string,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -806,6 +824,7 @@ export const renderFilterRuleSql = (
                 startOfWeek,
                 baseDimensionSql,
                 wrapLiteralAsTimestamptz,
+                sourceTimezone,
             );
         }
         case DimensionType.TIMESTAMP:
@@ -849,6 +868,7 @@ export const renderFilterRuleSqlFromField = (
     exploreCaseSensitive: boolean = true,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
+    sourceTimezone?: string,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -888,5 +908,6 @@ export const renderFilterRuleSqlFromField = (
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
         baseTimeIntervalDimensionType,
+        sourceTimezone,
     );
 };

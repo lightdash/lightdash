@@ -16,6 +16,25 @@
 export const SCREENSHOT_READY_INDICATOR_ID = 'lightdash-ready-indicator';
 
 /**
+ * ID of an element that is always mounted on minimal pages and exposes the
+ * current screenshot progress: which tiles are expected, ready, and errored.
+ *
+ * Unlike SCREENSHOT_READY_INDICATOR_ID, this element exists from first paint
+ * so the UnfurlService can read it on timeout to identify which tile UUIDs
+ * are still unaccounted for.
+ *
+ * Data attributes:
+ * - data-tiles-expected: JSON array of tile UUIDs expected to render
+ * - data-tiles-ready:    JSON array of tile UUIDs that called markTileScreenshotReady
+ * - data-tiles-errored:  JSON array of tile UUIDs that called markTileScreenshotErrored
+ *
+ * Usage:
+ * - Frontend: Rendered by ScreenshotProgressIndicator on minimal pages
+ * - Backend:  Read by UnfurlService when waitForSelector(READY_INDICATOR) times out
+ */
+export const SCREENSHOT_PROGRESS_INDICATOR_ID = 'lightdash-screenshot-progress';
+
+/**
  * Class name for tile loading skeleton overlays.
  * The UnfurlService waits for these elements to be hidden (loading complete).
  *
@@ -82,6 +101,8 @@ export const LOGIN_PAGE_ID = 'lightdash-login-page';
 export const SCREENSHOT_SELECTORS = {
     /** ID selector: #lightdash-ready-indicator */
     READY_INDICATOR: `#${SCREENSHOT_READY_INDICATOR_ID}`,
+    /** ID selector: #lightdash-screenshot-progress */
+    PROGRESS_INDICATOR: `#${SCREENSHOT_PROGRESS_INDICATOR_ID}`,
     /** Class selector: .loading_chart_overlay */
     LOADING_OVERLAY: `.${LOADING_CHART_OVERLAY_CLASS}`,
     /** Class selector: .loading_chart */

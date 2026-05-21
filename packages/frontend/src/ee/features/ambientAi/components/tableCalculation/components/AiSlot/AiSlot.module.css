@@ -32,7 +32,7 @@
     color: var(--mantine-color-ldDark-9);
 
     @mixin dark {
-        color: var(--mantine-color-ldGray-5);
+        color: var(--mantine-color-ldGray-8);
     }
 }
 

@@ -224,6 +224,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 id="download-type"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
+                comboboxProps={{ withinPortal: false }}
                 data={Object.values(DownloadType)
                     .filter(
                         (downloadType) =>

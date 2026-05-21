@@ -1,0 +1,6 @@
+# Supply-chain-sensitive files — require engineering team review
+.pnpmfile.cjs @lightdash/engineering
+.npmrc @lightdash/engineering
+pnpm-workspace.yaml @lightdash/engineering
+renovate.json @lightdash/engineering
+.github/workflows/ @lightdash/engineering

@@ -336,6 +336,7 @@ export class SpaceModel {
             inheritParentPermissions: row.inherit_parent_permissions,
             projectMemberAccessRole:
                 (row.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: row.color_palette_uuid,
         };
     }
 
@@ -480,6 +481,7 @@ export class SpaceModel {
                 pinnedListOrder: order,
                 validationErrors: validation_errors?.map(
                     (error: DbValidationTable) => ({
+                        validationUuid: error.validation_uuid,
                         validationId: error.validation_id,
                         error: error.error,
                         createdAt: error.created_at,
@@ -823,9 +825,10 @@ export class SpaceModel {
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
-                ({ error, created_at, validation_id }) => ({
+                ({ error, created_at, validation_uuid, validation_id }) => ({
                     error,
                     createdAt: created_at,
+                    validationUuid: validation_uuid,
                     validationId: validation_id,
                 }),
             ),
@@ -1121,6 +1124,7 @@ export class SpaceModel {
             inheritParentPermissions: space.inherit_parent_permissions,
             projectMemberAccessRole:
                 (space.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: space.color_palette_uuid,
         };
     }
 
@@ -1329,6 +1333,9 @@ export class SpaceModel {
             updateData.project_member_access_role =
                 space.projectMemberAccessRole;
         }
+        if (space.colorPaletteUuid !== undefined) {
+            updateData.color_palette_uuid = space.colorPaletteUuid;
+        }
         await this.database(SpaceTableName)
             .update(updateData)
             .where('space_uuid', spaceUuid);
@@ -1379,6 +1386,9 @@ export class SpaceModel {
             if (space.projectMemberAccessRole !== undefined) {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
+            }
+            if (space.colorPaletteUuid !== undefined) {
+                updateData.color_palette_uuid = space.colorPaletteUuid;
             }
             await trx(SpaceTableName)
                 .update(updateData)

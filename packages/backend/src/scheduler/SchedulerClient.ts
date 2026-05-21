@@ -20,6 +20,7 @@ import {
     isMsTeamsTarget,
     isSlackTarget,
     JobPriority,
+    ManagedAgentHeartbeatPayload,
     MaterializePreAggregatePayload,
     MsTeamsBatchNotificationPayload,
     MsTeamsNotificationPayload,
@@ -974,20 +975,22 @@ export class SchedulerClient {
             }
 
             // Legacy behavior for "Send Now" - individual jobs per target
-            const promises = scheduler.targets.map((target) => {
-                let targetPage = page;
-                if (perChannelPages) {
-                    if (isCreateSchedulerSlackTarget(target)) {
-                        targetPage = perChannelPages.slack ?? page;
-                    } else if (isCreateSchedulerMsTeamsTarget(target)) {
-                        targetPage = perChannelPages.msteams ?? page;
-                    } else if (isCreateSchedulerGoogleChatTarget(target)) {
-                        targetPage = perChannelPages.googlechat ?? page;
-                    } else {
-                        targetPage = perChannelPages.email ?? page;
-                    }
-                }
-                return this.addNotificationJob(
+            const targetTypeOf = (
+                target: CreateSchedulerTarget,
+            ): 'slack' | 'msteams' | 'googlechat' | 'email' => {
+                if (isCreateSchedulerSlackTarget(target)) return 'slack';
+                if (isCreateSchedulerMsTeamsTarget(target)) return 'msteams';
+                if (isCreateSchedulerGoogleChatTarget(target))
+                    return 'googlechat';
+                return 'email';
+            };
+
+            const promises = scheduler.targets.map(async (target) => {
+                const type = targetTypeOf(target);
+                const targetPage = perChannelPages
+                    ? (perChannelPages[type] ?? page)
+                    : page;
+                const result = await this.addNotificationJob(
                     scheduledTime,
                     parentJobId,
                     scheduler,
@@ -996,11 +999,22 @@ export class SchedulerClient {
                     targetPage,
                     traceProperties,
                 );
+                return { ...result, type };
             });
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${schedulerUuid}`,
             );
-            return await Promise.all(promises);
+            const results = await Promise.all(promises);
+            Logger.info('scheduler.fanout_created', {
+                schedulerUuid,
+                parentJobId,
+                childJobs: results.map(({ type, jobId }) => ({
+                    type,
+                    jobId,
+                    targetCount: 1,
+                })),
+            });
+            return results.map(({ target, jobId }) => ({ target, jobId }));
         } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule notification job for scheduler ${schedulerUuid}`,
@@ -1099,6 +1113,17 @@ export class SchedulerClient {
         );
 
         const results = await Promise.all(batchJobs);
+
+        Logger.info('scheduler.fanout_created', {
+            schedulerUuid: scheduler.schedulerUuid,
+            parentJobId,
+            childJobs: results.map(({ type, jobId, targetCount }) => ({
+                type,
+                jobId,
+                targetCount,
+            })),
+        });
+
         return results.map((result) => ({
             jobId: result.jobId,
             target: undefined,
@@ -1555,12 +1580,8 @@ export class SchedulerClient {
         return jobId;
     }
 
-    // --- Managed Agent Heartbeat (self-scheduling) ---
+    // --- Managed Agent Heartbeat ---
 
-    /**
-     * Schedule the next managed agent heartbeat for a specific project.
-     * Uses a per-project jobKey so each project has its own schedule.
-     */
     async scheduleManagedAgentHeartbeat(
         cronPattern: string,
         projectUuid: string,
@@ -1571,20 +1592,19 @@ export class SchedulerClient {
         const schedule = getSchedule(arr, new Date(), 'UTC');
         const nextRun = schedule.next().toJSDate();
 
-        const jobKey = `managed-agent-heartbeat:${projectUuid}`;
-
         await graphileClient.addJob(
             SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
             {
                 projectUuid,
                 organizationUuid: '',
                 userUuid: '',
-            } satisfies TraceTaskBase,
+                triggeredBy: 'cron',
+            } satisfies ManagedAgentHeartbeatPayload,
             {
                 runAt: nextRun,
                 maxAttempts: 1,
                 priority: JobPriority.LOW,
-                jobKey,
+                jobKey: `managed-agent-heartbeat:${projectUuid}`,
             },
         );
 
@@ -1593,19 +1613,44 @@ export class SchedulerClient {
         );
     }
 
-    /**
-     * Cancel pending managed agent heartbeat job(s).
-     * If projectUuid is provided, cancels only that project's job.
-     * Otherwise cancels all managed agent heartbeat jobs.
-     */
+    async triggerManagedAgentHeartbeat(
+        projectUuid: string,
+        triggeredBy: 'manual' | 'on_enable',
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
+            {
+                projectUuid,
+                organizationUuid: '',
+                userUuid: '',
+                triggeredBy,
+            } satisfies ManagedAgentHeartbeatPayload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+                jobKey: `managed-agent-heartbeat:immediate:${projectUuid}`,
+            },
+        );
+
+        Logger.info(
+            `Triggered immediate managed agent heartbeat for ${projectUuid} (${triggeredBy})`,
+        );
+    }
+
     async cancelManagedAgentHeartbeat(projectUuid?: string): Promise<void> {
         const graphileClient = await this.graphileUtils;
         await graphileClient.withPgClient(async (pgClient) => {
             if (projectUuid) {
                 await pgClient.query(
                     `DELETE FROM graphile_worker.jobs
-                     WHERE key = $1 AND locked_by IS NULL`,
-                    [`managed-agent-heartbeat:${projectUuid}`],
+                     WHERE locked_by IS NULL AND key IN ($1, $2)`,
+                    [
+                        `managed-agent-heartbeat:${projectUuid}`,
+                        `managed-agent-heartbeat:immediate:${projectUuid}`,
+                    ],
                 );
             } else {
                 await pgClient.query(

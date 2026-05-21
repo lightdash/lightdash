@@ -3,6 +3,7 @@ import {
     AnyType,
     ApiErrorPayload,
     ApiQueryResults,
+    assertRegisteredAccount,
     CacheMetadata,
     Item,
     MetricQuery,
@@ -25,6 +26,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -69,13 +71,14 @@ export class RunViewChartQueryController extends BaseController {
         @Path() exploreId: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -101,7 +104,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runUnderlyingDataQuery(
-                req.account!,
+                req.account,
                 metricQuery,
                 projectUuid,
                 exploreId,
@@ -139,13 +142,14 @@ export class RunViewChartQueryController extends BaseController {
 
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -174,7 +178,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runExploreQuery(
-                req.account!,
+                req.account,
                 metricQuery,
                 projectUuid,
                 exploreId,

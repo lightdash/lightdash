@@ -101,6 +101,13 @@ const GroupHeader: FC<{
     );
 };
 
+const getExpiresInDays = (expiresAt: Date | null): number | null => {
+    if (!expiresAt) return null;
+    const now = new Date();
+    const diffMs = new Date(expiresAt).getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+};
+
 const ProjectItem: FC<{
     item: OrganizationProject;
     handleProjectChange: (newUuid: string) => void;
@@ -108,6 +115,8 @@ const ProjectItem: FC<{
     isActive?: boolean;
 }> = ({ item, handleProjectChange, searchQuery, isActive = false }) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+    const isPreview = item.type === ProjectType.PREVIEW;
+    const expiresInDays = isPreview ? getExpiresInDays(item.expiresAt) : null;
 
     return (
         <Menu.Item
@@ -140,18 +149,34 @@ const ProjectItem: FC<{
                     </Highlight>
                 </Tooltip>
 
-                {isActive && (
-                    <Badge
-                        color={isActive ? 'green' : 'yellow.1'}
-                        variant="light"
-                        size="sm"
-                        radius="sm"
-                        fw={450}
-                        className={classes.badge}
-                    >
-                        {isActive ? 'Active' : 'Preview'}
-                    </Badge>
-                )}
+                <Group gap="xs" wrap="nowrap">
+                    {isActive && (
+                        <Badge
+                            color="green"
+                            variant="light"
+                            size="sm"
+                            radius="sm"
+                            fw={450}
+                            className={classes.badge}
+                        >
+                            Active
+                        </Badge>
+                    )}
+                    {isPreview && expiresInDays !== null && (
+                        <Badge
+                            color="orange"
+                            variant="light"
+                            size="xs"
+                            radius="sm"
+                            fw={450}
+                            className={classes.badge}
+                        >
+                            {expiresInDays === 0
+                                ? 'Expires today'
+                                : `Expires in ${expiresInDays}d`}
+                        </Badge>
+                    )}
+                </Group>
             </Group>
         </Menu.Item>
     );

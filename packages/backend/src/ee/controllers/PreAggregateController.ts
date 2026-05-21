@@ -1,6 +1,6 @@
 import {
     ApiErrorPayload,
-    AuthorizationError,
+    assertRegisteredAccount,
     type ApiGetDashboardPreAggregateAuditResponse,
     type ApiGetPreAggregateMaterializationsResponse,
     type ApiGetPreAggregateStatsResponse,
@@ -21,6 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -86,19 +87,17 @@ export class PreAggregateController extends BaseController {
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
-        if (!req.user?.userUuid) {
-            throw new AuthorizationError(
-                'Pre-aggregate audit requires a logged-in user',
-            );
-        }
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const dashboard = await this.services
             .getDashboardService()
-            .getByIdOrSlug(req.user, dashboardUuidOrSlug, { projectUuid });
+            .getByIdOrSlug(toSessionUser(req.account), dashboardUuidOrSlug, {
+                projectUuid,
+            });
         const results = await this.services
             .getAsyncQueryService()
             .getDashboardPreAggregateAudit(
-                req.account!,
+                req.account,
                 projectUuid,
                 dashboard.uuid,
             );
@@ -119,19 +118,17 @@ export class PreAggregateController extends BaseController {
         @Body() body: ApiRunDashboardPreAggregateAuditBody,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
-        if (!req.user?.userUuid) {
-            throw new AuthorizationError(
-                'Pre-aggregate audit requires a logged-in user',
-            );
-        }
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const dashboard = await this.services
             .getDashboardService()
-            .getByIdOrSlug(req.user, dashboardUuidOrSlug, { projectUuid });
+            .getByIdOrSlug(toSessionUser(req.account), dashboardUuidOrSlug, {
+                projectUuid,
+            });
         const results = await this.services
             .getAsyncQueryService()
             .getDashboardPreAggregateAudit(
-                req.account!,
+                req.account,
                 projectUuid,
                 dashboard.uuid,
                 body.dashboardFilters,

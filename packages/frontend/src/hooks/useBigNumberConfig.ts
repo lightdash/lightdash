@@ -83,12 +83,13 @@ const formatComparisonValue = (
                 )}`;
             }
 
+            const metricRoundRaw = isField(item) ? item.round : undefined;
             const formattedValue = bigNumberComparisonStyle
                 ? applyCustomFormat(
                       value,
                       getCustomFormatFromLegacy({
                           format: isField(item) ? item.format : undefined,
-                          round: 2,
+                          round: metricRoundRaw ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
                   )
@@ -105,12 +106,13 @@ const formatComparisonValue = (
                     timezone,
                 );
             }
+            const metricRoundDefault = isField(item) ? item.round : undefined;
             return bigNumberComparisonStyle
                 ? applyCustomFormat(
                       value,
                       getCustomFormatFromLegacy({
                           format: isField(item) ? item.format : undefined,
-                          round: 2,
+                          round: metricRoundDefault ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
                   )
@@ -355,15 +357,13 @@ const useBigNumberConfig = (
                 compact: bigNumberStyle ?? item.formatOptions?.compact,
             });
         } else {
+            const metricRound = isField(item) ? item.round : undefined;
+            const compactStyleDefault = bigNumberStyle ? 2 : undefined;
             return applyCustomFormat(
                 firstRowValueRaw,
                 getCustomFormatFromLegacy({
                     format: isField(item) ? item.format : undefined,
-                    round: bigNumberStyle
-                        ? 2
-                        : isField(item)
-                          ? item.round
-                          : undefined,
+                    round: metricRound ?? compactStyleDefault,
                     compact: bigNumberStyle,
                 }),
             );

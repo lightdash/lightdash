@@ -274,7 +274,11 @@ export class MetricsExplorerService extends BaseService {
         const adapterType = credentials.type;
 
         const { current, previous } = getRollingPeriodDates(rollingDays);
-        const timeDimensionFieldRef = `\${${metricTimeDimension.table}.${metricTimeDimension.field}}`;
+        // Reference the day-truncated dimension so the CASE bucket boundaries
+        // match the WHERE filter (which uses interval: TimeFrames.DAY → field_day).
+        // Without this, records with timestamps after midnight on boundary dates
+        // pass the WHERE but fall through to NULL in the CASE.
+        const timeDimensionFieldRef = `\${${metricTimeDimension.table}.${getFieldIdForDateDimension(metricTimeDimension.field, TimeFrames.DAY)}}`;
 
         const periodDimension = buildRollingPeriodCustomDimension(
             timeDimensionFieldRef,

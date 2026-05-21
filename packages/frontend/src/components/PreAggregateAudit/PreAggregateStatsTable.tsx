@@ -12,13 +12,13 @@ import {
     IconTable,
     IconTarget,
 } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
+    ContentTable,
+    useContentTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
-} from 'mantine-react-table';
-import { useCallback, useMemo, useState, type FC } from 'react';
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import {
     aggregateStats,
@@ -300,7 +300,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         [projectUuid],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredRows,
         enableColumnResizing: false,
@@ -415,7 +415,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         onSortingChange: setSorting,
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default PreAggregateStatsTable;

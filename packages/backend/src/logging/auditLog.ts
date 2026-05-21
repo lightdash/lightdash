@@ -33,8 +33,16 @@ export const UserAuditActorSchema = BaseUserActorSchema.extend({
     type: z.enum(['session', 'pat', 'oauth']),
 });
 
-export const ServiceAccountAuditActorSchema = BaseUserActorSchema.extend({
+// `uuid` is the service-account UUID — the actual actor. Service accounts
+// now have a dedicated `users` row, so writes attribute the SA directly via
+// `created_by_user_uuid` / `updated_by_user_uuid`; no separate "attributed
+// user" plumbing is required.
+export const ServiceAccountAuditActorSchema = z.object({
     type: z.literal('service-account'),
+    uuid: z.string(),
+    description: z.string().optional(),
+    organizationUuid: z.string(),
+    organizationRole: z.string(),
 });
 
 export const AnonymousAuditActorSchema = z.object({

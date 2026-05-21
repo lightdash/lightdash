@@ -148,6 +148,7 @@ export const logSelectedProject = (
     const { projectUuid, isPreview } = selection;
     const previewName = config.context?.previewName;
     const mainProjectName = config.context?.projectName;
+    const mainProjectUuid = config.context?.project;
 
     if (isPreview) {
         const name = previewName ? `"${previewName}"` : projectUuid;
@@ -155,7 +156,14 @@ export const logSelectedProject = (
             `\n${styles.success(`${action} preview project:`)} ${name}\n`,
         );
     } else {
-        const name = mainProjectName ? `"${mainProjectName}"` : projectUuid;
+        // Only use the cached project name when the selection actually points
+        // at the config-set project. With --project, the UUID can differ and
+        // the cached name would be misleading.
+        const isConfigProject = mainProjectUuid === projectUuid;
+        const name =
+            isConfigProject && mainProjectName
+                ? `"${mainProjectName}"`
+                : projectUuid;
         GlobalState.log(`\n${styles.success(`${action} project:`)} ${name}\n`);
     }
 };

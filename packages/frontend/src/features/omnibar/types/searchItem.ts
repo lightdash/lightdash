@@ -1,6 +1,19 @@
 import { SearchItemType, type SearchResult } from '@lightdash/common';
 
-export const allSearchItemTypes = Object.values(SearchItemType);
+// Display order for the omnibar's "Item type" filter dropdown.
+// Data apps slot just above Spaces so they sit alongside the other
+// "container" content types (spaces) rather than at the bottom.
+export const allSearchItemTypes: SearchItemType[] = [
+    SearchItemType.DASHBOARD,
+    SearchItemType.DASHBOARD_TAB,
+    SearchItemType.CHART,
+    SearchItemType.SQL_CHART,
+    SearchItemType.DATA_APP,
+    SearchItemType.SPACE,
+    SearchItemType.TABLE,
+    SearchItemType.FIELD,
+    SearchItemType.PAGE,
+];
 
 export type SearchItem = {
     type: SearchItemType;

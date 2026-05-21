@@ -60,7 +60,8 @@ export const useAiAgentThreadArtifact = ({
         prevArtifactRef.current = artifact;
     }, [artifact, latestAssistantMessage]);
 
-    // Auto-select latest artifact if not already handled
+    // Auto-open on artifact landing; the bubble shows "Finishing up…" until
+    // the closing text streams in so the panel doesn't read as a focus-yank.
     useEffect(() => {
         if (
             !projectUuid ||

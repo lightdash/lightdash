@@ -20,7 +20,7 @@ const applyOrganizationMemberDynamicAbilities = ({
     }
 };
 
-const applyOrganizationMemberStaticAbilities: Record<
+export const applyOrganizationMemberStaticAbilities: Record<
     OrganizationMemberRole,
     (
         member: OrganizationMemberAbilitiesArgs['member'],
@@ -228,6 +228,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'AiAgent', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'AiAgentDocument', {
+            organizationUuid: member.organizationUuid,
+        });
         can('create', 'AiAgentThread', {
             organizationUuid: member.organizationUuid,
         });
@@ -275,6 +278,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'CustomSqlTableCalculations', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'SqlRunner', {
@@ -336,6 +342,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgent', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'AiAgentDocument', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgentThread', {

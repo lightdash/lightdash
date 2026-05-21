@@ -1084,18 +1084,6 @@ export const securityCases: TestCase[] = [
         tags: ['security', 'sql-keywords'],
     },
     {
-        id: 'security/grammar-case-when',
-        formula: '=CASE WHEN 1=1 THEN 1 ELSE 0 END',
-        description: 'CASE WHEN must not parse — SQL conditional, not formula IF',
-        columns: {},
-        sourceTable: 'test_orders',
-        expectedRows: [],
-        expectedError: 'parse error',
-        warehouses: ALL_WAREHOUSES,
-        tier: 1,
-        tags: ['security', 'sql-keywords'],
-    },
-    {
         id: 'security/grammar-having',
         formula: '=A HAVING A > 100',
         description: 'HAVING keyword must not parse',

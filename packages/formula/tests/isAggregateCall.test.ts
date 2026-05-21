@@ -14,6 +14,7 @@ describe('isAggregateCall', () => {
         ['=SUMIF(A, B > 0)', true, 'SUMIF'],
         ['=AVERAGEIF(A, B > 0)', true, 'AVERAGEIF'],
         ['=COUNTIF(B > 0)', true, 'COUNTIF'],
+        ['=COUNT(DISTINCT A)', true, 'COUNT(DISTINCT)'],
     ])('recognises %s as aggregate (%s)', (formula, expected, _desc) => {
         expect(isAggregateCall(parse(formula))).toBe(expected);
     });
@@ -30,10 +31,18 @@ describe('isAggregateCall', () => {
         ['=MAX(A, B)', '2-arg MAX (scalar GREATEST)'],
         ['=CONCAT(A, B)', 'variadic CONCAT'],
         ['=COALESCE(A, B)', 'variadic COALESCE'],
+        ['=LEFT(A, 5)', 'two-arg LEFT'],
+        ['=RIGHT(A, 5)', 'two-arg RIGHT'],
+        ['=REPLACE(A, "x", "y")', 'three-arg REPLACE'],
+        ['=SUBSTRING(A, 1, 5)', 'three-arg SUBSTRING'],
         ['=TODAY()', 'zero-arg TODAY'],
         ['=ROW_NUMBER()', 'window ROW_NUMBER (native windowing, not an aggregate call)'],
         ['=RUNNING_TOTAL(A)', 'window RUNNING_TOTAL (emits its own OVER)'],
         ['=LAG(A, 1)', 'window LAG'],
+        ['=SUM(A) OVER (PARTITION BY B)', 'windowed SUM (carries its own OVER)'],
+        ['=COUNT(DISTINCT A) OVER (PARTITION BY B)', 'windowed COUNT(DISTINCT)'],
+        ['=SUMIF(A, B > 0) OVER (PARTITION BY C)', 'windowed SUMIF'],
+        ['=AVG(A) OVER ()', 'windowed AVG with empty OVER'],
         ['=A', 'column reference'],
         ['=42', 'number literal'],
         ['="hello"', 'string literal'],

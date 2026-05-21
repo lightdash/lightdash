@@ -1,3 +1,4 @@
+import { type ItemsMap } from '../types/field';
 import {
     convertSqlPivotedRowsToPivotData,
     pivotQueryResults,
@@ -1581,5 +1582,319 @@ describe('visibleMetricFieldIds in pivotQueryResults', () => {
         ]);
         // 3 pages × 2 metrics = 6 data columns
         expect(result.dataColumnCount).toBe(6);
+    });
+});
+
+describe('parameter-aware cell formatting (PROD-437)', () => {
+    // Metric formats that reference ${ld.parameters.*} can't be evaluated by
+    // the backend (parameter values live on the client), so its `.formatted`
+    // string carries the literal placeholder. For flat tables, useColumns
+    // overlays a per-cell re-format. The pivot pipeline used to skip this
+    // overlay — every cell, total and pivoted-metric header rendered the
+    // unresolved format. This block covers the equivalent overlay in
+    // pivotQueryResults / convertSqlPivotedRowsToPivotData.
+
+    const PARAMETER_FORMAT = '${ld.parameters.currency=="eur"?"€":"$"}0,0.00';
+
+    const getFieldWithParameterFormat = (
+        fieldId: string,
+    ): ItemsMap[string] | undefined => {
+        const field = getFieldMock(fieldId);
+        if (field && fieldId === 'payments_total_revenue') {
+            // `format` on TableCalculation is a CustomFormat object, but we
+            // know payments_total_revenue is a Metric — cast to satisfy the
+            // union's intersection.
+            return { ...field, format: PARAMETER_FORMAT } as ItemsMap[string];
+        }
+        return field;
+    };
+
+    const PIVOT_CONFIG_WITH_TOTALS = {
+        pivotDimensions: ['payments_payment_method'],
+        metricsAsRows: false,
+        columnOrder: [
+            'payments_payment_method',
+            'orders_order_date_year',
+            'payments_total_revenue',
+        ],
+        hiddenMetricFieldIds: [],
+        columnTotals: true,
+        rowTotals: true,
+    };
+
+    const METRIC_QUERY_PIVOTED = {
+        dimensions: ['payments_payment_method', 'orders_order_date_year'],
+        metrics: ['payments_total_revenue'],
+        tableCalculations: [],
+        additionalMetrics: [],
+        customDimensions: [],
+    };
+
+    it('pivotQueryResults reformats pivoted cells with active parameters', () => {
+        const result = pivotQueryResults({
+            getField: getFieldWithParameterFormat,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: PIVOT_CONFIG_WITH_TOTALS,
+            metricQuery: METRIC_QUERY_PIVOTED,
+            rows: NON_PIVOTED_ROWS,
+            options: { maxColumns: 60 },
+            parameters: { currency: 'eur' },
+        });
+
+        // First data row, first pivoted-metric cell (raw 493.78) — used to
+        // render the unresolved `${...}493.78` placeholder verbatim.
+        const firstCell =
+            result.retrofitData.allCombinedData[0]
+                ?.payments_payment_method__payments_total_revenue__0;
+        expect(firstCell?.value).toEqual({
+            raw: 493.78,
+            formatted: '€493.78',
+        });
+    });
+
+    it('pivotQueryResults reformats row totals with active parameters', () => {
+        const result = pivotQueryResults({
+            getField: getFieldWithParameterFormat,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: PIVOT_CONFIG_WITH_TOTALS,
+            metricQuery: METRIC_QUERY_PIVOTED,
+            rows: NON_PIVOTED_ROWS,
+            options: { maxColumns: 60 },
+            parameters: { currency: 'eur' },
+        });
+
+        // combinedRetrofit's formatItemValue call previously passed
+        // `undefined` for parameters, dropping the currency symbol from
+        // row-total cells.
+        const firstRowTotal =
+            result.retrofitData.allCombinedData[0]?.['row-total-0'];
+        expect(firstRowTotal?.value).toEqual({
+            raw: 1746.77,
+            formatted: '€1,746.77',
+        });
+    });
+
+    it('pivotQueryResults leaves output unchanged when parameters are omitted (backwards compat)', () => {
+        const result = pivotQueryResults({
+            getField: getFieldWithParameterFormat,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: PIVOT_CONFIG_WITH_TOTALS,
+            metricQuery: METRIC_QUERY_PIVOTED,
+            rows: NON_PIVOTED_ROWS,
+            options: { maxColumns: 60 },
+        });
+
+        // No parameters supplied → reformat helper short-circuits, backend
+        // `.formatted` is forwarded verbatim.
+        const firstCell =
+            result.retrofitData.allCombinedData[0]
+                ?.payments_payment_method__payments_total_revenue__0;
+        expect(firstCell?.value).toEqual({
+            raw: 493.78,
+            formatted: '493.78',
+        });
+
+        // Row total falls back to default-formatted numeric (no currency
+        // symbol) — matches pre-PR behaviour.
+        const firstRowTotal =
+            result.retrofitData.allCombinedData[0]?.['row-total-0'];
+        expect(firstRowTotal?.value.raw).toBe(1746.77);
+        expect(firstRowTotal?.value.formatted).not.toMatch(/€/);
+    });
+
+    it('pivotQueryResults does not touch cells whose format is not parameter-based', () => {
+        // Same input, with and without `parameters`. The metric returned by
+        // getFieldMock has no `format`, so the reformat helper short-circuits
+        // on the `'format' in item` check — results must be byte-identical.
+        const without = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: PIVOT_CONFIG_WITH_TOTALS,
+            metricQuery: METRIC_QUERY_PIVOTED,
+            rows: NON_PIVOTED_ROWS,
+            options: { maxColumns: 60 },
+        });
+        const withParams = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: PIVOT_CONFIG_WITH_TOTALS,
+            metricQuery: METRIC_QUERY_PIVOTED,
+            rows: NON_PIVOTED_ROWS,
+            options: { maxColumns: 60 },
+            parameters: { currency: 'eur' },
+        });
+        expect(withParams).toStrictEqual(without);
+    });
+
+    it('convertSqlPivotedRowsToPivotData reformats cells and row totals with active parameters', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldWithParameterFormat,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            parameters: { currency: 'eur' },
+        });
+
+        const firstCell =
+            result.retrofitData.allCombinedData[0]
+                ?.payments_payment_method__payments_total_revenue__0;
+        expect(firstCell?.value).toEqual({
+            raw: 493.78,
+            formatted: '€493.78',
+        });
+
+        const firstRowTotal =
+            result.retrofitData.allCombinedData[0]?.['row-total-0'];
+        expect(firstRowTotal?.value).toEqual({
+            raw: 1746.77,
+            formatted: '€1,746.77',
+        });
+    });
+});
+
+describe('hiddenDimensionFieldIds in pivotQueryResults', () => {
+    it('omits a hidden pivot-column-header dimension from headerValueTypes', () => {
+        // page and site are both pivot dimensions; hide site
+        const result = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: ['page', 'site'],
+                metricsAsRows: true,
+                hiddenDimensionFieldIds: ['site'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        const headerFieldIds = result.headerValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(headerFieldIds).toContain('page'); // 'page' is still present
+        expect(headerFieldIds).not.toContain('site'); // 'site' is hidden
+    });
+
+    it('omits a hidden row-index dimension from indexValueTypes', () => {
+        // No pivot dims so both page and site are row-index; hide page
+        const result = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: ['page'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        const indexFieldIds = result.indexValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(indexFieldIds).not.toContain('page');
+    });
+
+    it('preserves row grouping when a row-index dimension is hidden (rows still group correctly)', () => {
+        // With no hidden dims
+        const fullResult = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: [],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        // With page hidden — row count must stay the same (grouping uses full dims)
+        const hiddenResult = pivotQueryResults({
+            pivotConfig: {
+                pivotDimensions: [],
+                metricsAsRows: false,
+                hiddenDimensionFieldIds: ['page'],
+            },
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 100 },
+            getField: (_fieldId) => undefined,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+
+        // Row count must be unchanged: rows are still grouped by both page + site
+        expect(hiddenResult.rowsCount).toBe(fullResult.rowsCount);
+        // But indexValueTypes should only contain site (page is hidden)
+        const indexFieldIds = hiddenResult.indexValueTypes.map((t) =>
+            'fieldId' in t ? t.fieldId : null,
+        );
+        expect(indexFieldIds).not.toContain('page');
+        expect(indexFieldIds).toContain('site');
+    });
+});
+
+describe('convertSqlPivotedRowsToPivotData metric ordering (#19838 / #19919)', () => {
+    it('orders metricsAsRows row labels by columnOrder, not valuesColumns first-occurrence', () => {
+        // baseMetricsArray was previously derived via Array.from(new Set(...)),
+        // which preserves valuesColumns first-occurrence order rather than the
+        // user's metric selection sequence (columnOrder). With metricsAsRows: true
+        // this produced metric label rows in the wrong order. Fixed in PR #19910
+        // by sorting by columnOrder.indexOf.
+        //
+        // valuesColumns order in COMPLEX_SQL_PIVOT_DETAILS:
+        //   payments_total_revenue, orders_average_order_size, orders_total_order_amount
+        // columnOrder below intentionally reverses that, so the two derivations diverge.
+        const columnOrder = [
+            'payments_payment_method',
+            'orders_order_date_year',
+            'orders_is_completed',
+            'orders_promo_code',
+            'orders_total_order_amount',
+            'payments_total_revenue',
+            'orders_average_order_size',
+        ];
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: COMPLEX_SQL_PIVOTED_ROWS,
+            pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: true,
+                columnOrder,
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // In metricsAsRows mode each indexValues row ends with a metric label.
+        const metricRowOrder = result.indexValues
+            .map((row) => row[row.length - 1])
+            .filter(
+                (entry): entry is { type: 'label'; fieldId: string } =>
+                    entry.type === 'label',
+            )
+            .map((entry) => entry.fieldId);
+
+        expect(metricRowOrder).toEqual([
+            'orders_total_order_amount',
+            'payments_total_revenue',
+            'orders_average_order_size',
+        ]);
     });
 });

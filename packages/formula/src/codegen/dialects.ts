@@ -15,7 +15,35 @@ export interface DialectConfig {
     quoteIdentifier: (name: string) => string;
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
+    // Division emission. Default `(left / NULLIF(right, 0))` matches the
+    // common case (BigQuery, Snowflake, Databricks, ClickHouse, DuckDB
+    // all auto-widen `int / int` to a real-valued type). Postgres/Redshift
+    // and Trino/Athena truncate `int / int` to integer, so they override
+    // to cast the dividend, forcing float division to match the formula
+    // language's Google-Sheets-style semantics.
+    generateDivision?: (left: string, right: string) => string;
     generateConcat?: (args: string[]) => string;
+    // SUBSTRING emission. Default `SUBSTRING(t, s, l)` works everywhere except BigQuery, which calls it `SUBSTR`.
+    generateSubstring?: (text: string, start: string, length: string) => string;
+    // LEFT / RIGHT emission. Default `LEFT(t, n)` / `RIGHT(t, n)` works everywhere except Trino / Athena, which lack both and compose via `substr`.
+    generateLeft?: (text: string, count: string) => string;
+    generateRight?: (text: string, count: string) => string;
+    // SPLIT_PART(text, delim, n) — 1-indexed n-th part. Default ANSI form serves
+    // Postgres / Redshift / Snowflake / DuckDB / Trino / Athena. BigQuery and
+    // Databricks have only `SPLIT(text, delim)` returning an array; ClickHouse
+    // uses `splitByString`. All overrides return the empty/null fallback for
+    // out-of-range indexes so behaviour matches the ANSI default.
+    generateSplitPart?: (text: string, delimiter: string, n: string) => string;
+    // STRPOS(text, substring) — 1-indexed position; 0 if not found. Default
+    // ANSI `STRPOS(t, s)` works on Postgres / Redshift / BigQuery / Trino /
+    // Athena. Snowflake / Databricks use `POSITION(s IN t)`; DuckDB uses
+    // `INSTR(t, s)`; ClickHouse uses lowercase `position(t, s)`.
+    generateStrpos?: (text: string, substring: string) => string;
+    // STARTS_WITH(text, prefix) — boolean. Native on Postgres 11+ / DuckDB /
+    // BigQuery / Trino / Athena. Redshift has no native fn (LIKE fallback);
+    // Snowflake / Databricks use `STARTSWITH` (no underscore); ClickHouse uses
+    // camelCase `startsWith`.
+    generateStartsWith?: (text: string, prefix: string) => string;
     generateLagLead?: (ctx: LagLeadContext) => string;
     // AVG emission. Covers both the aggregate `=AVG(A)` and the windowed
     // `=MOVING_AVG(A, N, …)` (which fans out to `AVG(...) OVER (…)`).
@@ -162,6 +190,17 @@ const postgresStyleRound = (value: string, digits?: string): string =>
     digits !== undefined
         ? `ROUND((${value})::numeric, ${digits})`
         : `ROUND(${value})`;
+// Division: Postgres's `int / int` is integer division (truncates), so a
+// table calc like `=COUNT(orders) / COUNT(customers)` over two BIGINTs comes
+// back as 0 or 1 instead of a real-valued ratio — the formula language
+// targets Google-Sheets-style semantics, where `/` is always real-valued.
+// Cast the dividend to numeric; PG promotes the divisor to numeric and the
+// result is numeric (full precision, no truncation). Numeric (rather than
+// DOUBLE PRECISION) keeps the half-away-from-zero rounding that Google
+// Sheets and Excel use — `round(double precision)` switches to banker's
+// rounding and would silently turn `=ROUND(250.50 / 1)` from 251 into 250.
+const postgresStyleDivision = (left: string, right: string): string =>
+    `((${left})::numeric / NULLIF(${right}, 0))`;
 // ANSI DATE_TRUNC — shared by Postgres/Redshift/Snowflake/DuckDB. Non-Monday
 // week handling composes in the INTERVAL form; see `defaultDateTrunc` in
 // generator.ts for the offset dance.
@@ -179,6 +218,7 @@ const postgresStyleLastDay = (arg: string): string =>
 const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateModulo: infixPercentModulo,
+    generateDivision: postgresStyleDivision,
     generateAvg: postgresStyleAvg,
     generateConcat: postgresStyleConcat,
     generateRound: postgresStyleRound,
@@ -222,6 +262,13 @@ const REDSHIFT_CONFIG: DialectConfig = {
         digits !== undefined
             ? `ROUND((${value})::numeric(38, 10), ${digits})`
             : `ROUND(${value})`,
+    // Same precision-pinning rationale as `generateRound` above: bare
+    // `(x)::numeric` on Redshift is `numeric(18, 0)`, which would truncate
+    // the dividend to an integer before division and re-introduce the very
+    // bug `postgresStyleDivision` fixes on Postgres. Pin to `numeric(38, 10)`
+    // so `int / int` keeps a non-zero scale through the division.
+    generateDivision: (left, right) =>
+        `((${left})::numeric(38, 10) / NULLIF(${right}, 0))`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         if (args.length >= 3) {
             const [value, offset, defaultValue] = args;
@@ -237,6 +284,12 @@ const REDSHIFT_CONFIG: DialectConfig = {
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Redshift forks pre-11 Postgres, so the native `STARTS_WITH` doesn't
+    // exist. Compose via `LEFT(t, LENGTH(p)) = p` — safer than `LIKE p || '%'`
+    // because the prefix isn't subject to LIKE-pattern escaping. NULL-in,
+    // NULL-out behaviour matches Postgres' native STARTS_WITH.
+    generateStartsWith: (text, prefix) =>
+        `(LEFT(${text}, LENGTH(${prefix})) = ${prefix})`,
 };
 
 // Snowflake's `DATEADD(unit, n, d)` takes a bare unit identifier and is the
@@ -253,6 +306,11 @@ const SNOWFLAKE_CONFIG: DialectConfig = {
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Snowflake has no `STRPOS`. `POSITION(substring, text)` is the function
+    // form (substring first); 1-indexed, 0 if not found.
+    generateStrpos: (text, substring) => `POSITION(${substring}, ${text})`,
+    // Snowflake spells it `STARTSWITH` — no underscore.
+    generateStartsWith: (text, prefix) => `STARTSWITH(${text}, ${prefix})`,
 };
 
 const DUCKDB_CONFIG: DialectConfig = {
@@ -312,6 +370,16 @@ const BIGQUERY_CONFIG: DialectConfig = {
     // every other dialect. The unit is a bare identifier.
     generateDateDiff: (unit, start, end) =>
         `DATE_DIFF(${end}, ${start}, ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`,
+    // BigQuery has no `SUBSTRING`; the native function is `SUBSTR`.
+    generateSubstring: (text, start, length) =>
+        `SUBSTR(${text}, ${start}, ${length})`,
+    // BigQuery has no native `SPLIT_PART`. `SPLIT(t, d)` returns an array;
+    // `SAFE_OFFSET(n-1)` returns NULL on out-of-range, which we coalesce to
+    // empty string to match Postgres' `SPLIT_PART` semantics for in-range
+    // cases. (Trade-off: NULL input also coalesces to empty — Postgres keeps
+    // NULL. Almost no real prompts hit that edge case.)
+    generateSplitPart: (text, delimiter, n) =>
+        `IFNULL(SPLIT(${text}, ${delimiter})[SAFE_OFFSET((${n}) - 1)], '')`,
 };
 
 // Databricks (Spark SQL) has no general `DATEADD(unit, …)` across versions,
@@ -351,6 +419,10 @@ const DATABRICKS_CONFIG: DialectConfig = {
     // identifier (Databricks SQL Warehouse, Runtime 11+).
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Databricks has no `STRPOS`; `INSTR(str, substr)` matches the call shape.
+    generateStrpos: (text, substring) => `INSTR(${text}, ${substring})`,
+    // Databricks spells it `STARTSWITH` — no underscore.
+    generateStartsWith: (text, prefix) => `STARTSWITH(${text}, ${prefix})`,
 };
 
 // ClickHouse has four dialect quirks the formula package cares about:
@@ -428,6 +500,16 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
             'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
         );
     },
+    // ClickHouse uses `splitByString(separator, string)` — note the arg
+    // order is (delim, text), inverse of SPLIT_PART. The result is a
+    // 1-indexed array; out-of-range index returns the type's default ('').
+    generateSplitPart: (text, delimiter, n) =>
+        `splitByString(${delimiter}, ${text})[${n}]`,
+    // ClickHouse's `position(haystack, needle)` is lowercase and 1-indexed;
+    // returns 0 if not found — same semantics as ANSI STRPOS.
+    generateStrpos: (text, substring) => `position(${text}, ${substring})`,
+    // ClickHouse spells it `startsWith` (camelCase).
+    generateStartsWith: (text, prefix) => `startsWith(${text}, ${prefix})`,
 };
 
 // Trino / Athena config. Athena's SQL Engine v3 is Trino, and
@@ -460,6 +542,12 @@ const TRINO_CONFIG: DialectConfig = {
     // any string with a literal `\`. We deliberately diverge from it here
     // and use the ANSI-correct form.)
     generateStringLiteral: ansiSingleQuoteDoubleStringLiteral,
+    // Trino / Athena treat `int / int` as integer division (`5 / 2 = 2`),
+    // same footgun as Postgres. Widen the LHS to DOUBLE; Trino implicitly
+    // promotes the RHS to match. `DECIMAL / DECIMAL` and `DOUBLE / *`
+    // already return real-valued types, so the cast is harmless there.
+    generateDivision: (left, right) =>
+        `(CAST(${left} AS DOUBLE) / NULLIF(${right}, 0))`,
     // Trino / Athena `CONCAT` requires two or more arguments — calling it
     // with a single arg fails with "There must be two or more concatenation
     // arguments". Pass single-arg through unchanged; otherwise use the
@@ -480,6 +568,10 @@ const TRINO_CONFIG: DialectConfig = {
     generateDateAdd: (unit, date, n) => `DATE_ADD('${unit}', ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATE_DIFF('${unit}', ${start}, ${end})`,
+    // Trino / Athena have no `LEFT` / `RIGHT` — compose via `substr`.
+    // RIGHT uses negative-start semantics (Trino docs: position from end).
+    generateLeft: (text, count) => `SUBSTR(${text}, 1, ${count})`,
+    generateRight: (text, count) => `SUBSTR(${text}, -(${count}))`,
 };
 
 export const DIALECTS: Record<Dialect, DialectConfig> = {

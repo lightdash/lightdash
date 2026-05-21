@@ -1,15 +1,21 @@
 import {
     isToolName,
     toolDashboardV2ArgsSchema,
+    toolDescribeWarehouseTableArgsSchema,
     toolFindChartsArgsSchema,
     toolFindContentArgsSchema,
     toolFindDashboardsArgsSchema,
     toolFindExploresArgsSchemaV3,
     toolFindFieldsArgsSchema,
     toolGetDashboardChartsArgsSchema,
+    toolGetKnowledgeDocumentContentArgsSchema,
     toolImproveContextArgsSchema,
+    toolListKnowledgeDocumentsArgsSchema,
+    toolListWarehouseTablesArgsSchema,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
+    toolRunSavedChartArgsSchema,
+    toolRunSqlArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
@@ -22,20 +28,53 @@ import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
+import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
+
+const toolLoadSkillArgsSchema = z
+    .object({
+        name: z.string(),
+        resourceName: z.string().optional(),
+    })
+    .describe('Load a built-in skill by name.');
+
+const toolReadContentArgsSchema = z
+    .object({
+        slug: z.string(),
+        type: z.enum(['dashboard', 'chart']),
+    })
+    .describe('Read a dashboard or chart by slug.');
+
+const toolEditContentArgsSchema = z
+    .object({
+        slug: z.string(),
+        type: z.enum(['dashboard', 'chart']),
+        patch: z.unknown(),
+    })
+    .describe('Edit a dashboard or chart by applying a patch.');
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
+    discoverFields: 'discover_fields',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
+    readContent: 'read_content',
+    editContent: 'edit_content',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
+    loadSkill: 'load_skill',
     runQuery: 'query_result',
+    runSavedChart: 'run_saved_chart',
+    runSql: 'run_sql',
+    listWarehouseTables: 'list_warehouse_tables',
+    describeWarehouseTable: 'describe_warehouse_table',
+    listKnowledgeDocuments: 'list_knowledge_documents',
+    getKnowledgeDocumentContent: 'get_knowledge_document_content',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
@@ -45,6 +84,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
 const TOOL_SCHEMAS = {
     findExplores: toolFindExploresArgsSchemaV3,
     findFields: toolFindFieldsArgsSchema,
+    discoverFields: discoverFieldsInputSchema,
     searchFieldValues: toolSearchFieldValuesArgsSchema,
     generateBarVizConfig: toolVerticalBarArgsSchema,
     generateTableVizConfig: toolTableVizArgsSchema,
@@ -55,9 +95,18 @@ const TOOL_SCHEMAS = {
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,
     getDashboardCharts: toolGetDashboardChartsArgsSchema,
+    readContent: toolReadContentArgsSchema,
+    editContent: toolEditContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
+    loadSkill: toolLoadSkillArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
     runQuery: toolRunQueryArgsSchema,
+    runSavedChart: toolRunSavedChartArgsSchema,
+    runSql: toolRunSqlArgsSchema,
+    listWarehouseTables: toolListWarehouseTablesArgsSchema,
+    describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
+    listKnowledgeDocuments: toolListKnowledgeDocumentsArgsSchema,
+    getKnowledgeDocumentContent: toolGetKnowledgeDocumentContentArgsSchema,
 } satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {

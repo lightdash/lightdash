@@ -50,7 +50,7 @@ export class SpotlightController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getSpotlightService()
-            .createSpotlightTableConfig(req.user!, projectUuid, body);
+            .createSpotlightTableConfig(req.account!, projectUuid, body);
 
         this.setStatus(201);
         return {
@@ -73,7 +73,7 @@ export class SpotlightController extends BaseController {
     ): Promise<ApiGetSpotlightTableConfig> {
         const { columnConfig } = await this.services
             .getSpotlightService()
-            .getSpotlightTableConfig(req.user!, projectUuid);
+            .getSpotlightTableConfig(req.account!, projectUuid);
 
         this.setStatus(200);
         return {
@@ -102,7 +102,7 @@ export class SpotlightController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getSpotlightService()
-            .resetSpotlightTableConfig(req.user!, projectUuid);
+            .resetSpotlightTableConfig(req.account!, projectUuid);
 
         this.setStatus(200);
         return {

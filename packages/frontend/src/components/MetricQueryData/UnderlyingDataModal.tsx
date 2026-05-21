@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    normalizeCellRawForFilter,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -55,6 +56,7 @@ const UnderlyingDataModalContent: FC = () => {
         underlyingDataConfig,
         queryUuid,
         parameters,
+        resolvedTimezone,
     } = useMetricQueryDataContext();
 
     const [sorts, setSorts] = useState<SortField[]>([]);
@@ -173,7 +175,16 @@ const UnderlyingDataModalContent: FC = () => {
                           raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: raw === null ? undefined : [raw],
+                      values:
+                          raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        raw,
+                                        isValidDimension,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   };
                   return [...acc, dimensionFilter];
               }, [] as FilterRule[])
@@ -187,7 +198,16 @@ const UnderlyingDataModalContent: FC = () => {
                           value.raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: value.raw === null ? undefined : [value.raw],
+                      values:
+                          value.raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        value.raw,
+                                        item,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   },
               ]);
 
@@ -238,7 +258,13 @@ const UnderlyingDataModalContent: FC = () => {
             },
             allFields,
         );
-    }, [underlyingDataConfig, metricQuery, allFields, allDimensions]);
+    }, [
+        underlyingDataConfig,
+        metricQuery,
+        allFields,
+        allDimensions,
+        resolvedTimezone,
+    ]);
 
     const {
         error,

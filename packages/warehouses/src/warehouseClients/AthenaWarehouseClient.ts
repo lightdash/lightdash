@@ -87,6 +87,98 @@ const convertDataTypeToDimensionType = (
 // Force lowercase for column names
 const normalizeColumnName = (columnName: string) => columnName.toLowerCase();
 
+const AWS_AUTH_ERROR_NAMES = new Set([
+    'UnrecognizedClientException',
+    'InvalidClientTokenId',
+    'InvalidSignatureException',
+    'SignatureDoesNotMatch',
+    'ExpiredToken',
+    'ExpiredTokenException',
+    'CredentialsProviderError',
+    'CredentialsError',
+    'MissingAuthenticationToken',
+    'MissingAuthenticationTokenException',
+]);
+
+const getAuthErrorHint = (awsErrorName: string): string => {
+    switch (awsErrorName) {
+        case 'UnrecognizedClientException':
+        case 'InvalidClientTokenId':
+            return 'AWS rejected the access key ID. Check the access key in your project settings is correct and the IAM user is enabled.';
+        case 'InvalidSignatureException':
+        case 'SignatureDoesNotMatch':
+            return 'AWS rejected the request signature. Check the secret access key matches the access key ID, and that your system clock is in sync.';
+        case 'ExpiredToken':
+        case 'ExpiredTokenException':
+            return 'AWS credentials have expired. If you are using temporary or assume-role credentials, generate new ones.';
+        case 'CredentialsProviderError':
+        case 'CredentialsError':
+        case 'MissingAuthenticationToken':
+        case 'MissingAuthenticationTokenException':
+            return 'No AWS credentials could be loaded. If using IAM Role authentication, make sure the host has an attached role with Athena access.';
+        default:
+            return '';
+    }
+};
+
+// Translates a raw error from the AWS SDK (or anywhere else thrown out of an
+// Athena client.send call) into a Lightdash error. Auth/credential failures
+// are surfaced as WarehouseConnectionError so the UI categorizes them as a
+// project-config problem rather than a query problem.
+const translateAthenaError = (
+    error: unknown,
+    options: {
+        contextPrefix?: string;
+        defaultErrorClass?: 'connection' | 'query';
+    } = {},
+): Error => {
+    const err = error as {
+        name?: string;
+        message?: string;
+        $metadata?: { httpStatusCode?: number };
+    };
+    const awsErrorName =
+        typeof err?.name === 'string' &&
+        err.name !== 'Error' &&
+        !err.name.startsWith('Warehouse')
+            ? err.name
+            : undefined;
+    const httpStatusCode =
+        typeof err?.$metadata?.httpStatusCode === 'number'
+            ? err.$metadata.httpStatusCode
+            : undefined;
+
+    const baseMessage = getErrorMessage(error);
+    const hint = awsErrorName ? getAuthErrorHint(awsErrorName) : '';
+
+    // e.g. "[UnrecognizedClientException 403]" or "[403]" if name is missing.
+    const tag = [awsErrorName, httpStatusCode]
+        .filter((p) => p !== undefined && p !== '')
+        .join(' ');
+
+    const messageParts = [
+        options.contextPrefix,
+        tag.length > 0 ? `[${tag}]` : null,
+        baseMessage,
+        hint,
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0);
+    const fullMessage = messageParts.join(' ');
+
+    // Auth signal precedence: known AWS error name first; otherwise fall back
+    // to HTTP 401 which is unambiguously an authentication failure. We do
+    // *not* fall back on 403 — it also covers IAM permission gaps (e.g.
+    // missing athena:ListTableMetadata), which are query-time problems and
+    // belong in WarehouseQueryError unless the caller asks otherwise.
+    const isAuthError =
+        (awsErrorName !== undefined &&
+            AWS_AUTH_ERROR_NAMES.has(awsErrorName)) ||
+        httpStatusCode === 401;
+    if (isAuthError || options.defaultErrorClass === 'connection') {
+        return new WarehouseConnectionError(fullMessage);
+    }
+    return new WarehouseQueryError(fullMessage);
+};
+
 export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
     readonly type = WarehouseTypes.ATHENA;
 
@@ -436,11 +528,10 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     if (error.name === 'MetadataException') {
                         return undefined;
                     }
-                    throw new WarehouseConnectionError(
-                        `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
+                    throw translateAthenaError(e, {
+                        contextPrefix: `Failed to fetch table metadata for '${database}.${schema}.${table}'.`,
+                        defaultErrorClass: 'connection',
+                    });
                 }
             },
         );
@@ -498,11 +589,10 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                 nextToken = response.NextToken;
             } while (nextToken);
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
-                `Failed to list tables in '${this.credentials.database}.${
-                    this.credentials.schema
-                }'. ${getErrorMessage(e)}`,
-            );
+            throw translateAthenaError(e, {
+                contextPrefix: `Failed to list tables in '${this.credentials.database}.${this.credentials.schema}'.`,
+                defaultErrorClass: 'connection',
+            });
         }
 
         return tables;
@@ -547,15 +637,14 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
             return result;
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
-                `Failed to get fields for table '${db}.${sch}.${tableName}'. ${getErrorMessage(
-                    e,
-                )}`,
-            );
+            throw translateAthenaError(e, {
+                contextPrefix: `Failed to get fields for table '${db}.${sch}.${tableName}'.`,
+                defaultErrorClass: 'connection',
+            });
         }
     }
 
     parseError(error: Error): Error {
-        return new WarehouseQueryError(getErrorMessage(error));
+        return translateAthenaError(error);
     }
 }

@@ -2,8 +2,10 @@ import {
     AllChartsSearchResult,
     ChartKind,
     ContentType,
+    ContentVerificationInfo,
     DashboardSearchResult,
     DashboardTabResult,
+    DataAppSearchResult,
     Explore,
     ExploreError,
     ExploreType,
@@ -23,6 +25,10 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+} from '../../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -265,6 +271,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: `${DashboardsTableName}.dashboard_uuid` },
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -299,6 +306,7 @@ export class SearchModel {
             .groupBy(
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,
@@ -343,20 +351,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
-            .select('validation_id', 'dashboard_uuid')
+            .select('validation_uuid', 'validation_id', 'dashboard_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.dashboard_uuid) {
-                            acc[row.dashboard_uuid] = [
-                                ...(acc[row.dashboard_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.dashboard_uuid) {
+                        acc[row.dashboard_uuid] = [
+                            ...(acc[row.dashboard_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         const directChartsQuery = this.database(SavedChartsTableName)
@@ -430,6 +446,12 @@ export class SearchModel {
             ...(tileCharts ?? []),
         ];
 
+        const innerChartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                dashboardCharts.map((chart) => chart.uuid),
+            );
+
         const chartsByDashboard = dashboardCharts.reduce<
             Record<
                 string,
@@ -439,6 +461,7 @@ export class SearchModel {
                     description: string;
                     chartType: string;
                     viewsCount: number;
+                    verification: ContentVerificationInfo | null;
                 }>
             >
         >((acc, chart) => {
@@ -451,6 +474,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.views_count,
+                verification: innerChartVerificationMap.get(chart.uuid) ?? null,
             });
             return acc;
         }, {});
@@ -588,6 +612,12 @@ export class SearchModel {
             { page, pageSize },
         );
 
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                charts.map((chart) => chart.uuid),
+            );
+
         return {
             dashboardName: dashboard.name,
             charts: charts.map((chart) => ({
@@ -596,6 +626,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.viewsCount,
+                verification: chartVerificationMap.get(chart.uuid) ?? null,
             })),
             pagination: {
                 page,
@@ -931,20 +962,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
-            .select('validation_id', 'saved_chart_uuid')
+            .select('validation_uuid', 'validation_id', 'saved_chart_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.saved_chart_uuid) {
-                            acc[row.saved_chart_uuid] = [
-                                ...(acc[row.saved_chart_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.saved_chart_uuid) {
+                        acc[row.saved_chart_uuid] = [
+                            ...(acc[row.saved_chart_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return savedCharts.map((chart) => ({
@@ -968,6 +1007,96 @@ export class SearchModel {
                   }
                 : null,
             verification: savedChartVerificationMap.get(chart.uuid) ?? null,
+        }));
+    }
+
+    private async searchApps(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<DataAppSearchResult[]> {
+        if (!shouldSearchForType(SearchItemType.DATA_APP, filters?.type)) {
+            return [];
+        }
+
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${AppsTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
+
+        const searchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${AppsTableName}.search_vector`,
+            searchQuery: query,
+        });
+
+        // Only surface apps that have at least one ready version — apps that
+        // have only ever been building or errored have no preview to land on.
+        const hasReadyVersionSql = this.database.raw(
+            `EXISTS (
+                SELECT 1 FROM ?? v
+                WHERE v.app_id = ??.app_id AND v.status = 'ready'
+            )`,
+            [AppVersionsTableName, AppsTableName],
+        );
+
+        let subquery = this.database(AppsTableName)
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `${AppsTableName}.created_by_user_uuid`,
+            )
+            .column(
+                { uuid: `${AppsTableName}.app_id` },
+                `${AppsTableName}.name`,
+                `${AppsTableName}.description`,
+                { spaceUuid: `${AppsTableName}.space_uuid` },
+                { projectUuid: `${AppsTableName}.project_uuid` },
+                { search_rank: searchRankRawSql },
+                { viewsCount: `${AppsTableName}.views_count` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+            )
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereRaw(hasReadyVersionSql)
+            .whereRaw(searchFilterSql)
+            .orderBy('search_rank', 'desc');
+
+        subquery = filterByCreatedAt(AppsTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
+            subquery,
+            {
+                tableName: AppsTableName,
+                tableUserUuidColumnName: 'created_by_user_uuid',
+            },
+            filters,
+        );
+
+        const apps = await this.database(AppsTableName)
+            .select()
+            .from(subquery.as('apps_with_rank'))
+            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
+
+        return apps.map((app) => ({
+            uuid: app.uuid,
+            name: app.name,
+            description: app.description,
+            spaceUuid: app.spaceUuid,
+            projectUuid: app.projectUuid,
+            search_rank: app.search_rank,
+            viewsCount: app.viewsCount || 0,
+            createdBy: app.createdByUserUuid
+                ? {
+                      firstName: app.createdByFirstName,
+                      lastName: app.createdByLastName,
+                      userUuid: app.createdByUserUuid,
+                  }
+                : null,
         }));
     }
 
@@ -1413,20 +1542,28 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
             .whereNotNull('model_name')
-            .select('validation_id', 'model_name')
+            .select('validation_uuid', 'validation_id', 'model_name')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.model_name) {
-                            acc[row.model_name] = [
-                                ...(acc[row.model_name] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.model_name) {
+                        acc[row.model_name] = [
+                            ...(acc[row.model_name] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {
@@ -1496,6 +1633,7 @@ export class SearchModel {
             query,
             filters,
         );
+        const dataApps = await this.searchApps(projectUuid, query, filters);
 
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
@@ -1521,6 +1659,7 @@ export class SearchModel {
             fields,
             pages,
             dashboardTabs,
+            dataApps,
         };
     }
 }

@@ -1,9 +1,4 @@
-import {
-    FeatureFlag,
-    FeatureFlags,
-    isFeatureFlags,
-    LightdashUser,
-} from '@lightdash/common';
+import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -11,7 +6,9 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
-import { isFeatureFlagEnabled } from '../../postHog';
+
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type FeatureFlagLogicArgs = {
     user?: Pick<
@@ -36,23 +33,16 @@ export class FeatureFlagModel {
         this.lightdashConfig = args.lightdashConfig;
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
-            [FeatureFlags.UserGroupsEnabled]:
-                this.getUserGroupsEnabled.bind(this),
-            [FeatureFlags.UseSqlPivotResults]:
-                this.getUseSqlPivotResults.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.ShowExecutionTime]:
-                this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.GoogleChatEnabled]:
-                this.getGoogleChatEnabled.bind(this),
-            [FeatureFlags.UserImpersonation]:
-                this.getUserImpersonationEnabled.bind(this),
-            [FeatureFlags.MetricDashboardFilters]:
-                this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.EnableDataApps]:
                 this.getEnableDataAppsEnabled.bind(this),
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.cacheEnabled,
+                ),
         };
     }
 
@@ -79,87 +69,9 @@ export class FeatureFlagModel {
             return dbResult;
         }
 
-        // 4. Fallback to PostHog (temporary, will be removed after migration)
-        if (args.user && isFeatureFlags(args.featureFlagId)) {
-            return FeatureFlagModel.getPosthogFeatureFlag(
-                args.user,
-                args.featureFlagId,
-            );
-        }
-
         // Unknown flags default to disabled.
         // See: GLITCH-331
         return { id: args.featureFlagId, enabled: false };
-    }
-
-    static async getPosthogFeatureFlag(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-        featureFlagId: FeatureFlags,
-    ): Promise<FeatureFlag> {
-        const enabled = await isFeatureFlagEnabled(featureFlagId, {
-            userUuid: user.userUuid,
-            organizationUuid: user.organizationUuid,
-        });
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUserGroupsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.groups.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UserGroupsEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          // because we are checking this in the health check, we don't want to throw an error
-                          // nor do we want to wait too long
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUseSqlPivotResults({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.useSqlPivotResults ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UseSqlPivotResults,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                      true,
-                  )
-                : true);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
     }
 
     private async getEditYamlInUiEnabled({
@@ -171,85 +83,6 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getShowExecutionTimeEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.query.showExecutionTime ?? false,
-        };
-    }
-
-    private async getGoogleChatEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.googleChat.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.GoogleChatEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUserImpersonationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.userImpersonation.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(FeatureFlags.UserImpersonation, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getMetricDashboardFiltersEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.metricDashboardFilters.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.MetricDashboardFilters,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    // No PostHog — checked in the query execution path where adding
-    // latency is not acceptable.
     private async getEnableTimezoneSupportEnabled(
         args: FeatureFlagLogicArgs,
     ): Promise<FeatureFlag> {
@@ -270,7 +103,18 @@ export class FeatureFlagModel {
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
-    private async tryGetFromDatabase(
+    // DB value (user override → org override → flag default) wins. Falls
+    // back to the env-derived value when the flag has no DB row and no
+    // override applies.
+    private async getWithEnvFallback(
+        args: FeatureFlagLogicArgs,
+        envFallback: boolean,
+    ): Promise<FeatureFlag> {
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: envFallback };
+    }
+
+    protected async tryGetFromDatabase(
         args: FeatureFlagLogicArgs,
     ): Promise<FeatureFlag | null> {
         try {
@@ -295,7 +139,11 @@ export class FeatureFlagModel {
         }
 
         // Priority: user override > org override > flag default
-        if (args.user?.userUuid) {
+        // Skip the user-override lookup unless the userUuid is a real UUID.
+        // Anonymous (embed/JWT) accounts use a non-UUID externalId for
+        // `user.userUuid`; passing it to a `uuid` column raises a Postgres
+        // type error and would prevent the org-override lookup below.
+        if (args.user?.userUuid && UUID_REGEX.test(args.user.userUuid)) {
             const userOverride = await this.database(
                 FeatureFlagOverridesTableName,
             )

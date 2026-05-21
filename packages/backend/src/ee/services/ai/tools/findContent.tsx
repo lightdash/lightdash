@@ -1,5 +1,6 @@
 import {
     AllChartsSearchResult,
+    ContentVerificationInfo,
     DashboardSearchResult,
     isDashboardSearchResult,
     isSavedChartSearchResult,
@@ -12,11 +13,30 @@ import moment from 'moment';
 import type { FindContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    CONTENT_DESCRIPTION_MAX_CHARS,
+    DASHBOARD_CHARTS_PREVIEW_COUNT,
+    truncate,
+} from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
+
+const renderVerified = (verification: ContentVerificationInfo | null) =>
+    verification ? (
+        <verified
+            by={`${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`}
+            at={moment(verification.verifiedAt).fromNow()}
+        />
+    ) : null;
 
 type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
+    trackCoverage: (coverage: {
+        searchQuery: string;
+        totalResultCount: number;
+        verifiedResultCount: number;
+        topResultVerified: boolean;
+    }) => void;
 };
 
 const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
@@ -33,6 +53,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
     return (
         <chart
             chartUuid={chart.uuid}
+            slug={chart.slug}
             searchRank={chart.search_rank}
             chartType={chart.chartType}
             chartSource={chart.chartSource}
@@ -42,8 +63,11 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
         >
             <name>{chart.name}</name>
             {chart.description && (
-                <description>{chart.description}</description>
+                <description>
+                    {truncate(chart.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+                </description>
             )}
+            {renderVerified(chart.verification)}
             {chart.firstViewedAt && (
                 <firstviewedat>
                     {moment(chart.firstViewedAt).fromNow()}
@@ -71,6 +95,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
 const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
     <dashboard
         dashboardUuid={dashboard.uuid}
+        slug={dashboard.slug}
         spaceUuid={dashboard.spaceUuid}
         viewCount={dashboard.viewsCount}
         href={`${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view#dashboard-link`}
@@ -79,8 +104,11 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
         <searchrank>{dashboard.search_rank}</searchrank>
 
         {dashboard.description && (
-            <description>{dashboard.description}</description>
+            <description>
+                {truncate(dashboard.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+            </description>
         )}
+        {renderVerified(dashboard.verification)}
 
         {dashboard.firstViewedAt && (
             <firstviewedat>
@@ -104,14 +132,27 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
             </lastupdatedby>
         )}
         <charts count={dashboard.charts.length}>
-            {dashboard.charts.slice(0, 5).map((chart) => (
-                <chart chartUuid={chart.uuid} chartType={chart.chartType}>
-                    <name>{chart.name}</name>
-                    {chart.description && (
-                        <description>{chart.description}</description>
-                    )}
-                </chart>
-            ))}
+            {[...dashboard.charts]
+                .sort(
+                    (a, b) =>
+                        Number(b.verification !== null) -
+                        Number(a.verification !== null),
+                )
+                .slice(0, DASHBOARD_CHARTS_PREVIEW_COUNT)
+                .map((chart) => (
+                    <chart chartUuid={chart.uuid} chartType={chart.chartType}>
+                        <name>{chart.name}</name>
+                        {chart.description && (
+                            <description>
+                                {truncate(
+                                    chart.description,
+                                    CONTENT_DESCRIPTION_MAX_CHARS,
+                                )}
+                            </description>
+                        )}
+                        {renderVerified(chart.verification)}
+                    </chart>
+                ))}
         </charts>
         {dashboard.validationErrors && dashboard.validationErrors.length > 0 ? (
             <validationerrors count={dashboard.validationErrors.length} />
@@ -122,17 +163,27 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
     siteUrl: string,
-) => (
-    <searchresult searchQuery={args.searchQuery}>
-        {args.content.map((content) =>
-            isDashboardSearchResult(content)
-                ? renderDashboard(content, siteUrl)
-                : renderChart(content, siteUrl),
-        )}
-    </searchresult>
-);
+) => {
+    const sortedContent = [...args.content].sort(
+        (a, b) =>
+            Number(b.verification !== null) - Number(a.verification !== null),
+    );
+    return (
+        <searchresult searchQuery={args.searchQuery}>
+            {sortedContent.map((content) =>
+                isDashboardSearchResult(content)
+                    ? renderDashboard(content, siteUrl)
+                    : renderChart(content, siteUrl),
+            )}
+        </searchresult>
+    );
+};
 
-export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
+export const getFindContent = ({
+    findContent,
+    siteUrl,
+    trackCoverage,
+}: Dependencies) =>
     tool({
         description: toolFindContentArgsSchema.description,
         inputSchema: toolFindContentArgsSchema,
@@ -147,6 +198,22 @@ export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
                         })),
                     })),
                 );
+
+                for (const searchQueryResult of searchQueryResults) {
+                    const totalResultCount = searchQueryResult.content.length;
+                    const verifiedResultCount =
+                        searchQueryResult.content.filter(
+                            (c) => c.verification !== null,
+                        ).length;
+                    const topResultVerified =
+                        verifiedResultCount > 0 && totalResultCount > 0;
+                    trackCoverage({
+                        searchQuery: searchQueryResult.searchQuery,
+                        totalResultCount,
+                        verifiedResultCount,
+                        topResultVerified,
+                    });
+                }
 
                 return {
                     result: (

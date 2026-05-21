@@ -153,8 +153,10 @@ export const useExplorerQueryManager = () => {
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryExecutor;
 
-    // Function to prepare and set query arguments (single source of truth)
-    const runQuery = useCallback(() => {
+    const runQuery = useCallback((): boolean => {
+        if (useSqlPivotResults === undefined) {
+            return false;
+        }
         const mainQueryArgs = buildQueryArgs({
             activeFields,
             tableName,
@@ -169,18 +171,19 @@ export const useExplorerQueryManager = () => {
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
             savedChart: chartConfigForQuery,
-            savedChartUuid: savedQueryUuid,
         });
 
         if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
+            return true;
         }
+        return false;
     }, [
         activeFields,
         tableName,
         projectUuid,
         explore,
-        useSqlPivotResults?.enabled,
+        useSqlPivotResults,
         metricQuery,
         parameters,
         isEditMode,
@@ -189,7 +192,6 @@ export const useExplorerQueryManager = () => {
         minimal,
         preAggCacheEnabled,
         chartConfigForQuery,
-        savedQueryUuid,
         dispatch,
     ]);
 

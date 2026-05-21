@@ -95,6 +95,7 @@ const decoded = await decodeLightdashJwt(jwtToken, encryptedSecret);
 - Account types and interfaces: @packages/common/src/types/auth.ts
 - Permission handling: @packages/common/src/authorization/index.ts
 - Account helper functions: @packages/common/src/authorization/buildAccountHelpers.ts
+- Account patterns for services and controllers: @docs/account-patterns.md
 </links>
 
 <importantToKnow>

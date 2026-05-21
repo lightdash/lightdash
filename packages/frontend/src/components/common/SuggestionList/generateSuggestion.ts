@@ -30,6 +30,8 @@ type GenerateSuggestionConfig<T extends SuggestionItem> = {
         isSelected: boolean,
         onClick: () => void,
     ) => ReactNode;
+    getGroupKey?: (item: T) => string;
+    groupLabels?: Record<string, string>;
     emptyMessage?: string;
 };
 
@@ -51,6 +53,8 @@ export const generateSuggestion = <T extends SuggestionItem>(
                     props: {
                         ...props,
                         renderItem: config.renderItem,
+                        getGroupKey: config.getGroupKey,
+                        groupLabels: config.groupLabels,
                         emptyMessage: config.emptyMessage,
                     },
                     editor: props.editor,
@@ -73,6 +77,8 @@ export const generateSuggestion = <T extends SuggestionItem>(
                 component?.updateProps({
                     ...props,
                     renderItem: config.renderItem,
+                    getGroupKey: config.getGroupKey,
+                    groupLabels: config.groupLabels,
                     emptyMessage: config.emptyMessage,
                 });
                 popup?.setProps({

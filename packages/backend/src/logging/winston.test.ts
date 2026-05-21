@@ -67,24 +67,23 @@ describe('formatAuditActor', () => {
         ).toBe('user-uuid');
     });
 
-    it('shows service-account with email', () => {
+    it('shows service-account with description', () => {
         expect(
             formatAuditActor({
                 type: 'service-account',
                 uuid: 'sa-uuid',
-                email: 'ci-deploy@company.com',
+                description: 'ci-deploy',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
             }),
-        ).toBe('service-account "ci-deploy@company.com"');
+        ).toBe('service-account "ci-deploy"');
     });
 
-    it('shows service-account with uuid when email is missing', () => {
+    it('shows service-account with uuid when description is missing', () => {
         expect(
             formatAuditActor({
                 type: 'service-account',
                 uuid: 'sa-uuid',
-                email: '',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
             }),
@@ -229,14 +228,14 @@ describe('formatAuditMessage', () => {
         );
     });
 
-    it('formats service account event', () => {
+    it('formats service account event without attribution caveat', () => {
         expect(
             formatAuditMessage({
                 ...baseEvent,
                 actor: {
                     type: 'service-account',
                     uuid: 'sa-uuid',
-                    email: 'ci@company.com',
+                    description: 'ci-deploy',
                     organizationUuid: 'org-uuid',
                     organizationRole: 'admin',
                 },
@@ -251,7 +250,7 @@ describe('formatAuditMessage', () => {
                 },
             }),
         ).toBe(
-            'service-account "ci@company.com" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed)',
+            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed)',
         );
     });
 

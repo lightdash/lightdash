@@ -13,6 +13,7 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
+    PivotSortAnchor,
     TableCalculationTemplate,
     TableCalculationType,
 } from '@lightdash/common';
@@ -64,6 +65,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'first_viewed_at'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'color_palette_uuid'
         >
     >
 >;
@@ -85,6 +87,7 @@ export type DbSavedChart = {
     first_viewed_at: Date | null;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    color_palette_uuid: string | null;
 };
 
 export type DbSavedChartVersion = {
@@ -152,6 +155,7 @@ type DbSavedChartVersionSort = {
     descending: boolean;
     nulls_first: boolean | null;
     order: number;
+    pivot_values: PivotSortAnchor[] | null;
 };
 
 export type CreateDbSavedChartVersionSort = Pick<
@@ -161,7 +165,10 @@ export type CreateDbSavedChartVersionSort = Pick<
     | 'descending'
     | 'nulls_first'
     | 'order'
->;
+> & {
+    // Caller must JSON.stringify before insert — Knex doesn't auto-serialize JSONB.
+    pivot_values: string | null;
+};
 
 export const SavedChartVersionSortsTableName = 'saved_queries_version_sorts';
 export type SavedChartVersionSortsTable = Knex.CompositeTableType<

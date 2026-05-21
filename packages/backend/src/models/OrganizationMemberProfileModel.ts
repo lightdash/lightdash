@@ -65,6 +65,11 @@ export class OrganizationMemberProfileModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+        // Internal user records (today: service accounts; future: persisted
+        // embed users, AI agents) live in the `users` table for FK purposes
+        // but are not human organization members. Excluding them here keeps
+        // every listing surface — admin UI, SCIM /Users, share pickers —
+        // free of non-human principals without per-callsite filtering.
         this.queryBuilder = () =>
             database(OrganizationMembershipsTableName)
                 .innerJoin(
@@ -72,6 +77,7 @@ export class OrganizationMemberProfileModel {
                     `${OrganizationMembershipsTableName}.user_id`,
                     `${UserTableName}.user_id`,
                 )
+                .where(`${UserTableName}.is_internal`, false)
                 .joinRaw(
                     `INNER JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
                 )
@@ -109,35 +115,6 @@ export class OrganizationMemberProfileModel {
             userCreatedAt: member.user_created_at,
             userUpdatedAt: member.user_updated_at,
         };
-    }
-
-    async findOldestAdminUserUuid(
-        organizationUuid: string,
-    ): Promise<string | undefined> {
-        const row = await this.database(OrganizationMembershipsTableName)
-            .innerJoin(
-                UserTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${UserTableName}.user_id`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationMembershipsTableName}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            )
-            .where(
-                `${OrganizationTableName}.organization_uuid`,
-                organizationUuid,
-            )
-            .where(
-                `${OrganizationMembershipsTableName}.role`,
-                OrganizationMemberRole.ADMIN,
-            )
-            .orderBy(`${UserTableName}.created_at`, 'asc')
-            .orderBy(`${UserTableName}.user_uuid`, 'asc')
-            .select<{ user_uuid: string }[]>(`${UserTableName}.user_uuid`)
-            .first();
-        return row?.user_uuid;
     }
 
     async getOrganizationMembers({
@@ -239,6 +216,9 @@ export class OrganizationMemberProfileModel {
         googleOidcOnly?: boolean,
     ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
+            // See queryBuilder above — exclude internal (non-human) user
+            // records like service accounts.
+            .where(`${UserTableName}.is_internal`, false)
             .leftJoin(
                 OrganizationMembershipsTableName,
                 `${UserTableName}.user_id`,

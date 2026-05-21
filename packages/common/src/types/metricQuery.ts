@@ -204,6 +204,15 @@ export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledAdditionalMetrics: CompiledMetric[];
     compiledCustomDimensions: CompiledCustomDimension[];
 };
+/**
+ * Coordinates of a single pivot column, used to anchor a row sort to that
+ * specific column when results are pivoted.
+ */
+export type PivotSortAnchor = {
+    reference: string;
+    value: string | number | boolean | null;
+};
+
 // Sort by
 export type SortField = {
     /** Field ID to sort by */
@@ -212,6 +221,8 @@ export type SortField = {
     descending: boolean;
     /** Sort null values first */
     nullsFirst?: boolean;
+    /** Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results. */
+    pivotValues?: PivotSortAnchor[];
 };
 
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>

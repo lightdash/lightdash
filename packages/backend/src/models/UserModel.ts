@@ -1,7 +1,10 @@
-import { AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     ActivateUser,
     AlreadyExistsError,
+    applyServiceAccountAbilities,
+    buildAbilityFromScopes,
+    CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
@@ -18,10 +21,12 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    projectMemberAbilities,
     ProjectMemberProfile,
     ProjectMemberRole,
     Role,
     RoleWithScopes,
+    ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
     validatePassword,
@@ -55,12 +60,14 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
+import Logger from '../logging/logger';
 import { deprecatedHash, hash } from '../utils/hash';
 import {
     CachedPatSessionUser,
     PatSessionCache,
 } from './caches/PatSessionCache';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
@@ -80,6 +87,8 @@ export type DbUserDetails = {
     role?: OrganizationMemberRole;
     role_uuid?: string;
     is_active: boolean;
+    is_internal: boolean;
+    timezone: string | null;
     updated_at: Date;
 };
 
@@ -100,6 +109,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isSetupComplete: user.is_setup_complete,
     role: user.role,
     isActive: user.is_active,
+    timezone: user.timezone,
     isPending: !hasAuthentication,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
@@ -127,6 +137,7 @@ const userDetailsQueryBuilder = (
 type UserModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
 };
 
 const sessionUserCache =
@@ -142,9 +153,16 @@ export class UserModel {
 
     private readonly database: Knex;
 
-    constructor({ database, lightdashConfig }: UserModelArguments) {
+    private readonly featureFlagModel: FeatureFlagModel;
+
+    constructor({
+        database,
+        lightdashConfig,
+        featureFlagModel,
+    }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private canTrackingBeAnonymized() {
@@ -363,6 +381,11 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('email', email)
+            // Defence-in-depth: internal user records (service accounts,
+            // future: persisted embed/AI principals) have no email row, so
+            // this is already empty for them — the explicit guard documents
+            // intent and survives any join refactor.
+            .andWhere(`${UserTableName}.is_internal`, false)
             .select<(DbUserDetails & { password_hash: string })[]>(
                 '*',
                 'organizations.created_at as organization_created_at',
@@ -439,6 +462,7 @@ export class UserModel {
             isTrackingAnonymized,
             isSetupComplete,
             isActive,
+            timezone,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -454,6 +478,7 @@ export class UserModel {
                     is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
+                    timezone,
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -506,6 +531,11 @@ export class UserModel {
             'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
         >[]
     > {
+        type Row = {
+            project_uuid: string;
+            role: ProjectMemberRole | null;
+            role_uuid: string | null;
+        };
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
                 ProjectTableName,
@@ -513,7 +543,11 @@ export class UserModel {
                 `${ProjectTableName}.project_id`,
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
-            .select('*')
+            .select<Row[]>([
+                `${ProjectTableName}.project_uuid`,
+                'project_memberships.role',
+                'project_memberships.role_uuid',
+            ])
             .where('users.user_uuid', userUuid);
 
         return projectMemberships.map((membership) => ({
@@ -607,25 +641,247 @@ export class UserModel {
             hasAuthentication,
         );
 
+        // Service accounts get a dedicated `users` row marked `is_internal`.
+        // Two permission shapes coexist:
+        //  1. Custom org role (preferred): `organization_memberships.role_uuid`
+        //     points at a custom role; CASL composes from its `scoped_roles`
+        //     via the standard `buildAbilityFromScopes` path. UI scope-toggling
+        //     drives runtime behavior end-to-end.
+        //  2. Legacy scopes (back-compat): `service_accounts.scopes` drives
+        //     CASL via `applyServiceAccountAbilities`. SAs created before
+        //     custom-role support keep working unchanged.
+        if (user.is_internal) {
+            // Custom-role path: if the SA's user has a role_uuid set, build
+            // CASL from that role's scopes. Reuses the same loader the human
+            // path uses below. The `customRoles.enabled` flag is intentionally
+            // NOT consulted here — it's a feature/UI gate (does the role
+            // builder appear in settings?), not a runtime ability gate. Once
+            // a role exists in the DB and is bound to the SA's
+            // organization_membership, the runtime must respect it. If we
+            // silently neutered role-driven SAs whenever an admin toggled
+            // the flag off, every CI workflow on those tokens would 403
+            // overnight.
+            if (user.role_uuid) {
+                const customRoleScopes = await this.customRoleScopes([
+                    user.role_uuid,
+                ]);
+                const scopes = customRoleScopes[user.role_uuid];
+                if (scopes) {
+                    const builder = new AbilityBuilder<MemberAbility>(Ability);
+                    const invalid = buildAbilityFromScopes(
+                        {
+                            organizationUuid: user.organization_uuid as string,
+                            userUuid: user.user_uuid,
+                            scopes,
+                            isEnterprise:
+                                this.lightdashConfig.license.licenseKey !==
+                                undefined,
+                            organizationRole: user.role,
+                            permissionsConfig: {
+                                pat: this.lightdashConfig.auth.pat,
+                            },
+                        },
+                        builder,
+                    );
+                    if (invalid.length > 0) {
+                        Logger.warn(
+                            `Service account ${
+                                user.user_uuid
+                            } custom role references scopes not in the runtime vocabulary: ${invalid.join(
+                                ', ',
+                            )}`,
+                        );
+                    }
+                    await this.applyServiceAccountProjectMemberships(
+                        user.user_id,
+                        user.user_uuid,
+                        builder,
+                    );
+                    return {
+                        abilityBuilder: builder,
+                        lightdashUser,
+                    };
+                }
+            }
+
+            // Legacy scopes path: SA pre-dates custom-role support, or the
+            // role lookup didn't resolve. Fall back to the scope-derived
+            // ability set.
+            const serviceAccount = await this.findServiceAccountByUserUuid(
+                user.user_uuid,
+            );
+            if (serviceAccount) {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                applyServiceAccountAbilities({
+                    scopes: serviceAccount.scopes,
+                    organizationUuid: serviceAccount.organizationUuid,
+                    userUuid: user.user_uuid,
+                    builder,
+                });
+                await this.applyServiceAccountProjectMemberships(
+                    user.user_id,
+                    user.user_uuid,
+                    builder,
+                );
+                return {
+                    abilityBuilder: builder,
+                    lightdashUser,
+                };
+            }
+        }
+
         // Fetch scopes for custom roles
         const customRoleUuids = [...projectRoles, ...groupProjectRoles]
             .map((role) => role.roleUuid)
             .filter(Boolean) as string[];
-        const customRoleScopes = await this.customRoleScopes(customRoleUuids);
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-            customRoleScopes,
-            customRolesEnabled: this.lightdashConfig.customRoles?.enabled,
-            isEnterprise: this.lightdashConfig.license.licenseKey !== undefined,
-        });
+        const [customRoleScopes, customRolesFlag] = await Promise.all([
+            this.customRoleScopes(customRoleUuids),
+            this.featureFlagModel.get({
+                user: lightdashUser,
+                featureFlagId: CommercialFeatureFlags.CustomRoles,
+            }),
+        ]);
+        const { builder: abilityBuilder, invalidScopes } =
+            getUserAbilityBuilder({
+                user: lightdashUser,
+                projectProfiles: [...projectRoles, ...groupProjectRoles],
+                permissionsConfig: {
+                    pat: this.lightdashConfig.auth.pat,
+                },
+                customRoleScopes,
+                customRolesEnabled:
+                    this.lightdashConfig.customRoles.enabled ||
+                    customRolesFlag.enabled,
+                isEnterprise:
+                    this.lightdashConfig.license.licenseKey !== undefined,
+            });
+
+        if (invalidScopes.length > 0) {
+            Logger.warn(
+                `Custom role(s) for user ${
+                    lightdashUser.userUuid
+                } reference scopes not in the runtime vocabulary: ${[
+                    ...new Set(invalidScopes),
+                ].join(', ')}`,
+            );
+        }
 
         return {
             abilityBuilder,
             lightdashUser,
+        };
+    }
+
+    /**
+     * Apply per-project CASL grants to a service account's ability builder.
+     *
+     * Reads `project_memberships` rows keyed on the SA's `user_id` (the SA
+     * has a dedicated `users` row with `is_internal=true`) and applies the
+     * matching `projectMemberAbilities[role]` for each row. Composed on top
+     * of whatever org-level scope handler ran first — strictly additive.
+     *
+     * For SAs created with `scopes: ['system:member']`, this is the only
+     * source of useful abilities. For SAs with org-wide scopes (admin etc.)
+     * project grants just add (redundant) project-scoped grants — harmless.
+     */
+    private async applyServiceAccountProjectMemberships(
+        userId: number,
+        userUuid: string,
+        builder: AbilityBuilder<MemberAbility>,
+    ): Promise<void> {
+        type Row = {
+            project_uuid: string;
+            role: ProjectMemberRole;
+            role_uuid: string | null;
+        };
+        const rows = await this.database(ProjectMembershipsTableName)
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .select<Row[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectMembershipsTableName}.role`,
+                `${ProjectMembershipsTableName}.role_uuid`,
+            )
+            .where(`${ProjectMembershipsTableName}.user_id`, userId);
+
+        // Bulk-load scopes for any custom-role grants. Matches the human
+        // path's philosophy (UserModel.generateUserAbilityBuilder): once a
+        // role is bound in the DB the runtime must respect it, regardless
+        // of the customRoles.enabled feature flag (which gates UI only).
+        const customRoleUuids = rows
+            .map((r) => r.role_uuid)
+            .filter((u): u is string => u !== null);
+        const customRoleScopes =
+            customRoleUuids.length > 0
+                ? await this.customRoleScopes(customRoleUuids)
+                : {};
+        const isEnterprise =
+            this.lightdashConfig.license.licenseKey !== undefined;
+
+        const aggregatedInvalidScopes = new Set<string>();
+        for (const row of rows) {
+            const scopes = row.role_uuid
+                ? customRoleScopes[row.role_uuid]
+                : undefined;
+            if (scopes) {
+                const invalid = buildAbilityFromScopes(
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        scopes,
+                        isEnterprise,
+                        permissionsConfig: {
+                            pat: this.lightdashConfig.auth.pat,
+                        },
+                    },
+                    builder,
+                );
+                invalid.forEach((s) => aggregatedInvalidScopes.add(s));
+            } else {
+                projectMemberAbilities[row.role](
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        role: row.role,
+                    },
+                    builder,
+                );
+            }
+        }
+        if (aggregatedInvalidScopes.size > 0) {
+            Logger.warn(
+                `Service account ${userUuid} project custom roles reference scopes not in the runtime vocabulary: ${[
+                    ...aggregatedInvalidScopes,
+                ].join(', ')}`,
+            );
+        }
+    }
+
+    private async findServiceAccountByUserUuid(userUuid: string): Promise<
+        | {
+              scopes: ServiceAccountScope[];
+              organizationUuid: string;
+          }
+        | undefined
+    > {
+        const row = await this.database('service_accounts')
+            .where('service_account_user_uuid', userUuid)
+            .select<
+                {
+                    scopes: string[];
+                    organization_uuid: string;
+                }[]
+            >('scopes', 'organization_uuid')
+            .first();
+        if (!row) {
+            return undefined;
+        }
+        return {
+            scopes: row.scopes as ServiceAccountScope[],
+            organizationUuid: row.organization_uuid,
         };
     }
 
@@ -833,6 +1089,7 @@ export class UserModel {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
             .andWhere('emails.is_primary', true)
+            .andWhere(`${UserTableName}.is_internal`, false)
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             return undefined;
@@ -858,6 +1115,7 @@ export class UserModel {
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
+            .andWhere(`${UserTableName}.is_internal`, false)
             .select('*', 'organizations.created_at as organization_created_at');
         return user
             ? mapDbUserDetailsToLightdashUser(

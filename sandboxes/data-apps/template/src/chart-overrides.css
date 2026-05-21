@@ -1,31 +1,85 @@
-/* Lightdash chart palette overrides.
-   Replaces shadcn's monochrome chart tokens with the categorical palette used by every
-   native Lightdash chart, so generated data apps share the product's visual identity.
-   Source of truth: ECHARTS_DEFAULT_COLORS in packages/common/src/types/savedCharts.ts
+/* Lightdash chart palette + template-managed floating-surface chrome.
+
+   Two responsibilities:
+     1. Replaces shadcn's monochrome chart tokens with the categorical palette used by
+        every native Lightdash chart. Source of truth: ECHARTS_DEFAULT_COLORS in
+        packages/common/src/types/savedCharts.ts.
+     2. Forces consistent chrome (background, border, shadow) on every floating surface
+        — Radix-portaled DropdownMenu/Popover/Dialog content, and the .chart-tooltip-surface
+        class used by custom Recharts tooltips. Self-adapts to whatever theme the generated
+        app picks by mixing --background toward --foreground (which is always the opposite
+        end of the lightness scale in a well-formed theme).
 
    Imported after index.css in main.jsx — CSS cascade gives these declarations the win
    without needing @layer wrapping (which would also break Tailwind's per-file processing). */
 
 :root {
-    --chart-1: 228 49% 55%; /* #5470c6 blue       */
-    --chart-2: 18 97% 65%;  /* #fc8452 orange     */
-    --chart-3: 102 45% 63%; /* #91cc75 green      */
-    --chart-4: 42 95% 66%;  /* #fac858 yellow     */
-    --chart-5: 0 81% 67%;   /* #ee6666 coral red  */
-    --chart-6: 195 60% 66%; /* #73c0de light blue */
-    --chart-7: 150 47% 43%; /* #3ba272 dark green */
-    --chart-8: 282 32% 54%; /* #9a60b4 purple     */
-    --chart-9: 317 73% 70%; /* #ea7ccc pink       */
+    --chart-1: #5470c6; /* blue       */
+    --chart-2: #fc8452; /* orange     */
+    --chart-3: #91cc75; /* green      */
+    --chart-4: #fac858; /* yellow     */
+    --chart-5: #ee6666; /* coral red  */
+    --chart-6: #73c0de; /* light blue */
+    --chart-7: #3ba272; /* dark green */
+    --chart-8: #9a60b4; /* purple     */
+    --chart-9: #ea7ccc; /* pink       */
 }
 
 .dark {
-    --chart-1: 228 49% 55%;
-    --chart-2: 18 97% 65%;
-    --chart-3: 102 45% 63%;
-    --chart-4: 42 95% 66%;
-    --chart-5: 0 81% 67%;
-    --chart-6: 195 60% 66%;
-    --chart-7: 150 47% 43%;
-    --chart-8: 282 32% 54%;
-    --chart-9: 317 73% 70%;
+    --chart-1: #5470c6;
+    --chart-2: #fc8452;
+    --chart-3: #91cc75;
+    --chart-4: #fac858;
+    --chart-5: #ee6666;
+    --chart-6: #73c0de;
+    --chart-7: #3ba272;
+    --chart-8: #9a60b4;
+    --chart-9: #ea7ccc;
+}
+
+/* ── Floating-surface chrome ───────────────────────────────────────────────
+   Targets Radix portals via their data attributes (so styling lands wherever
+   the Portal renders, regardless of where the theme wrapper sits in the React
+   tree) and the .chart-tooltip-surface class used by ChartTooltipSurface in
+   src/lib/floating.tsx for Recharts tooltip content.
+
+   !important on the contrast-critical properties (bg, color, border, shadow):
+   floating surfaces have shown to be a recurring source of visual regressions
+   when generated apps inline-style them with low-contrast values, so the
+   template owns the chrome. Inner padding, font-size, and content layout
+   stay overridable. */
+
+[data-radix-menu-content],
+[data-radix-popover-content],
+[data-radix-dialog-content],
+.chart-tooltip-surface {
+    /* Lift lightness +0.18 from the page. In light themes the result clamps to
+       1.0 (popover ≈ page color, elevation from shadow) — that's how modern
+       light UIs feel non-dated. In dark themes the result is ~0.27, a visibly
+       lighter dark gray. Asymmetric on purpose: dark UIs cue elevation by color
+       contrast, light UIs by shadow. */
+    background-color: oklch(from var(--background) calc(l + 0.18) c h) !important;
+    color: var(--foreground) !important;
+    /* Border via foreground-mix so it auto-flips: light gray on light themes,
+       lighter mid-gray on dark themes — visible against either popover fill. */
+    border: 1px solid color-mix(in oklch, var(--background) 72%, var(--foreground) 28%) !important;
+    border-radius: 8px !important;
+    box-shadow:
+        0 1px 0 color-mix(in oklch, var(--foreground) 6%, transparent),
+        0 12px 28px rgba(0, 0, 0, 0.16),
+        0 3px 8px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* Hover/keyboard-focus state for menu items — mix the popover's own fill with
+   --foreground so the polarity auto-flips: light themes get a subtle darker
+   gray; dark themes get a subtle lighter gray. */
+[data-radix-menu-content] [role="menuitem"][data-highlighted],
+[data-radix-menu-content] [role="menuitem"]:focus,
+[data-radix-menu-content] [role="menuitem"]:hover {
+    background-color: color-mix(
+        in oklch,
+        oklch(from var(--background) calc(l + 0.18) c h) 86%,
+        var(--foreground) 14%
+    ) !important;
+    color: var(--foreground) !important;
 }

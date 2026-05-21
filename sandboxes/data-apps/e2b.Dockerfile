@@ -16,6 +16,7 @@ COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js
 COPY template/index.html ./index.html
 COPY template/skill.md ./skill.md
+COPY template/d3-reference.md ./d3-reference.md
 COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
 
 # Swap workspace:* for the local tarball, then install
@@ -29,7 +30,7 @@ COPY template/src/ ./src/
 RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \
-    skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress
+    skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress resizable
 
 # Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
 # from /app/.claude/skills/ when Claude Code starts in the sandbox.

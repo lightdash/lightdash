@@ -1,4 +1,5 @@
 import {
+    CommercialFeatureFlags,
     CustomFormatType,
     getErrorMessage,
     getItemId,
@@ -18,8 +19,12 @@ import {
     Anchor,
     Box,
     Button,
+    CopyButton,
+    Divider,
     Group,
+    HoverCard,
     Loader,
+    Popover,
     Stack,
     Text,
     TextInput,
@@ -27,9 +32,14 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    IconAlertTriangle,
     IconCalculator,
+    IconCheck,
+    IconCopy,
+    IconLock,
     IconMaximize,
     IconMinimize,
+    IconSparkles,
     IconWand,
 } from '@tabler/icons-react';
 import {
@@ -38,6 +48,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
@@ -58,10 +69,11 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
+import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
-import { FormulaForm } from './FormulaForm/FormulaForm';
+import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
@@ -109,7 +121,6 @@ const TableCalculationModal: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
 
     // Formula support is pinned to what the formula package can compile for
     // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
@@ -121,6 +132,32 @@ const TableCalculationModal: FC<Props> = ({
         );
 
     const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
+    const requestContext = useMemo(() => {
+        const tcLabel =
+            tableCalculation?.displayName || 'this SQL table calculation';
+        const chartUrl =
+            typeof window !== 'undefined'
+                ? window.location.href.replace(/\/edit\/?$/, '')
+                : '';
+        return { tcLabel, chartUrl };
+    }, [tableCalculation?.displayName]);
+    const accessRequestMessage = useMemo(
+        () =>
+            isCustomRolesEnabled
+                ? `Hi! Could you grant me 'Manage custom SQL table calculations' via a custom role? I need it to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`
+                : `Hi! Could you grant me SQL access for table calculations? I need to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`,
+        [requestContext, isCustomRolesEnabled],
+    );
+    const changeRequestMessage = useMemo(
+        () =>
+            `Hi! Could you update the SQL of '${requestContext.tcLabel}' on this chart? ${requestContext.chartUrl}`,
+        [requestContext],
+    );
 
     const isNewCalculation = !tableCalculation;
     const hasTemplate = tableCalculation
@@ -238,6 +275,8 @@ const TableCalculationModal: FC<Props> = ({
     const [formulaParseError, setFormulaParseError] = useState<string | null>(
         null,
     );
+    const formulaFormRef = useRef<FormulaFormHandle>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
     const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
@@ -295,6 +334,9 @@ const TableCalculationModal: FC<Props> = ({
 
     const isExistingSqlCalc =
         !!tableCalculation && isSqlTableCalculation(tableCalculation);
+
+    const cannotAuthorSqlTcs =
+        useCannotAuthorCustomSqlTableCalculations(projectUuid) === true;
     const showConvertToFormulaButton =
         isExistingSqlCalc &&
         isFormulaSupported &&
@@ -345,7 +387,17 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleConfirm = useCallback(() => {
         const validation = form.validate();
-        if (validation.hasErrors) return;
+        if (validation.hasErrors) {
+            // Name lives at the bottom of the modal body; on viewports
+            // shorter than the modal, the validation message renders
+            // off-screen and Save appears to silently no-op.
+            nameInputRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+            nameInputRef.current?.focus({ preventScroll: true });
+            return;
+        }
 
         const { name, sql, formula, format, type } = form.values;
         try {
@@ -477,9 +529,9 @@ const TableCalculationModal: FC<Props> = ({
         [form],
     );
 
+    const sqlReadOnly = cannotAuthorSqlTcs && editMode === EditMode.SQL;
     const canSwitchEditMode =
-        isNewCalculation && isFormulaSupported && !cannotAuthorCustomSql;
-
+        isNewCalculation && isFormulaSupported && !cannotAuthorSqlTcs;
     const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
     const switchEditModeLabel =
         editMode === EditMode.FORMULA
@@ -496,14 +548,6 @@ const TableCalculationModal: FC<Props> = ({
         : editMode === EditMode.FORMULA
           ? 'Create formula'
           : 'Create SQL calculation';
-
-    // Refuse to render the modal when it would force the user into the SQL
-    // editor without `manage:CustomFields`: editing an existing SQL calc, or
-    // creating a new calc on a warehouse without formula support. The
-    // backend rejects on save in either case; this prevents wasted work.
-    if (cannotAuthorCustomSql && editMode === EditMode.SQL) {
-        return null;
-    }
 
     return (
         <MantineModal
@@ -532,7 +576,8 @@ const TableCalculationModal: FC<Props> = ({
                     disabled={
                         (editMode === EditMode.SQL &&
                             form.values.sql.length === 0) ||
-                        isFormulaInvalid
+                        isFormulaInvalid ||
+                        sqlReadOnly
                     }
                 >
                     {saveButtonLabel}
@@ -556,9 +601,69 @@ const TableCalculationModal: FC<Props> = ({
             <Stack gap="xs">
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            {editorLabel}
-                        </Text>
+                        <Group gap={6} wrap="nowrap">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA &&
+                                formulaParseError && (
+                                    <HoverCard
+                                        withArrow
+                                        width={320}
+                                        position="bottom-start"
+                                        shadow="md"
+                                        openDelay={100}
+                                        closeDelay={150}
+                                    >
+                                        <HoverCard.Target>
+                                            <Box style={{ display: 'flex' }}>
+                                                <MantineIcon
+                                                    icon={IconAlertTriangle}
+                                                    color="red.6"
+                                                    size="sm"
+                                                />
+                                            </Box>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown>
+                                            <Stack gap="xs">
+                                                <Text
+                                                    size="xs"
+                                                    c="red.7"
+                                                    style={{
+                                                        wordBreak: 'break-word',
+                                                        whiteSpace: 'pre-wrap',
+                                                    }}
+                                                >
+                                                    {formulaParseError}
+                                                </Text>
+                                                {isAmbientAiEnabled && (
+                                                    <Group justify="flex-end">
+                                                        <Button
+                                                            size="compact-xs"
+                                                            variant="default"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconSparkles
+                                                                    }
+                                                                    size="sm"
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                formulaFormRef.current?.fixWithAi(
+                                                                    formulaParseError,
+                                                                )
+                                                            }
+                                                        >
+                                                            Fix with AI
+                                                        </Button>
+                                                    </Group>
+                                                )}
+                                            </Stack>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                )}
+                        </Group>
                         {canSwitchEditMode && (
                             <Anchor
                                 size="xs"
@@ -580,7 +685,7 @@ const TableCalculationModal: FC<Props> = ({
                                 <Button
                                     variant="light"
                                     color="indigo"
-                                    size="xs"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconWand}
@@ -623,6 +728,7 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
+                                ref={formulaFormRef}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -637,7 +743,182 @@ const TableCalculationModal: FC<Props> = ({
                                 isFullScreen={isExpanded}
                             />
                         ) : (
-                            <Box className={classes.sqlEditorBorder}>
+                            <Box
+                                className={classes.sqlEditorBorder}
+                                pos="relative"
+                            >
+                                {sqlReadOnly && !showConversionPreview && (
+                                    <Box
+                                        pos="absolute"
+                                        top={8}
+                                        right={8}
+                                        style={{ zIndex: 5 }}
+                                    >
+                                        <Popover
+                                            position="bottom-end"
+                                            withArrow
+                                            shadow="md"
+                                            width={300}
+                                        >
+                                            <Popover.Target>
+                                                <Button
+                                                    variant="default"
+                                                    size="compact-xs"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconLock}
+                                                            size="sm"
+                                                        />
+                                                    }
+                                                >
+                                                    View only
+                                                </Button>
+                                            </Popover.Target>
+                                            <Popover.Dropdown>
+                                                <Stack gap="xs">
+                                                    <Text size="xs" fw={600}>
+                                                        You don't have
+                                                        permission to edit SQL
+                                                        here.
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        Use formulas instead —
+                                                        no SQL required,
+                                                        validated as you type,
+                                                        and they work in any
+                                                        warehouse.
+                                                    </Text>
+                                                    {showConvertToFormulaButton && (
+                                                        <Button
+                                                            size="compact-xs"
+                                                            variant="light"
+                                                            color="indigo"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconWand
+                                                                    }
+                                                                    size="sm"
+                                                                />
+                                                            }
+                                                            onClick={
+                                                                handleConvertClick
+                                                            }
+                                                            loading={
+                                                                isConvertingSql
+                                                            }
+                                                            disabled={
+                                                                !form.values
+                                                                    .sql ||
+                                                                form.values.sql.trim()
+                                                                    .length ===
+                                                                    0
+                                                            }
+                                                            fullWidth
+                                                        >
+                                                            Convert to formula
+                                                        </Button>
+                                                    )}
+                                                    <Divider
+                                                        my={2}
+                                                        label="or"
+                                                        labelPosition="center"
+                                                    />
+                                                    <Text size="xs" c="dimmed">
+                                                        Ask an admin or
+                                                        developer
+                                                        {isCustomRolesEnabled ? (
+                                                            <>
+                                                                {' '}
+                                                                to grant{' '}
+                                                                <Text
+                                                                    component="span"
+                                                                    fw={600}
+                                                                    inherit
+                                                                >
+                                                                    Manage
+                                                                    custom SQL
+                                                                    table
+                                                                    calculations
+                                                                </Text>{' '}
+                                                                via a custom
+                                                                role.
+                                                            </>
+                                                        ) : (
+                                                            ' for SQL access.'
+                                                        )}
+                                                    </Text>
+                                                    <CopyButton
+                                                        value={
+                                                            accessRequestMessage
+                                                        }
+                                                        timeout={2000}
+                                                    >
+                                                        {({ copied, copy }) => (
+                                                            <Button
+                                                                size="compact-xs"
+                                                                variant="default"
+                                                                color={
+                                                                    copied
+                                                                        ? 'teal'
+                                                                        : undefined
+                                                                }
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            copied
+                                                                                ? IconCheck
+                                                                                : IconCopy
+                                                                        }
+                                                                        size="sm"
+                                                                    />
+                                                                }
+                                                                onClick={copy}
+                                                            >
+                                                                {copied
+                                                                    ? 'Copied!'
+                                                                    : 'Copy access request'}
+                                                            </Button>
+                                                        )}
+                                                    </CopyButton>
+                                                    <CopyButton
+                                                        value={
+                                                            changeRequestMessage
+                                                        }
+                                                        timeout={2000}
+                                                    >
+                                                        {({ copied, copy }) => (
+                                                            <Button
+                                                                size="compact-xs"
+                                                                variant="default"
+                                                                color={
+                                                                    copied
+                                                                        ? 'teal'
+                                                                        : undefined
+                                                                }
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            copied
+                                                                                ? IconCheck
+                                                                                : IconCopy
+                                                                        }
+                                                                        size="sm"
+                                                                    />
+                                                                }
+                                                                onClick={copy}
+                                                            >
+                                                                {copied
+                                                                    ? 'Copied!'
+                                                                    : 'Copy SQL change request'}
+                                                            </Button>
+                                                        )}
+                                                    </CopyButton>
+                                                </Stack>
+                                            </Popover.Dropdown>
+                                        </Popover>
+                                    </Box>
+                                )}
                                 <Suspense
                                     fallback={
                                         <Box
@@ -656,6 +937,7 @@ const TableCalculationModal: FC<Props> = ({
                                         focusOnRender={true}
                                         onCmdEnter={handleConfirm}
                                         onAiApplied={handleSqlAiApplied}
+                                        readOnly={sqlReadOnly}
                                         conversionState={
                                             showConversionPreview
                                                 ? {
@@ -688,6 +970,7 @@ const TableCalculationModal: FC<Props> = ({
                 />
 
                 <TextInput
+                    ref={nameInputRef}
                     label="Name"
                     required
                     placeholder="E.g. Cumulative order count"

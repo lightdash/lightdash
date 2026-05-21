@@ -22,6 +22,7 @@ interface Organization {
 
 export type CaslSubjectNames =
     | 'AiAgent'
+    | 'AiAgentDocument'
     | 'AiAgentThread'
     | 'Analytics'
     | 'ChangeCsvResults'
@@ -30,13 +31,11 @@ export type CaslSubjectNames =
     | 'ContentVerification'
     | 'CustomFields'
     | 'CustomSql'
+    | 'CustomSqlTableCalculations'
     | 'DataApp'
     | 'Dashboard'
     | 'DeployProject'
     | 'DashboardComments'
-    | 'DashboardCsv'
-    | 'DashboardImage'
-    | 'DashboardPdf'
     | 'DeletedContent'
     | 'Explore'
     | 'ExportCsv'

@@ -21,10 +21,31 @@
 .editorContentWrapper {
     display: flex;
     align-items: flex-start;
-    flex: 1;
+    height: 100%;
     min-height: 0;
     overflow-y: auto;
     padding-left: var(--mantine-spacing-md);
+}
+
+.panelGroup {
+    flex: 1;
+    min-height: 0;
+}
+
+.resizeHandle {
+    height: 4px;
+    background-color: var(--mantine-color-ldGray-2);
+    cursor: row-resize;
+    transition: background-color 120ms ease;
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+    }
+}
+
+.resizeHandle:hover,
+.resizeHandle[data-resize-handle-state='drag'] {
+    background-color: var(--mantine-color-indigo-4);
 }
 
 .editorContentInner {
@@ -91,7 +112,7 @@
 
     @mixin dark {
         background-color: var(--mantine-color-ldDark-3);
-        color: var(--mantine-color-ldGray-5);
+        color: var(--mantine-color-ldGray-7);
         border-color: var(--mantine-color-ldDark-5);
         box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
     }
@@ -121,6 +142,7 @@
 
     @mixin dark {
         color: var(--mantine-color-indigo-3);
+        opacity: 0.7;
     }
 }
 

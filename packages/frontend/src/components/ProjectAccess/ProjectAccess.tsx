@@ -34,11 +34,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import {
@@ -60,6 +55,11 @@ import {
     systemRolesOrder,
     type UserGroupAccess,
 } from '../../utils/roleAccessWarnings';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import CreateProjectAccessModal from './CreateProjectAccessModal';
 import RemoveProjectAccessModal from './RemoveProjectAccessModal';
@@ -541,7 +541,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         groupedRolesData,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: enrichedUsers,
         enableColumnResizing: false,
@@ -753,7 +753,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             {isAddingProjectAccess && (
                 <CreateProjectAccessModal

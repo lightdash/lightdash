@@ -34,6 +34,7 @@ export type DbtCompileOptions = {
     defer: boolean | undefined;
     targetPath: string | undefined;
     favorState: boolean | undefined;
+    combineManifest: string | undefined;
 };
 
 const dbtCompileArgs = [

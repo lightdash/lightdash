@@ -44,6 +44,8 @@ export const warehouseSqlBuilderFromType = (
             return new TrinoSqlBuilder(...args);
         case SupportedDbtAdapter.ATHENA:
             return new AthenaSqlBuilder(...args);
+        case SupportedDbtAdapter.SPARK:
+            return new DatabricksSqlBuilder(...args);
         default:
             const never: never = adapterType;
             throw new Error(`Unsupported adapter type: ${adapterType}`);

@@ -26,6 +26,7 @@ export type SlackAppCustomSettings = {
     aiRequireOAuth?: boolean;
     aiMultiAgentChannelId?: string;
     aiMultiAgentProjectUuids?: string[] | null;
+    unfurlsEnabled?: boolean;
 };
 
 export type ApiSlackGetInstallationResponse = ApiSuccess<

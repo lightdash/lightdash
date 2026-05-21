@@ -4,6 +4,8 @@ import {
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiSqlChart,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -29,6 +31,7 @@ import {
     formatRawRows,
     formatRows,
     getAvailableFilterFieldIds,
+    getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
@@ -44,8 +47,8 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isFilterLockedOnTab,
     isParameterInteractivityEnabled,
-    LightdashSessionUser,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -56,6 +59,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
     SortField,
+    stripOverridesForLockedFiltersOnTab,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -76,9 +80,11 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
     getAvailableParameterDefinitions,
     getDashboardParametersValuesMap,
@@ -98,10 +104,12 @@ type Dependencies = {
     embedModel: EmbedModel;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     asyncQueryService: AsyncQueryService;
+    permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
 };
@@ -119,6 +127,8 @@ export class EmbedService extends BaseService {
 
     private readonly savedChartModel: SavedChartModel;
 
+    private readonly savedSqlModel: SavedSqlModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly userAttributesModel: UserAttributesModel;
@@ -131,13 +141,17 @@ export class EmbedService extends BaseService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly permissionsService: PermissionsService;
+
     constructor(dependencies: Dependencies) {
         super();
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.permissionsService = dependencies.permissionsService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
+        this.savedSqlModel = dependencies.savedSqlModel;
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
@@ -194,10 +208,11 @@ export class EmbedService extends BaseService {
     }
 
     async getConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -226,11 +241,12 @@ export class EmbedService extends BaseService {
     }
 
     async createConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -261,7 +277,7 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.charts,
         );
 
-        return this.getConfig(user, projectUuid);
+        return this.getConfig(account, projectUuid);
     }
 
     async updateDashboards(
@@ -518,12 +534,33 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
-        const selectedPalette = paletteUuid
-            ? await this.organizationModel.findColorPalette(
-                  dashboard.organizationUuid,
-                  paletteUuid,
-              )
-            : null;
+        // Embed paletteUuid query param overrides everything; otherwise fall back
+        // through chart → dashboard → space → project → org via the resolver.
+        let selectedPalette: {
+            colors: string[];
+            darkColors: string[] | null;
+        } | null = null;
+        if (paletteUuid) {
+            const override = await this.organizationModel.findColorPalette(
+                dashboard.organizationUuid,
+                paletteUuid,
+            );
+            if (override) {
+                selectedPalette = {
+                    colors: override.colors,
+                    darkColors: override.darkColors,
+                };
+            }
+        } else {
+            const resolved = await this.savedChartModel.resolveColorPalette({
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+            });
+            selectedPalette = {
+                colors: resolved.colors,
+                darkColors: resolved.darkColors,
+            };
+        }
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
@@ -778,11 +815,20 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async _getWarehouseClient(projectUuid: string, explore: Explore) {
+    private async _getWarehouseClient(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+    ) {
+        // Resolve via ProjectService so OAuth tokens are refreshed before use
+        // (e.g. Databricks oauth_m2m must exchange client_id+secret for an
+        // access token — fetching the raw row from the model would yield an
+        // empty `token` and crash the warehouse client).
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
-            );
+                account,
+            });
 
         const { warehouseClient, sshTunnel } =
             await this.projectService._getWarehouseClient(
@@ -841,7 +887,16 @@ export class EmbedService extends BaseService {
         explore: Explore;
         queryTags: Omit<
             Required<RunQueryTags>,
-            'user_uuid' | 'chart_uuid' | 'dashboard_uuid'
+            | 'user_uuid'
+            | 'chart_uuid'
+            | 'dashboard_uuid'
+            // Scheduler-attribution tags only apply to scheduler-driven jobs,
+            // never to embed/JWT queries, so they're excluded from the
+            // required-shape enforced here.
+            | 'saved_sql_uuid'
+            | 'scheduler_uuid'
+            | 'scheduler_name'
+            | 'job_id'
         > & {
             embed: 'true';
             external_id: string;
@@ -855,6 +910,7 @@ export class EmbedService extends BaseService {
         useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            account,
             projectUuid,
             explore,
         );
@@ -885,13 +941,18 @@ export class EmbedService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
-            dataTimezone: warehouseClient.credentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseClient.credentials),
         });
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
                 userUuid: null,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
@@ -928,7 +989,6 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
         account: AnonymousAccount,
         explore: Explore,
@@ -938,23 +998,58 @@ export class EmbedService extends BaseService {
     ) {
         const availableFieldIds = getAvailableFilterFieldIds(explore);
 
-        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-            tileUuid,
-            availableFieldIds,
-            dashboard.filters,
-        );
+        // Look up which tab this tile belongs to so we can evaluate lock state
+        // for the right tab. Tiles created before tabs may have null/undefined.
+        const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
+        const tileTabUuid = tile?.tabUuid ?? undefined;
+        const hasTabs = (dashboard.tabs?.length ?? 0) > 0;
+
+        let effectiveFilters: DashboardFilters = dashboard.filters;
+
         if (
             dashboardFilters &&
             isFilterInteractivityEnabled(account.access.filtering)
         ) {
-            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-                tileUuid,
-                availableFieldIds,
-                dashboardFilters,
+            const { filters: safeOverrides, droppedCount } =
+                stripOverridesForLockedFiltersOnTab(
+                    dashboard.filters,
+                    dashboardFilters,
+                    tileTabUuid,
+                    hasTabs,
+                );
+
+            if (droppedCount > 0) {
+                this.logger.debug(
+                    `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
+                );
+            }
+
+            const lockedDimensions = dashboard.filters.dimensions.filter(
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
+            const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
+                isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
+            );
+            const lockedTableCalculations =
+                dashboard.filters.tableCalculations.filter((rule) =>
+                    isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
+                );
+
+            effectiveFilters = {
+                dimensions: [...lockedDimensions, ...safeOverrides.dimensions],
+                metrics: [...lockedMetrics, ...safeOverrides.metrics],
+                tableCalculations: [
+                    ...lockedTableCalculations,
+                    ...safeOverrides.tableCalculations,
+                ],
+            };
         }
 
-        return appliedDashboardFilters;
+        return getDashboardFiltersForTileAndTables(
+            tileUuid,
+            availableFieldIds,
+            effectiveFilters,
+        );
     }
 
     async executeAsyncDashboardTileQuery({
@@ -1073,6 +1168,170 @@ export class EmbedService extends BaseService {
         });
     }
 
+    private static _getSqlChartUuidFromDashboardTiles(
+        dashboard: DashboardDAO,
+        tileUuid: string,
+    ): string {
+        const tile = dashboard.tiles.find(({ uuid }) => uuid === tileUuid);
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile ${tileUuid} not found in dashboard ${dashboard.uuid}`,
+            );
+        }
+
+        if (!isDashboardSqlChartTile(tile)) {
+            throw new ParameterError(
+                `Tile ${tileUuid} is not a SQL chart tile`,
+            );
+        }
+
+        const { savedSqlUuid } = tile.properties;
+        if (!savedSqlUuid) {
+            throw new ParameterError(
+                `Tile ${tileUuid} does not have a saved SQL chart uuid`,
+            );
+        }
+
+        return savedSqlUuid;
+    }
+
+    async getDashboardSqlChartTile({
+        account,
+        projectUuid,
+        tileUuid,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+    }): Promise<ApiSqlChart['results']> {
+        const { user } = await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid: dashboard.organizationUuid,
+        });
+
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
+            savedSqlUuid,
+        );
+
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
+        return {
+            ...savedChart,
+            space: {
+                ...savedChart.space,
+                userAccess: undefined,
+            },
+            resolvedColorPalette,
+        };
+    }
+
+    async executeAsyncDashboardSqlChartTileQuery({
+        account,
+        projectUuid,
+        tileUuid,
+        dashboardFilters,
+        dashboardSorts,
+        invalidateCache,
+        parameters,
+        limit,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        invalidateCache?: boolean;
+        parameters?: ParametersValuesMap;
+        limit?: number;
+    }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        const { user } = await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        const { organizationUuid } = dashboard;
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid,
+        });
+
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
+            savedSqlUuid,
+        );
+
+        this.analytics.trackAccount<EmbedQueryViewed>(account, {
+            event: 'embed_query.executed',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: savedSqlUuid,
+            },
+        });
+
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            parameters
+                ? parameters
+                : {};
+
+        return this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
+            account,
+            projectUuid,
+            savedSqlUuid,
+            tileUuid,
+            dashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            invalidateCache,
+            limit,
+            context: QueryExecutionContext.EMBED,
+            parameters: acceptedUserParameters,
+        });
+    }
+
     async getChartAndResults(
         projectUuid: string,
         account: AnonymousAccount,
@@ -1181,6 +1440,7 @@ export class EmbedService extends BaseService {
         const timezone = resolveQueryTimezone(
             metricQueryWithDashboardOverrides,
             projectTimezone,
+            null,
         );
 
         const isTimezoneSupportEnabled =
@@ -1800,7 +2060,11 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const timezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+            null,
+        );
 
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({

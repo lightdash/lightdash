@@ -112,6 +112,7 @@ data/
 
 CLAUDE.local.md
 AGENTS.override.md
+.playwright-mcp 
 
 http-client.private.env.json
 

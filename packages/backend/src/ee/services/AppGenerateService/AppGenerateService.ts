@@ -1,4 +1,5 @@
 import {
+    CopyObjectCommand,
     DeleteObjectsCommand,
     GetObjectCommand,
     ListObjectsV2Command,
@@ -9,26 +10,42 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    assertEmbeddedAuth,
+    assertUnreachable,
+    DATA_APP_CLAUDE_MODELS,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     ForbiddenError,
+    formatPromptWithClarifications,
     getErrorMessage,
     isDashboardChartTileType,
     MissingConfigError,
+    NotFoundError,
     ParameterError,
+    QueryExecutionContext,
+    type AnonymousAccount,
+    type AppChartReference,
+    type AppClarification,
+    type AppDashboardReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
+    type CatalogItemSummary,
     type ChartReference,
+    type ChartSampleData,
+    type DataAppClaudeModel,
     type DataAppTemplate,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
-import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { generateObject } from 'ai';
+import { ALL_TRAFFIC, CommandExitError, Sandbox } from 'e2b';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
@@ -49,9 +66,13 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { getAnthropicModel } from '../ai/models/anthropic-claude';
+import { getModelPreset } from '../ai/models/presets';
+import { ClaudeStreamProcessor } from './ClaudeStreamProcessor';
 import { getTemplateInstructions } from './templates';
 
 type AppGenerateServiceDeps = {
@@ -67,6 +88,7 @@ type AppGenerateServiceDeps = {
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
     dashboardService: DashboardService;
+    projectService: ProjectService;
 };
 
 type GenerateAppResult = {
@@ -104,6 +126,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly dashboardService: DashboardService;
 
+    private readonly projectService: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -117,6 +141,7 @@ export class AppGenerateService extends BaseService {
         savedChartService,
         spacePermissionService,
         dashboardService,
+        projectService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -131,6 +156,7 @@ export class AppGenerateService extends BaseService {
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
         this.dashboardService = dashboardService;
+        this.projectService = projectService;
     }
 
     /**
@@ -293,13 +319,81 @@ export class AppGenerateService extends BaseService {
     }
 
     private async assertDataAppsEnabled(user: SessionUser): Promise<void> {
+        const enabled = await this.dataAppsEnabledFor(user);
+        if (!enabled) {
+            throw new ForbiddenError('Data apps are not enabled');
+        }
+    }
+
+    async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.EnableDataApps,
         });
-        if (!enabled) {
-            throw new ForbiddenError('Data apps are not enabled');
-        }
+        return enabled;
+    }
+
+    /**
+     * Boolean variant of `assertCanViewApp` — does not throw on denial.
+     * Use for filtering lists where unauthorized items should be silently
+     * dropped (e.g. omnibar search) rather than surfacing a permission error.
+     */
+    async canViewApp(
+        user: SessionUser,
+        app: Pick<
+            DbApp,
+            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+        > & {
+            organization_uuid: string;
+        },
+    ): Promise<boolean> {
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'view',
+            subject('DataApp', {
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                ...spaceContext,
+                createdByUserUuid: app.created_by_user_uuid,
+            }),
+        );
+    }
+
+    /**
+     * Bulk filter for callers that have a list of apps already loaded
+     * (e.g. SearchService). Resolves space access contexts in parallel —
+     * one `getSpaceAccessContext` call per app with a space.
+     */
+    async filterAppsUserCanView<
+        T extends {
+            spaceUuid: string | null;
+            createdBy: { userUuid: string } | null;
+        },
+    >(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        apps: T[],
+    ): Promise<T[]> {
+        const checks = await Promise.all(
+            apps.map((app) =>
+                this.canViewApp(user, {
+                    organization_uuid: organizationUuid,
+                    project_uuid: projectUuid,
+                    space_uuid: app.spaceUuid,
+                    // A null createdBy can never match the self rule — coerce
+                    // to a sentinel that won't equal any real userUuid.
+                    created_by_user_uuid: app.createdBy?.userUuid ?? '',
+                }),
+            ),
+        );
+        return apps.filter((_, i) => checks[i]);
     }
 
     /**
@@ -349,40 +443,89 @@ export class AppGenerateService extends BaseService {
 
     private static readonly SIGNATURE_PREFIX_SIZE = 12;
 
+    private static readonly MAX_IMAGES_PER_VERSION = 4;
+
+    private static validateImageIds(imageIds: string[]): void {
+        if (imageIds.length > AppGenerateService.MAX_IMAGES_PER_VERSION) {
+            throw new ParameterError(
+                `Too many images: ${imageIds.length}. Maximum: ${AppGenerateService.MAX_IMAGES_PER_VERSION}`,
+            );
+        }
+        for (const id of imageIds) {
+            if (!isValidUuid(id)) {
+                throw new ParameterError(
+                    'Invalid imageId: must be a valid UUID',
+                );
+            }
+        }
+    }
+
+    /**
+     * Resolve the user-supplied Claude model to a known value, defaulting when
+     * absent. Rejects unknown strings outright so a stray value can't shell
+     * out as `--model <anything>` against the Claude CLI inside the sandbox.
+     */
+    private static resolveClaudeModel(
+        claudeModel: DataAppClaudeModel | undefined,
+    ): DataAppClaudeModel {
+        if (claudeModel === undefined) {
+            return DEFAULT_DATA_APP_CLAUDE_MODEL;
+        }
+        if (
+            !(DATA_APP_CLAUDE_MODELS as readonly string[]).includes(claudeModel)
+        ) {
+            throw new ParameterError(
+                `Invalid claudeModel: ${claudeModel}. Allowed: ${DATA_APP_CLAUDE_MODELS.join(
+                    ', ',
+                )}`,
+            );
+        }
+        return claudeModel;
+    }
+
     /**
      * Read the first few bytes of a stream, validate image magic bytes,
      * then return a new Readable that replays those bytes followed by
      * the rest of the original stream.
      */
-    private static async validateAndPrependMagicBytes(
+    /**
+     * Buffer the full upload body (capped at maxBytes), then validate that
+     * its leading bytes match the declared MIME type. Returns the buffer.
+     * Buffering up-front avoids stream pause/pipe state-machine pitfalls
+     * and gives us a Buffer ready for signed S3 PutObject.
+     */
+    private static async bufferAndValidate(
         stream: Readable,
         mimeType: string,
-    ): Promise<Readable> {
-        const prefix = await new Promise<Buffer>((resolve, reject) => {
-            const chunks: Buffer[] = [];
-            let collected = 0;
-            const onData = (chunk: Buffer) => {
-                chunks.push(chunk);
-                collected += chunk.length;
-                if (collected >= AppGenerateService.SIGNATURE_PREFIX_SIZE) {
-                    stream.removeListener('data', onData);
-                    stream.pause();
-                    resolve(Buffer.concat(chunks));
-                }
-            };
-            stream.on('data', onData);
-            stream.on('error', reject);
-            stream.on('end', () => resolve(Buffer.concat(chunks)));
-        });
+        maxBytes: number,
+    ): Promise<Buffer> {
+        const chunks: Buffer[] = [];
+        let total = 0;
+        for await (const chunk of stream) {
+            const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            total += buf.length;
+            if (total > maxBytes) {
+                throw new ParameterError(
+                    `Image too large: exceeded ${maxBytes} bytes`,
+                );
+            }
+            chunks.push(buf);
+        }
+        const body = Buffer.concat(chunks);
 
-        if (prefix.length === 0) {
+        if (body.length === 0) {
             throw new ParameterError('Upload body is empty');
+        }
+        if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+            throw new ParameterError(
+                'Upload body too small to be a valid image',
+            );
         }
 
         const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
         if (signatures) {
             const matchesAll = signatures.every((sig) =>
-                sig.bytes.every((byte, i) => prefix[sig.offset + i] === byte),
+                sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
             );
             if (!matchesAll) {
                 throw new ParameterError(
@@ -391,11 +534,7 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Rebuild a stream: prefix bytes first, then the remainder
-        const rebuilt = new PassThrough();
-        rebuilt.write(prefix);
-        stream.pipe(rebuilt);
-        return rebuilt;
+        return body;
     }
 
     async uploadImage(
@@ -405,6 +544,7 @@ export class AppGenerateService extends BaseService {
         body: Readable,
         contentLength: number,
         appUuid: string,
+        kind?: 'screenshot',
     ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
 
@@ -450,21 +590,15 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const validatedBody =
-            await AppGenerateService.validateAndPrependMagicBytes(
-                body,
-                mimeType,
-            );
-
-        // Buffer the stream so the AWS SDK can compute a content hash for
-        // S3v4 signing. Streaming bodies use chunked signing which GCS's
-        // S3-compatible API doesn't handle reliably. Safe here because
-        // images are capped at 10 MB above.
-        const chunks: Buffer[] = [];
-        for await (const chunk of validatedBody) {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const bufferedBody = Buffer.concat(chunks);
+        // Buffer the whole body and validate its MIME signature. We need the
+        // full Buffer anyway so the AWS SDK can use standard S3v4 signing —
+        // streaming bodies cause chunked signing which MinIO/GCS reject with
+        // RequestTimeout.
+        const bufferedBody = await AppGenerateService.bufferAndValidate(
+            body,
+            mimeType,
+            maxSize,
+        );
 
         const { client: s3Client, bucket } = this.getS3Client();
         const imageId = uuidv4();
@@ -477,6 +611,10 @@ export class AppGenerateService extends BaseService {
                 Body: bufferedBody,
                 ContentLength: bufferedBody.length,
                 ContentType: mimeType,
+                // Persist the upload kind on the staged object so
+                // `writeImageToSandbox` can decide the filename prefix later
+                // without needing a separate DB column.
+                ...(kind ? { Metadata: { kind } } : {}),
             }),
         );
 
@@ -503,17 +641,24 @@ export class AppGenerateService extends BaseService {
         imageId: string,
     ): Promise<{ imageUrl: string }> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
-            user,
-            'manage',
-            organizationUuid,
-            projectUuid,
-            'Insufficient permissions to view app images',
-        );
 
         if (!isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to view app images',
+        );
+
+        const belongsToApp = await this.appModel.appImageExists(
+            appUuid,
+            imageId,
+        );
+        if (!belongsToApp) {
+            throw new NotFoundError(`Image not found: ${imageId}`);
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
@@ -570,6 +715,8 @@ export class AppGenerateService extends BaseService {
                 appUuid: payload.appUuid,
                 version: payload.version,
                 isIteration: payload.isIteration,
+                claudeModel:
+                    payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -595,7 +742,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         error: unknown,
         userMessage: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             const updated = await this.appModel.updateVersionStatusIfInProgress(
                 appUuid,
@@ -609,10 +756,12 @@ export class AppGenerateService extends BaseService {
                     `App ${appUuid}: skipped markError — version ${version} is no longer building (likely cancelled)`,
                 );
             }
+            return updated;
         } catch (dbError) {
             this.logger.error(
                 `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
             );
+            return false;
         }
     }
 
@@ -648,17 +797,24 @@ export class AppGenerateService extends BaseService {
         e2bApiKey: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.create(
-            this.lightdashConfig.appRuntime.e2bTemplateName,
-            {
-                timeoutMs: 60 * 60 * 1000,
-                apiKey: e2bApiKey,
-                lifecycle: { onTimeout: 'pause' },
-                network: {
-                    allowOut: ['api.anthropic.com'],
-                    denyOut: [ALL_TRAFFIC],
-                },
+        const { e2bTemplateName, e2bTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        // E2B treats `name` and `name:default` interchangeably, so an empty
+        // tag is fine — it just resolves to the implicit `default` build.
+        const templateRef = e2bTemplateTag
+            ? `${e2bTemplateName}:${e2bTemplateTag}`
+            : e2bTemplateName;
+        const sandbox = await Sandbox.create(templateRef, {
+            timeoutMs: 60 * 60 * 1000,
+            apiKey: e2bApiKey,
+            lifecycle: { onTimeout: 'pause' },
+            network: {
+                allowOut: ['api.anthropic.com'],
+                denyOut: [ALL_TRAFFIC],
             },
+        });
+        this.logger.info(
+            `App ${appUuid}: launching sandbox from template ${templateRef}`,
         );
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -731,7 +887,7 @@ export class AppGenerateService extends BaseService {
         );
         const result = await sandbox.commands.run(
             'tar -xf /tmp/source.tar -C /app',
-            { timeoutMs: 30_000 },
+            { timeoutMs: 60_000 },
         );
         if (result.exitCode !== 0) {
             throw new Error(
@@ -820,11 +976,12 @@ export class AppGenerateService extends BaseService {
         if (chartReferences.length === 0) return '';
 
         await sandbox.commands.run('mkdir -p /tmp/metric-queries', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
 
         const slugCounts = new Map<string, number>();
         const fileEntries: string[] = [];
+        let sampleCount = 0;
 
         for (const ref of chartReferences) {
             // Generate slug from chart name
@@ -846,17 +1003,35 @@ export class AppGenerateService extends BaseService {
             // eslint-disable-next-line no-await-in-loop
             await sandbox.files.write(`/tmp/metric-queries/${filename}`, json);
 
+            // Surface sample-data status per file so Claude knows to look —
+            // a "data sample" annotation on the listing is more discoverable
+            // than expecting the model to spot the field inside each JSON.
+            let sampleSuffix = '';
+            if (ref.sampleData?.status === 'available') {
+                const truncatedNote = ref.sampleData.truncated
+                    ? ' (truncated)'
+                    : '';
+                sampleSuffix = ` — includes ${ref.sampleData.rows.length}-row data sample${truncatedNote}`;
+                sampleCount += 1;
+            } else if (ref.sampleData?.status === 'unavailable') {
+                sampleSuffix = ` — sample data unavailable (${ref.sampleData.reason})`;
+            }
             fileEntries.push(
-                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})`,
+                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})${sampleSuffix}`,
             );
         }
 
         this.logger.info(
-            `App ${appUuid}: wrote ${chartReferences.length} chart reference(s) to /tmp/metric-queries/`,
+            `App ${appUuid}: wrote ${chartReferences.length} chart reference(s) to /tmp/metric-queries/ (${sampleCount} with sample data)`,
         );
 
+        const sampleHint =
+            sampleCount > 0
+                ? ` Some files include a "sampleData" field with up to ${AppGenerateService.SAMPLE_ROW_LIMIT} formatted rows from the actual query — useful when you need to know what real values look like (date ranges, category labels, magnitudes). Treat sample data as illustrative, not exhaustive.`
+                : '';
+
         return (
-            `[Referenced saved charts — metric queries available at /tmp/metric-queries/]\n` +
+            `[Referenced saved charts — metric queries available at /tmp/metric-queries/]${sampleHint}\n` +
             `${fileEntries.join('\n')}\n\n`
         );
     }
@@ -867,7 +1042,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         projectUuid: string,
         prompt: string,
-        imageId: string | undefined,
+        imageIds: string[] | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
@@ -890,7 +1065,7 @@ export class AppGenerateService extends BaseService {
         // which would cause a permission error on write.
         await sandbox.commands.run(
             'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
-            { timeoutMs: 5_000 },
+            { timeoutMs: 10_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
@@ -914,17 +1089,38 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Resolve image from staging, copy to version path, and write to sandbox
-        if (imageId) {
-            const imagePath = await this.writeImageToSandbox(
-                sandbox,
-                appUuid,
-                version,
-                imageId,
-                s3Client,
-                bucket,
+        // Resolve images from staging, copy to version paths, and write to sandbox
+        if (imageIds && imageIds.length > 0) {
+            const imagePaths = await Promise.all(
+                imageIds.map((id) =>
+                    this.writeImageToSandbox(
+                        sandbox,
+                        appUuid,
+                        version,
+                        id,
+                        s3Client,
+                        bucket,
+                    ),
+                ),
             );
-            finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${finalPrompt}`;
+            // Label screenshots distinctly so the agent treats them as
+            // "current state of the built app" rather than design targets.
+            // Filename convention is set in `writeImageToSandbox`.
+            let designIndex = 0;
+            const referenceLines = imagePaths
+                .map((p) => {
+                    const isScreenshot = p
+                        .split('/')
+                        .pop()
+                        ?.startsWith('screenshot-');
+                    if (isScreenshot) {
+                        return `[Screenshot of the current app at ${p} — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`;
+                    }
+                    designIndex += 1;
+                    return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                })
+                .join('\n');
+            finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
         }
 
         // Write only the latest prompt — Claude is stateless between runs, but
@@ -991,7 +1187,14 @@ export class AppGenerateService extends BaseService {
 
         const mimeType = response.ContentType ?? 'image/png';
         const ext = AppGenerateService.mimeToExt(mimeType);
-        const sandboxPath = `/tmp/images/reference.${ext}`;
+        // Screenshots get a filename prefix so the agent can tell them apart
+        // from user-provided design references. Stamped on the staging object
+        // at upload time via S3 metadata (see `uploadImage`).
+        const isScreenshot = response.Metadata?.kind === 'screenshot';
+        const filename = isScreenshot
+            ? `screenshot-${imageId}.${ext}`
+            : `${imageId}.${ext}`;
+        const sandboxPath = `/tmp/images/${filename}`;
 
         // Read the image bytes
         const chunks: Uint8Array[] = [];
@@ -1005,8 +1208,9 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
-        // Copy to version assets folder
-        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${imageId}.${ext}`;
+        // Copy to version assets folder. Match the sandbox filename so the
+        // archived asset is identifiable as a screenshot too.
+        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${filename}`;
         this.logger.info(
             `App ${appUuid}: copying image to version path (${stagingKey} → ${versionKey})`,
         );
@@ -1024,7 +1228,7 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
         );
         await sandbox.commands.run('mkdir -p /tmp/images', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write(
             sandboxPath,
@@ -1035,50 +1239,6 @@ export class AppGenerateService extends BaseService {
         );
 
         return sandboxPath;
-    }
-
-    /**
-     * Parse a stream-json line from the Claude CLI and return a short
-     * description of tool_use events. Returns undefined for non-tool events.
-     */
-    private static parseClaudeStreamEvent(line: string): string | undefined {
-        let event: Record<string, unknown>;
-        try {
-            event = JSON.parse(line);
-        } catch {
-            return undefined;
-        }
-        if (event.type !== 'assistant') return undefined;
-
-        const msg = event.message as Record<string, unknown> | undefined;
-        const content = (msg?.content ?? []) as Array<Record<string, unknown>>;
-        const tools: string[] = [];
-        for (const block of content) {
-            if (block.type === 'tool_use') {
-                const name = String(block.name ?? '');
-                const input = (block.input ?? {}) as Record<string, unknown>;
-                if (name === 'Write' || name === 'Read' || name === 'Edit') {
-                    tools.push(`${name} ${String(input.file_path ?? '')}`);
-                } else {
-                    tools.push(name);
-                }
-            }
-        }
-        return tools.length > 0 ? tools.join(', ') : undefined;
-    }
-
-    /**
-     * Parse a stream-json `result` event and return the final response text.
-     */
-    private static parseClaudeResultText(line: string): string | undefined {
-        let event: Record<string, unknown>;
-        try {
-            event = JSON.parse(line);
-        } catch {
-            return undefined;
-        }
-        if (event.type !== 'result') return undefined;
-        return typeof event.result === 'string' ? event.result : undefined;
     }
 
     private static readonly CODING_PHRASES = [
@@ -1125,97 +1285,172 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    private static readonly MAX_GENERATION_ATTEMPTS = 3;
+
+    private static readonly GENERATION_RETRY_DELAY_MS = 5_000;
+
     private async runClaudeGeneration(
         sandbox: Sandbox,
         appUuid: string,
         version: number,
         continueSession: boolean,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         durationMs: number;
         responseText: string | null;
         toolCallCount: number;
     }> {
         const start = performance.now();
-        let stdoutBuffer = '';
-        let toolCallCount = 0;
-        let responseText: string | null = null;
 
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
         // it built before. For fresh sandboxes, start a new session.
-        const sessionFlags = continueSession ? '--continue -p' : '-p';
+        // On retry we promote to --continue if the failed attempt
+        // produced *any* stream event — that means a session exists on
+        // disk and we want to resume rather than throw away the work
+        // Claude already did. If no event ever arrived (CLI died on
+        // startup) we keep the original flags, since --continue would
+        // just fail with "no session to resume".
+        const runAttempt = async (
+            attempt: number,
+            forceContinue: boolean,
+        ): Promise<{
+            durationMs: number;
+            responseText: string | null;
+            toolCallCount: number;
+        }> => {
+            const sessionFlags =
+                continueSession || forceContinue ? '--continue -p' : '-p';
+            const processor = new ClaudeStreamProcessor();
+            let responseText: string | null = null;
+            let sessionEstablished = false;
 
-        const result = await sandbox.commands.run(
-            `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                `--model sonnet ` +
-                `--verbose --output-format stream-json ` +
-                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
-                `--append-system-prompt-file /app/skill.md`,
-            {
-                cwd: '/app',
-                timeoutMs: 55 * 60 * 1000,
-                envs: { ANTHROPIC_API_KEY: anthropicApiKey },
-                onStdout: (chunk) => {
-                    stdoutBuffer += chunk;
-                    const lines = stdoutBuffer.split('\n');
-                    stdoutBuffer = lines.pop() ?? '';
-                    for (const line of lines) {
-                        if (line.trim()) {
-                            const description =
-                                AppGenerateService.parseClaudeStreamEvent(line);
-                            if (description) {
-                                toolCallCount += 1;
-                                this.logger.info(
-                                    `App ${appUuid}: claude tool #${toolCallCount}: ${description}`,
-                                );
-
-                                // description can be comma-separated
-                                // (e.g. "Write foo.tsx, Read bar.tsx") —
-                                // use only the first tool for the status.
-                                const firstTool = description.split(', ')[0];
-                                const msg =
-                                    AppGenerateService.toolDescriptionToStatusMessage(
-                                        firstTool,
+            const result = await sandbox.commands.run(
+                `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
+                    `--model ${claudeModel} ` +
+                    `--verbose --output-format stream-json --include-partial-messages ` +
+                    `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                    `--append-system-prompt-file /app/skill.md`,
+                {
+                    cwd: '/app',
+                    timeoutMs: 55 * 60 * 1000,
+                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                    onStdout: (chunk) => {
+                        for (const event of processor.feedChunk(chunk)) {
+                            sessionEstablished = true;
+                            switch (event.kind) {
+                                case 'thinking_started':
+                                    this.logger.info(
+                                        `App ${appUuid}: claude turn #${event.turn}: thinking`,
                                     );
-                                void this.appModel
-                                    .updateStatusMessage(appUuid, version, msg)
-                                    .catch((e) => {
-                                        this.logger.warn(
-                                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
-                                        );
-                                    });
-                            }
-
-                            const resultText =
-                                AppGenerateService.parseClaudeResultText(line);
-                            if (resultText) {
-                                responseText = resultText;
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        'Thinking',
+                                    );
+                                    break;
+                                case 'thinking_snippet':
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        event.snippet,
+                                    );
+                                    break;
+                                case 'tool_use': {
+                                    this.logger.info(
+                                        `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                    );
+                                    // description can be comma-separated
+                                    // (e.g. "Write foo.tsx, Read bar.tsx") —
+                                    // use only the first tool for the status.
+                                    const firstTool =
+                                        event.description.split(', ')[0];
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        AppGenerateService.toolDescriptionToStatusMessage(
+                                            firstTool,
+                                        ),
+                                    );
+                                    break;
+                                }
+                                case 'result_text':
+                                    responseText = event.text;
+                                    break;
+                                default:
+                                    assertUnreachable(
+                                        event,
+                                        'Unhandled Claude stream event',
+                                    );
                             }
                         }
-                    }
+                    },
+                    onStderr: (chunk) => {
+                        this.logger.debug(
+                            `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
+                        );
+                    },
                 },
-                onStderr: (chunk) => {
-                    this.logger.debug(
-                        `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
-                    );
-                },
-            },
-        );
-        const durationMs = AppGenerateService.elapsed(start);
-        this.logger.info(
-            `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms)`,
-        );
+            );
+            const toolCallCount = processor.totalToolCalls;
+            const durationMs = AppGenerateService.elapsed(start);
+            this.logger.info(
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+            );
 
-        if (result.exitCode !== 0) {
+            if (result.exitCode === 0) {
+                if (attempt > 1) {
+                    this.logger.info(
+                        `App ${appUuid}: Claude generation recovered after ${attempt - 1} retry(ies)`,
+                    );
+                }
+                return { durationMs, responseText, toolCallCount };
+            }
+
             this.logger.debug(
                 `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
             );
-            throw new Error(
-                `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+
+            if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
+                throw new Error(
+                    `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+                );
+            }
+
+            this.logger.warn(
+                `App ${appUuid}: Claude generation failed (exit ${result.exitCode}), retrying (attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
-        }
-        return { durationMs, responseText, toolCallCount };
+            this.updateAppStatus(appUuid, version, 'Hit a snag, retrying');
+            await new Promise<void>((resolve) => {
+                setTimeout(
+                    resolve,
+                    AppGenerateService.GENERATION_RETRY_DELAY_MS,
+                );
+            });
+            return runAttempt(attempt + 1, forceContinue || sessionEstablished);
+        };
+
+        return runAttempt(1, false);
+    }
+
+    /**
+     * Fire-and-forget app status message update. Logs (but does not propagate)
+     * failures so transient DB errors during a long generation don't kill the
+     * pipeline.
+     */
+    private updateAppStatus(
+        appUuid: string,
+        version: number,
+        message: string,
+    ): void {
+        void this.appModel
+            .updateStatusMessage(appUuid, version, message)
+            .catch((e) => {
+                this.logger.warn(
+                    `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                );
+            });
     }
 
     /**
@@ -1228,6 +1463,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         name: string;
         description: string;
@@ -1241,7 +1477,7 @@ export class AppGenerateService extends BaseService {
             'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
 
         await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
 
@@ -1251,6 +1487,7 @@ export class AppGenerateService extends BaseService {
             version,
             true, // --continue: Claude remembers what it just built
             anthropicApiKey,
+            claudeModel,
         );
 
         const durationMs = AppGenerateService.elapsed(start);
@@ -1310,18 +1547,40 @@ export class AppGenerateService extends BaseService {
         stderr: string;
     }> {
         const start = performance.now();
-        const result = await sandbox.commands.run('pnpm build', {
-            cwd: '/app',
-            timeoutMs: 60 * 1000,
-            onStdout: (chunk) => {
-                this.logger.debug(
-                    `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
-                );
-            },
-            onStderr: (chunk) => {
-                this.logger.info(`App ${appUuid}: build: ${chunk.trimEnd()}`);
-            },
-        });
+        // E2B's `commands.run` throws `CommandExitError` on a non-zero exit
+        // code (no opt-out), so we have to catch it ourselves and surface the
+        // result — otherwise `runBuildWithAutoFix` would never see a failed
+        // build and could not retry.
+        let result: {
+            exitCode: number;
+            stdout: string;
+            stderr: string;
+        };
+        try {
+            result = await sandbox.commands.run('pnpm build', {
+                cwd: '/app',
+                timeoutMs: 60 * 1000,
+                onStdout: (chunk) => {
+                    this.logger.debug(
+                        `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
+                    );
+                },
+                onStderr: (chunk) => {
+                    this.logger.info(
+                        `App ${appUuid}: build: ${chunk.trimEnd()}`,
+                    );
+                },
+            });
+        } catch (err) {
+            if (!(err instanceof CommandExitError)) {
+                throw err;
+            }
+            result = {
+                exitCode: err.exitCode,
+                stdout: err.stdout,
+                stderr: err.stderr,
+            };
+        }
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
@@ -1347,6 +1606,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         anthropicApiKey: string,
+        claudeModel: DataAppClaudeModel,
     ): Promise<{
         buildMs: number;
         fixAttempts: number;
@@ -1400,7 +1660,7 @@ export class AppGenerateService extends BaseService {
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
             await sandbox.commands.run(
                 'rm -f /tmp/prompt.txt 2>/dev/null; true',
-                { timeoutMs: 5_000 },
+                { timeoutMs: 10_000 },
             );
             await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
 
@@ -1410,6 +1670,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 true, // --continue: keep conversation context from generation
                 anthropicApiKey,
+                claudeModel,
             );
             fixGenerationMs += generation.durationMs;
 
@@ -1453,10 +1714,10 @@ export class AppGenerateService extends BaseService {
 
         await Promise.all([
             sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
-                timeoutMs: 10_000,
+                timeoutMs: 20_000,
             }),
             sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
-                timeoutMs: 30_000,
+                timeoutMs: 60_000,
             }),
         ]);
 
@@ -1563,7 +1824,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             version,
             projectUuid,
-            imageId,
+            imageIds,
             isIteration,
             chartReferences,
         } = payload;
@@ -1589,13 +1850,15 @@ export class AppGenerateService extends BaseService {
             e2bApiKey = this.getE2bApiKey();
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
-            await this.markError(
+            const marked = await this.markError(
                 appUuid,
                 version,
                 error,
                 'Something went wrong. Please try again.',
             );
-            this.trackVersionFailed(payload, 'config', error, {}, null, 0);
+            if (marked) {
+                this.trackVersionFailed(payload, 'config', error, {}, null, 0);
+            }
             return;
         }
 
@@ -1603,7 +1866,9 @@ export class AppGenerateService extends BaseService {
         const durations: Record<string, number> = {};
 
         this.logger.info(
-            `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration})`,
+            `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
+                payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
+            })`,
         );
 
         // --- Stage: sandbox ---
@@ -1646,20 +1911,22 @@ export class AppGenerateService extends BaseService {
                     );
                 }
             } catch (error) {
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to set up build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    error,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        error,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
         } else {
@@ -1669,20 +1936,22 @@ export class AppGenerateService extends BaseService {
                 const missingSandboxError = new Error(
                     'No sandbox_id found for resume',
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     missingSandboxError,
                     'Failed to resume build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    missingSandboxError,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        missingSandboxError,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
             try {
@@ -1695,20 +1964,22 @@ export class AppGenerateService extends BaseService {
                 wasResumed = true;
                 durations.resumeMs = result.durationMs;
             } catch (error) {
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to resume build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    error,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        error,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
         }
@@ -1738,7 +2009,7 @@ export class AppGenerateService extends BaseService {
                 currentStatus,
                 wasResumed,
                 anthropicApiKey,
-                imageId,
+                imageIds,
                 chartReferences,
             );
         } finally {
@@ -1757,10 +2028,15 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         anthropicApiKey: string,
-        imageId: string | undefined,
+        imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
+        // Resolve the model once per pipeline run. Jobs enqueued before the
+        // picker shipped (or any future caller that omits the field) fall back
+        // to the default so we never run with `--model undefined`.
+        const claudeModel: DataAppClaudeModel =
+            payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
@@ -1795,7 +2071,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     projectUuid,
                     prompt,
-                    imageId,
+                    imageIds,
                     s3Client,
                     bucket,
                     chartReferences,
@@ -1813,20 +2089,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: catalog failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to load your data models. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'catalog',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'catalog',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -1855,6 +2133,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     continueSession,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
@@ -1864,20 +2143,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to generate app code. Try rephrasing your request.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'generating',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'generating',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -1899,6 +2180,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     version,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 durations.buildMs = buildResult.buildMs;
                 buildFixAttempts = buildResult.fixAttempts;
@@ -1912,20 +2194,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: build failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'building',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'building',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -1938,6 +2222,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     version,
                     anthropicApiKey,
+                    claudeModel,
                 );
                 if (metadata) {
                     // Only fills fields the user hasn't already set — the
@@ -1994,20 +2279,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: deploy failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to deploy your app. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'packaging',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'packaging',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -2032,26 +2319,28 @@ export class AppGenerateService extends BaseService {
             this.logger.error(
                 `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,
             );
-            await this.markError(
+            const marked = await this.markError(
                 appUuid,
                 version,
                 error,
                 'Something went wrong. Please try again.',
             );
-            this.trackVersionFailed(
-                payload,
-                'db',
-                error,
-                durations,
-                overallStart,
-                buildFixAttempts,
-            );
+            if (marked) {
+                this.trackVersionFailed(
+                    payload,
+                    'db',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
+                );
+            }
             return;
         }
 
         const totalMs = AppGenerateService.elapsed(overallStart);
         this.logger.info(
-            `App ${appUuid}: generation completed successfully in ${totalMs}ms (${Object.entries(
+            `App ${appUuid}: generation completed successfully in ${totalMs}ms (model=${claudeModel}, ${Object.entries(
                 durations,
             )
                 .map(([k, v]) => `${k}=${v}ms`)
@@ -2067,6 +2356,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 isIteration: payload.isIteration,
+                claudeModel,
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -2113,25 +2403,156 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Merge explicit chart picks with charts inherited from a dashboard
+     * tile. The dashboard's `includeSampleData` flag applies to every chart
+     * it contributes; if a chart appears in both lists, the explicit and
+     * inherited flags are OR'd so the user gets every sample they opted
+     * into, no matter which chip they toggled.
+     */
+    private async collectChartReferences(
+        charts: AppChartReference[] | undefined,
+        dashboard: AppDashboardReference | undefined,
+        user: SessionUser,
+    ): Promise<{
+        refs: AppChartReference[];
+        dashboardName: string | null;
+    }> {
+        const flagByUuid = new Map<string, boolean>();
+        for (const c of charts ?? []) {
+            flagByUuid.set(
+                c.uuid,
+                (flagByUuid.get(c.uuid) ?? false) || c.includeSampleData,
+            );
+        }
+        let dashboardName: string | null = null;
+        if (dashboard) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboard.uuid,
+                user,
+            );
+            dashboardName = result.dashboardName;
+            for (const uuid of result.chartUuids) {
+                flagByUuid.set(
+                    uuid,
+                    (flagByUuid.get(uuid) ?? false) ||
+                        dashboard.includeSampleData,
+                );
+            }
+        }
+        const refs: AppChartReference[] = [...flagByUuid.entries()].map(
+            ([uuid, includeSampleData]) => ({ uuid, includeSampleData }),
+        );
+        return { refs, dashboardName };
+    }
+
+    /**
+     * Hard cap on rows returned per chart sample. Sample data is opt-in but
+     * still potentially sensitive — keeping this small bounds both the
+     * exposure surface and the prompt token cost.
+     */
+    private static readonly SAMPLE_ROW_LIMIT = 10;
+
+    /**
+     * Run a saved chart's metric query and return at most SAMPLE_ROW_LIMIT
+     * formatted rows. Returns `unavailable` (with a short reason string) on
+     * any failure — sample data is best-effort by design.
+     */
+    private async fetchChartSample(
+        chartUuid: string,
+        user: SessionUser,
+    ): Promise<ChartSampleData> {
+        const account = fromSession(user);
+        try {
+            const result = await this.projectService.runViewChartQuery({
+                account,
+                chartUuid,
+                context: QueryExecutionContext.DATA_APP_SAMPLE,
+            });
+            const truncated =
+                result.rows.length > AppGenerateService.SAMPLE_ROW_LIMIT;
+            const rows = result.rows
+                .slice(0, AppGenerateService.SAMPLE_ROW_LIMIT)
+                .map((row) => {
+                    const flat: Record<string, string> = {};
+                    for (const [field, cell] of Object.entries(row)) {
+                        flat[field] = cell.value.formatted;
+                    }
+                    return flat;
+                });
+            return { status: 'available', rows, truncated };
+        } catch (error) {
+            this.logger.warn(
+                `Sample query failed for chart ${chartUuid}: ${getErrorMessage(error)}`,
+            );
+            return {
+                status: 'unavailable',
+                reason: 'Sample query failed.',
+            };
+        }
+    }
+
+    /**
+     * Resolve a list of (uuid, includeSampleData) refs into ChartReferences.
+     * Charts the user can't view, can't load, or that are deleted are
+     * skipped silently — same forgiving behavior as before.
+     *
+     * When `includeSampleData` is set on a ref, the chart's metric query is
+     * executed and a small row sample is attached to the reference. Sample
+     * fetches are concurrent with chart loads so they don't serialise.
+     */
     private async resolveChartReferences(
-        chartUuids: string[],
+        chartRefs: AppChartReference[],
         user: SessionUser,
     ): Promise<{
         references: ChartReference[];
         chartResources: AppVersionChartResource[];
+        sampleStats: { requested: number; available: number };
     }> {
-        const uuids = [...new Set(chartUuids)];
-        if (uuids.length === 0) return { references: [], chartResources: [] };
+        // Dedupe by uuid; if any duplicate asks for sample data, the union
+        // wins so the user gets the data they opted into.
+        const dedup = new Map<string, boolean>();
+        for (const ref of chartRefs) {
+            dedup.set(
+                ref.uuid,
+                (dedup.get(ref.uuid) ?? false) || ref.includeSampleData,
+            );
+        }
+        if (dedup.size === 0) {
+            return {
+                references: [],
+                chartResources: [],
+                sampleStats: { requested: 0, available: 0 },
+            };
+        }
 
+        const uuids = [...dedup.keys()];
         const account = fromSession(user);
 
-        const results = await Promise.allSettled(
+        const chartResults = await Promise.allSettled(
             uuids.map((uuid) => this.savedChartService.get(uuid, account)),
         );
 
+        // Kick off sample fetches in parallel, only for charts that resolved
+        // and were opted-in. Track which uuids actually requested a sample
+        // so we can attach the result back to the right reference.
+        const sampleUuids: string[] = [];
+        chartResults.forEach((result, i) => {
+            if (result.status === 'fulfilled' && dedup.get(uuids[i])) {
+                sampleUuids.push(uuids[i]);
+            }
+        });
+        const sampleResults = await Promise.all(
+            sampleUuids.map((uuid) => this.fetchChartSample(uuid, user)),
+        );
+        const sampleByUuid = new Map<string, ChartSampleData>();
+        sampleUuids.forEach((uuid, i) => {
+            sampleByUuid.set(uuid, sampleResults[i]);
+        });
+
         const references: ChartReference[] = [];
         const chartResources: AppVersionChartResource[] = [];
-        results.forEach((result, i) => {
+        chartResults.forEach((result, i) => {
             if (result.status === 'fulfilled') {
                 const chart = result.value;
                 references.push({
@@ -2139,6 +2560,7 @@ export class AppGenerateService extends BaseService {
                     chartDescription: chart.description ?? '',
                     exploreName: chart.tableName,
                     metricQuery: chart.metricQuery,
+                    sampleData: sampleByUuid.get(uuids[i]) ?? null,
                 });
                 chartResources.push({
                     chartUuid: uuids[i],
@@ -2149,25 +2571,49 @@ export class AppGenerateService extends BaseService {
             // Rejected = not a chart UUID, no access, or deleted — skip silently
         });
 
+        const availableSamples = [...sampleByUuid.values()].filter(
+            (s) => s.status === 'available',
+        ).length;
         if (references.length > 0) {
             this.logger.info(
-                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s)`,
+                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s); ` +
+                    `${availableSamples}/${sampleUuids.length} sample(s) attached`,
             );
         }
 
-        return { references, chartResources };
+        return {
+            references,
+            chartResources,
+            sampleStats: {
+                requested: sampleUuids.length,
+                available: availableSamples,
+            },
+        };
     }
 
-    async generateApp(
+    /**
+     * Pre-build clarifying questions. Run as a separate step before
+     * `generateApp` so the user can pin down ambiguous intent in 1–3s
+     * (a direct LLM call) instead of waiting for an E2B sandbox spin-up
+     * just to ask. Stateless: nothing is persisted; the answers are sent
+     * back inside the eventual `generateApp` request as `clarifications`.
+     *
+     * Always resolves with 200 + `{ questions }` rather than throwing on
+     * LLM errors — the build flow should proceed without clarification
+     * rather than fail. Returns an empty array when:
+     * - the prompt is already specific enough (model judgment),
+     * - the Anthropic model is not configured,
+     * - the LLM call times out or errors.
+     */
+    async clarifyApp(
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        imageId?: string,
-        preGeneratedAppUuid?: string,
-        chartUuids?: string[],
-        dashboardUuid?: string,
         template?: DataAppTemplate,
-    ): Promise<GenerateAppResult> {
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
+        imageIds?: string[],
+    ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
@@ -2178,46 +2624,366 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to create data apps',
         );
 
-        if (imageId !== undefined && !isValidUuid(imageId)) {
-            throw new ParameterError('Invalid imageId: must be a valid UUID');
+        const trimmed = prompt.trim();
+        if (!trimmed) {
+            throw new ParameterError('Prompt is required');
         }
+
+        const anthropicConfig =
+            this.lightdashConfig.ai.copilot.providers.anthropic;
+        if (!anthropicConfig?.apiKey) {
+            this.logger.info(
+                'Skipping app clarification: Anthropic API key not configured',
+            );
+            return { questions: [] };
+        }
+        const preset = getModelPreset('anthropic', 'claude-sonnet-4-5');
+        if (!preset) {
+            this.logger.warn(
+                'Skipping app clarification: claude-sonnet-4-5 preset not found',
+            );
+            return { questions: [] };
+        }
+        const modelOptions = getAnthropicModel(anthropicConfig, preset, {
+            enableReasoning: false,
+        });
+
+        const [catalogSummary, attachedResources] = await Promise.all([
+            this.buildCatalogSummaryForClarifier(projectUuid),
+            this.buildAttachedResourcesForClarifier(charts, dashboard, user),
+        ]);
+        const imageCount = imageIds?.length ?? 0;
+
+        // No `.max()` on the array — Anthropic's structured-output mode
+        // rejects `maxItems` in the schema. The prompt already pins the
+        // 1–4 cap and we slice client-side after the response.
+        const clarifySchema = z.object({
+            questions: z
+                .array(z.string())
+                .describe(
+                    '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change the app.',
+                ),
+        });
+
+        // Cap the LLM call so a stalled provider can't pin the chat input
+        // open indefinitely. The frontend disables the input while clarify
+        // is in flight; on timeout we fall through to a no-questions build.
+        const CLARIFY_TIMEOUT_MS = 15_000;
+
+        const start = performance.now();
+        let result;
+        try {
+            result = await generateObject({
+                model: modelOptions.model,
+                ...modelOptions.callOptions,
+                providerOptions: modelOptions.providerOptions,
+                schema: clarifySchema,
+                abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You help a user scope a React data app on top of their semantic layer before any code is written. Given the user's prompt, the kind of app they're building, and a summary of the available tables, decide whether 0–4 short clarifying questions would materially change what gets built.
+
+DEFAULT TO ASKING NOTHING. Empty is the right answer for most well-formed prompts. Only ask when the answer would meaningfully change the app's structure, content, or scope — never to fine-tune cosmetics or pick between two equally reasonable defaults. If you're unsure whether to ask, don't. Reasonable defaults during the build beat slowing the user down.
+
+Worth asking about (only when the prompt is silent on them):
+- Which tables or metrics to query, when several plausible options exist
+- Default time range, when the prompt doesn't imply one
+- Audience, when it would change the level of detail (executive vs analyst)
+- The shape of the app (single-page vs tabs, drill-down vs flat) when truly ambiguous
+
+App kind context (use to prioritize, not as a checklist):
+- dashboard: audience, key metrics/KPIs, default time range, layout density.
+- slideshow: number of slides, narrative arc, takeaway per slide.
+- pdf: page orientation, audience, what gets exported vs interactive.
+- custom: focus on the most impactful unknowns.
+
+Do NOT ask about:
+- Cosmetic details with reasonable defaults (date format, exact colors, number formatting, axis labels, column widths).
+- Anything already stated in the prompt — even partially.
+- Things you can look up in the catalog (table names, field names).
+- Picking between two readings of a phrase when one is the obvious interpretation.
+- Multi-part or open-ended — each question must be answerable in one short line.
+- Which chart, dashboard, or image to use, when the user has already attached resources — those are listed under "Resources the user attached".
+
+Each question, when asked, must be a single sentence, 5–15 words.`,
+                    },
+                    {
+                        role: 'user',
+                        content: [
+                            `App kind: ${template ?? 'custom'}`,
+                            `\nUser prompt:\n${trimmed}`,
+                            `\nResources the user attached:\n${
+                                AppGenerateService.formatAttachedResourcesForClarifier(
+                                    attachedResources,
+                                    imageCount,
+                                ) || '(none)'
+                            }`,
+                            `\nAvailable tables and key fields:\n${
+                                catalogSummary || '(no catalog available)'
+                            }`,
+                        ].join('\n'),
+                    },
+                ],
+            });
+        } catch (err) {
+            this.logger.warn(
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}): ${getErrorMessage(err)}`,
+            );
+            return { questions: [] };
+        }
+        const elapsedMs = AppGenerateService.elapsed(start);
+
+        const questions = result.object.questions
+            .map((q) => q.trim())
+            .filter((q) => q.length > 0)
+            .slice(0, 4);
+
+        this.logger.info(
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid})`,
+        );
+
+        return { questions };
+    }
+
+    /**
+     * Light resolution of attached resources for `clarifyApp`. Returns chart
+     * names + explore names and the dashboard name, but does NOT run sample
+     * queries or read any image bytes — sample rows and pixel content don't
+     * change *whether* a clarifying question is worth asking, and the clarify
+     * call has a 15s budget. Charts the user can't view, that don't exist, or
+     * that fail to load are skipped silently (same forgiving behavior as the
+     * generate path).
+     */
+    private async buildAttachedResourcesForClarifier(
+        charts: AppChartReference[] | undefined,
+        dashboard: AppDashboardReference | undefined,
+        user: SessionUser,
+    ): Promise<{
+        charts: { name: string; exploreName: string }[];
+        dashboardName: string | null;
+    }> {
+        const uuids = new Set<string>();
+        for (const c of charts ?? []) uuids.add(c.uuid);
+        let dashboardName: string | null = null;
+        if (dashboard) {
+            try {
+                const result = await this.resolveDashboardToChartUuids(
+                    dashboard.uuid,
+                    user,
+                );
+                dashboardName = result.dashboardName;
+                for (const uuid of result.chartUuids) uuids.add(uuid);
+            } catch (error) {
+                this.logger.warn(
+                    `Clarifier: dashboard ${dashboard.uuid} could not be resolved: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+        if (uuids.size === 0) {
+            return { charts: [], dashboardName };
+        }
+        const account = fromSession(user);
+        const chartResults = await Promise.allSettled(
+            [...uuids].map((uuid) => this.savedChartService.get(uuid, account)),
+        );
+        const resolvedCharts: { name: string; exploreName: string }[] = [];
+        for (const result of chartResults) {
+            if (result.status === 'fulfilled') {
+                resolvedCharts.push({
+                    name: result.value.name,
+                    exploreName: result.value.tableName,
+                });
+            }
+        }
+        return { charts: resolvedCharts, dashboardName };
+    }
+
+    /**
+     * Render the resolved attached-resources context as a short bullet list
+     * for the clarifier's user message. Empty string when nothing was
+     * attached — the caller handles the "(none)" fallback.
+     */
+    private static formatAttachedResourcesForClarifier(
+        attached: {
+            charts: { name: string; exploreName: string }[];
+            dashboardName: string | null;
+        },
+        imageCount: number,
+    ): string {
+        const lines: string[] = [];
+        if (attached.dashboardName) {
+            lines.push(`- Dashboard: "${attached.dashboardName}"`);
+        }
+        for (const chart of attached.charts) {
+            lines.push(
+                `- Chart: "${chart.name}" (explore: ${chart.exploreName})`,
+            );
+        }
+        if (imageCount > 0) {
+            lines.push(
+                `- ${imageCount} image${imageCount === 1 ? '' : 's'} attached as design reference`,
+            );
+        }
+        return lines.join('\n');
+    }
+
+    /**
+     * Compact, model-readable summary of the project catalog used by
+     * `clarifyApp`. Lists tables with up to 5 dimensions and 5 metrics
+     * each, capped at 30 tables. Aim is to ground the LLM in what data
+     * exists without sending the full schema YAML — keeps the call fast.
+     */
+    private async buildCatalogSummaryForClarifier(
+        projectUuid: string,
+    ): Promise<string> {
+        const items =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+        const byTable = new Map<
+            string,
+            { dimensions: string[]; metrics: string[] }
+        >();
+        for (const item of items) {
+            if (item.type === 'field') {
+                let entry = byTable.get(item.tableName);
+                if (!entry) {
+                    entry = { dimensions: [], metrics: [] };
+                    byTable.set(item.tableName, entry);
+                }
+                if (item.fieldType === 'metric') {
+                    entry.metrics.push(item.name);
+                } else {
+                    entry.dimensions.push(item.name);
+                }
+            }
+        }
+
+        const MAX_TABLES = 30;
+        const MAX_FIELDS = 5;
+        const lines: string[] = [];
+        let i = 0;
+        for (const [tableName, fields] of byTable) {
+            if (i >= MAX_TABLES) break;
+            i += 1;
+            const fmt = (label: string, list: string[]) => {
+                if (list.length === 0) return `${label}: —`;
+                const head = list.slice(0, MAX_FIELDS).join(', ');
+                const extra = list.length > MAX_FIELDS;
+                return extra
+                    ? `${label}: ${head} (+${list.length - MAX_FIELDS} more)`
+                    : `${label}: ${head}`;
+            };
+            lines.push(
+                `- ${tableName} | ${fmt('dims', fields.dimensions)} | ${fmt(
+                    'metrics',
+                    fields.metrics,
+                )}`,
+            );
+        }
+        if (byTable.size > MAX_TABLES) {
+            lines.push(
+                `(... ${byTable.size - MAX_TABLES} more tables not shown)`,
+            );
+        }
+        return lines.join('\n');
+    }
+
+    async generateApp(
+        user: SessionUser,
+        projectUuid: string,
+        prompt: string,
+        imageIds: string[],
+        preGeneratedAppUuid?: string,
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
+        template?: DataAppTemplate,
+        clarifications?: AppClarification[],
+        spaceUuid?: string,
+        claudeModelInput?: DataAppClaudeModel,
+    ): Promise<GenerateAppResult> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'create',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
+        const claudeModel =
+            AppGenerateService.resolveClaudeModel(claudeModelInput);
+
+        // When the caller wants the app to live in a space directly, also
+        // require manage rights on that space — same gate space EDITOR/ADMIN
+        // (or project admin) already pass through `manage:DataApp@space`.
+        if (spaceUuid) {
+            const spaceContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                organizationUuid,
+                projectUuid,
+                'Insufficient permissions to create a data app in this space',
+                spaceContext,
+            );
+        }
+
+        AppGenerateService.validateImageIds(imageIds);
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
 
-        this.logger.info(
-            `App ${appUuid}: generation started (promptLength=${prompt.length})`,
+        // The pipeline gets the augmented prompt so Claude in the sandbox
+        // sees the resolved intent. The version row keeps the original
+        // prompt — clarifications travel separately on `resources` so the
+        // chat can render the Q&A as a structured card.
+        const pipelinePrompt = formatPromptWithClarifications(
+            prompt,
+            clarifications,
         );
 
-        let allChartUuids = [...(chartUuids ?? [])];
-        let dashboardName: string | null = null;
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-            dashboardName = result.dashboardName;
-        }
-        const { references: chartReferences, chartResources } =
-            await this.resolveChartReferences(allChartUuids, user);
+        this.logger.info(
+            `App ${appUuid}: generation started (model=${claudeModel}, promptLength=${prompt.length}, clarifications=${
+                clarifications?.length ?? 0
+            })`,
+        );
+
+        const { refs, dashboardName } = await this.collectChartReferences(
+            charts,
+            dashboard,
+            user,
+        );
+        const {
+            references: chartReferences,
+            chartResources,
+            sampleStats,
+        } = await this.resolveChartReferences(refs, user);
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
-            images: imageId ? [{ imageId }] : [],
+            images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
+            clarifications: clarifications ?? [],
+            claudeModel,
         };
 
-        // Persist app record so we can track status immediately
+        // Persist app record so we can track status immediately. 'custom' is
+        // stored as null - it's the absence of a template, not a template itself.
+        const persistedTemplate =
+            template && template !== 'custom' ? template : null;
         try {
             await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
+                    template: persistedTemplate,
+                    space_uuid: spaceUuid ?? null,
                 },
                 { version, prompt },
                 'pending',
@@ -2239,8 +3005,12 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                hasImage: imageId !== undefined,
+                imageCount: imageIds.length,
                 template: template ?? null,
+                claudeModel,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
+                clarificationCount: clarifications?.length ?? 0,
             },
         });
 
@@ -2250,12 +3020,13 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt,
+            prompt: pipelinePrompt,
             template,
-            imageId,
+            imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            claudeModel,
         });
 
         return { appUuid, version };
@@ -2266,15 +3037,16 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        imageId?: string,
-        chartUuids?: string[],
-        dashboardUuid?: string,
+        imageIds: string[],
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
+        claudeModelInput?: DataAppClaudeModel,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
-        if (imageId !== undefined && !isValidUuid(imageId)) {
-            throw new ParameterError('Invalid imageId: must be a valid UUID');
-        }
+        AppGenerateService.validateImageIds(imageIds);
+        const claudeModel =
+            AppGenerateService.resolveClaudeModel(claudeModelInput);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -2296,28 +3068,26 @@ export class AppGenerateService extends BaseService {
         const newVersion = (latestVersion?.version ?? 0) + 1;
 
         this.logger.info(
-            `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
+            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length})`,
         );
 
-        let allChartUuids = [...(chartUuids ?? [])];
-        let dashboardName: string | null = null;
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-            dashboardName = result.dashboardName;
-        }
-        const { references: chartReferences, chartResources } =
-            await this.resolveChartReferences(allChartUuids, user);
+        const { refs, dashboardName } = await this.collectChartReferences(
+            charts,
+            dashboard,
+            user,
+        );
+        const {
+            references: chartReferences,
+            chartResources,
+            sampleStats,
+        } = await this.resolveChartReferences(refs, user);
 
         const resources: AppVersionResources = {
-            images: imageId ? [{ imageId }] : [],
+            images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
+            clarifications: [],
+            claudeModel,
         };
 
         await this.appModel.createVersion(
@@ -2338,11 +3108,14 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                hasImage: imageId !== undefined,
+                imageCount: imageIds.length,
+                claudeModel,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
                     : null,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
             },
         });
 
@@ -2353,13 +3126,400 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt,
-            imageId,
+            imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            claudeModel,
         });
 
         return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Rollback action — promote an earlier ready version to a brand-new
+     * ready version on top of the timeline.
+     *
+     * Performed end-to-end at restore time so the next iteration can resume
+     * the existing sandbox without any special-case logic:
+     *   1. Server-side copy every S3 object under the source version's
+     *      prefix (source.tar AND every extracted dist/* asset) into the
+     *      new version's prefix. The preview iframe reads the dist assets
+     *      directly, so source.tar alone leaves the preview blank.
+     *   2. Resume the existing sandbox (if any), wipe `/app/src`, and
+     *      extract the source tarball into it. We keep the same sandbox
+     *      deliberately — killing it would lose installed deps and
+     *      implicitly upgrade the E2B SDK on the next start.
+     *   3. Insert the new app_version row as `ready`.
+     */
+    async restoreVersion(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        sourceVersion: number,
+    ): Promise<{ appUuid: string; version: number }> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            // An in-flight generation would publish on top of the restore
+            // and silently win the version race. Refuse early.
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+        if (latestVersion && latestVersion.version === sourceVersion) {
+            throw new ParameterError(
+                `Version ${sourceVersion} is already the latest version`,
+            );
+        }
+
+        const source = await this.appModel.getVersion(appUuid, sourceVersion);
+        if (!source) {
+            throw new NotFoundError(
+                `Version ${sourceVersion} not found for app ${appUuid}`,
+            );
+        }
+        if (source.status !== 'ready') {
+            throw new ParameterError(
+                `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
+            );
+        }
+
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        // 1. Copy every S3 object under the source version's prefix.
+        const copiedKeys = await AppGenerateService.copyVersionS3Prefix(
+            s3Client,
+            bucket,
+            appUuid,
+            sourceVersion,
+            newVersion,
+        );
+
+        // 2. Resync the running sandbox so the next iteration sees the
+        // restored working tree. Skipped when no sandbox exists yet — the
+        // standard cold-start path will extract source.tar from S3 on its
+        // own.
+        if (app.sandbox_id) {
+            let sandbox: Sandbox | null = null;
+            try {
+                const resumed = await this.resumeSandbox(
+                    app.sandbox_id,
+                    appUuid,
+                    this.getE2bApiKey(),
+                );
+                sandbox = resumed.sandbox;
+                await this.resyncSandboxFromS3(
+                    sandbox,
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    sourceVersion,
+                );
+                // Best-effort: leave a breadcrumb in the persistent Claude
+                // session so the next iteration's `--continue` sees that
+                // the working tree was reset and doesn't try to diff
+                // against code we've undone. Failures here don't fail the
+                // restore — worst case the next reply is mildly confused.
+                await this.notifyClaudeOfRestore(
+                    sandbox,
+                    appUuid,
+                    sourceVersion,
+                );
+            } catch (error) {
+                // A half-synced sandbox would corrupt the next iteration —
+                // surface the failure and roll back the S3 copy.
+                await this.cleanupRestoredS3Keys(
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    copiedKeys,
+                );
+                throw error;
+            } finally {
+                if (sandbox) {
+                    await this.pauseSandbox(sandbox, appUuid);
+                }
+            }
+        }
+
+        // 3. Insert the new version
+        await this.appModel.createVersion(
+            appUuid,
+            {
+                version: newVersion,
+                prompt: `Restore version ${sourceVersion}`,
+            },
+            'ready',
+            user.userUuid,
+            source.resources ?? undefined,
+        );
+        await this.appModel.updateStatusMessage(
+            appUuid,
+            newVersion,
+            `Restored from version ${sourceVersion}`,
+        );
+
+        this.analytics.track({
+            event: 'data_app.version.restored',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version: newVersion,
+                restoredFromVersion: sourceVersion,
+            },
+        });
+
+        this.logger.info(
+            `App ${appUuid}: restored version ${sourceVersion} as ${newVersion} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
+        );
+
+        return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Server-side copy every object under
+     * `apps/{appUuid}/versions/{sourceVersion}/` into
+     * `apps/{appUuid}/versions/{newVersion}/`. Returns the list of
+     * destination keys so the caller can roll back on later failure.
+     */
+    private static async copyVersionS3Prefix(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        sourceVersion: number,
+        newVersion: number,
+    ): Promise<string[]> {
+        const sourcePrefix = `apps/${appUuid}/versions/${sourceVersion}/`;
+        const destinationPrefix = `apps/${appUuid}/versions/${newVersion}/`;
+        const copiedKeys: string[] = [];
+
+        let continuationToken: string | undefined;
+        /* eslint-disable no-await-in-loop */
+        do {
+            const listResponse = await s3Client.send(
+                new ListObjectsV2Command({
+                    Bucket: bucket,
+                    Prefix: sourcePrefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+
+            const sourceKeys = (listResponse.Contents ?? [])
+                .map((obj) => obj.Key)
+                .filter((key): key is string => typeof key === 'string');
+
+            const pageCopies = await Promise.all(
+                sourceKeys.map(async (sourceKey) => {
+                    const relativePath = sourceKey.slice(sourcePrefix.length);
+                    const destinationKey = `${destinationPrefix}${relativePath}`;
+                    await s3Client.send(
+                        new CopyObjectCommand({
+                            Bucket: bucket,
+                            CopySource: `/${bucket}/${sourceKey}`,
+                            Key: destinationKey,
+                        }),
+                    );
+                    return destinationKey;
+                }),
+            );
+            copiedKeys.push(...pageCopies);
+
+            continuationToken = listResponse.IsTruncated
+                ? listResponse.NextContinuationToken
+                : undefined;
+        } while (continuationToken);
+        /* eslint-enable no-await-in-loop */
+
+        return copiedKeys;
+    }
+
+    /**
+     * Force the sandbox's `/app/src/**` to exactly match the source
+     * tarball stored for `version`. Used at restore time so the running
+     * sandbox reflects the restored working tree before the next
+     * iteration starts.
+     */
+    private async resyncSandboxFromS3(
+        sandbox: Sandbox,
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        // -mindepth 1 keeps the directory itself; the source.tar expects
+        // `src/` to already exist as the extraction root.
+        const wipe = await sandbox.commands.run(
+            'find /app/src -mindepth 1 -delete',
+            { timeoutMs: 30_000 },
+        );
+        if (wipe.exitCode !== 0) {
+            throw new Error(
+                `Failed to wipe /app/src before restore (exit ${wipe.exitCode}): ${wipe.stderr}`,
+            );
+        }
+
+        const sourceKey = `apps/${appUuid}/versions/${version}/source.tar`;
+        const response = await s3Client.send(
+            new GetObjectCommand({ Bucket: bucket, Key: sourceKey }),
+        );
+        const stream = response.Body as Readable;
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const tarBuffer = Buffer.concat(chunks);
+
+        // The original packaging step writes /tmp/source.tar inside the
+        // sandbox during build, owned by the build user with strict perms.
+        // files.write to the same path then fails with EACCES. Stage to a
+        // restore-scoped path instead so we never collide with build state.
+        const stagedPath = `/tmp/source-restore-${version}.tar`;
+        const cleanup = await sandbox.commands.run(`rm -f ${stagedPath}`, {
+            timeoutMs: 5_000,
+        });
+        if (cleanup.exitCode !== 0) {
+            throw new Error(
+                `Failed to clear staged tarball path ${stagedPath} (exit ${cleanup.exitCode}): ${cleanup.stderr}`,
+            );
+        }
+        await sandbox.files.write(
+            stagedPath,
+            tarBuffer.buffer.slice(
+                tarBuffer.byteOffset,
+                tarBuffer.byteOffset + tarBuffer.byteLength,
+            ) as ArrayBuffer,
+        );
+        const extractResult = await sandbox.commands.run(
+            `tar -xf ${stagedPath} -C /app && rm -f ${stagedPath}`,
+            { timeoutMs: 60_000 },
+        );
+        if (extractResult.exitCode !== 0) {
+            throw new Error(
+                `Failed to extract restore tarball (exit ${extractResult.exitCode}): ${extractResult.stderr}`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: sandbox /app/src resynced to version ${version} (tarBytes=${tarBuffer.length})`,
+        );
+    }
+
+    /**
+     * Append a short "version X was restored" notice to the persistent
+     * Claude session via `--continue -p`. Costs one round-trip to the
+     * model and leaves Claude with a coherent picture of why its working
+     * tree changed under it.
+     *
+     * Failures (missing API key, no session yet, model error) are logged
+     * and swallowed — the restore is still well-formed without the FYI;
+     * the user's next prompt will simply not benefit from the heads-up.
+     */
+    private async notifyClaudeOfRestore(
+        sandbox: Sandbox,
+        appUuid: string,
+        sourceVersion: number,
+    ): Promise<void> {
+        let anthropicApiKey: string;
+        try {
+            anthropicApiKey = this.getAnthropicApiKey();
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: skipping restore FYI — ${getErrorMessage(error)}`,
+            );
+            return;
+        }
+
+        const noticePath = `/tmp/restore-notice-${sourceVersion}.txt`;
+        const notice =
+            `[System notice] The user just restored an older version of this app (version ${sourceVersion}). ` +
+            `The working tree in /app/src has been reset to match that version, ` +
+            `so the code now on disk may differ from what you remember writing. ` +
+            `This is informational only — no action required. ` +
+            `Reply with a brief acknowledgment.`;
+
+        try {
+            await sandbox.commands.run(`rm -f ${noticePath}`, {
+                timeoutMs: 5_000,
+            });
+            await sandbox.files.write(noticePath, notice);
+            const result = await sandbox.commands.run(
+                `cat ${noticePath} | claude --continue -p --model sonnet; rm -f ${noticePath}`,
+                {
+                    cwd: '/app',
+                    timeoutMs: 60_000,
+                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                },
+            );
+            if (result.exitCode !== 0) {
+                // `--continue` fails when no session exists yet (e.g.
+                // sandbox hasn't generated anything before this restore).
+                // Best-effort: log and move on.
+                this.logger.warn(
+                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(result.stderr, 500)}`,
+                );
+                return;
+            }
+            this.logger.info(
+                `App ${appUuid}: notified Claude session of restore (sourceVersion=${sourceVersion})`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: restore FYI to Claude errored: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * Best-effort delete of objects copied during a failed restore. The
+     * original error is what the caller surfaces — leftover S3 objects are
+     * harmless, so cleanup failures are logged and swallowed.
+     */
+    private async cleanupRestoredS3Keys(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        keys: string[],
+    ): Promise<void> {
+        if (keys.length === 0) return;
+        try {
+            // DeleteObjects caps at 1000 keys per call. The current dist
+            // payload is well under that — chunking is defensive against
+            // future templates that inflate the asset count. The chunks
+            // are independent so we fire them in parallel.
+            const chunks: { Key: string }[][] = [];
+            for (let i = 0; i < keys.length; i += 1000) {
+                chunks.push(keys.slice(i, i + 1000).map((Key) => ({ Key })));
+            }
+            await Promise.all(
+                chunks.map((chunk) =>
+                    s3Client.send(
+                        new DeleteObjectsCommand({
+                            Bucket: bucket,
+                            Delete: { Objects: chunk, Quiet: true },
+                        }),
+                    ),
+                ),
+            );
+        } catch (cleanupError) {
+            this.logger.warn(
+                `App ${appUuid}: failed to clean up ${keys.length} orphaned restore object(s): ${getErrorMessage(cleanupError)}`,
+            );
+        }
     }
 
     async cancelVersion(
@@ -2415,13 +3575,14 @@ export class AppGenerateService extends BaseService {
         // Pause the sandbox to interrupt any running commands while keeping
         // it resumable for the next iteration.
         // The pipeline will catch the resulting error, but markError is now
-        // a no-op since the version is already in 'error' state.
+        // a no-op since the version is already in 'error' state — and
+        // pipeline catches gate `trackVersionFailed` on the markError result,
+        // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                const sandbox = await Sandbox.connect(app.sandbox_id, {
+                await Sandbox.pause(app.sandbox_id, {
                     apiKey: this.getE2bApiKey(),
                 });
-                await sandbox.pause();
                 this.logger.info(
                     `App ${appUuid}: sandbox paused after cancel (sandboxId=${app.sandbox_id})`,
                 );
@@ -2445,6 +3606,7 @@ export class AppGenerateService extends BaseService {
         description: string;
         createdByUserUuid: string;
         spaceUuid: string | null;
+        template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
         versions: {
@@ -2453,6 +3615,12 @@ export class AppGenerateService extends BaseService {
             status: AppVersionStatus;
             statusMessage: string | null;
             createdAt: Date;
+            statusUpdatedAt: Date | null;
+            createdByUser: {
+                userUuid: string;
+                firstName: string;
+                lastName: string;
+            } | null;
             resources: AppVersionResources | null;
         }[];
         hasMore: boolean;
@@ -2465,6 +3633,7 @@ export class AppGenerateService extends BaseService {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            template,
             pinnedListUuid,
             pinnedListOrder,
             versions,
@@ -2484,6 +3653,7 @@ export class AppGenerateService extends BaseService {
             description,
             createdByUserUuid,
             spaceUuid,
+            template,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.map((v) => ({
@@ -2491,8 +3661,28 @@ export class AppGenerateService extends BaseService {
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
-                resources: v.resources,
+                // Backfill `clarifications` for rows persisted before the
+                // field existed on `resources`.
+                resources: v.resources
+                    ? {
+                          ...v.resources,
+                          clarifications: v.resources.clarifications ?? [],
+                      }
+                    : null,
                 createdAt: v.created_at,
+                statusUpdatedAt: v.status_updated_at,
+                // LEFT JOIN may miss for hard-deleted users — collapse the
+                // whole object to null in that case rather than expose
+                // individually-nullable fields to API consumers.
+                createdByUser:
+                    v.created_by_user_first_name !== null &&
+                    v.created_by_user_last_name !== null
+                        ? {
+                              userUuid: v.created_by_user_uuid,
+                              firstName: v.created_by_user_first_name,
+                              lastName: v.created_by_user_last_name,
+                          }
+                        : null,
             })),
             hasMore,
         };
@@ -2508,6 +3698,8 @@ export class AppGenerateService extends BaseService {
             description: string;
             projectUuid: string;
             projectName: string;
+            spaceUuid: string | null;
+            spaceName: string | null;
             createdAt: Date;
             lastVersionNumber: number | null;
             lastVersionStatus: AppVersionStatus | null;
@@ -2537,6 +3729,8 @@ export class AppGenerateService extends BaseService {
                 description: row.app.description,
                 projectUuid: row.app.project_uuid,
                 projectName: row.projectName,
+                spaceUuid: row.app.space_uuid,
+                spaceName: row.spaceName,
                 createdAt: row.app.created_at,
                 lastVersionNumber: row.lastVersion?.version ?? null,
                 lastVersionStatus: row.lastVersion?.status ?? null,
@@ -2832,10 +4026,9 @@ export class AppGenerateService extends BaseService {
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            const sandbox = await Sandbox.connect(sandboxId, {
+            await Sandbox.pause(sandboxId, {
                 apiKey: this.getE2bApiKey(),
             });
-            await sandbox.pause();
             this.logger.info(
                 `App ${appUuid}: sandbox paused during delete (sandboxId=${sandboxId})`,
             );
@@ -2852,10 +4045,9 @@ export class AppGenerateService extends BaseService {
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            const sandbox = await Sandbox.connect(sandboxId, {
+            await Sandbox.kill(sandboxId, {
                 apiKey: this.getE2bApiKey(),
             });
-            await sandbox.kill();
             this.logger.info(
                 `App ${appUuid}: sandbox killed during hard delete (sandboxId=${sandboxId})`,
             );
@@ -3108,33 +4300,138 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Mint a preview token for embed-side rendering of a data app, bundling
+     * the resolved latest ready version so the frontend doesn't need a
+     * separate round-trip to find it.
+     *
+     * The token is issued only when the data app is referenced by a tile on
+     * a dashboard in the embed's allowlist (or `allowAllDashboards` is set),
+     * mirroring how embedded charts are gated by whitelisted dashboards.
+     * The app must live in the embed's project — preview environments where
+     * the dashboard tile references a source-project app are explicitly out
+     * of scope and surface as a 404 to the frontend.
+     */
+    async getEmbedAppPreviewToken(
+        account: AnonymousAccount,
+        appUuid: string,
+    ): Promise<{ token: string; version: number }> {
+        assertEmbeddedAuth(account);
+
+        if (!isValidUuid(appUuid)) {
+            throw new ParameterError('Invalid UUID format');
+        }
+
+        const { projectUuid } = account.embed;
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (!app) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this data app',
+            );
+        }
+
+        if (!account.embed.allowAllDashboards) {
+            const dashboardsWithApp =
+                await this.appModel.findDashboardsContainingApp(
+                    appUuid,
+                    projectUuid,
+                );
+            const allowedDashboards = new Set(account.embed.dashboardUuids);
+            const onAllowedDashboard = dashboardsWithApp.some((d) =>
+                allowedDashboards.has(d),
+            );
+            if (!onAllowedDashboard) {
+                throw new ForbiddenError(
+                    'Data app is not authorized by this embed',
+                );
+            }
+        }
+
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latestReady) {
+            throw new NotFoundError(
+                `Data app has no ready version yet: ${appUuid}`,
+            );
+        }
+
+        const token = mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            appUuid,
+            latestReady.version,
+            account.user.id,
+            app.organization_uuid,
+            projectUuid,
+        );
+
+        return { token, version: latestReady.version };
+    }
+
+    /**
      * Convert catalog items into a dbt-style YAML that skill.md expects.
      * Groups fields by table and separates dimensions from metrics.
+     * Includes labels and descriptions (truncated) so the sandbox agent has
+     * semantic context for each model, metric, and dimension.
      */
-    private static catalogToYaml(
-        items: {
+    private static catalogToYaml(items: CatalogItemSummary[]): string {
+        const DESCRIPTION_MAX_LEN = 200;
+
+        const yamlStr = (s: string): string => {
+            const cleaned = s
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"');
+            return `"${cleaned}"`;
+        };
+
+        const truncate = (s: string): string =>
+            s.length > DESCRIPTION_MAX_LEN
+                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
+                : s;
+
+        type FieldInfo = {
             name: string;
-            type: string;
-            tableName: string;
-            fieldType: string | undefined;
-        }[],
-    ): string {
+            label: string | null;
+            description: string | null;
+        };
+
+        const tableDescriptions = new Map<string, string | null>();
         const tables = new Map<
             string,
-            { dimensions: string[]; metrics: string[] }
+            { dimensions: FieldInfo[]; metrics: FieldInfo[] }
         >();
 
         for (const item of items) {
-            if (item.type === 'field') {
+            if (item.type === 'table') {
+                tableDescriptions.set(item.name, item.description);
+                if (!tables.has(item.name)) {
+                    tables.set(item.name, { dimensions: [], metrics: [] });
+                }
+            } else if (item.type === 'field') {
                 if (!tables.has(item.tableName)) {
                     tables.set(item.tableName, { dimensions: [], metrics: [] });
                 }
                 const table = tables.get(item.tableName)!;
-
+                const field: FieldInfo = {
+                    name: item.name,
+                    label: item.label,
+                    description: item.description,
+                };
                 if (item.fieldType === 'metric') {
-                    table.metrics.push(item.name);
+                    table.metrics.push(field);
                 } else {
-                    table.dimensions.push(item.name);
+                    table.dimensions.push(field);
                 }
             }
         }
@@ -3142,18 +4439,38 @@ export class AppGenerateService extends BaseService {
         const lines: string[] = ['models:'];
         for (const [tableName, fields] of tables) {
             lines.push(`  - name: ${tableName}`);
+            const tableDesc = tableDescriptions.get(tableName);
+            if (tableDesc) {
+                lines.push(`    description: ${yamlStr(truncate(tableDesc))}`);
+            }
             if (fields.metrics.length > 0) {
                 lines.push(`    meta:`);
                 lines.push(`      metrics:`);
                 for (const m of fields.metrics) {
-                    lines.push(`        ${m}:`);
+                    lines.push(`        ${m.name}:`);
                     lines.push(`          type: metric`);
+                    if (m.label && m.label !== m.name) {
+                        lines.push(`          label: ${yamlStr(m.label)}`);
+                    }
+                    if (m.description) {
+                        lines.push(
+                            `          description: ${yamlStr(truncate(m.description))}`,
+                        );
+                    }
                 }
             }
             if (fields.dimensions.length > 0) {
                 lines.push(`    columns:`);
                 for (const d of fields.dimensions) {
-                    lines.push(`      - name: ${d}`);
+                    lines.push(`      - name: ${d.name}`);
+                    if (d.label && d.label !== d.name) {
+                        lines.push(`        label: ${yamlStr(d.label)}`);
+                    }
+                    if (d.description) {
+                        lines.push(
+                            `        description: ${yamlStr(truncate(d.description))}`,
+                        );
+                    }
                 }
             }
         }

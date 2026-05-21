@@ -17,12 +17,21 @@ import {
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
+import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
+
+export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    // When omitted, no pg-ping interval runs and the health probe falls back to
+    // job-activity events alone.
+    workerHealth?: SchedulerWorkerHealth;
+    resolveOrganizationName?: OrganizationNameResolver;
+};
 
 const workerLogger = new GraphileLogger(
     (scope) => (logLevel, message, meta) => {
@@ -34,6 +43,13 @@ const workerLogger = new GraphileLogger(
     },
 );
 
+// 60s vs the 3-min staleness threshold gives 3x headroom for ping latency.
+const PG_PING_INTERVAL_MS = 60_000;
+
+// Cap each ping: a wedged pg backend can leave the query hanging forever and
+// stack up overlapping client borrows from the pool.
+const PG_PING_TIMEOUT_MS = 5_000;
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
@@ -41,9 +57,18 @@ export class SchedulerWorker extends SchedulerTask {
 
     enabledTasks: Array<SchedulerTaskName>;
 
-    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
-        super(schedulerTaskArgs);
+    protected readonly workerHealth: SchedulerWorkerHealth | undefined;
+
+    private pgPingInterval: NodeJS.Timeout | null = null;
+
+    private readonly resolveOrganizationName?: OrganizationNameResolver;
+
+    constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
+        super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+        this.workerHealth = schedulerWorkerArgs.workerHealth;
+        this.resolveOrganizationName =
+            schedulerWorkerArgs.resolveOrganizationName;
     }
 
     async run() {
@@ -74,15 +99,84 @@ export class SchedulerWorker extends SchedulerTask {
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: parseCronItems(this.getCronItems()),
-            taskList: traceTasks(this.getTaskList()),
+            taskList: traceTasks(this.getTaskList(), {
+                resolveOrganizationName: this.resolveOrganizationName,
+            }),
             events: schedulerWorkerEventEmitter,
         });
 
         this.isRunning = true;
+        if (this.workerHealth) {
+            this.startPgPing(this.workerHealth);
+        }
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
+            this.stopPgPing();
         });
+    }
+
+    private startPgPing(health: SchedulerWorkerHealth) {
+        if (this.pgPingInterval) return;
+        void this.pingPgOnce(health);
+        this.pgPingInterval = setInterval(() => {
+            void this.pingPgOnce(health);
+        }, PG_PING_INTERVAL_MS);
+        Logger.info(
+            `[scheduler-health] pg-ping started poolId=${health.getPoolId()} intervalMs=${PG_PING_INTERVAL_MS} timeoutMs=${PG_PING_TIMEOUT_MS}`,
+        );
+    }
+
+    private stopPgPing() {
+        if (this.pgPingInterval) {
+            clearInterval(this.pgPingInterval);
+            this.pgPingInterval = null;
+            if (this.workerHealth) {
+                Logger.info(
+                    `[scheduler-health] pg-ping stopped poolId=${this.workerHealth.getPoolId()}`,
+                );
+            }
+        }
+    }
+
+    private async pingPgOnce(health: SchedulerWorkerHealth) {
+        let timeoutHandle: NodeJS.Timeout | undefined;
+        try {
+            const graphileClient = await this.schedulerClient.graphileUtils;
+            // withPgClient borrows from graphile's existing pool and releases the
+            // client back when the callback resolves — no long-lived client to leak.
+            const ping = graphileClient.withPgClient((pgClient) =>
+                pgClient.query('SELECT 1'),
+            );
+            await Promise.race([
+                ping,
+                new Promise<never>((_resolve, reject) => {
+                    timeoutHandle = setTimeout(() => {
+                        reject(
+                            new Error(
+                                `pg ping timeout after ${PG_PING_TIMEOUT_MS}ms`,
+                            ),
+                        );
+                    }, PG_PING_TIMEOUT_MS);
+                    if (typeof timeoutHandle.unref === 'function')
+                        timeoutHandle.unref();
+                }),
+            ]);
+            health.markPgReachable();
+            Logger.debug(
+                `[scheduler-health] pg-ping ok poolId=${health.getPoolId()}`,
+            );
+        } catch (e) {
+            // Sustained failure ages lastPgReachableAt past staleness — combined
+            // with no job activity, the probe trips. A single failure is harmless.
+            Logger.warn(
+                `[scheduler-health] pg-ping failed poolId=${health.getPoolId()} error=${getErrorMessage(
+                    e,
+                )}`,
+            );
+        } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+        }
     }
 
     protected getCronItems(): CronItem[] {
@@ -129,8 +223,16 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
-            // Managed agent heartbeat is self-scheduling (not a static cron).
-            // See SchedulerClient.scheduleManagedAgentHeartbeat().
+            {
+                task: SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            // worker-process pg liveness is driven by a setInterval (see startPgPing);
+            // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
     }
 
@@ -141,7 +243,7 @@ export class SchedulerWorker extends SchedulerTask {
                     isSchedulerTaskName(taskKey) &&
                     this.enabledTasks.includes(taskKey),
             ),
-        );
+        ) as Partial<TypedTaskList>;
     }
 
     protected getFullTaskList(): TypedTaskList {
@@ -1020,6 +1122,24 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {
+                Logger.info('Starting expired preview projects cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.projectService.deleteExpiredPreviewProjects();
+
+                    Logger.info(
+                        `Expired preview projects cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during expired preview projects cleanup:',
                         error,
                     );
                     throw error;

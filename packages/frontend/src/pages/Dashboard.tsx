@@ -32,6 +32,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
+import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
@@ -136,6 +137,14 @@ const Dashboard: FC = () => {
     );
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
+    );
+    const parameterOrder = useDashboardContext((c) => c.parameterOrder);
+    const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
+    const hasParameterOrderChanged = useDashboardContext(
+        (c) => c.hasParameterOrderChanged,
+    );
+    const setHasParameterOrderChanged = useDashboardContext(
+        (c) => c.setHasParameterOrderChanged,
     );
     const dateZoomGranularities = useDashboardContext(
         (c) => c.dateZoomGranularities,
@@ -248,14 +257,15 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles === undefined) return;
+        if (!dashboardUuid) return;
 
         clearIsEditingDashboardChart();
 
-        const unsavedDashboardTilesRaw = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
+        const tilesStorageKey = `unsavedDashboardTiles:${dashboardUuid}`;
+        const unsavedDashboardTilesRaw =
+            sessionStorage.getItem(tilesStorageKey);
         if (unsavedDashboardTilesRaw) {
-            sessionStorage.removeItem('unsavedDashboardTiles');
+            sessionStorage.removeItem(tilesStorageKey);
 
             try {
                 const unsavedDashboardTiles = JSON.parse(
@@ -276,9 +286,10 @@ const Dashboard: FC = () => {
             }
         }
 
-        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
+        const tabsStorageKey = `dashboardTabs:${dashboardUuid}`;
+        const unsavedDashboardTabsRaw = sessionStorage.getItem(tabsStorageKey);
 
-        sessionStorage.removeItem('dashboardTabs');
+        sessionStorage.removeItem(tabsStorageKey);
 
         if (unsavedDashboardTabsRaw) {
             try {
@@ -300,6 +311,7 @@ const Dashboard: FC = () => {
     }, [
         isDashboardLoading,
         dashboardTiles,
+        dashboardUuid,
         activeTab,
         setHaveTilesChanged,
         setDashboardTiles,
@@ -422,7 +434,11 @@ const Dashboard: FC = () => {
     );
 
     const handleAddTiles = useCallback(
-        async (tiles: IDashboard['tiles'][number][]) => {
+        async (
+            tiles: IDashboard['tiles'][number][],
+            // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+            tileUuidMapping?: Record<string, string>,
+        ) => {
             let newTiles = tiles;
             if (tabsEnabled) {
                 newTiles = tiles.map((tile: DashboardTile) => ({
@@ -436,6 +452,36 @@ const Dashboard: FC = () => {
             );
 
             setHaveTilesChanged(true);
+
+            // For each duplicated tile, copy the source tile's per-filter
+            // override (enabled/disabled + field mapping) onto the new tile's
+            // UUID. Without this, the new UUID is absent from `tileTargets`
+            // and `getDashboardFilterRulesForTile` falls back to auto-applying
+            // every matching filter — ignoring whatever was configured on the
+            // original.
+            if (tileUuidMapping && Object.keys(tileUuidMapping).length > 0) {
+                setDashboardFilters((prev) => {
+                    const updatedDimensions = prev.dimensions.map((filter) => {
+                        if (!filter.tileTargets) return filter;
+                        const nextTileTargets = { ...filter.tileTargets };
+                        let changed = false;
+                        for (const [newUuid, oldUuid] of Object.entries(
+                            tileUuidMapping,
+                        )) {
+                            if (oldUuid in nextTileTargets) {
+                                nextTileTargets[newUuid] =
+                                    nextTileTargets[oldUuid];
+                                changed = true;
+                            }
+                        }
+                        return changed
+                            ? { ...filter, tileTargets: nextTileTargets }
+                            : filter;
+                    });
+                    return { ...prev, dimensions: updatedDimensions };
+                });
+                setHaveFiltersChanged(true);
+            }
         },
         [
             activeTab,
@@ -444,6 +490,8 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
+            setDashboardFilters,
+            setHaveFiltersChanged,
         ],
     );
 
@@ -497,6 +545,7 @@ const Dashboard: FC = () => {
         setSavedParameters(dashboard.parameters ?? {});
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
+        setHasParameterOrderChanged(false);
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -538,6 +587,7 @@ const Dashboard: FC = () => {
         setHaveDateZoomGranularitiesChanged,
         setDefaultDateZoomGranularity,
         setHasDefaultDateZoomGranularityChanged,
+        setHasParameterOrderChanged,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -580,7 +630,7 @@ const Dashboard: FC = () => {
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
             ) &&
             // Allow user to add a new table
-            !sessionStorage.getItem('unsavedDashboardTiles')
+            !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
             return true; //blocks navigation
         }
@@ -676,6 +726,9 @@ const Dashboard: FC = () => {
                 isDateZoomDisabled,
                 isAddFilterDisabled,
                 pinnedParameters,
+                parameterOrder: hasParameterOrderChanged
+                    ? parameterOrder
+                    : dashboard.config?.parameterOrder,
                 dateZoomGranularities: haveDateZoomGranularitiesChanged
                     ? dateZoomGranularities
                     : dashboard.config?.dateZoomGranularities,
@@ -710,6 +763,7 @@ const Dashboard: FC = () => {
             hasAddFilterDisabledChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
+            hasParameterOrderChanged ||
             haveDateZoomGranularitiesChanged ||
             hasDefaultDateZoomGranularityChanged,
         onAddTiles: handleAddTiles,
@@ -777,6 +831,8 @@ const Dashboard: FC = () => {
                         missingRequiredParameters={missingRequiredParameters}
                         pinnedParameters={pinnedParameters}
                         onParameterPin={toggleParameterPin}
+                        parameterOrder={parameterOrder}
+                        onParameterReorder={setParameterOrder}
                         // tabs
                         activeTab={activeTab}
                         addingTab={addingTab}
@@ -840,6 +896,7 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
+            <DashboardAiAgentContextBridge />
             <Dashboard />
         </DashboardProvider>
     );

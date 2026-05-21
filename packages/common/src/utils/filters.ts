@@ -52,7 +52,7 @@ import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
-import { formatDate } from './formatting';
+import { formatDate, shouldShiftItemTimezone } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
@@ -215,6 +215,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T => {
     const filterRuleDefaults: Partial<FilterRule> = {};
 
@@ -299,10 +300,19 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[fieldTimeInterval]
                             : moment();
 
+                    // Shift TIMESTAMP-base time-interval dims into the project
+                    // TZ before extracting the date. Plain DATE / DATE-base
+                    // intervals are calendar values and must not be shifted.
+                    const effectiveZone = shouldShiftItemTimezone(field)
+                        ? timezone || 'UTC'
+                        : 'UTC';
+
                     const dateValue = valueIsDate
                         ? formatDate(
-                              // Treat the date as UTC, then remove its timezone information before formatting
-                              moment.utc(value).format('YYYY-MM-DD'),
+                              moment
+                                  .utc(value)
+                                  .tz(effectiveZone)
+                                  .format('YYYY-MM-DD'),
                               // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
                               fieldTimeInterval === TimeFrames.QUARTER
                                   ? undefined
@@ -342,17 +352,20 @@ export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T =>
     getFilterRuleWithDefaultValue(
         getFilterTypeFromItem(field),
         field,
         filterRule,
         values,
+        timezone,
     );
 
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
+    timezone?: string,
 ): FilterRule =>
     getFilterRuleFromFieldWithDefaultValue(
         field,
@@ -365,6 +378,7 @@ export const createFilterRuleFromField = (
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
         value ? [value] : [],
+        timezone,
     );
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
@@ -376,7 +390,11 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 export const isTileFilterable = (tile: DashboardTile) =>
-    ![DashboardTileTypes.MARKDOWN, DashboardTileTypes.LOOM].includes(tile.type);
+    ![
+        DashboardTileTypes.MARKDOWN,
+        DashboardTileTypes.LOOM,
+        DashboardTileTypes.DATA_APP,
+    ].includes(tile.type);
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
@@ -518,12 +536,14 @@ type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
     value?: AnyType;
+    timezone?: string;
 };
 
 export const addFilterRule = ({
     filters,
     field,
     value,
+    timezone,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -542,7 +562,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value),
+                createFilterRuleFromField(field, value, timezone),
             ],
         },
     };
@@ -887,6 +907,94 @@ export const getDashboardFiltersForTile = (
         ...(dashboardTemporaryFilters?.tableCalculations ?? []),
     ]),
 });
+
+// When a dashboard has no tabs, the lock toggle stores the dashboard uuid as
+// a sentinel in lockedTabUuids — so any non-empty list means "locked".
+export const isFilterLockedOnTab = (
+    rule: Pick<DashboardFilterRule, 'lockedTabUuids'>,
+    tabUuid: string | undefined,
+    hasTabs: boolean,
+): boolean => {
+    if (!rule.lockedTabUuids || rule.lockedTabUuids.length === 0) return false;
+    if (!hasTabs) return true;
+    if (!tabUuid) return false;
+    return rule.lockedTabUuids.includes(tabUuid);
+};
+
+const buildLockedTargetKeysForTab = (
+    rules: DashboardFilterRule[],
+    tabUuid: string | undefined,
+    hasTabs: boolean,
+): Set<string> => {
+    const keys = new Set<string>();
+    rules.forEach((rule) => {
+        if (isFilterLockedOnTab(rule, tabUuid, hasTabs)) {
+            keys.add(`${rule.target.tableName}::${rule.target.fieldId}`);
+        }
+    });
+    return keys;
+};
+
+const dropRulesTargetingLockedFields = (
+    overrideRules: DashboardFilterRule[],
+    lockedKeys: Set<string>,
+): { kept: DashboardFilterRule[]; droppedCount: number } => {
+    if (lockedKeys.size === 0) {
+        return { kept: overrideRules, droppedCount: 0 };
+    }
+    let droppedCount = 0;
+    const kept = overrideRules.filter((rule) => {
+        const key = `${rule.target.tableName}::${rule.target.fieldId}`;
+        if (lockedKeys.has(key)) {
+            droppedCount += 1;
+            return false;
+        }
+        return true;
+    });
+    return { kept, droppedCount };
+};
+
+export type StripOverridesForLockedFiltersResult = {
+    filters: DashboardFilters;
+    droppedCount: number;
+};
+
+/**
+ * Drop override rules that target a field whose saved filter is locked on the
+ * given tab. For tab-less dashboards (`hasTabs=false`) any non-empty
+ * `lockedTabUuids` is treated as a dashboard-wide lock. For tabbed dashboards
+ * `tabUuid` is required to decide; when undefined nothing is stripped.
+ */
+export const stripOverridesForLockedFiltersOnTab = (
+    saved: DashboardFilters,
+    overrides: DashboardFilters,
+    tabUuid: string | undefined,
+    hasTabs: boolean,
+): StripOverridesForLockedFiltersResult => {
+    const dimensions = dropRulesTargetingLockedFields(
+        overrides.dimensions,
+        buildLockedTargetKeysForTab(saved.dimensions, tabUuid, hasTabs),
+    );
+    const metrics = dropRulesTargetingLockedFields(
+        overrides.metrics,
+        buildLockedTargetKeysForTab(saved.metrics, tabUuid, hasTabs),
+    );
+    const tableCalculations = dropRulesTargetingLockedFields(
+        overrides.tableCalculations,
+        buildLockedTargetKeysForTab(saved.tableCalculations, tabUuid, hasTabs),
+    );
+    return {
+        filters: {
+            dimensions: dimensions.kept,
+            metrics: metrics.kept,
+            tableCalculations: tableCalculations.kept,
+        },
+        droppedCount:
+            dimensions.droppedCount +
+            metrics.droppedCount +
+            tableCalculations.droppedCount,
+    };
+};
 
 const combineFilterGroups = (
     a: FilterGroup | undefined,

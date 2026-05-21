@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     ForbiddenError,
 } from '@lightdash/common';
 import {
@@ -15,6 +16,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
@@ -37,6 +39,7 @@ export class SnowflakeController extends BaseController {
     async ssoIsAuthenticated(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         if (!lightdashConfig.license.licenseKey) {
@@ -48,7 +51,7 @@ export class SnowflakeController extends BaseController {
         // This will throw an error if the user is not authenticated with snowflake scopes
         const accessToken = await this.services
             .getUserService()
-            .getAccessToken(req.user!, 'snowflake');
+            .getAccessToken(toSessionUser(req.account), 'snowflake');
         return {
             status: 'ok',
             results: undefined,

@@ -1,7 +1,7 @@
 import { type RoleWithScopes } from '@lightdash/common';
 import { Group, Stack } from '@mantine-8/core';
 import { IconIdBadge2 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -36,11 +36,24 @@ export const CustomRoles = () => {
         void navigate(`/generalSettings/customRoles/${result.roleUuid}`);
     };
 
+    // Sort roles alphabetically (case-insensitive) so the table stays
+    // stable as new roles get added — the API returns insertion order
+    // by default which gets noisy with many roles.
+    const sortedRoles = useMemo(
+        () =>
+            (listRoles.data ?? []).slice().sort((a, b) =>
+                a.name.localeCompare(b.name, undefined, {
+                    sensitivity: 'base',
+                }),
+            ),
+        [listRoles.data],
+    );
+
     if (listRoles.isLoading) {
         return <PageSpinner />;
     }
 
-    const hasRoles = (listRoles?.data?.length ?? 0) > 0;
+    const hasRoles = sortedRoles.length > 0;
 
     return (
         <Stack mb="lg" gap="md">
@@ -64,7 +77,7 @@ export const CustomRoles = () => {
             {hasRoles ? (
                 <>
                     <CustomRolesTable
-                        roles={listRoles?.data ?? []}
+                        roles={sortedRoles}
                         onDelete={handleDeleteRole}
                         onEdit={handleEditRole}
                         isDeleting={deleteRole.isLoading}

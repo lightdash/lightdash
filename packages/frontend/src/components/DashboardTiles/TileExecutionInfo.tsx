@@ -16,10 +16,7 @@ import {
     IconServer,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
 
@@ -42,11 +39,10 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     totalClientFetchTimeMs,
     totalResults,
 }) => {
-    const { data: serverFlag } = useServerFeatureFlag(
+    const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
-    const posthogFlag = useClientFeatureFlag(FeatureFlags.ShowExecutionTime);
-    const isEnabled = serverFlag?.enabled || posthogFlag;
+    const isEnabled = showExecutionTimeFlag?.enabled ?? false;
 
     if (
         !isEnabled ||

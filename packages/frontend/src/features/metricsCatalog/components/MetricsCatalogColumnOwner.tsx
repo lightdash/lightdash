@@ -1,8 +1,8 @@
 import { type CatalogField } from '@lightdash/common';
 import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
-import { type MRT_Row } from 'mantine-react-table';
 import { type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
+import { type MRT_Row } from '../../../components/common/ContentTable';
 
 type Props = {
     row: MRT_Row<CatalogField>;

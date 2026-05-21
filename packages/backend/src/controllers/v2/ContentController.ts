@@ -7,6 +7,7 @@ import {
     ApiPermanentlyDeleteContentBody,
     ApiRestoreContentBody,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     ContentActionMove,
     ContentType,
     ParameterError,
@@ -28,6 +29,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import { ContentArgs } from '../../models/ContentModel/ContentModelTypes';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
@@ -56,11 +58,12 @@ export class ContentController extends BaseController {
         @Query() sortBy?: ContentArgs['sortBy'],
         @Query() sortDirection?: ContentArgs['sortDirection'],
     ): Promise<ApiContentResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services.getContentService().find(
-                req.user!,
+                toSessionUser(req.account),
                 {
                     projectUuids,
                     spaceUuids,
@@ -93,6 +96,7 @@ export class ContentController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: ApiContentActionBody<ContentActionMove>,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         if (body.action.type !== 'move') {
@@ -102,7 +106,7 @@ export class ContentController extends BaseController {
         await this.services
             .getContentService()
             .move(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body.item,
                 body.action.targetSpaceUuid,
@@ -125,6 +129,7 @@ export class ContentController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: ApiContentBulkActionBody<ContentActionMove>,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         if (body.action.type !== 'move') {
@@ -134,7 +139,7 @@ export class ContentController extends BaseController {
         await this.services
             .getContentService()
             .bulkMove(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body.content,
                 body.action.targetSpaceUuid,
@@ -160,11 +165,12 @@ export class ContentController extends BaseController {
         @Query() contentTypes?: ContentType[],
         @Query() deletedByUserUuids?: string[],
     ): Promise<ApiDeletedContentResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services.getContentService().findDeleted(
-                req.user!,
+                toSessionUser(req.account),
                 {
                     projectUuids,
                     search,
@@ -192,10 +198,11 @@ export class ContentController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: ApiRestoreContentBody,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getContentService()
-            .restoreContent(req.user!, projectUuid, body.item);
+            .restoreContent(toSessionUser(req.account), projectUuid, body.item);
         return { status: 'ok', results: undefined };
     }
 
@@ -212,10 +219,15 @@ export class ContentController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: ApiPermanentlyDeleteContentBody,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getContentService()
-            .permanentlyDeleteContent(req.user!, projectUuid, body.item);
+            .permanentlyDeleteContent(
+                toSessionUser(req.account),
+                projectUuid,
+                body.item,
+            );
         return { status: 'ok', results: undefined };
     }
 }

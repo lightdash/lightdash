@@ -30,6 +30,7 @@ import {
     isJwtUser,
     isSchedulerGsheetsOptions,
     isSqlTableCalculation,
+    isTemplateTableCalculation,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -42,6 +43,8 @@ import {
     SavedChartDAO,
     SchedulerAndTargets,
     SchedulerFormat,
+    SchedulerRun,
+    SchedulerRunStatus,
     SessionUser,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
@@ -73,6 +76,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -108,6 +112,7 @@ type SavedChartServiceArguments = {
     userService: UserService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    organizationModel: OrganizationModel;
 };
 
 export class SavedChartService
@@ -150,6 +155,8 @@ export class SavedChartService
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -170,6 +177,7 @@ export class SavedChartService
         this.userService = args.userService;
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
+        this.organizationModel = args.organizationModel;
     }
 
     private async checkUpdateAccess(
@@ -452,6 +460,64 @@ export class SavedChartService
         };
     }
 
+    static getSqlTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              sqlCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const sqlCount = tableCalculations.filter(isSqlTableCalculation).length;
+        if (sqlCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            sqlCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
+    static getTemplateTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              templateCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const templateCount = tableCalculations.filter(
+            isTemplateTableCalculation,
+        ).length;
+        if (templateCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            templateCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
@@ -484,6 +550,8 @@ export class SavedChartService
             metricQuery: {
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
+                customDimensions: oldCustomDimensions,
+                tableCalculations: oldTableCalculations,
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
@@ -509,8 +577,22 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        const oldSqlDimensionsById = new Map(
+            (oldCustomDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dim) => [dim.id, dim]),
+        );
+        const hasModifiedSqlCustomDimension = (
+            data.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .some((dim) => {
+                const saved = oldSqlDimensionsById.get(dim.id);
+                return !saved || saved.sql !== dim.sql;
+            });
+
         if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            hasModifiedSqlCustomDimension &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {
@@ -521,15 +603,29 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save queries with custom SQL dimensions',
+                'User cannot save queries with modified custom SQL dimensions',
             );
         }
 
+        const oldSqlTcsByName = new Map(
+            (oldTableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((tc) => [tc.name, tc]),
+        );
+        const hasModifiedSqlTableCalculation = (
+            data.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .some((tc) => {
+                const saved = oldSqlTcsByName.get(tc.name);
+                return !saved || saved.sql !== tc.sql;
+            });
+
         if (
-            data.metricQuery.tableCalculations.some(isSqlTableCalculation) &&
+            hasModifiedSqlTableCalculation &&
             auditedAbility.cannot(
                 'manage',
-                subject('CustomFields', {
+                subject('CustomSqlTableCalculations', {
                     organizationUuid,
                     projectUuid,
                     metadata: { savedChartUuid },
@@ -537,7 +633,7 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save queries with custom SQL table calculations',
+                'User cannot save queries with new or modified SQL table calculations',
             );
         }
 
@@ -569,6 +665,32 @@ export class SavedChartService
                 event: 'formula_table_calculation.saved',
                 userId: user.userUuid,
                 properties: formulaProperties,
+            });
+        }
+
+        const sqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (sqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: sqlProperties,
+            });
+        }
+
+        const templateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (templateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: templateProperties,
             });
         }
 
@@ -648,6 +770,18 @@ export class SavedChartService
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
+        }
+
+        if (data.colorPaletteUuid) {
+            const palette = await this.organizationModel.findColorPalette(
+                organizationUuid,
+                data.colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
         }
 
         const savedChart = await this.savedChartModel.update(
@@ -1239,23 +1373,6 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (
-            savedChart.metricQuery.tableCalculations.some(
-                isSqlTableCalculation,
-            ) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with custom SQL table calculations',
-            );
-        }
-
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
@@ -1309,6 +1426,32 @@ export class SavedChartService
                 event: 'formula_table_calculation.saved',
                 userId: user.userUuid,
                 properties: createFormulaProperties,
+            });
+        }
+
+        const createSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createSqlProperties,
+            });
+        }
+
+        const createTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createTemplateProperties,
             });
         }
 
@@ -1453,6 +1596,32 @@ export class SavedChartService
             });
         }
 
+        const duplicateSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateSqlProperties,
+            });
+        }
+
+        const duplicateTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateTemplateProperties,
+            });
+        }
+
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
@@ -1486,12 +1655,13 @@ export class SavedChartService
         filters?: {
             formats?: string[];
         },
+        includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const chart = await this.checkCreateScheduledDeliveryAccess(
             user,
             chartUuid,
         );
-        return this.schedulerModel.getSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
             paginateArgs,
@@ -1500,6 +1670,58 @@ export class SavedChartService
                 resourceType: 'chart',
                 resourceUuids: [chartUuid],
                 formats: filters?.formats,
+            },
+        });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
+    }
+
+    async getSchedulerRuns(
+        user: SessionUser,
+        chartUuid: string,
+        schedulerUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            statuses?: SchedulerRunStatus[];
+            destinations?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        // Authorize before revealing whether the scheduler belongs to this
+        // chart, so unauthorized callers can't distinguish 404 (wrong chart)
+        // from 403 (right chart, no access).
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    userUuid: scheduler.createdBy,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (scheduler.savedChartUuid !== chartUuid) {
+            throw new NotFoundError('Scheduler not found');
+        }
+        return this.schedulerModel.getProjectSchedulerRuns({
+            projectUuid: chart.projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters: {
+                schedulerUuids: [schedulerUuid],
+                statuses: filters?.statuses,
+                destinations: filters?.destinations,
             },
         });
     }

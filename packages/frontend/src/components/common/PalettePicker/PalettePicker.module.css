@@ -1,0 +1,71 @@
+.options {
+    overflow-x: hidden;
+}
+
+.options * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.options > div {
+    overflow-x: hidden !important;
+}
+
+.option {
+    width: 100%;
+    overflow: hidden;
+}
+
+.row {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+}
+
+.name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.swatches {
+    flex-shrink: 0;
+}
+
+.swatchStack {
+    display: flex;
+    align-items: center;
+}
+
+.stackedSwatch {
+    --cs-size: calc(0.85rem * var(--mantine-scale));
+    border: 1px solid var(--mantine-color-body);
+}
+
+.stackedSwatch:not(:first-child) {
+    margin-left: -0.4rem;
+}
+
+.miniChartCardLight,
+.miniChartCardDark {
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-gray-2);
+    border-radius: var(--mantine-radius-sm);
+    flex: 1;
+}
+
+.miniChartCardLight {
+    background: var(--mantine-color-white);
+}
+
+.miniChartCardDark {
+    background: var(--mantine-color-dark-7);
+    border-color: var(--mantine-color-dark-5);
+}
+
+.miniChartLight,
+.miniChartDark {
+    width: 100%;
+}

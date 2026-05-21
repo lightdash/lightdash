@@ -18,6 +18,7 @@ export const useDashboardChartDownload = (
     projectUuid: string | undefined,
     dashboardUuid: string | undefined,
     originalQueryUuid: string,
+    canExportPivotedData: boolean,
 ) => {
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -36,13 +37,25 @@ export const useDashboardChartDownload = (
     );
 
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null, limitType: Limit): Promise<string> => {
+        async (
+            limit: number | null,
+            limitType: Limit,
+            exportPivotedData: boolean = true,
+        ): Promise<string> => {
             if (!projectUuid || !dashboardUuid) {
                 throw new Error('Missing required parameters');
             }
 
+            const originalQueryIsPivoted =
+                canExportPivotedData && !!useSqlPivotResults?.enabled;
+            const shouldPivotResults =
+                exportPivotedData && originalQueryIsPivoted;
+
             // When limiting to the table, use the original query uuid so we don't execute a new query
-            if (limitType === Limit.TABLE) {
+            if (
+                limitType === Limit.TABLE &&
+                originalQueryIsPivoted === shouldPivotResults
+            ) {
                 return originalQueryUuid;
             }
 
@@ -65,7 +78,7 @@ export const useDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
-                        pivotResults: useSqlPivotResults?.enabled,
+                        pivotResults: shouldPivotResults,
                     }),
                 });
 
@@ -97,6 +110,7 @@ export const useDashboardChartDownload = (
             dashboardSorts,
             dateZoomGranularity,
             parameters,
+            canExportPivotedData,
             useSqlPivotResults?.enabled,
             originalQueryUuid,
         ],

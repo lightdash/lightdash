@@ -19,11 +19,6 @@ import {
     IconDots,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
@@ -31,6 +26,11 @@ import {
     useUnverifyDashboardMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -205,7 +205,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         [handleUnverify, projectUuid],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: items,
         enableSorting: false,
@@ -296,7 +296,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <Group justify="space-between">
                 <Title order={4}>Verified content</Title>
             </Group>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             <MantineModal
                 opened={unverifyModalOpened}

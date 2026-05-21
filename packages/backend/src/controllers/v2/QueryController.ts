@@ -171,7 +171,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
-                savedChartUuid: body.savedChartUuid,
+                dashboardFilters: body.dashboardFilters,
             });
 
         return {
@@ -536,6 +536,7 @@ export class QueryController extends BaseController {
             columnOrder: body.columnOrder,
             hiddenFields: body.hiddenFields,
             pivotConfig: body.pivotConfig,
+            exportPivotedData: body.exportPivotedData,
             attachmentDownloadName: body.attachmentDownloadName,
         });
 
@@ -575,6 +576,7 @@ export class QueryController extends BaseController {
                 columnOrder: body.columnOrder,
                 hiddenFields: body.hiddenFields,
                 pivotConfig: body.pivotConfig,
+                exportPivotedData: body.exportPivotedData,
                 attachmentDownloadName: body.attachmentDownloadName,
             });
 

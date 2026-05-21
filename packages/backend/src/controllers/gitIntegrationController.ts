@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     ApiErrorPayload,
     ApiGitFileContent,
+    assertRegisteredAccount,
     CustomDimension,
     ForbiddenError,
     PullRequestCreated,
@@ -22,6 +23,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
@@ -60,13 +62,14 @@ export class GitIntegrationController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequest(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.quoteChar || '"',
                     {
@@ -98,13 +101,14 @@ export class GitIntegrationController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequest(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.quoteChar || '"',
                     {
@@ -131,13 +135,14 @@ export class GitIntegrationController extends BaseController {
         status: 'ok';
         results: Array<string>;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .getBranches(req.user!, projectUuid),
+                .getBranches(toSessionUser(req.account), projectUuid),
         };
     }
 
@@ -158,6 +163,7 @@ export class GitIntegrationController extends BaseController {
         @Path() exploreName: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
+        assertRegisteredAccount(req.account);
         if (!lightdashConfig.editYamlInUi.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
@@ -166,7 +172,11 @@ export class GitIntegrationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .getFileForExplore(req.user!, projectUuid, exploreName),
+                .getFileForExplore(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    exploreName,
+                ),
         };
     }
 
@@ -187,6 +197,7 @@ export class GitIntegrationController extends BaseController {
         @Path() exploreName: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: { filePath: string } }> {
+        assertRegisteredAccount(req.account);
         if (!lightdashConfig.editYamlInUi.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
@@ -195,7 +206,11 @@ export class GitIntegrationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .getFilePathForExplore(req.user!, projectUuid, exploreName),
+                .getFilePathForExplore(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    exploreName,
+                ),
         };
     }
 
@@ -223,6 +238,7 @@ export class GitIntegrationController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        assertRegisteredAccount(req.account);
         if (!lightdashConfig.editYamlInUi.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
@@ -232,7 +248,7 @@ export class GitIntegrationController extends BaseController {
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequestWithFileChange(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.filePath,
                     body.content,

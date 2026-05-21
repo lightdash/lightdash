@@ -6,6 +6,7 @@ import type {
 import {
     assertUnreachable,
     type ToolDashboardArgs,
+    type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
     type ToolFindContentArgs,
     type ToolFindDashboardsArgs,
@@ -14,25 +15,42 @@ import {
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
     type ToolGetDashboardChartsArgs,
+    type ToolListWarehouseTablesArgs,
     type ToolName,
     type ToolRunQueryArgs,
+    type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
+import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
+
+type ContentEditorToolArgs = {
+    slug?: string;
+    type?: 'dashboard' | 'chart';
+};
 
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
 }> = ({ toolName, toolCall }) => {
+    // Mid-stream the toolArgs payload can arrive before any input chunks have
+    // been parsed. Casting an undefined value and reading fields throws, so
+    // bail until args exist.
+    if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
     switch (toolName) {
         case 'findExplores':
             const toolArgsFindExplores = toolCall.toolArgs as
@@ -140,8 +158,52 @@ export const ToolCallDescription: FC<{
                     title={chartToolArgs.title}
                 />
             );
+        case 'runSql':
+            const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
+            return (
+                <SqlRunToolCallDescription
+                    sql={sqlToolArgs.sql}
+                    limit={sqlToolArgs.limit}
+                />
+            );
+        case 'readContent':
+        case 'editContent':
+            const contentEditorToolArgs =
+                toolCall.toolArgs as ContentEditorToolArgs;
+            return contentEditorToolArgs.slug && contentEditorToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action={toolName === 'readContent' ? 'read' : 'edit'}
+                    slug={contentEditorToolArgs.slug}
+                    type={contentEditorToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
+        case 'listWarehouseTables':
+            const listWarehouseTablesArgs =
+                toolCall.toolArgs as ToolListWarehouseTablesArgs;
+            return (
+                <ListWarehouseTablesToolCallDescription
+                    schema={listWarehouseTablesArgs.schema ?? null}
+                    search={listWarehouseTablesArgs.search ?? null}
+                />
+            );
+        case 'describeWarehouseTable':
+            const describeWarehouseTableArgs =
+                toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
+            return (
+                <DescribeWarehouseTableToolCallDescription
+                    table={describeWarehouseTableArgs.table}
+                    schema={describeWarehouseTableArgs.schema ?? null}
+                />
+            );
+        case 'listKnowledgeDocuments':
+        case 'getKnowledgeDocumentContent':
+        case 'discoverFields':
         case 'improveContext':
+        case 'loadSkill':
         case 'proposeChange':
+        case 'runSavedChart':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

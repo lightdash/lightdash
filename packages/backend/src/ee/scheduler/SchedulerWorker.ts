@@ -1,6 +1,7 @@
 import {
     EE_SCHEDULER_TASKS,
     getErrorMessage,
+    getManagedAgentScheduleCron,
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
@@ -8,8 +9,10 @@ import {
 import Logger from '../../logging/logger';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
-import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
-import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
+import {
+    SchedulerWorker,
+    SchedulerWorkerArguments,
+} from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
@@ -19,7 +22,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
-type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
+type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
@@ -132,37 +135,11 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async (payload) => {
-                if (!this.lightdashConfig.managedAgent.enabled) {
-                    return;
-                }
-
-                // Backwards compat: legacy in-flight jobs (from before this
-                // change) have an empty payload. Re-enqueue per-project jobs
-                // with the new payload shape and exit — the new jobs will
-                // then follow the single-project path below.
-                if (!payload?.projectUuid) {
-                    Logger.info(
-                        'Migrating managed agent heartbeat jobs to per-project payloads',
-                    );
-                    const enabledProjects =
-                        await this.managedAgentService.getEnabledProjects();
-                    for (const project of enabledProjects) {
-                        const schedule =
-                            project.scheduleCron ??
-                            this.lightdashConfig.managedAgent.schedule;
-                        // eslint-disable-next-line no-await-in-loop
-                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
-                            schedule,
-                            project.projectUuid,
-                        );
-                    }
-                    return;
-                }
-
                 const { projectUuid } = payload;
+                const triggeredBy = payload.triggeredBy ?? 'cron';
                 const settings = (
                     await this.managedAgentService.getEnabledProjects()
-                ).find((p) => p.projectUuid === projectUuid);
+                ).find((project) => project.projectUuid === projectUuid);
 
                 if (!settings) {
                     Logger.info(
@@ -171,12 +148,31 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     return;
                 }
 
+                const aiAutopilotEnabled =
+                    await this.managedAgentService.isAiAutopilotEnabledForProject(
+                        settings,
+                    );
+                if (!aiAutopilotEnabled) {
+                    Logger.info(
+                        `AI autopilot feature flag disabled for project ${projectUuid}, skipping managed agent heartbeat`,
+                    );
+                    return;
+                }
+
                 Logger.info(
-                    `Running managed agent heartbeat for project ${projectUuid}`,
+                    `Running managed agent heartbeat for project ${projectUuid} (${triggeredBy})`,
+                );
+
+                const { runUuid } = await this.managedAgentService.startRun(
+                    projectUuid,
+                    triggeredBy,
                 );
 
                 try {
-                    await this.managedAgentService.runHeartbeat(projectUuid);
+                    await this.managedAgentService.runHeartbeat(
+                        projectUuid,
+                        runUuid,
+                    );
                     Logger.info(
                         `Heartbeat completed for project ${projectUuid}`,
                     );
@@ -186,13 +182,15 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         error,
                     );
                 } finally {
-                    const schedule =
-                        settings.scheduleCron ??
-                        this.lightdashConfig.managedAgent.schedule;
-                    await this.schedulerClient.scheduleManagedAgentHeartbeat(
-                        schedule,
-                        projectUuid,
-                    );
+                    if (triggeredBy === 'cron') {
+                        const schedule =
+                            getManagedAgentScheduleCron(settings.schedule) ??
+                            this.lightdashConfig.managedAgent.schedule;
+                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                            schedule,
+                            projectUuid,
+                        );
+                    }
                 }
             },
             [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: async (
@@ -212,13 +210,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     APP_GENERATE_TIMEOUT_MS,
                     async (_job, e) => {
-                        await this.appGenerateService.markError(
+                        const marked = await this.appGenerateService.markError(
                             payload.appUuid,
                             payload.version,
                             e,
                             'Build timed out. Please try again.',
                         );
-                        this.appGenerateService.trackTimeoutFailure(payload, e);
+                        if (marked) {
+                            this.appGenerateService.trackTimeoutFailure(
+                                payload,
+                                e,
+                            );
+                        }
                     },
                 );
             },

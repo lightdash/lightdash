@@ -35,4 +35,7 @@ export type DashboardTileStatusContextType = {
     screenshotReadyTilesCount: number;
     screenshotErroredTilesCount: number;
     expectedScreenshotTilesCount: number;
+    expectedScreenshotTileUuids: string[];
+    screenshotReadyTileUuids: string[];
+    screenshotErroredTileUuids: string[];
 };

@@ -94,7 +94,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     leftSection={<MantineIcon icon={IconEdit} />}
                     onClick={onRename}
                 >
-                    Rename
+                    Update space
                 </Menu.Item>
 
                 {user.data?.ability.can(

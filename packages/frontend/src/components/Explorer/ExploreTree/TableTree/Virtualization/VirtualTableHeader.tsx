@@ -1,7 +1,12 @@
+import { ActionIcon, Group, Tooltip } from '@mantine-8/core';
 import { NavLink, Text, useMantineTheme } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
+import { IconInfoCircle, IconTable } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
@@ -19,8 +24,22 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     onToggle,
 }) => {
     const theme = useMantineTheme();
+    const dispatch = useExplorerDispatch();
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
+    const showMetadataIcon = Boolean(
+        table.dbtPackageName || table.ymlPath || table.sqlPath,
+    );
+
+    const tableMetadata = useMemo(
+        () => ({
+            name: table.name,
+            dbtPackageName: table.dbtPackageName,
+            ymlPath: table.ymlPath,
+            sqlPath: table.sqlPath,
+        }),
+        [table.name, table.dbtPackageName, table.ymlPath, table.sqlPath],
+    );
 
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
@@ -30,10 +49,18 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         () => toggleHover(false),
         [toggleHover],
     );
-    const handleClosePreview = useCallback(
-        () => toggleHover(false),
-        [toggleHover],
-    );
+
+    const openMetadataModal = useCallback(() => {
+        toggleHover(false);
+        dispatch(
+            explorerActions.openItemDetail({
+                itemType: 'table',
+                label: table.label,
+                description: table.description,
+                tableMetadata,
+            }),
+        );
+    }, [toggleHover, dispatch, table.label, table.description, tableMetadata]);
 
     const stickyStyle = useMemo(
         () => ({
@@ -53,11 +80,30 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             label={table.label}
             description={table.description}
             showPreview={isHover}
-            closePreview={handleClosePreview}
+            closePreview={handleMouseLeave}
+            tableMetadata={tableMetadata}
         >
-            <Text truncate fw={600}>
-                {table.label}
-            </Text>
+            <Group gap="xs" wrap="nowrap">
+                <Text truncate fw={600}>
+                    {table.label}
+                </Text>
+                {showMetadataIcon && (
+                    <Tooltip label="View dbt model details" withinPortal>
+                        <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            color="gray"
+                            aria-label="View dbt model details"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openMetadataModal();
+                            }}
+                        >
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </Group>
         </TableItemDetailPreview>
     );
 

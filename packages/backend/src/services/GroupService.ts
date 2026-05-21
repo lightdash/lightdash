@@ -54,14 +54,14 @@ export class GroupsService extends BaseService {
     }
 
     async addGroupMember(
-        actor: SessionUser,
+        user: SessionUser,
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             auditedAbility.cannot(
@@ -86,7 +86,7 @@ export class GroupsService extends BaseService {
                 member.groupUuid,
             );
             this.analytics.track({
-                userId: actor.userUuid,
+                userId: user.userUuid,
                 event: 'group.updated',
                 properties: {
                     organizationId: updatedGroup.organizationUuid,
@@ -102,14 +102,14 @@ export class GroupsService extends BaseService {
     }
 
     async removeGroupMember(
-        actor: SessionUser,
+        user: SessionUser,
         member: GroupMembership,
     ): Promise<boolean> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             auditedAbility.cannot(
@@ -133,7 +133,7 @@ export class GroupsService extends BaseService {
                 member.groupUuid,
             );
             this.analytics.track({
-                userId: actor.userUuid,
+                userId: user.userUuid,
                 event: 'group.updated',
                 properties: {
                     organizationId: updatedGroup.organizationUuid,
@@ -148,12 +148,12 @@ export class GroupsService extends BaseService {
         return isGroupMemberRemoved;
     }
 
-    async delete(actor: SessionUser, groupUuid: string): Promise<void> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+    async delete(user: SessionUser, groupUuid: string): Promise<void> {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             auditedAbility.cannot(
@@ -171,7 +171,7 @@ export class GroupsService extends BaseService {
         }
         await this.groupsModel.deleteGroup(groupUuid);
         this.analytics.track({
-            userId: actor.userUuid,
+            userId: user.userUuid,
             event: 'group.deleted',
             properties: {
                 organizationId: group.organizationUuid,
@@ -182,12 +182,12 @@ export class GroupsService extends BaseService {
     }
 
     async get(
-        actor: SessionUser,
+        user: SessionUser,
         groupUuid: string,
         includeMembers?: number,
         offset?: number,
     ): Promise<Group | GroupWithMembers> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
@@ -200,7 +200,7 @@ export class GroupsService extends BaseService {
                       offset,
                   );
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
@@ -219,15 +219,15 @@ export class GroupsService extends BaseService {
     }
 
     async update(
-        actor: SessionUser,
+        user: SessionUser,
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<Group | GroupWithMembers> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             auditedAbility.cannot(
@@ -244,12 +244,12 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError();
         }
         const updatedGroup = await this.groupsModel.updateGroup({
-            updatedByUserUuid: actor.userUuid,
+            updatedByUserUuid: user.userUuid,
             groupUuid,
             update,
         });
         this.analytics.track({
-            userId: actor.userUuid,
+            userId: user.userUuid,
             event: 'group.updated',
             properties: {
                 organizationId: updatedGroup.organizationUuid,
@@ -264,14 +264,14 @@ export class GroupsService extends BaseService {
     }
 
     async getGroupMembers(
-        actor: SessionUser,
+        user: SessionUser,
         groupUuid: string,
     ): Promise<GroupMember[]> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroupWithMembers(groupUuid);
         if (
             auditedAbility.cannot(
@@ -291,14 +291,14 @@ export class GroupsService extends BaseService {
     }
 
     async addProjectAccess(
-        actor: SessionUser,
+        user: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
@@ -346,17 +346,17 @@ export class GroupsService extends BaseService {
     }
 
     async removeProjectAccess(
-        actor: SessionUser,
+        user: SessionUser,
         {
             groupUuid,
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
@@ -399,18 +399,18 @@ export class GroupsService extends BaseService {
     }
 
     async updateProjectAccess(
-        actor: SessionUser,
+        user: SessionUser,
         {
             groupUuid,
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        if (!(await this.isGroupServiceEnabled(actor))) {
+        if (!(await this.isGroupServiceEnabled(user))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 

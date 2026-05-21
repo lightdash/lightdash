@@ -31,6 +31,7 @@ export const mapAdapterToFormulaDialect = (
         case SupportedDbtAdapter.DUCKDB:
             return 'duckdb';
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return 'databricks';
         case SupportedDbtAdapter.CLICKHOUSE:
             return 'clickhouse';

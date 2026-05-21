@@ -60,6 +60,7 @@ export type CreateBigqueryCredentials = {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     executionProject?: string;
+    accessUrl?: string;
 };
 export const sensitiveCredentialsFieldNames = [
     'user',
@@ -313,6 +314,21 @@ export type WarehouseCredentials =
     | ClickhouseCredentials
     | AthenaCredentials
     | DuckdbCredentials;
+
+// Returns the timezone the column data is in when the query runs.
+// Snowflake's dbt translator wraps timestamps with CONVERT_TIMEZONE('UTC', col),
+// so columns are UTC unless `disableTimestampConversion` opts out of that wrap.
+export const getColumnTimezone = (
+    credentials: CreateWarehouseCredentials | WarehouseCredentials,
+): string => {
+    if (
+        credentials.type === WarehouseTypes.SNOWFLAKE &&
+        !credentials.disableTimestampConversion
+    ) {
+        return 'UTC';
+    }
+    return credentials.dataTimezone ?? 'UTC';
+};
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials
@@ -586,10 +602,16 @@ export type Project = {
     dbtVersion: DbtVersionOption;
     schedulerTimezone: string;
     queryTimezone: string | null;
+    useProjectTimezoneInFilters: boolean;
+    schedulerFailureNotifyRecipients: boolean;
+    schedulerFailureIncludeContact: boolean;
+    schedulerFailureContactOverride: string | null;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
     projectDefaults?: ProjectDefaults;
+    colorPaletteUuid: string | null;
+    expiresAt: Date | null;
 };
 
 export type ProjectSummary = Pick<
@@ -624,9 +646,13 @@ export type PreviewContentMapping = {
 };
 
 export type UpdateSchedulerSettings = {
-    schedulerTimezone: string;
+    schedulerTimezone?: string;
+    schedulerFailureNotifyRecipients?: boolean;
+    schedulerFailureIncludeContact?: boolean;
+    schedulerFailureContactOverride?: string | null;
 };
 
 export type UpdateQueryTimezoneSettings = {
-    queryTimezone: string | null;
+    queryTimezone?: string | null;
+    useProjectTimezoneInFilters?: boolean;
 };

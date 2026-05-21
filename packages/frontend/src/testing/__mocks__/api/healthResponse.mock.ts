@@ -40,7 +40,6 @@ export default function mockHealthResponse(
         staticIp: '',
         signupUrl: undefined,
         helpMenuUrl: undefined,
-        posthog: undefined,
         query: {
             maxPageSize: 2500,
             maxLimit: 1000000,
@@ -101,7 +100,6 @@ export default function mockHealthResponse(
         hasGithub: false,
         hasGitlab: false,
         hasCacheAutocompleResults: false,
-        hasResultsCaching: false,
         hasMicrosoftTeams: false,
         appearance: {
             overrideColorPalette: undefined,
@@ -131,14 +129,14 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        dashboardComments: {
+            enabled: true,
+        },
         preAggregates: {
             enabled: false,
         },
         dataApps: {
-            enabled: false,
-        },
-        managedAgent: {
-            enabled: false,
+            previewOrigin: null,
         },
         ...overrides,
     };

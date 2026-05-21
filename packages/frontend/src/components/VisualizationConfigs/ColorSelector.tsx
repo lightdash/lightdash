@@ -6,14 +6,17 @@ import {
     Stack,
     TextInput,
     type ColorSwatchProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type CSSProperties, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import classes from './ColorSelector.module.css';
 
 interface Props {
     color?: string;
     defaultColor?: string;
+    secondaryColor?: string;
     swatches: string[];
     onColorChange?: (newColor: string) => void;
     readOnly?: boolean;
@@ -24,6 +27,7 @@ interface Props {
 const ColorSelector: FC<Props> = ({
     color,
     defaultColor = 'rgba(0,0,0,.1)',
+    secondaryColor,
     swatches,
     onColorChange,
     readOnly = false,
@@ -32,6 +36,13 @@ const ColorSelector: FC<Props> = ({
 }) => {
     const isValidHexColor = color && isHexCodeColor(color);
     const isInteractive = Boolean(onColorChange) && !readOnly;
+    const primarySwatchColor = isValidHexColor ? color : defaultColor;
+    const showGradient = !isInteractive && Boolean(secondaryColor);
+    const gradientStyle = showGradient
+        ? ({
+              '--cs-gradient': `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`,
+          } as CSSProperties)
+        : undefined;
 
     return isInteractive ? (
         <Popover withinPortal shadow="md" withArrow>
@@ -40,20 +51,15 @@ const ColorSelector: FC<Props> = ({
                     size={20}
                     color={isValidHexColor ? color : defaultColor}
                     {...colorSwatchProps}
-                    sx={{
-                        cursor: 'pointer',
-                        transition: 'opacity 100ms ease',
-                        '&:hover': { opacity: 0.8 },
-                        ...(typeof colorSwatchProps?.sx === 'object' &&
-                        !Array.isArray(colorSwatchProps.sx)
-                            ? colorSwatchProps.sx
-                            : {}),
-                    }}
+                    className={clsx(
+                        classes.swatchInteractive,
+                        colorSwatchProps?.className,
+                    )}
                 />
             </Popover.Target>
 
             <Popover.Dropdown p="xs">
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <MantineColorPicker
                         size="sm"
                         format={withAlpha ? 'hexa' : 'hex'}
@@ -63,7 +69,6 @@ const ColorSelector: FC<Props> = ({
                         onChange={(newColor) => {
                             if (!onColorChange) return;
 
-                            // Only append alpha if the color has <1 opacity
                             if (withAlpha && newColor.endsWith('ff')) {
                                 onColorChange(newColor.slice(0, 7));
                             } else {
@@ -74,7 +79,7 @@ const ColorSelector: FC<Props> = ({
 
                     <TextInput
                         size="xs"
-                        icon={<MantineIcon icon={IconHash} />}
+                        leftSection={<MantineIcon icon={IconHash} />}
                         placeholder={`Type in a custom ${
                             withAlpha ? 'HEXA' : 'HEX'
                         }  color`}
@@ -99,13 +104,19 @@ const ColorSelector: FC<Props> = ({
     ) : (
         <ColorSwatch
             size={20}
-            color={isValidHexColor ? color : defaultColor}
+            color={primarySwatchColor}
             {...colorSwatchProps}
-            sx={{
-                cursor: 'default',
-                ...(typeof colorSwatchProps?.sx === 'object' &&
-                !Array.isArray(colorSwatchProps.sx)
-                    ? colorSwatchProps.sx
+            className={clsx(classes.swatchStatic, colorSwatchProps?.className)}
+            classNames={
+                showGradient
+                    ? { colorOverlay: classes.colorOverlayGradient }
+                    : undefined
+            }
+            style={{
+                ...gradientStyle,
+                ...(typeof colorSwatchProps?.style === 'object' &&
+                colorSwatchProps?.style !== null
+                    ? colorSwatchProps.style
                     : {}),
             }}
         />

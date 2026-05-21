@@ -3,6 +3,7 @@ import {
     isDateFilterRule,
     isWithValueFilter,
     type CompiledMetric,
+    type Dimension,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -28,8 +29,10 @@ import {
     useExplorerDispatch,
 } from '../../../../features/explorer/store';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
+import FieldIcon from '../../../common/Filters/FieldIcon';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
+import classes from './ItemDetailPreview.module.css';
 
 /**
  * Renders markdown for an item's description, with additional constraints
@@ -45,6 +48,15 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
                 h1: ({ children }) => <Title order={2}>{children}</Title>,
                 h2: ({ children }) => <Title order={3}>{children}</Title>,
                 h3: ({ children }) => <Title order={4}>{children}</Title>,
+                table: ({ children }) => (
+                    <table className={classes.markdownTable}>{children}</table>
+                ),
+                th: ({ children }) => (
+                    <th className={classes.markdownCell}>{children}</th>
+                ),
+                td: ({ children }) => (
+                    <td className={classes.markdownCell}>{children}</td>
+                ),
             }}
             rehypePlugins={[[rehypeExternalLinks, { target: '_blank' }]]}
             rehypeRewrite={rehypeRemoveHeaderLinks}
@@ -72,6 +84,7 @@ export const ItemDetailPreview: FC<{
         compiledSql: string;
         name: string;
         filters?: CompiledMetric['filters'];
+        baseDimension?: Dimension;
     };
 }> = ({ description, onViewDescription, metricInfo }) => {
     /**
@@ -108,6 +121,29 @@ export const ItemDetailPreview: FC<{
                             {friendlyName(metricInfo.type)}
                         </Badge>
                     </Group>
+                    {metricInfo.baseDimension && (
+                        <>
+                            <Divider color="ldGray.2" />
+                            <Stack gap={4}>
+                                <Text fz="xs" fw={500} c="ldDark.7">
+                                    Source field
+                                </Text>
+                                <Group gap="xs" wrap="nowrap">
+                                    <FieldIcon
+                                        item={metricInfo.baseDimension}
+                                        size="sm"
+                                    />
+                                    <Text fz="xs" c="ldGray.7">
+                                        {metricInfo.baseDimension.tableLabel}
+                                    </Text>
+                                    <Text fz="xs" fw={500} c="ldDark.7">
+                                        {metricInfo.baseDimension.label ||
+                                            metricInfo.baseDimension.name}
+                                    </Text>
+                                </Group>
+                            </Stack>
+                        </>
+                    )}
                 </>
             )}
             {description && (
@@ -261,6 +297,7 @@ export const TableItemDetailPreview = ({
     description,
     /** Position offset for the preview popover */
     offset = 20,
+    tableMetadata,
     children,
 }: PropsWithChildren<{
     showPreview: boolean;
@@ -268,6 +305,12 @@ export const TableItemDetailPreview = ({
     description?: string;
     label: string;
     offset?: number;
+    tableMetadata?: {
+        name: string;
+        dbtPackageName?: string;
+        ymlPath?: string;
+        sqlPath?: string;
+    };
 }>) => {
     const dispatch = useExplorerDispatch();
 
@@ -278,6 +321,7 @@ export const TableItemDetailPreview = ({
                 itemType: 'table',
                 label,
                 description,
+                tableMetadata,
             }),
         );
     };

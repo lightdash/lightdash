@@ -1,6 +1,5 @@
 import { rem } from '@mantine-8/core';
-import { useCallback, useLayoutEffect, useRef } from 'react';
-import { useParams } from 'react-router';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
@@ -50,13 +49,15 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
 
 const ThreadScrollToBottom = ({
     scrollAreaRef,
+    projectUuid,
+    agentUuid,
+    threadUuid,
 }: {
     scrollAreaRef: React.RefObject<HTMLDivElement | null>;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
 }) => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
-    if (!agentUuid || !threadUuid || !projectUuid)
-        throw new Error('Agent, thread and project UUIDs are required');
-
     const streamingState = useAiAgentThreadStreamQuery(threadUuid);
     const thread = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 
@@ -71,6 +72,10 @@ const ThreadScrollToBottom = ({
     const totalReasoningPartsCount = streamingState?.reasoning?.flatMap(
         (r) => r.parts,
     ).length;
+    const totalReasoningTextLength = streamingState?.reasoning?.reduce(
+        (sum, r) => sum + r.parts.reduce((acc, part) => acc + part.length, 0),
+        0,
+    );
 
     useLayoutEffect(() => {
         return scrollToBottom({
@@ -81,9 +86,35 @@ const ThreadScrollToBottom = ({
         streamingState?.content,
         streamingState?.toolCalls?.length,
         totalReasoningPartsCount,
+        totalReasoningTextLength,
         streamingState?.error,
         scrollToBottom,
     ]);
+
+    // When streaming ends the rolling preview is replaced by the full
+    // streamdown answer, which is taller. The layout shift fires after this
+    // effect runs, so we schedule one more scroll on the next frame and then
+    // again after Streamdown's animations settle (~360ms).
+    const isStreaming = streamingState?.isStreaming;
+    useEffect(() => {
+        if (isStreaming !== false) return;
+        const raf = requestAnimationFrame(() => {
+            scrollToBottom({
+                checkCurrentScrollPosition: true,
+                behavior: 'auto',
+            });
+        });
+        const timeout = window.setTimeout(() => {
+            scrollToBottom({
+                checkCurrentScrollPosition: true,
+                behavior: 'smooth',
+            });
+        }, 360);
+        return () => {
+            cancelAnimationFrame(raf);
+            window.clearTimeout(timeout);
+        };
+    }, [isStreaming, scrollToBottom]);
 
     // Scroll to bottom when the last message gets a chart visualization
     const lastMessage = thread.data?.messages?.at(-1);

@@ -16,6 +16,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfig, PivotConfiguration } from '../types/pivot';
 import {
     ChartType,
+    getHiddenTableFields,
     isCartesianChartConfig,
     type SavedChartDAO,
 } from '../types/savedCharts';
@@ -33,8 +34,13 @@ function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
     metricQuery: MetricQuery,
 ): NonNullable<PivotConfiguration['sortBy']> | undefined {
-    const { groupByColumns, indexColumn, valuesColumns, sortOnlyColumns } =
-        partialPivot;
+    const {
+        groupByColumns,
+        indexColumn,
+        valuesColumns,
+        sortOnlyColumns,
+        sortOnlyDimensions,
+    } = partialPivot;
 
     const sortBy = metricQuery.sorts
         .map<NonNullable<PivotConfiguration['sortBy']>[number] | undefined>(
@@ -55,12 +61,17 @@ function getSortByForPivotConfiguration(
                     (col) => col.reference === sort.fieldId,
                 );
 
+                const isSortOnlyDimension = sortOnlyDimensions?.some(
+                    (col) => col.reference === sort.fieldId,
+                );
+
                 // Include sort if the field is present in any part of the pivot configuration
                 if (
                     isGroupByColumn ||
                     isIndexColumn ||
                     isValueColumn ||
-                    isSortOnlyColumn
+                    isSortOnlyColumn ||
+                    isSortOnlyDimension
                 ) {
                     return {
                         reference: sort.fieldId,
@@ -68,6 +79,7 @@ function getSortByForPivotConfiguration(
                             ? SortByDirection.DESC
                             : SortByDirection.ASC,
                         nullsFirst: sort.nullsFirst,
+                        pivotValues: sort.pivotValues,
                     };
                 }
 
@@ -201,17 +213,84 @@ function getTablePivotConfiguration(
 
     const pivotColumns = pivotConfig.columns || [];
 
-    // Group by columns are the pivot dimensions
-    const groupByColumns = pivotColumns
+    // Identify hidden dimensions (visible: false in columnProperties).
+    // ANY hidden dim is excluded from indexColumn / groupByColumns.
+    // Among hidden dims, those that also appear in sorts participate in SQL
+    // for sort ordering but do not render as visible columns.
+    // Hidden dims that are NOT sorted are simply dropped entirely.
+    const hiddenFieldIds = getHiddenTableFields(chartConfig);
+    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
+
+    // Group by columns are the pivot dimensions — exclude hidden ones.
+    // Hidden pivot-column dims are either routed to sortOnlyDimensions (if sorted)
+    // or dropped entirely (if not sorted).
+    const allPivotGroupByColumns = pivotColumns
         .map((col: string) => ({
             reference: col,
         }))
         .filter((col) => metricQuery.dimensions.includes(col.reference));
 
+    const groupByColumns = allPivotGroupByColumns.filter(
+        (col) => !hiddenFieldIds.includes(col.reference),
+    );
+
+    // Hidden pivot-column dims that are also sorted → kept for column ORDER BY
+    // via sortOnlyDimensions. They drive column sort order but are not spread
+    // as pivot column headers.
+    const sortOnlyPivotDimensions = allPivotGroupByColumns
+        .filter(
+            (col) =>
+                hiddenFieldIds.includes(col.reference) &&
+                sortFieldIds.has(col.reference),
+        )
+        .map((col) => ({ reference: col.reference }));
+
+    const groupByRefs = new Set([
+        ...groupByColumns.map((c) => c.reference),
+        ...sortOnlyPivotDimensions.map((c) => c.reference),
+    ]);
+
+    // All hidden dims that are NOT pivot-column dims (i.e., row-index dims).
+    // These are excluded from indexColumn.
+    const allHiddenDimRefs = new Set(
+        metricQuery.dimensions.filter(
+            (d) => hiddenFieldIds.includes(d) && !groupByRefs.has(d),
+        ),
+    );
+
+    // Subset of hidden row-index dims that are also sorted → participate in SQL
+    // via sortOnlyColumns (merged into valuesColumns for the group_by_query).
+    const sortOnlyRowDimensions = metricQuery.dimensions
+        .filter((d) => allHiddenDimRefs.has(d) && sortFieldIds.has(d))
+        .map((d) => ({
+            reference: d,
+            aggregation: VizAggregationOptions.ANY,
+        }));
+
+    // When computing index columns, treat ALL hidden dims the same as value columns
+    // so they are excluded from indexColumn (preventing them from rendering as
+    // row-index columns). This covers both sort-only hidden dims and hidden dims
+    // that are not sorted at all.
+    const hiddenDimPlaceholders = [...allHiddenDimRefs].map((d) => ({
+        reference: d,
+        aggregation: VizAggregationOptions.ANY,
+    }));
+    const allValuesColumnsForIndex = [
+        ...valuesColumns,
+        ...hiddenDimPlaceholders,
+    ];
+
+    // Also exclude hidden pivot-column dims from indexColumn by treating them as
+    // group-by columns from getIndexColumn's perspective.
+    const allGroupByColumnsForIndex = [
+        ...groupByColumns,
+        ...sortOnlyPivotDimensions,
+    ];
+
     // Find columns that are not groupBy or value columns (these become index columns)
     const indexColumn = getIndexColumn(
-        groupByColumns,
-        valuesColumns,
+        allGroupByColumnsForIndex,
+        allValuesColumnsForIndex,
         fields,
         metricQuery,
     );
@@ -220,6 +299,12 @@ function getTablePivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
+        ...(sortOnlyRowDimensions.length > 0 && {
+            sortOnlyColumns: sortOnlyRowDimensions,
+        }),
+        ...(sortOnlyPivotDimensions.length > 0 && {
+            sortOnlyDimensions: sortOnlyPivotDimensions,
+        }),
     };
 
     const pivotConfiguration: PivotConfiguration = {
@@ -284,6 +369,7 @@ function getCartesianPivotConfiguration(
         const sortOnlyMetrics = metricQuery.sorts
             .filter(
                 (sort) =>
+                    sort.fieldId !== xField &&
                     !valuesRefs.has(sort.fieldId) &&
                     (metricQuery.metrics.includes(sort.fieldId) ||
                         (metricQuery.tableCalculations || []).some(
@@ -294,6 +380,7 @@ function getCartesianPivotConfiguration(
                 reference: sort.fieldId,
                 aggregation: VizAggregationOptions.ANY,
             }));
+
         // Find columns that are not groupBy or value columns (these become index columns)
         // Include sortOnlyMetrics in the valuesColumns passed to getIndexColumn
         // so they aren't incorrectly classified as index columns.

@@ -154,7 +154,7 @@ Configuration Tips:
 - At least one metric is required for all chart types except table
 - chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
 - chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series (e.g., one line per region). Do NOT include the x-axis dimension. Only include dimensions for series breakdown. Leave null for simple single-series charts.
+- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
 - For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
 - For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
 - For line charts: use lineType 'area' to fill the area under the line
@@ -163,6 +163,7 @@ Configuration Tips:
 - Users can switch between visualization types in the UI after creation
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 - filters can contain filters on fields from joined tables as well as the base table
+- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({
@@ -182,7 +183,9 @@ export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
 
 export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
     .extend({
-        customMetrics: customMetricsSchema.default(null),
+        customMetrics: customMetricsSchema
+            .default(null)
+            .pipe(customMetricsSchemaTransformed),
         tableCalculations: tableCalcsSchema.default(null),
         chartConfig: chartConfigSchema.default(null),
     })
@@ -194,9 +197,6 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
         return {
             ...data,
             filters: filtersSchemaTransformed.parse(resolvedFilters),
-            customMetrics: customMetricsSchemaTransformed.parse(
-                data.customMetrics,
-            ),
         };
     });
 

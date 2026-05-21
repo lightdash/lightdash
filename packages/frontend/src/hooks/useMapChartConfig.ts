@@ -50,6 +50,9 @@ type MapChartConfig = {
             | { radius?: number; blur?: number; opacity?: number }
             | undefined,
     ) => void;
+    setHexbinConfig: (
+        config: NonNullable<MapChart['hexbinConfig']> | undefined,
+    ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setDarkModeTileBackground: (
         background: MapTileBackground | undefined,
@@ -125,6 +128,9 @@ const useMapChartConfig = (
     const [sizeFieldId, setSizeFieldIdState] = useState<string | undefined>(
         initialConfig?.sizeFieldId,
     );
+    const [hexbinConfig, setHexbinConfigState] = useState<
+        MapChart['hexbinConfig']
+    >(initialConfig?.hexbinConfig);
     const [heatmapConfig, setHeatmapConfigState] = useState<
         { radius?: number; blur?: number; opacity?: number } | undefined
     >(initialConfig?.heatmapConfig);
@@ -224,6 +230,7 @@ const useMapChartConfig = (
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            hexbinConfig,
             tileBackground,
             darkModeTileBackground,
             backgroundColor,
@@ -251,6 +258,7 @@ const useMapChartConfig = (
         maxBubbleSize,
         sizeFieldId,
         heatmapConfig,
+        hexbinConfig,
         tileBackground,
         darkModeTileBackground,
         backgroundColor,
@@ -402,6 +410,17 @@ const useMapChartConfig = (
         [],
     );
 
+    const setHexbinConfig = useCallback(
+        (config: NonNullable<MapChart['hexbinConfig']> | undefined) => {
+            if (config === undefined) {
+                setHexbinConfigState(undefined);
+            } else {
+                setHexbinConfigState((prev) => ({ ...prev, ...config }));
+            }
+        },
+        [],
+    );
+
     const setTileBackground = useCallback(
         (background: MapTileBackground | undefined) => {
             setTileBackgroundState(background);
@@ -491,6 +510,7 @@ const useMapChartConfig = (
         setMaxBubbleSize,
         setSizeFieldId,
         setHeatmapConfig,
+        setHexbinConfig,
         setTileBackground,
         setDarkModeTileBackground,
         setBackgroundColor,

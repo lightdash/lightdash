@@ -47,6 +47,8 @@ export type JwtAuth = {
 export type ServiceAccountAuth = {
     type: 'service-account';
     source: string; // The service account token
+    serviceAccountUuid: string;
+    serviceAccountDescription: string;
 };
 
 export type OauthAuth = {
@@ -194,6 +196,8 @@ export type Account =
     | ServiceAcctAccount
     | OauthAccount;
 
+export type RegisteredAccount = Exclude<Account, AnonymousAccount>;
+
 export type AccountWithoutHelpers<T extends Account> = Omit<
     T,
     keyof AccountHelpers
@@ -216,6 +220,17 @@ export function assertSessionAuth(
         throw new ForbiddenError(
             `${account?.authentication.type} Account is not session auth`,
         );
+    }
+}
+
+export function assertRegisteredAccount(
+    account: Account | undefined,
+): asserts account is RegisteredAccount {
+    if (!account) {
+        throw new ForbiddenError('Account is required');
+    }
+    if (account.user.type !== 'registered') {
+        throw new ForbiddenError('Account is not a registered user');
     }
 }
 

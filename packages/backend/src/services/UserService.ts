@@ -15,6 +15,7 @@ import {
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
+    FeatureFlags,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
@@ -23,6 +24,7 @@ import {
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserWithOrg,
+    isValidTimezone,
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
@@ -39,6 +41,7 @@ import {
     PasswordReset,
     ProjectMemberRole,
     RegisterOrActivateUser,
+    ServiceAccount,
     SessionUser,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
@@ -71,19 +74,20 @@ import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
 
@@ -102,9 +106,11 @@ type UserServiceArguments = {
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationSsoModel: OrganizationSsoModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -129,13 +135,19 @@ const emitAuthAuditEvent = ({
     context,
 }: {
     actor: AuditActor;
-    action: 'login' | 'logout' | 'impersonation_start' | 'impersonation_stop';
+    action:
+        | 'login'
+        | 'logout'
+        | 'impersonation_start'
+        | 'impersonation_stop'
+        | 'leave_organization';
     resourceType:
         | 'Session'
         | 'PersonalAccessToken'
         | 'ServiceAccount'
         | 'EmbedJwt'
-        | 'User';
+        | 'User'
+        | 'OrganizationMembership';
     status: AuditStatusType;
     reason?: string;
     organizationUuid?: string;
@@ -199,11 +211,15 @@ export class UserService extends BaseService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly organizationSsoModel: OrganizationSsoModel;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
     private readonly projectModel: ProjectModel;
+
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
@@ -224,9 +240,11 @@ export class UserService extends BaseService {
         organizationMemberProfileModel,
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
+        organizationSsoModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
+        featureFlagModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -244,9 +262,11 @@ export class UserService extends BaseService {
         this.personalAccessTokenModel = personalAccessTokenModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.organizationSsoModel = organizationSsoModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private identifyUser(
@@ -268,20 +288,6 @@ export class UserService extends BaseService {
                   },
         });
 
-        postHogClient?.identify({
-            distinctId: user.userUuid,
-            properties: {
-                uuid: user.userUuid,
-                ...(user.isTrackingAnonymized
-                    ? {}
-                    : {
-                          email: user.email,
-                          first_name: user.firstName,
-                          last_name: user.lastName,
-                      }),
-            },
-        });
-
         if (user.organizationUuid) {
             this.analytics.group({
                 userId: user.userUuid,
@@ -289,16 +295,6 @@ export class UserService extends BaseService {
                 traits: {
                     name: user.organizationName,
                 },
-            });
-
-            postHogClient?.groupIdentify({
-                groupType: 'organization',
-                groupKey: user.organizationUuid,
-                properties: {
-                    uuid: user.organizationUuid,
-                    name: user.organizationName,
-                },
-                distinctId: user.userUuid,
             });
         }
     }
@@ -429,6 +425,44 @@ export class UserService extends BaseService {
         return user;
     }
 
+    /**
+     * Destroys a user's sessions, their `users` row (cascading every
+     * user-scoped table — sessions, personal_access_tokens, schedulers,
+     * project_memberships, space_user_access, …), and emits the
+     * `user.deleted` analytics event with the supplied context.
+     *
+     * Shared by the admin-remove path (`delete`) and the self-serve leave
+     * path (`leaveOrganization`); each owns its own authorization + business
+     * rule checks and calls this helper once it has decided the user is
+     * going to be removed.
+     */
+    private async destroyUser({
+        actor,
+        userToDelete,
+        context,
+    }: {
+        actor: SessionUser;
+        userToDelete: NonNullable<
+            Awaited<ReturnType<UserModel['getUserDetailsByUuid']>>
+        >;
+        context: 'delete_self' | 'delete_org_member' | 'leave_organization';
+    }): Promise<void> {
+        await this.sessionModel.deleteAllByUserUuid(userToDelete.userUuid);
+        await this.userModel.delete(userToDelete.userUuid);
+        this.analytics.track({
+            event: 'user.deleted',
+            userId: actor.userUuid,
+            properties: {
+                context,
+                firstName: userToDelete.firstName,
+                lastName: userToDelete.lastName,
+                email: userToDelete.email,
+                organizationId: userToDelete.organizationUuid,
+                deletedUserId: userToDelete.userUuid,
+            },
+        });
+    }
+
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
         const auditedAbility = this.createAuditedAbility(user);
         const userToDelete =
@@ -464,23 +498,21 @@ export class UserService extends BaseService {
             }
         }
 
-        await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+        if (!userToDelete) {
+            // Pre-org "Cancel registration" path: there is no org-scoped state
+            // to clean up, just remove the row. Fall back to a direct delete.
+            await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+            await this.userModel.delete(userUuidToDelete);
+            return;
+        }
 
-        await this.userModel.delete(userUuidToDelete);
-        this.analytics.track({
-            event: 'user.deleted',
-            userId: user.userUuid,
-            properties: {
-                context:
-                    user.userUuid !== userUuidToDelete
-                        ? 'delete_org_member'
-                        : 'delete_self',
-                firstName: userToDelete.firstName,
-                lastName: userToDelete.lastName,
-                email: userToDelete.email,
-                organizationId: userToDelete.organizationUuid,
-                deletedUserId: userUuidToDelete,
-            },
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context:
+                user.userUuid !== userUuidToDelete
+                    ? 'delete_org_member'
+                    : 'delete_self',
         });
     }
 
@@ -511,7 +543,7 @@ export class UserService extends BaseService {
         if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {
             if (existingUserWithEmail.organizationUuid !== organizationUuid) {
                 throw new ParameterError(
-                    'Email is already used by a user in another organization',
+                    'Email is already used by a user in another organization. Ask them to leave their organisation before inviting them.',
                 );
             } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
@@ -1332,6 +1364,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
 
+        if (
+            data.timezone !== undefined &&
+            data.timezone !== null &&
+            !isValidTimezone(data.timezone)
+        ) {
+            throw new ParameterError(`Invalid timezone: ${data.timezone}`);
+        }
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1341,6 +1381,7 @@ export class UserService extends BaseService {
                 email: data.email,
                 isMarketingOptedIn: data.isMarketingOptedIn,
                 isTrackingAnonymized: data.isTrackingAnonymized,
+                timezone: data.timezone,
             },
         );
         this.identifyUser(updatedUser);
@@ -1741,6 +1782,118 @@ export class UserService extends BaseService {
         });
     }
 
+    async leaveOrganization(
+        user: SessionUser,
+        context?: AuthAuditContext,
+    ): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+        const { organizationUuid } = user;
+        const actor = createActorFromUser(user);
+
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.LeaveOrganization,
+        });
+        if (!flag.enabled) {
+            this.logger.warn('Leave organization denied: feature disabled', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason: 'Feature disabled',
+                organizationUuid,
+                context,
+            });
+            throw new ForbiddenError(
+                'Leaving the organization is not enabled for this instance',
+            );
+        }
+
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                user.userUuid,
+            );
+
+        this.logger.info('User attempting to leave organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        // Race condition between check and delete is acceptable here — worst
+        // case the last admin slips out concurrently, matching the same trade-off
+        // accepted in `delete()` above.
+        const admins =
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        if (
+            member.role === OrganizationMemberRole.ADMIN &&
+            admins.length === 1 &&
+            admins[0].userUuid === user.userUuid
+        ) {
+            const reason = 'Last admin in organization';
+            this.logger.warn('Leave organization denied: last admin', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason,
+                organizationUuid,
+                metadata: { role: member.role },
+                context,
+            });
+            throw new ForbiddenError(
+                'You are the only admin in this organization. Promote another member to admin before leaving.',
+            );
+        }
+
+        // Leaving an organization deletes the user record entirely. The
+        // single-org-per-user invariant means there is no other org for the
+        // user to remain a member of, and deleting the `users` row CASCADEs
+        // through every user-scoped table — matching the cleanup that admin
+        // remove-user already performs. If the leaver is later invited
+        // again, the invite flow creates a fresh `users` row.
+        const userToDelete = await this.userModel.getUserDetailsByUuid(
+            user.userUuid,
+        );
+        if (!userToDelete) {
+            throw new NotFoundError(`User ${user.userUuid} not found`);
+        }
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context: 'leave_organization',
+        });
+
+        this.logger.info('User left organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        emitAuthAuditEvent({
+            actor,
+            action: 'leave_organization',
+            resourceType: 'OrganizationMembership',
+            status: 'allowed',
+            organizationUuid,
+            metadata: { role: member.role },
+            context,
+        });
+    }
+
     async loginToOrganization(
         userUuid: string,
         loginMethod: LoginOptionTypes,
@@ -2043,7 +2196,7 @@ export class UserService extends BaseService {
                 user.userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
-            const accessToken =
+            const { accessToken } =
                 await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
         }
@@ -2075,17 +2228,24 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
-    ): Promise<string> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
                 'snowflake',
                 refreshToken,
-                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                (
+                    err: AnyType,
+                    accessToken: string,
+                    newRefreshToken: string | undefined,
+                ) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+                    resolve({
+                        accessToken,
+                        refreshToken: newRefreshToken || refreshToken,
+                    });
                 },
             );
         });
@@ -2419,18 +2579,84 @@ export class UserService extends BaseService {
             };
         }
 
-        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
-        const hasPassword = await this.userModel.hasPasswordByEmail(email);
-        const userOptions = hasPassword
-            ? [LocalIssuerTypes.EMAIL, ...openIdIssuers]
-            : openIdIssuers;
-        // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
-        const validUserOptions = userOptions.filter((option) =>
-            instancesOptions.has(option),
+        // Discover all enabled per-org SSO methods whose effective whitelist
+        // matches the email's domain. When any per-org method matches, it
+        // takes precedence over instance-level SSO providers for this user.
+        const domain = email.split('@')[1]?.toLowerCase();
+        const allMatchingMethods = domain
+            ? await this.organizationSsoModel.findEnabledMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
+
+        // Security: if the email belongs to an existing Lightdash user, only
+        // surface SSO methods from orgs they actually belong to. Prevents a
+        // malicious admin of org B from silently re-routing org A's existing
+        // users to their own Azure tenant by claiming the domain. Brand-new
+        // users (no account yet) still see all matching methods — the
+        // upstream feature flag + ops vetting is the gate for that case.
+        const existingUser = await this.userModel.findUserByEmail(email);
+        let matchingPerOrgMethods = allMatchingMethods;
+        if (existingUser) {
+            const userOrgs = await this.userModel.getOrganizationsForUser(
+                existingUser.userUuid,
+            );
+            const userOrgUuids = new Set(
+                userOrgs.map((o) => o.organizationUuid),
+            );
+            matchingPerOrgMethods = allMatchingMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
+        }
+
+        // Each SSO provider enum value maps 1:1 to its OpenIdIdentityIssuerType
+        // string (e.g. 'azuread'); funnel through unknown to satisfy TS.
+        const matchingPerOrgProviders = new Set<OpenIdIdentityIssuerType>(
+            matchingPerOrgMethods.map(
+                (m) => m.provider as unknown as OpenIdIdentityIssuerType,
+            ),
         );
 
-        // if user has no valid options, return instance options
-        if (validUserOptions.length === 0) {
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        const hasPassword = await this.userModel.hasPasswordByEmail(email);
+
+        let ssoOptionsForUser: OpenIdIdentityIssuerType[];
+        let passwordAllowedForUser: boolean;
+
+        if (matchingPerOrgMethods.length > 0) {
+            // Per-org SSO suppresses instance-level SSO providers for this
+            // email's domain. Only the matching per-org methods are offered.
+            ssoOptionsForUser = Array.from(matchingPerOrgProviders);
+            // Password visibility is governed by the SSO rows: lenient rule
+            // — ANY matching method that permits password → show password.
+            passwordAllowedForUser = matchingPerOrgMethods.some(
+                (m) => m.allowPassword,
+            );
+        } else {
+            // No per-org SSO matches: instance-level behavior preserved.
+            // Show OIDC issuers the user has previously linked (filtered to
+            // instance-supported providers).
+            ssoOptionsForUser = openIdIssuers.filter((o) =>
+                instancesOptions.has(o),
+            );
+            passwordAllowedForUser = true;
+        }
+
+        const showOptions: LoginOptionTypes[] = [...ssoOptionsForUser];
+        if (
+            passwordAllowedForUser &&
+            hasPassword &&
+            instancesOptions.has(LocalIssuerTypes.EMAIL)
+        ) {
+            showOptions.unshift(LocalIssuerTypes.EMAIL);
+        }
+
+        // If the precheck yielded nothing for this email, fall back to
+        // instance-level options so the user isn't shown an empty form.
+        // This branch only fires when no per-org SSO matched and the user
+        // has no linked identity or password — i.e. they're effectively a
+        // new signup.
+        if (showOptions.length === 0) {
             return {
                 showOptions: Array.from(instancesOptions),
                 forceRedirect: false,
@@ -2438,11 +2664,14 @@ export class UserService extends BaseService {
             };
         }
 
-        const oidcOptions = validUserOptions.filter(isOpenIdIdentityIssuerType);
-        if (oidcOptions.length === 1) {
-            // Force redirect to the only issuer option
+        const oidcOptions = showOptions.filter(isOpenIdIdentityIssuerType);
+        // Auto-redirect when there is genuinely a single option (one OIDC
+        // provider, no password input). Wrong-account loops are mitigated
+        // by forwarding `login_hint` to the provider so the right account
+        // is surfaced.
+        if (oidcOptions.length === 1 && showOptions.length === 1) {
             return {
-                showOptions: validUserOptions,
+                showOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
                     `/api/v1${this.getRedirectUri(
@@ -2453,40 +2682,25 @@ export class UserService extends BaseService {
             };
         }
         return {
-            showOptions: validUserOptions,
+            showOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };
     }
 
-    /*
-    For service accounts, we get the admin user from the userUuid who created the user
-    if this user no longer exist, then we fall back to the oldest admin in the org
-    (ordered by created_at asc, user_uuid asc as tie-breaker) so the same service
-    account always resolves to the same fallback admin.
-    */
-    async getAdminUser(userUuid: string | null, organizationUuid: string) {
-        try {
-            if (!userUuid) {
-                throw new Error('User uuid is required');
-            }
-            return await this.userModel.findSessionUserAndOrgByUuid(
-                userUuid,
-                organizationUuid,
-            );
-        } catch (error) {
-            const adminUserUuid =
-                await this.organizationMemberProfileModel.findOldestAdminUserUuid(
-                    organizationUuid,
-                );
-            if (!adminUserUuid) {
-                throw new Error('No admin user found');
-            }
-            return this.userModel.findSessionUserAndOrgByUuid(
-                adminUserUuid,
-                organizationUuid,
-            );
-        }
+    /**
+     * Loads the SessionUser for the dedicated `users` row provisioned for this
+     * service account. Abilities are derived from the SA's scopes via
+     * `applyServiceAccountAbilities` inside
+     * `UserModel.generateUserAbilityBuilder`.
+     */
+    async getSessionUserForServiceAccount(
+        serviceAccount: ServiceAccount,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            serviceAccount.userUuid,
+            serviceAccount.organizationUuid,
+        );
     }
 
     async isOpenIdLinked(

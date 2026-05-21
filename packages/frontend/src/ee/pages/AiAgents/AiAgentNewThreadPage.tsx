@@ -11,25 +11,56 @@ import {
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useOutletContext, useParams } from 'react-router';
+import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
+import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
+import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
     useVerifiedQuestions,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
+import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid, projectUuid } = useParams();
+    const [searchParams] = useSearchParams();
+    const chartUuid = searchParams.get('chartUuid');
+    const dashboardUuid = searchParams.get('dashboardUuid');
+
+    const { contextInput, previewItems } = usePinnedContext({
+        projectUuid,
+        chartUuid,
+        dashboardUuid,
+    });
+
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const [sqlMode, setSqlMode] = useState(false);
+    const dispatch = useAiAgentStoreDispatch();
+
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(agentUuid, projectUuid!);
+        useCreateAgentThreadMutation(agentUuid, projectUuid!, {
+            // Seed the per-thread slice with the user's choice so subsequent
+            // prompts in this thread default to the same state. Navigation
+            // still happens (we only override the slice, not the routing).
+            onCreated: (thread) =>
+                dispatch(
+                    setThreadSqlMode({
+                        threadUuid: thread.uuid,
+                        enabled: sqlModeAvailable && sqlMode,
+                    }),
+                ),
+        });
     const { agent } = useOutletContext<AgentContext>();
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
@@ -72,10 +103,18 @@ const AiAgentNewThreadPage: FC = () => {
     );
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
+    const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
+
     const onSubmit = useCallback(
-        (prompt: string) => {
+        ({ message, toolHints }: { message: string; toolHints: string[] }) => {
+            setPendingPrompt('');
             void createAgentThread({
-                prompt,
+                prompt: message,
+                context: contextInput.length > 0 ? contextInput : undefined,
+                optimisticContext:
+                    previewItems.length > 0 ? previewItems : undefined,
+                enableSqlMode: sqlModeAvailable && sqlMode,
+                toolHints,
                 modelConfig: selectedModel
                     ? {
                           modelName: selectedModel.name,
@@ -88,7 +127,12 @@ const AiAgentNewThreadPage: FC = () => {
             });
         },
         [
+            setPendingPrompt,
             createAgentThread,
+            contextInput,
+            previewItems,
+            sqlModeAvailable,
+            sqlMode,
             selectedModel,
             showExtendedThinking,
             extendedThinking,
@@ -176,15 +220,40 @@ const AiAgentNewThreadPage: FC = () => {
                     {verifiedQuestions && (
                         <SuggestedQuestions
                             questions={verifiedQuestions}
-                            onQuestionClick={onSubmit}
+                            onQuestionClick={(question) =>
+                                onSubmit({ message: question, toolHints: [] })
+                            }
                             isLoading={isCreatingThread}
                         />
+                    )}
+
+                    {previewItems.length > 0 && projectUuid && (
+                        <Stack gap="xs">
+                            <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                                Pinned context
+                            </Text>
+                            <Group gap="xs" wrap="wrap">
+                                {previewItems.map((item) => (
+                                    <PinnedContextCard
+                                        key={`${item.type}-${
+                                            item.type === 'chart'
+                                                ? item.chartUuid
+                                                : item.dashboardUuid
+                                        }`}
+                                        item={item}
+                                        projectUuid={projectUuid}
+                                    />
+                                ))}
+                            </Group>
+                        </Stack>
                     )}
 
                     <AgentChatInput
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
+                        projectUuid={projectUuid}
+                        agentUuid={agent.uuid}
                         models={modelOptions}
                         selectedModelId={selectedModelKey}
                         onModelChange={handleSelectedModelKeyChange}
@@ -196,6 +265,12 @@ const AiAgentNewThreadPage: FC = () => {
                                 ? setExtendedThinking
                                 : undefined
                         }
+                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                        onSqlModeChange={
+                            sqlModeAvailable ? setSqlMode : undefined
+                        }
+                        defaultValue={pendingPrompt}
+                        onValueChange={setPendingPrompt}
                     />
                 </Stack>
             </Stack>

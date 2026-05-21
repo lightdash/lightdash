@@ -1,3 +1,9 @@
+import { subject } from '@casl/ability';
+import {
+    assertUnreachable,
+    FeatureFlags,
+    ManagedAgentScheduleOption,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -13,9 +19,17 @@ import {
     IconShieldCheck,
     IconTrendingUp,
 } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useState } from 'react';
+import {
+    type CSSProperties,
+    type FC,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useNavigate } from 'react-router';
-import useHealth from '../../../hooks/health/useHealth';
+import { BetaBadge } from '../../../components/common/BetaBadge';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentHomeCard.module.css';
@@ -27,8 +41,8 @@ const FEATURES = [
     { icon: IconChartBar, label: 'Creates visualizations' },
 ];
 
-const formatRelative = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+const formatRelative = (dateInput: Date | string) => {
+    const diff = Date.now() - new Date(dateInput).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'just now';
     if (mins < 60) return `${mins}m ago`;
@@ -37,13 +51,21 @@ const formatRelative = (dateStr: string) => {
     return `${Math.floor(hours / 24)}d ago`;
 };
 
-const formatSchedule = (cron: string) => {
-    const match = cron.match(/^\*\/(\d+) /);
-    if (match) return `${match[1]}m`;
-    if (cron === '0 * * * *') return '1h';
-    if (cron === '0 */6 * * *') return '6h';
-    if (cron === '0 0 * * *') return '24h';
-    return cron;
+const formatSchedule = (schedule: ManagedAgentScheduleOption) => {
+    switch (schedule) {
+        case ManagedAgentScheduleOption.EVERY_6_HOURS:
+            return '6h';
+        case ManagedAgentScheduleOption.EVERY_12_HOURS:
+            return '12h';
+        case ManagedAgentScheduleOption.DAILY:
+            return '24h';
+        case ManagedAgentScheduleOption.EVERY_2_DAYS:
+            return '2d';
+        case ManagedAgentScheduleOption.WEEKLY:
+            return '7d';
+        default:
+            return assertUnreachable(schedule, 'Unknown schedule option');
+    }
 };
 
 /** Generates a deterministic grid of subtle squares */
@@ -55,7 +77,7 @@ const PixelGrid: FC = () => {
             6, 7, 2, 9, 5, 0, 4, 8, 1, 6, 3, 7, 9, 2, 5, 0, 8, 4, 1, 6, 3, 7, 9,
             2, 5, 8, 0, 4, 1, 3, 6, 7, 9,
         ];
-        for (let row = 0; row < 12; row++) {
+        for (let row = 0; row < 30; row++) {
             for (let col = 0; col < 28; col++) {
                 const idx = row * 28 + col;
                 const val = seed[idx % seed.length];
@@ -72,13 +94,7 @@ const PixelGrid: FC = () => {
     }, []);
 
     return (
-        <svg
-            className={classes.pixelGrid}
-            width="252"
-            height="100%"
-            viewBox="0 0 252 108"
-            preserveAspectRatio="xMaxYMid slice"
-        >
+        <svg className={classes.pixelGrid} width="252" height="270">
             {cells.map((cell, i) => (
                 <rect
                     key={i}
@@ -88,7 +104,11 @@ const PixelGrid: FC = () => {
                     height="7"
                     rx="1.5"
                     fill="currentColor"
-                    opacity={cell.opacity}
+                    style={
+                        {
+                            '--rect-opacity': cell.opacity,
+                        } as CSSProperties
+                    }
                 />
             ))}
         </svg>
@@ -100,19 +120,30 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const navigate = useNavigate();
-    const { data: health } = useHealth();
-    const managedAgentEnabled = !!health?.managedAgent?.enabled;
+    const { user } = useApp();
+    const canManageAutopilot =
+        user.data?.ability?.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+    const { data: aiAutopilotFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAutopilot,
+    );
+    const managedAgentEnabled = !!aiAutopilotFlag?.enabled;
     const { data: settings } = useManagedAgentSettings({
-        enabled: managedAgentEnabled,
+        enabled: managedAgentEnabled && canManageAutopilot,
     });
     const { data: actions } = useManagedAgentActions({
-        enabled: managedAgentEnabled,
+        enabled: managedAgentEnabled && canManageAutopilot,
     });
 
     const isEnabled = settings?.enabled ?? false;
     const actionCount = actions?.length ?? 0;
     const lastActionAt = actions?.[0]?.createdAt ?? null;
-    const schedule = settings?.scheduleCron ?? '*/30 * * * *';
+    const schedule = settings?.schedule ?? ManagedAgentScheduleOption.DAILY;
 
     // Feature carousel — must be before any early returns (hooks rule)
     const [featureIdx, setFeatureIdx] = useState(0);
@@ -134,17 +165,18 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
         if (counts.created_content)
             parts.push(`${counts.created_content} created`);
         if (counts.flagged_stale) parts.push(`${counts.flagged_stale} flagged`);
-        if (counts.soft_deleted) parts.push(`${counts.soft_deleted} cleaned`);
+        if (counts.soft_deleted) parts.push(`${counts.soft_deleted} deleted`);
         return parts.join(', ');
     }, [actions]);
 
     const [setupOpen, setSetupOpen] = useState(false);
 
-    if (!health?.managedAgent?.enabled) return null;
+    if (!managedAgentEnabled) return null;
+    if (!canManageAutopilot) return null;
 
     const handleClick = () => {
         if (isEnabled) {
-            void navigate(`/projects/${projectUuid}/improve`);
+            void navigate(`/projects/${projectUuid}/autopilot`);
         } else {
             setSetupOpen(true);
         }
@@ -164,17 +196,23 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                                 <Text fz="lg" fw={700}>
                                     Autopilot
                                 </Text>
+                                <BetaBadge />
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
                                     Active &middot; {formatSchedule(schedule)}
                                 </Box>
                             </Group>
                             <Text fz="sm" c="dimmed" fw={500}>
-                                {actionCount > 0
-                                    ? `${actionCount} actions — ${actionSummary}`
-                                    : 'Monitoring your project'}
+                                {actionCount > 0 ? (
+                                    <>
+                                        {actionCount} actions
+                                        {actionSummary && ` - ${actionSummary}`}
+                                    </>
+                                ) : (
+                                    'Monitoring your project'
+                                )}
                                 {lastActionAt &&
-                                    ` · last run ${formatRelative(lastActionAt)}`}
+                                    ` · last action ${formatRelative(lastActionAt)}`}
                             </Text>
                         </Stack>
                     </Group>
@@ -206,9 +244,12 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             <IconBolt size={18} />
                         </Box>
                         <Stack gap={4}>
-                            <Text fz="lg" fw={700}>
-                                Autopilot
-                            </Text>
+                            <Group gap={8} align="center">
+                                <Text fz="lg" fw={700}>
+                                    Autopilot
+                                </Text>
+                                <BetaBadge />
+                            </Group>
                             <Group
                                 gap={6}
                                 wrap="nowrap"
@@ -244,7 +285,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 onClose={() => setSetupOpen(false)}
                 onEnabled={() => {
                     setSetupOpen(false);
-                    void navigate(`/projects/${projectUuid}/improve`);
+                    void navigate(`/projects/${projectUuid}/autopilot`);
                 }}
             />
         </>

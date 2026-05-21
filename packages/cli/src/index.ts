@@ -532,6 +532,10 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
+        '--combine-manifest <path>',
+        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -569,6 +573,10 @@ program
         '--parallel-batches <number>',
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
+    )
+    .option(
+        '--expires-in <hours>',
+        'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
     .action(previewHandler);
 
@@ -654,6 +662,10 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
+        '--combine-manifest <path>',
+        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -688,6 +700,10 @@ program
         '--parallel-batches <number>',
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
+    )
+    .option(
+        '--expires-in <hours>',
+        'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
     .action(startPreviewHandler);
 
@@ -797,6 +813,10 @@ program
     .command('deploy')
     .description('Compiles and deploys a Lightdash project')
     .option(
+        '--project <project uuid>',
+        'Project UUID to deploy to. Overrides the default project configured via `lightdash config set-project`',
+    )
+    .option(
         '--project-dir <path>',
         'The directory of the dbt project',
         defaultProjectDir,
@@ -855,6 +875,10 @@ program
         undefined,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--combine-manifest <path>',
+        'Path to an additional dbt manifest.json. Models present in this file but missing from the deploy manifest are merged in so the deploy includes the full project. The deploy-generated manifest always wins on conflicts.',
+    )
     .option(
         '--start-of-week <number>',
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',

@@ -11,8 +11,10 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -42,6 +44,7 @@ export const mockAccountWithPermission: SessionAccount = {
         lastName: 'User',
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        timezone: null,
         isSetupComplete: true,
         userId: 1,
         role: OrganizationMemberRole.ADMIN,
@@ -107,10 +110,12 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     embedModel: embedModelMock,
     dashboardModel: {} as DashboardModel,
     savedChartModel: {} as SavedChartModel,
+    savedSqlModel: {} as SavedSqlModel,
     projectModel: projectModelMock,
     userAttributesModel: {} as UserAttributesModel,
     projectService: {} as ProjectService,
     asyncQueryService: {} as AsyncQueryService,
+    permissionsService: {} as PermissionsService,
     featureFlagModel: featureFlagModelMock,
     organizationModel: organizationModelMock,
 };

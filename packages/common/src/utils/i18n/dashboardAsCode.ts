@@ -42,6 +42,12 @@ const dashboardAsCodeSchema = z.object({
                     text: z.string(),
                 }),
             }),
+            z.object({
+                type: z.literal(DashboardTileTypes.DATA_APP),
+                properties: z.object({
+                    title: z.string(),
+                }),
+            }),
         ]),
     ),
 });

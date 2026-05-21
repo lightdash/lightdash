@@ -1,8 +1,71 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    SEED_ORG_1,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+    ServiceAccountScope,
+    type ChartAsCode,
+} from '@lightdash/common';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+import * as nodePath from 'path';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 
 const apiUrl = '/api/v1';
+
+const inOneHour = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
+const oneSecondAgo = () => new Date(Date.now() - 1000).toISOString();
+
+const createServiceAccountToken = async (
+    admin: ApiClient,
+    scopes: ServiceAccountScope[],
+    {
+        descriptionPrefix = 'api-test',
+        expiresAt = inOneHour(),
+    }: { descriptionPrefix?: string; expiresAt?: string } = {},
+): Promise<{ token: string; uuid: string }> => {
+    const description = `${descriptionPrefix} ${scopes.join(',')} ${Date.now()}`;
+    const resp = await admin.post<
+        Body<{ token: string; uuid: string; expiresAt: string }>
+    >(`${apiUrl}/service-accounts`, { description, expiresAt, scopes });
+    expect(resp.status).toBe(201);
+    return {
+        token: resp.body.results.token,
+        uuid: resp.body.results.uuid,
+    };
+};
+
+const bearerClient = (token: string) => {
+    const client = new ApiClient();
+    const authHeader = { Authorization: `Bearer ${token}` };
+    return {
+        get: <T = unknown>(path: string) =>
+            client.get<T>(path, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+        post: <T = unknown>(path: string, body?: unknown) =>
+            client.post<T>(path, body, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+        put: <T = unknown>(path: string, body?: unknown) =>
+            client.put<T>(path, body, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+        patch: <T = unknown>(path: string, body?: unknown) =>
+            client.patch<T>(path, body, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+        delete: <T = unknown>(path: string) =>
+            client.delete<T>(path, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+    };
+};
 
 describe('Service Accounts API', () => {
     let admin: Awaited<ReturnType<typeof login>>;
@@ -143,5 +206,922 @@ describe('Service Accounts API', () => {
             failOnStatusCode: false,
         });
         expect(resp.status).toBe(401);
+    });
+
+    // Regression test for the per-SA user-record refactor.
+    // Each create now provisions a dedicated `users` row + `organization_memberships`
+    // row in the same transaction; if that path 500s we'd never get a token back.
+    // Delete is tombstone-only — drops the service_accounts row, leaves the user
+    // record so historical FKs (`created_by_user_uuid`) keep resolving.
+    it('Should create a SA with a linked user, authenticate, then revoke on delete', async () => {
+        const description = `lifecycle test ${Date.now()}`;
+        const createResp = await admin.post<
+            Body<{ uuid: string; token: string }>
+        >(`${apiUrl}/service-accounts`, {
+            description,
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            scopes: ['org:edit'],
+        });
+        expect(createResp.status).toBe(201);
+        const { uuid, token } = createResp.body.results;
+        expect(token).toMatch(/^ldsvc_/);
+
+        // Token authenticates → the FK chain SA → users → org_memberships
+        // resolved successfully at create time, otherwise the middleware
+        // would 500 here trying to load the SA's user.
+        const tokenClient = new ApiClient();
+        const authResp = await tokenClient.get(`${apiUrl}/org/projects`, {
+            headers: { Authorization: `Bearer ${token}` },
+            failOnStatusCode: false,
+        });
+        expect(authResp.status).toBe(200);
+
+        // Tombstone-on-delete: the service_accounts row goes away (token
+        // rejected) but the linked user row persists. We can only observe
+        // the first half via the API.
+        const deleteResp = await admin.delete(
+            `${apiUrl}/service-accounts/${uuid}`,
+            { failOnStatusCode: false },
+        );
+        expect(deleteResp.status).toBe(200);
+
+        const afterDeleteResp = await tokenClient.get(
+            `${apiUrl}/org/projects`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                failOnStatusCode: false,
+            },
+        );
+        expect(afterDeleteResp.status).toBe(401);
+    });
+
+    // Two SAs with the same description should both create their own
+    // dedicated user record — there's no uniqueness constraint on the
+    // description / SA-user name pair. Captures that the per-SA user
+    // provisioning doesn't accidentally try to reuse a user row.
+    it('Should allow two service accounts with identical descriptions', async () => {
+        const description = `duplicate description ${Date.now()}`;
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+        const a = await admin.post<Body<{ uuid: string; token: string }>>(
+            `${apiUrl}/service-accounts`,
+            { description, expiresAt, scopes: ['org:read'] },
+        );
+        const b = await admin.post<Body<{ uuid: string; token: string }>>(
+            `${apiUrl}/service-accounts`,
+            { description, expiresAt, scopes: ['org:read'] },
+        );
+
+        expect(a.status).toBe(201);
+        expect(b.status).toBe(201);
+        expect(a.body.results.uuid).not.toBe(b.body.results.uuid);
+        expect(a.body.results.token).not.toBe(b.body.results.token);
+    });
+
+    // Service-account user records live in the `users` table for FK
+    // purposes but must not leak into any human-facing surface (admin org
+    // member list, SCIM /Users, share/invite pickers, login-by-email).
+    it('Should not appear in /api/v1/org/users listing', async () => {
+        const description = `listing-leak-check ${Date.now()}`;
+        const createResp = await admin.post<Body<{ uuid: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                scopes: ['org:admin'],
+            },
+        );
+        expect(createResp.status).toBe(201);
+
+        // Fetch every page; we want a global check, not just the first page.
+        const seen: string[] = [];
+        let page = 1;
+        const pageSize = 100;
+        for (;;) {
+            // eslint-disable-next-line no-await-in-loop
+            const resp = await admin.get<
+                Body<{
+                    data: Array<{
+                        firstName: string;
+                        lastName: string;
+                        email?: string;
+                    }>;
+                    pagination?: { totalResults: number };
+                }>
+            >(`${apiUrl}/org/users?pageSize=${pageSize}&page=${page}`);
+            expect(resp.status).toBe(200);
+            const rows = resp.body.results.data ?? [];
+            seen.push(
+                ...rows.map((r) => `${r.firstName} ${r.lastName}`.trim()),
+            );
+            if (rows.length < pageSize) break;
+            page += 1;
+            if (page > 50) break; // hard stop to prevent runaway loops
+        }
+        // The SA's first_name is its description; if the filter ever
+        // breaks, the listing will start including a row whose firstName
+        // matches our marker.
+        expect(seen).not.toContain(description);
+    });
+
+    // Defence against a future refactor that might apply a search filter
+    // on top of the queryBuilder in a way that bypasses the
+    // `users.is_internal = false` predicate.
+    it('Should not surface in /api/v1/org/users when searching by SA name', async () => {
+        const description = `searchable-leak-check ${Date.now()}`;
+        const createResp = await admin.post<Body<{ uuid: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                scopes: ['org:admin'],
+            },
+        );
+        expect(createResp.status).toBe(201);
+
+        // The SA's first_name is the literal "Service account" — search by it.
+        const resp = await admin.get<
+            Body<{
+                data: Array<{ firstName: string; lastName: string }>;
+            }>
+        >(`${apiUrl}/org/users?searchQuery=Service`);
+        expect(resp.status).toBe(200);
+        const matched = (resp.body.results.data ?? []).filter(
+            (r) => r.firstName === 'Service account',
+        );
+        expect(matched).toHaveLength(0);
+    });
+
+    // SCIM /Users feeds IdPs (Okta/Azure AD). Leaking SAs would cause the
+    // IdP to attempt deprovisioning machine principals it doesn't own.
+    it('Should not appear in SCIM /Users listing', async () => {
+        const description = `scim-leak-check ${Date.now()}`;
+        const scimResp = await admin.post<Body<{ token: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                scopes: ['scim:manage'],
+            },
+        );
+        expect(scimResp.status).toBe(201);
+        const scimToken = scimResp.body.results.token;
+
+        const scimClient = new ApiClient();
+        const usersResp = await scimClient.get<{
+            Resources: Array<{
+                userName?: string;
+                name?: { givenName?: string; familyName?: string };
+            }>;
+            totalResults: number;
+        }>(`${apiUrl}/scim/v2/Users?count=1000`, {
+            headers: { Authorization: `Bearer ${scimToken}` },
+        });
+        expect(usersResp.status).toBe(200);
+        const resources = usersResp.body.Resources ?? [];
+        // The SA's first_name is its description; we look for our marker
+        // rather than a generic "Service account" prefix.
+        const anySaListed = resources.some(
+            (r) => r.name?.givenName === description,
+        );
+        expect(anySaListed).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Regression baseline for the service-account refactor.
+//
+// These describes exercise the same endpoints behind multiple scope sets and
+// pin down today's behavior — including the admin-user spoofing in
+// `authenticateServiceAccount` middleware. After the refactor that swaps the
+// borrowed admin identity for a dedicated SA user record, the assertions
+// flagged with "(current admin-spoofing behavior)" are expected to change;
+// updating them in that PR is intentional.
+// ---------------------------------------------------------------------------
+
+describe('Service Account authentication negatives', () => {
+    let admin: ApiClient;
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    it('rejects requests with no Authorization header', async () => {
+        const anonClient = new ApiClient();
+        const resp = await anonClient.get(`${apiUrl}/org`, {
+            failOnStatusCode: false,
+        });
+        expect(resp.status).toBe(401);
+    });
+
+    it('rejects an invalid bearer token', async () => {
+        const anonClient = new ApiClient();
+        const resp = await anonClient.get(`${apiUrl}/org`, {
+            headers: { Authorization: 'Bearer ldsvc_thisisnotarealtoken' },
+            failOnStatusCode: false,
+        });
+        expect(resp.status).toBe(401);
+    });
+
+    it('rejects a bearer token whose expiresAt is in the past', async () => {
+        const { token } = await createServiceAccountToken(
+            admin,
+            [ServiceAccountScope.ORG_ADMIN],
+            { descriptionPrefix: 'expired', expiresAt: oneSecondAgo() },
+        );
+        const sa = bearerClient(token);
+        const resp = await sa.get(`${apiUrl}/org`);
+        expect(resp.status).toBe(401);
+    });
+
+    it('accepts a freshly minted bearer token', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_ADMIN,
+        ]);
+        const sa = bearerClient(token);
+        const resp = await sa.get(`${apiUrl}/org`);
+        expect(resp.status).toBe(200);
+    });
+});
+
+describe('Service Account scope matrix', () => {
+    let admin: ApiClient;
+    const projectUuid = SEED_PROJECT.project_uuid;
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    describe('ORG_READ', () => {
+        let sa: ReturnType<typeof bearerClient>;
+
+        beforeAll(async () => {
+            const { token } = await createServiceAccountToken(admin, [
+                ServiceAccountScope.ORG_READ,
+            ]);
+            sa = bearerClient(token);
+        });
+
+        it.each([
+            ['GET', `${apiUrl}/org`],
+            ['GET', `${apiUrl}/org/projects`],
+            ['GET', `${apiUrl}/projects/${projectUuid}`],
+            ['GET', `${apiUrl}/projects/${projectUuid}/spaces`],
+            ['GET', `${apiUrl}/projects/${projectUuid}/dashboards`],
+            ['GET', `${apiUrl}/projects/${projectUuid}/charts`],
+        ])('allows %s %s', async (_method, path) => {
+            const resp = await sa.get(path);
+            expect(resp.status).toBe(200);
+        });
+
+        it('POST /projects/:uuid/spaces: ORG_READ currently allows it (broad ability)', async () => {
+            // serviceAccountAbility.ts grants `can('manage', 'Space', ...)`
+            // unconditionally for ORG_READ today (the access-elemMatch
+            // condition is commented out). This is broader than the scope
+            // name suggests; the regression test captures it so any future
+            // tightening shows up as a deliberate failure.
+            const resp = await sa.post<Body<{ uuid: string }>>(
+                `${apiUrl}/projects/${projectUuid}/spaces`,
+                { name: `read-scope-creates-${Date.now()}` },
+            );
+            expect(resp.status).toBe(200);
+            // best-effort cleanup
+            if (resp.body.results?.uuid) {
+                await admin.delete(
+                    `${apiUrl}/projects/${projectUuid}/spaces/${resp.body.results.uuid}`,
+                    { failOnStatusCode: false },
+                );
+            }
+        });
+
+        it('PATCH /org returns 401 for bearer auth (route is session-only)', async () => {
+            // Even though the SA token authenticates successfully on other
+            // routes, PATCH /org rejects bearer auth at 401, not 403 — the
+            // route does not run through the service-account middleware.
+            const resp = await sa.patch(`${apiUrl}/org`, {
+                name: 'should-not-work',
+            });
+            expect(resp.status).toBe(401);
+        });
+    });
+
+    describe('ORG_EDIT', () => {
+        let sa: ReturnType<typeof bearerClient>;
+        const createdSpaceUuids: string[] = [];
+
+        beforeAll(async () => {
+            const { token } = await createServiceAccountToken(admin, [
+                ServiceAccountScope.ORG_EDIT,
+            ]);
+            sa = bearerClient(token);
+        });
+
+        afterAll(async () => {
+            for (const spaceUuid of createdSpaceUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await admin.delete(
+                    `${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`,
+                    { failOnStatusCode: false },
+                );
+            }
+        });
+
+        it('inherits read access from ORG_READ', async () => {
+            const resp = await sa.get(`${apiUrl}/org/projects`);
+            expect(resp.status).toBe(200);
+        });
+
+        it('allows POST /projects/:uuid/spaces', async () => {
+            const resp = await sa.post<Body<{ uuid: string; name: string }>>(
+                `${apiUrl}/projects/${projectUuid}/spaces`,
+                {
+                    name: `sa-edit-space-${Date.now()}`,
+                },
+            );
+            expect(resp.status).toBe(200);
+            expect(resp.body.results).toHaveProperty('uuid');
+            createdSpaceUuids.push(resp.body.results.uuid);
+        });
+
+        it('PATCH /org returns 401 for bearer auth (route is session-only)', async () => {
+            const resp = await sa.patch(`${apiUrl}/org`, {
+                name: 'should-not-work',
+            });
+            expect(resp.status).toBe(401);
+        });
+    });
+
+    describe('ORG_ADMIN', () => {
+        let sa: ReturnType<typeof bearerClient>;
+
+        beforeAll(async () => {
+            const { token } = await createServiceAccountToken(admin, [
+                ServiceAccountScope.ORG_ADMIN,
+            ]);
+            sa = bearerClient(token);
+        });
+
+        it('allows GET /projects/:uuid/groupAccesses', async () => {
+            const resp = await sa.get(
+                `${apiUrl}/projects/${projectUuid}/groupAccesses`,
+            );
+            expect(resp.status).toBe(200);
+        });
+
+        it('allows GET /org/groups', async () => {
+            const resp = await sa.get(`${apiUrl}/org/groups`);
+            expect(resp.status).toBe(200);
+        });
+
+        it('inherits read access from ORG_READ', async () => {
+            const resp = await sa.get(`${apiUrl}/org/projects`);
+            expect(resp.status).toBe(200);
+        });
+    });
+
+    describe('SCIM_MANAGE', () => {
+        let scimToken: string;
+
+        beforeAll(async () => {
+            const { token } = await createServiceAccountToken(admin, [
+                ServiceAccountScope.SCIM_MANAGE,
+            ]);
+            scimToken = token;
+        });
+
+        it('allows GET /api/v1/scim/v2/Users (SCIM endpoint)', async () => {
+            const anonClient = new ApiClient();
+            const resp = await anonClient.get(`${apiUrl}/scim/v2/Users`, {
+                headers: { Authorization: `Bearer ${scimToken}` },
+                failOnStatusCode: false,
+            });
+            expect(resp.status).toBe(200);
+        });
+
+        it('rejects GET /org/projects (SCIM-only tokens are restricted to /scim/* endpoints)', async () => {
+            const sa = bearerClient(scimToken);
+            const resp = await sa.get(`${apiUrl}/org/projects`);
+            expect(resp.status).toBe(401);
+        });
+    });
+});
+
+describe('Service Account identity', () => {
+    let admin: ApiClient;
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    it('GET /api/v1/user returns the dedicated service-account identity', async () => {
+        const description = `identity-test ${Date.now()}`;
+        const createResp = await admin.post<Body<{ token: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description,
+                expiresAt: inOneHour(),
+                scopes: [ServiceAccountScope.ORG_ADMIN],
+            },
+        );
+        const { token } = createResp.body.results;
+
+        const sa = bearerClient(token);
+        const resp = await sa.get<
+            Body<{
+                userUuid: string;
+                email: string;
+                firstName: string;
+                lastName: string;
+                organizationUuid: string;
+            }>
+        >(`${apiUrl}/user`);
+        expect(resp.status).toBe(200);
+        // The middleware loads the SA's own `users` row (linked via
+        // `service_accounts.service_account_user_uuid`) so the identity
+        // surfaces the SA — not a fallback admin.
+        expect(resp.body.results.userUuid).not.toBe(SEED_ORG_1_ADMIN.user_uuid);
+        expect(resp.body.results.firstName).toBe(description);
+        expect(resp.body.results.organizationUuid).toBe(
+            SEED_ORG_1.organization_uuid,
+        );
+    });
+});
+
+describe('Service Account content attribution', () => {
+    let admin: ApiClient;
+    const projectUuid = SEED_PROJECT.project_uuid;
+    const createdSpaceUuids: string[] = [];
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    afterAll(async () => {
+        for (const spaceUuid of createdSpaceUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('a space created by an SA reports the SA as creator, not the admin', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_EDIT,
+        ]);
+        const sa = bearerClient(token);
+
+        // Resolve the SA's dedicated user_uuid so we can match it against
+        // the space's access list.
+        const whoamiResp = await sa.get<Body<{ userUuid: string }>>(
+            `${apiUrl}/user`,
+        );
+        expect(whoamiResp.status).toBe(200);
+        const saUserUuid = whoamiResp.body.results.userUuid;
+
+        const createResp = await sa.post<Body<{ uuid: string; name: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            {
+                name: `sa-attribution-${Date.now()}`,
+            },
+        );
+        expect(createResp.status).toBe(200);
+        const spaceUuid = createResp.body.results.uuid;
+        createdSpaceUuids.push(spaceUuid);
+
+        const detailResp = await admin.get<
+            Body<{
+                uuid: string;
+                access?: Array<{
+                    userUuid: string;
+                    hasDirectAccess: boolean;
+                }>;
+            }>
+        >(`${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`);
+        expect(detailResp.status).toBe(200);
+        const access = detailResp.body.results.access ?? [];
+
+        // The SA is the sole direct-access entry — they are the creator.
+        // The seeded admin may surface as an auto-merged org admin
+        // (hasDirectAccess: false) but must not be a direct share.
+        const directEntries = access.filter((a) => a.hasDirectAccess);
+        expect(directEntries.map((a) => a.userUuid)).toEqual([saUserUuid]);
+
+        const adminEntry = access.find(
+            (a) => a.userUuid === SEED_ORG_1_ADMIN.user_uuid,
+        );
+        if (adminEntry !== undefined) {
+            expect(adminEntry.hasDirectAccess).toBe(false);
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Custom-role path. A service account can be created with a `roleUuid`
+// pointing at an org-level custom role; CASL is then derived from the role's
+// scope list via `buildAbilityFromScopes` (NOT the legacy
+// `applyServiceAccountAbilities` mapping). The two paths are mutually
+// exclusive — `scopes` and `roleUuid` cannot both be set.
+// ---------------------------------------------------------------------------
+
+const rolesUrl = `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`;
+
+type CreatedRole = { roleUuid: string; name: string };
+
+const createCustomRole = async (
+    admin: ApiClient,
+    name: string,
+    scopes: string[],
+): Promise<CreatedRole> => {
+    const resp = await admin.post<Body<CreatedRole>>(rolesUrl, {
+        name,
+        description: `api-test ${name}`,
+        scopes,
+    });
+    expect(resp.status).toBeGreaterThanOrEqual(200);
+    expect(resp.status).toBeLessThan(300);
+    return resp.body.results;
+};
+
+describe('Service Account custom-role path', () => {
+    let admin: ApiClient;
+    const createdRoleUuids: string[] = [];
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    afterAll(async () => {
+        for (const roleUuid of createdRoleUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await admin.delete(`${rolesUrl}/${roleUuid}`, {
+                failOnStatusCode: false,
+            });
+        }
+    });
+
+    it('Should create a SA bound to a custom role and respect that role’s scopes', async () => {
+        const role = await createCustomRole(admin, `cust-role ${Date.now()}`, [
+            'view:Project',
+        ]);
+        createdRoleUuids.push(role.roleUuid);
+
+        const createResp = await admin.post<
+            Body<{
+                uuid: string;
+                token: string;
+                roleUuid: string | null;
+                scopes: string[];
+            }>
+        >(`${apiUrl}/service-accounts`, {
+            description: `custom-role SA ${Date.now()}`,
+            expiresAt: inOneHour(),
+            roleUuid: role.roleUuid,
+        });
+        expect(createResp.status).toBe(201);
+        // The API echoes the roleUuid back; legacy `scopes` is empty for a
+        // role-driven SA. Anything else here would mean the controller is
+        // dropping/translating the field unexpectedly.
+        expect(createResp.body.results.roleUuid).toBe(role.roleUuid);
+        expect(createResp.body.results.scopes).toEqual([]);
+
+        const sa = bearerClient(createResp.body.results.token);
+
+        // view:Project allowed → /org/projects must succeed.
+        const projects = await sa.get(`${apiUrl}/org/projects`);
+        expect(projects.status).toBe(200);
+
+        // manage:OrganizationMemberProfile not in role → must be denied.
+        const orgUsers = await sa.get(`${apiUrl}/org/users`);
+        expect(orgUsers.status).toBe(403);
+
+        // manage:SavedChart not in role → modifying a chart must be denied.
+        // We resolve a real chart uuid from the seed project to keep this
+        // robust across reset-db cycles.
+        const chartsResp = await admin.get<Body<Array<{ uuid: string }>>>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        );
+        const someChartUuid = chartsResp.body.results[0]?.uuid;
+        if (!someChartUuid) throw new Error('No charts found in seed project');
+        const patchChart = await sa.patch(`${apiUrl}/saved/${someChartUuid}`, {
+            name: 'should-not-apply',
+        });
+        expect(patchChart.status).toBe(403);
+    });
+
+    it('Should reject creation with both `scopes` and `roleUuid` set', async () => {
+        const role = await createCustomRole(admin, `mutex-both ${Date.now()}`, [
+            'view:Project',
+        ]);
+        createdRoleUuids.push(role.roleUuid);
+
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+                scopes: [ServiceAccountScope.ORG_READ],
+                roleUuid: role.roleUuid,
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should reject creation with neither `scopes` nor `roleUuid`', async () => {
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should reject a roleUuid that does not exist in this org', async () => {
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+                // Random uuid that won't match any role.
+                roleUuid: '00000000-0000-0000-0000-000000000000',
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should not break legacy `scopes`-only service accounts', async () => {
+        // Smoke test for back-compat: a `scopes` SA must still authenticate
+        // and the runtime ability must come from `applyServiceAccountAbilities`
+        // (the legacy hardcoded mapping), independent of any custom role.
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_EDIT,
+        ]);
+        const sa = bearerClient(token);
+
+        const projects = await sa.get(`${apiUrl}/org/projects`);
+        expect(projects.status).toBe(200);
+
+        // ORG_EDIT grants `manage:Space` (legacy mapping)
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            { name: `legacy-edit-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// CLI deploy/upload surface via a custom role. The legacy `org:edit` scope
+// does NOT grant `manage:DeployProject` or `manage:ContentAsCode`, so an SA
+// that needs to run `lightdash deploy` / `lightdash upload` would historically
+// have to use `org:admin`. The custom-role path lets operators grant exactly
+// those abilities — and nothing else — to a CI service account.
+// ---------------------------------------------------------------------------
+
+describe('Service Account custom-role: CLI deploy/upload', () => {
+    let admin: ApiClient;
+    const projectUuid = SEED_PROJECT.project_uuid;
+    const createdRoleUuids: string[] = [];
+
+    let chartAsCodeFixture: ChartAsCode;
+
+    beforeAll(async () => {
+        admin = await login();
+        chartAsCodeFixture = yaml.load(
+            fs.readFileSync(
+                nodePath.resolve(__dirname, '../fixtures/chartAsCode.yml'),
+                'utf8',
+            ),
+        ) as ChartAsCode;
+    });
+
+    afterAll(async () => {
+        for (const roleUuid of createdRoleUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await admin.delete(`${rolesUrl}/${roleUuid}`, {
+                failOnStatusCode: false,
+            });
+        }
+    });
+
+    it('legacy ORG_EDIT can upload content-as-code (back-compat for `lightdash upload`)', async () => {
+        // Pre-Phase-C the auth middleware spoofed the admin user so an
+        // `org:edit` SA implicitly had `manage:ContentAsCode`. The cutover
+        // to a dedicated SA identity dropped that and broke the existing
+        // CI workflow; `applyServiceAccountAbilities` now grants it
+        // explicitly to ORG_EDIT so `lightdash upload` keeps working.
+        // Deploy (`PUT /explores` → `manage:DeployProject`) is intentionally
+        // still admin-only — that workflow is heavier and needs explicit
+        // opt-in via either ORG_ADMIN or a custom role.
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_EDIT,
+        ]);
+        const sa = bearerClient(token);
+
+        const cac = await sa.post(
+            `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+            chartAsCodeFixture,
+        );
+        expect(cac.status).toBe(200);
+
+        const deploy = await sa.put(
+            `${apiUrl}/projects/${projectUuid}/explores`,
+            [],
+        );
+        expect(deploy.status).toBe(403);
+    });
+
+    // The `system:*` SA scopes delegate to the same
+    // `applyOrganizationMemberStaticAbilities` builders that human users go
+    // through, so the SA's CASL must match the user-with-this-role shape.
+    // We exercise a representative slice — admin / developer / editor /
+    // viewer — and pin: who can deploy, who can upload CAC, who can
+    // create spaces.
+    it('system:admin grants the same shape as a human admin (deploy + CAC + space)', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_ADMIN,
+        ]);
+        const sa = bearerClient(token);
+        // PUT /explores with `[]` lands at body validation downstream of
+        // CASL, so a non-401/403 status is what proves the role passed
+        // the deploy permission check. Sending real explores would corrupt
+        // the seeded project's catalog.
+        const deployStatus = (
+            await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, [])
+        ).status;
+        expect([401, 403]).not.toContain(deployStatus);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(200);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-admin-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:developer grants CAC + spaces but NOT deploy on a non-preview project', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_DEVELOPER,
+        ]);
+        const sa = bearerClient(token);
+        // Developer's `manage:DeployProject` is conditional on preview
+        // projects the SA itself created — the seeded Jaffle Shop is type
+        // DEFAULT so deploy is denied (mirrors human-developer behavior).
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(200);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-developer-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:editor cannot deploy or upload CAC, but can manage spaces', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_EDITOR,
+        ]);
+        const sa = bearerClient(token);
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(403);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-editor-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:viewer cannot deploy, upload, or create spaces', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_VIEWER,
+        ]);
+        const sa = bearerClient(token);
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(`${apiUrl}/projects/${projectUuid}/spaces`, {
+                    name: `system-viewer-${Date.now()}`,
+                })
+            ).status,
+        ).toBe(403);
+    });
+
+    it('a custom role with `manage:DeployProject` + `manage:ContentAsCode` lets the SA deploy and upload', async () => {
+        const role = await createCustomRole(
+            admin,
+            `cli-deployer ${Date.now()}`,
+            [
+                'view:Project',
+                'manage:DeployProject',
+                'manage:ContentAsCode',
+                'manage:Space',
+                'manage:Dashboard',
+                'manage:SavedChart',
+            ],
+        );
+        createdRoleUuids.push(role.roleUuid);
+
+        const createResp = await admin.post<Body<{ token: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description: `cli-deployer SA ${Date.now()}`,
+                expiresAt: inOneHour(),
+                roleUuid: role.roleUuid,
+            },
+        );
+        expect(createResp.status).toBe(201);
+        const sa = bearerClient(createResp.body.results.token);
+
+        // PUT /explores → manage:DeployProject (the deploy command).
+        // Body validation happens after CASL; not-401/403 is what proves
+        // the role passed the deploy permission check.
+        const deploy = await sa.put(
+            `${apiUrl}/projects/${projectUuid}/explores`,
+            [],
+        );
+        expect([401, 403]).not.toContain(deploy.status);
+
+        // POST /charts/<slug>/code → manage:ContentAsCode (the upload command)
+        const cac = await sa.post(
+            `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+            chartAsCodeFixture,
+        );
+        expect(cac.status).toBe(200);
+
+        // Negative: the role doesn't grant `delete:Project` or org-member
+        // management; those must still be denied.
+        const deleteProject = await sa.delete(
+            `${apiUrl}/org/projects/${projectUuid}`,
+        );
+        expect(deleteProject.status).toBe(403);
+
+        const orgUsers = await sa.get(`${apiUrl}/org/users`);
+        expect(orgUsers.status).toBe(403);
     });
 });

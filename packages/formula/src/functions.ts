@@ -24,6 +24,10 @@ export const SINGLE_ARG_FNS = [
 
 export const ONE_OR_TWO_ARG_FNS = ['ROUND', 'MIN', 'MAX'] as const;
 
+export const TWO_ARG_FNS = ['LEFT', 'RIGHT', 'STRPOS', 'STARTS_WITH'] as const;
+
+export const THREE_ARG_FNS = ['REPLACE', 'SUBSTRING', 'SPLIT_PART'] as const;
+
 export const ZERO_OR_ONE_ARG_FNS = ['COUNT'] as const;
 
 export const VARIADIC_FNS = ['CONCAT', 'COALESCE'] as const;
@@ -48,6 +52,14 @@ export const CONDITIONAL_AGG_FNS = ['SUMIF', 'AVERAGEIF'] as const;
 
 export const BOOLEAN_FNS = ['ISNULL'] as const;
 
+// Two-arg functions whose result type is boolean. Reachable from BooleanAtom
+// (via a dedicated grammar rule) so they parse cleanly inside `IF` conditions
+// like `IF(STARTS_WITH(url, "https://"), …)`. Listed in TWO_ARG_FNS as well
+// so the AST node is the same `TwoArgFnNode` shape as LEFT/RIGHT/STRPOS — the
+// boolean-vs-number distinction is purely a parser-context concern, not an
+// AST concern.
+export const BOOLEAN_TWO_ARG_FNS = ['STARTS_WITH'] as const;
+
 // Functions that take a whitelisted unit literal as one of their arguments.
 // Parsed by dedicated grammar rules (like IF/SUMIF) rather than a generic
 // N-arg bucket because the unit is a compile-time string validated at parse.
@@ -64,11 +76,14 @@ export const DATE_FNS = [
 export type ZeroArgFnName = (typeof ZERO_ARG_FNS)[number];
 export type SingleArgFnName = (typeof SINGLE_ARG_FNS)[number];
 export type OneOrTwoArgFnName = (typeof ONE_OR_TWO_ARG_FNS)[number];
+export type TwoArgFnName = (typeof TWO_ARG_FNS)[number];
+export type ThreeArgFnName = (typeof THREE_ARG_FNS)[number];
 export type ZeroOrOneArgFnName = (typeof ZERO_OR_ONE_ARG_FNS)[number];
 export type VariadicFnName = (typeof VARIADIC_FNS)[number];
 export type WindowFnName = (typeof WINDOW_FNS)[number];
 export type MovingWindowFnName = (typeof MOVING_WINDOW_FNS)[number];
 export type ConditionalAggFnName = (typeof CONDITIONAL_AGG_FNS)[number];
+export type BooleanTwoArgFnName = (typeof BOOLEAN_TWO_ARG_FNS)[number];
 export type DateFnName = (typeof DATE_FNS)[number];
 // DATE_SUB desugars to DATE_ADD at parse time, so it never appears in the AST.
 export type DateFnAstName = Exclude<DateFnName, 'DATE_SUB'>;
@@ -77,6 +92,8 @@ export const ALL_FUNCTION_NAMES = [
     ...ZERO_ARG_FNS,
     ...SINGLE_ARG_FNS,
     ...ONE_OR_TWO_ARG_FNS,
+    ...TWO_ARG_FNS,
+    ...THREE_ARG_FNS,
     ...ZERO_OR_ONE_ARG_FNS,
     ...VARIADIC_FNS,
     ...WINDOW_FNS,
@@ -108,6 +125,13 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'TRIM', description: 'Remove whitespace', minArgs: 1, maxArgs: 1, category: 'string' },
     { name: 'LOWER', description: 'To lowercase', minArgs: 1, maxArgs: 1, category: 'string' },
     { name: 'UPPER', description: 'To uppercase', minArgs: 1, maxArgs: 1, category: 'string' },
+    { name: 'LEFT', description: 'Leftmost N characters', minArgs: 2, maxArgs: 2, category: 'string' },
+    { name: 'RIGHT', description: 'Rightmost N characters', minArgs: 2, maxArgs: 2, category: 'string' },
+    { name: 'REPLACE', description: 'Replace all occurrences of a substring (e.g. REPLACE(text, "old", "new"))', minArgs: 3, maxArgs: 3, category: 'string' },
+    { name: 'SUBSTRING', description: 'Extract substring by 1-indexed start and length (e.g. SUBSTRING(text, 1, 5))', minArgs: 3, maxArgs: 3, category: 'string' },
+    { name: 'SPLIT_PART', description: 'Split text on a delimiter and return the n-th part (1-indexed). E.g. SPLIT_PART(email, "@", 2) returns the domain.', minArgs: 3, maxArgs: 3, category: 'string' },
+    { name: 'STRPOS', description: '1-indexed position of substring in text; 0 if not found. E.g. STRPOS("hello", "ll") returns 3.', minArgs: 2, maxArgs: 2, category: 'string' },
+    { name: 'STARTS_WITH', description: 'True if text begins with prefix. E.g. STARTS_WITH(url, "https://").', minArgs: 2, maxArgs: 2, category: 'string' },
     // Date
     { name: 'TODAY', description: 'Current date', minArgs: 0, maxArgs: 0, category: 'date' },
     { name: 'NOW', description: 'Current timestamp', minArgs: 0, maxArgs: 0, category: 'date' },
@@ -202,6 +226,8 @@ export function getParserOptions() {
         zeroArgFns: ZERO_ARG_FNS,
         singleArgFns: SINGLE_ARG_FNS,
         oneOrTwoArgFns: ONE_OR_TWO_ARG_FNS,
+        twoArgFns: TWO_ARG_FNS,
+        threeArgFns: THREE_ARG_FNS,
         zeroOrOneArgFns: ZERO_OR_ONE_ARG_FNS,
         variadicFns: VARIADIC_FNS,
         windowFns: WINDOW_FNS,
@@ -211,5 +237,6 @@ export function getParserOptions() {
         dateUnits: DATE_UNITS,
         allFunctionNames: ALL_FUNCTION_NAMES,
         booleanFns: BOOLEAN_FNS,
+        booleanTwoArgFns: BOOLEAN_TWO_ARG_FNS,
     };
 }

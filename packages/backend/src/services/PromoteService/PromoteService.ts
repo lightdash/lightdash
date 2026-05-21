@@ -516,11 +516,23 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(
-            auditedAbility,
-            organizationUuid,
-            upstreamChart,
-        );
+        // Promotion only mutates the upstream space when creating a new one or
+        // renaming an existing one (see isSpaceUpdated). When the upstream
+        // space already exists and won't be renamed, the entity-level checks
+        // above already gate the operation — no `manage Space` required.
+        const promotionWillModifyChartSpace =
+            !upstreamChart.space ||
+            PromoteService.isSpaceUpdated(
+                promotedChart.space,
+                upstreamChart.space,
+            );
+        if (promotionWillModifyChartSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamChart,
+            );
+        }
     }
 
     private static checkPromoteSqlChartPermissions(
@@ -617,11 +629,19 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(
-            auditedAbility,
-            organizationUuid,
-            upstreamSqlChart,
-        );
+        const promotionWillModifySqlChartSpace =
+            !upstreamSqlChart.space ||
+            PromoteService.isSpaceUpdated(
+                promotedSqlChart.space,
+                upstreamSqlChart.space,
+            );
+        if (promotionWillModifySqlChartSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamSqlChart,
+            );
+        }
     }
 
     static checkPromoteDashboardPermissions(
@@ -711,11 +731,19 @@ export class PromoteService extends BaseService {
                 );
             }
         }
-        PromoteService.checkPromoteSpacePermissions(
-            auditedAbility,
-            organizationUuid,
-            upstreamDashboard,
-        );
+        const promotionWillModifyDashboardSpace =
+            !upstreamDashboard.space ||
+            PromoteService.isSpaceUpdated(
+                promotedDashboard.space,
+                upstreamDashboard.space,
+            );
+        if (promotionWillModifyDashboardSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamDashboard,
+            );
+        }
     }
 
     private static isSpaceUpdated(

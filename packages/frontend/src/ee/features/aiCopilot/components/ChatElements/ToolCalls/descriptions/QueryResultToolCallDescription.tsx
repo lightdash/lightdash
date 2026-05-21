@@ -1,6 +1,7 @@
 import { type ToolRunQueryArgs } from '@lightdash/common';
-import { Badge, Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine-8/core';
 import type { FC } from 'react';
+import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
 
 type QueryResultToolCallDescriptionProps = Pick<
@@ -38,19 +39,9 @@ export const QueryResultToolCallDescription: FC<
                         shows
                     </Text>
                     {metrics.map((metric: string) => (
-                        <Badge
-                            key={metric}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
+                        <ToolCallChip key={metric}>
                             {formatFieldName(metric)}
-                        </Badge>
+                        </ToolCallChip>
                     ))}
                 </>
             )}
@@ -60,19 +51,9 @@ export const QueryResultToolCallDescription: FC<
                         by
                     </Text>
                     {regularDimensions.map((dim: string) => (
-                        <Badge
-                            key={dim}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
+                        <ToolCallChip key={dim}>
                             {formatFieldName(dim)}
-                        </Badge>
+                        </ToolCallChip>
                     ))}
                 </>
             )}
@@ -82,19 +63,9 @@ export const QueryResultToolCallDescription: FC<
                         grouped by
                     </Text>
                     {groupByDimensions.map((dim: string) => (
-                        <Badge
-                            key={dim}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
+                        <ToolCallChip key={dim}>
                             {formatFieldName(dim)}
-                        </Badge>
+                        </ToolCallChip>
                     ))}
                 </>
             )}

@@ -28,6 +28,7 @@ import {
     getPersistedPositionIds,
     type CanvasMetric,
 } from './canvasLayoutUtils';
+import type { YamlDriverInfo } from './CanvasYamlDriversContext';
 import type { ExpandedNodeData } from './TreeComponents/nodes/ExpandedNode';
 
 type UseCanvasFlowArgs = {
@@ -383,6 +384,58 @@ export const useCanvasFlow = ({
         ],
     );
 
+    // Programmatic add (used by "add drivers" affordance). Places new nodes above
+    // the anchor so the upstream-flowing layout reads naturally before the user
+    // applies dagre. Falls back to a minimal node built from YAML edge metadata
+    // when the driver isn't in `allNodes` (e.g. it's in an unloaded catalog page).
+    const addMetricsToCanvas = useCallback(
+        (drivers: YamlDriverInfo[], anchorNodeId?: string) => {
+            setCurrentNodes((nodes) => {
+                const existingIds = new Set(nodes.map((n) => n.id));
+                const anchor = anchorNodeId
+                    ? nodes.find((n) => n.id === anchorNodeId)
+                    : undefined;
+                const baseX = anchor?.position.x ?? 0;
+                const baseY = (anchor?.position.y ?? 0) - 220;
+
+                const newDrivers = drivers.filter(
+                    (d) => !existingIds.has(d.catalogSearchUuid),
+                );
+                const { timeFrame: tf, rollingDays: rd } =
+                    timeValuesRef.current;
+                const toAdd = newDrivers.map<ExpandedNodeData>(
+                    (driver, idx) => {
+                        const offset =
+                            (idx - (newDrivers.length - 1) / 2) * 320;
+                        const fromAllNodes = allNodes.find(
+                            (n) => n.id === driver.catalogSearchUuid,
+                        );
+                        const baseData = fromAllNodes?.data ?? {
+                            label: driver.name,
+                            tableName: driver.tableName,
+                            metricName: driver.name,
+                            isEdgeTarget: false,
+                            isEdgeSource: false,
+                        };
+                        return {
+                            id: driver.catalogSearchUuid,
+                            type: 'expanded',
+                            position: { x: baseX + offset, y: baseY },
+                            data: {
+                                ...baseData,
+                                timeFrame: tf,
+                                rollingDays: rd,
+                            },
+                        };
+                    },
+                );
+                if (toAdd.length === 0) return nodes;
+                return [...nodes, ...toAdd];
+            });
+        },
+        [allNodes, setCurrentNodes],
+    );
+
     // Reset layout when initial edges or nodes change
     useEffect(() => {
         if (preventResetAfterInit && isCanvasInitializedRef.current) return;
@@ -531,5 +584,6 @@ export const useCanvasFlow = ({
         sidebarNodes,
         canvasTimeOption,
         setCanvasTimeOption,
+        addMetricsToCanvas,
     };
 };

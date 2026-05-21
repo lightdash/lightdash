@@ -26,6 +26,7 @@ import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboard } from '../hooks';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
+import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 import '../../../../../styles/react-grid.css';
@@ -118,6 +119,7 @@ const EmbedDashboardGrid: FC<{
                                 isEditMode={false}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
+                                isEmbed
                             />
                         ) : tile.type === DashboardTileTypes.HEADING ? (
                             <EmbedHeadingTile
@@ -128,6 +130,12 @@ const EmbedDashboardGrid: FC<{
                                 onEdit={() => {}}
                                 tileIndex={index}
                                 dashboardSlug={dashboard.slug}
+                            />
+                        ) : tile.type === DashboardTileTypes.DATA_APP ? (
+                            <EmbedDataAppTile
+                                key={tile.uuid}
+                                tile={tile}
+                                projectUuid={projectUuid}
                             />
                         ) : (
                             assertUnreachable(

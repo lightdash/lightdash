@@ -25,14 +25,14 @@ import {
     IconUser,
     IconUsers,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useGetSlack,
@@ -474,7 +474,7 @@ const AiAgentAdminAgentsTable = () => {
         [projectsMap, slackChannels, navigate],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredAgents,
         enableColumnResizing: false,
@@ -503,9 +503,6 @@ const AiAgentAdminAgentsTable = () => {
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
-                display: 'flex',
-                flexDirection: 'column',
             },
         },
 
@@ -619,7 +616,7 @@ const AiAgentAdminAgentsTable = () => {
 
     return (
         <Box>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
         </Box>
     );
 };

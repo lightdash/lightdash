@@ -34,7 +34,10 @@ flowchart LR
 ### Step-by-step
 
 1. **App creation** — The API creates a `DbApp` record and a v1 `DbAppVersion` with `status='building'`, then returns
-   immediately with `{ appUuid, version }`. The pipeline runs asynchronously in the background.
+   immediately with `{ appUuid, version }`. The pipeline runs asynchronously in the background. The create request
+   accepts an optional `spaceUuid`: when present, the app is created with `space_uuid` populated and the caller must
+   have manage rights on that space (space EDITOR/ADMIN, or project admin); when omitted, the app is created as a
+   personal app (`space_uuid IS NULL`) and can be moved into a space later.
 
 2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template (override
    with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
@@ -79,8 +82,12 @@ How the template flows through the stack:
   (from `AppGenerateService/templates.ts`) to the prompt before writing it to `/tmp/prompt.txt`. This is the same
   prepend slot used today for chart references and image references.
 - For `template === 'custom'`, no instructions are prepended - Claude only sees the user's free-text prompt.
-- Templates are **not persisted** in `app_versions` - they only influence the first generation. If the original
-  intent matters later, it's captured by the resulting code, not the row.
+- The chosen template is persisted on the `apps` row (`apps.template`) so the chip above the chat textarea
+  survives reload. `'custom'` is stored as `NULL` — it's the absence of a template, not a template itself, so
+  no chip is shown for custom apps. The template is set once at creation and is **not** editable afterwards:
+  once the wizard's prompt is composed, switching templates would leave the user's typed text out of sync with
+  a different instruction prepend, so we lock it in.
+- Templates only influence the first generation. Iteration prompts (v2+) never re-prepend instructions.
 
 Where the template metadata lives:
 
@@ -91,6 +98,58 @@ Where the template metadata lives:
 | Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
 | Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
 
+### Pre-build clarifying questions
+
+There is a **second** clarifying-question flow that runs after the template wizard and before code generation. It's a
+single LLM call (`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) that returns 0–4 short questions whose answers
+would materially change what gets built. The user answers them inline in the chat before the build kicks off; their
+answers are sent back as `clarifications` on the eventual generate request and persisted on
+`app_versions.resources.clarifications` for chat rendering.
+
+Properties of this flow:
+
+- **Stateless and best-effort.** No DB writes, no sandbox spin-up. The frontend ignores errors and falls through to
+  build without clarifications — a clarifier outage must not block the actual feature. Capped at a 15s LLM timeout.
+- **First-build only.** Iteration prompts (v2+) skip clarify entirely; intent is already grounded in the prior version.
+- **Inputs the LLM sees.** Prompt + template + a compact catalog summary (top 30 tables, up to 5 dimensions/metrics
+  each) + the resources the user has already attached in the picker (chart names + their explores, dashboard name,
+  count of attached images).
+- **What it deliberately doesn't do.** No sample-data fetch and no S3 image read for the clarify call. Sample rows and
+  pixel content don't change *whether* a question is worth asking, and skipping them keeps the call inside the 15s
+  budget. Both happen later in the generate pipeline if opted in.
+- **Resources flow.** The frontend forwards the same `charts: { uuid, includeSampleData }[]`,
+  `dashboard: { uuid, includeSampleData }`, and `imageIds` already in scope at the chat input. `includeSampleData` is
+  ignored at this stage. The system prompt explicitly tells the model not to ask which chart/dashboard/image to use
+  when the resources block is non-empty.
+
+### Sample data (opt-in)
+
+Chart and dashboard references are passed to Claude as **structure only by default** — the metric query JSON tells the
+generator what columns and metrics exist, but not what values they take. That's enough for layout and component choice
+but not for content-level decisions ("we only have 2026 data", "regions are short codes not country names"). To close
+that gap, each chart chip and the dashboard chip in the picker carry a per-resource **Include sample data** toggle.
+
+Behavior:
+
+- **Off by default.** The toggle is opt-in because rows can be sensitive (PII, revenue, etc.). The user has to flip it
+  knowingly per resource. The dashboard toggle is a shortcut that applies to every chart resolved from its tiles.
+- **Frontend wire format.** The request body sends structured refs instead of flat UUID arrays:
+  `charts: { uuid, includeSampleData }[]` and `dashboard: { uuid, includeSampleData }`.
+- **Backend resolution.** When `includeSampleData` is true for a resolved chart, `AppGenerateService.fetchChartSample()`
+  calls `ProjectService.runViewChartQuery()` (which enforces the same `view:SavedChart` permission the chart picker
+  already does) and slices the first **10 rows**. Sample fetches run concurrently with chart loads.
+- **Failure mode.** If the sample query fails (broken explore, timeout, warehouse error) the chart reference is still
+  attached without sample data and the prepended file listing notes "sample data unavailable" so Claude doesn't
+  fabricate values.
+- **Sandbox layout.** Each `/tmp/metric-queries/{slug}.json` gains an optional `sampleData` field shaped as a
+  discriminated union: `{ status: 'available', rows: Record<string,string>[], truncated: boolean }` or
+  `{ status: 'unavailable', reason: string }`. `null` when the user did not opt in. Rows hold formatted values only
+  (no raw types) — small enough to be cheap, useful enough to ground the generator.
+- **No persistence.** Sample data lives only inside the sandbox `/tmp` filesystem during a build; it is **not** written
+  into `app_versions.prompt`, the source tarball uploaded to S3, or the chart resources row. The user's intent (which
+  charts they sampled) survives implicitly via the original prompt and the chart UUIDs already persisted on
+  `AppVersionChartResource`.
+
 ### Iteration
 
 When users send follow-up prompts, the system creates a new `DbAppVersion` and either:
@@ -100,10 +159,77 @@ When users send follow-up prompts, the system creates a new `DbAppVersion` and e
 
 This means Claude can see what it built previously and make targeted changes rather than starting from scratch.
 
+### Model selection
+
+The chat input carries a `ModelPicker` (next to the send button) that lets the user choose which Claude model runs the generation: `opus` (highest quality, best for complex apps), `sonnet` (default, balanced), or `haiku` (fastest). The choice is editable on every turn — `claude --continue` keeps the prior conversation context but accepts a fresh `--model` flag per invocation, so switching mid-iteration doesn't reset Claude's memory of what it already built.
+
+How it flows through the stack:
+
+- The frontend sends `claudeModel: 'opus' | 'sonnet' | 'haiku'` on `POST /api/v1/ee/projects/{projectUuid}/apps/` (generate) and `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/versions` (iterate).
+- The backend validates it against `DATA_APP_CLAUDE_MODELS` (`AppGenerateService.resolveClaudeModel`) and rejects unknown values rather than shelling out as `--model <anything>` to the Claude CLI inside the sandbox.
+- The resolved value is persisted per-version on `app_versions.resources.claudeModel` (JSONB) and carried through the scheduler payload to `runClaudeGeneration`, where it substitutes into the `--model ${model}` flag for the user-facing generation, the build auto-fix retries, and the post-build metadata (name + description) call.
+- Older versions and jobs queued before the picker shipped don't carry the field; both the pipeline and the picker fall back to `DEFAULT_DATA_APP_CLAUDE_MODEL` (`sonnet`) so existing builds and resumed sandboxes keep working.
+- The restore-notification call (`notifyClaudeOfRestore`) deliberately stays on a fixed model — it's a one-line FYI to the persistent Claude session, not a user-driven generation.
+
+The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_APP_CLAUDE_MODELS`, `DataAppClaudeModel`, `DEFAULT_DATA_APP_CLAUDE_MODEL`) so the frontend picker, the request body, and the backend validation stay in sync.
+
 ### Cancellation
 
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
+
+### Refreshing the preview
+
+A refresh button in the preview header reloads the iframe to re-execute the app's metric queries against the warehouse,
+without kicking off a new code-gen iteration. The motivating use case is "I just pushed a semantic-layer change while
+Claude is still iterating in the sidebar — show me what the queries look like now." Implementation: `AppGenerate` owns
+a `previewRefreshKey` counter that gets baked into the iframe URL as `&r={key}`. Bumping the counter changes the URL,
+which forces the browser to reload the iframe; the served bundle and the JWT are unaffected. The query inspector panel
+is cleared on refresh so the new query run isn't mixed with stale entries from the previous load.
+
+### Previewing older versions
+
+By default the preview iframe loads the **latest ready** version of the app — it auto-bumps every time a new iteration
+finishes building. Users can override that and pin the preview to any earlier ready version: each ready assistant
+bubble's meta row carries a "v{n}" badge (rendered by `ChatBubbleMeta` via its optional `version` prop) that is
+itself the click target. The preview is then derived as `pinnedVersion ?? latestReadyVersion`, so polling refetches
+that don't change the latest version do **not** kick the user back to a newer build.
+
+The chip has two visual states, mirroring the active-version pattern used by branch-switchers like Linear /
+ChatGPT's response-version selector:
+
+- **Inactive** — `Badge variant="light" color="gray"` rendered as `component="button"`; hovering shows a "Preview
+  this version" tooltip; clicking pins the preview to that version.
+- **Active** (currently previewed) — `Badge variant="light" color="indigo"` with an `IconEye` left section; not
+  interactive. The indigo matches the username accent already used in `ChatBubbleMeta` so the active state reads as
+  "the live one" without introducing a new color.
+
+Per-version actions beyond "preview this one" (e.g. the upcoming "Restore as new version" flow) will live elsewhere
+on the bubble — not stacked into the meta row — so the chip stays purely about *which version is shown*.
+
+When a pinned version differs from the latest ready one, the **prompt input area is replaced** with an info
+`Callout`: title `"You're viewing version {n}"`, body explaining that new prompts always continue from the latest
+build, plus a **Return to latest (v{m})** button that calls `setPin(null)`. The whole chat input (textarea, picker
+buttons, submit) is hidden in this state — iterations always branch from the latest build, so allowing the user to
+type while viewing an older version would imply an edit-from-here semantics that doesn't exist. Locking the input
+removes that ambiguity.
+
+**Pin lifecycle (all derived, no `useEffect → setState` chain — that pattern is flagged by the lightdash frontend
+review rules):**
+
+- The pin state is `{ appUuid, version, pinnedAtLatest }`. `pinnedAtLatest` is a snapshot of the latest ready
+  version at the moment of pinning.
+- `effectivePinnedVersion` is derived from `pin` in a `useMemo` and returns `null` (so the preview falls back to
+  the latest ready) when **any** of these hold: the pin's `appUuid` no longer matches `activeAppUuid` (user navigated
+  to a different app); a newer ready version exists than `pinnedAtLatest` (a fresh iteration finished — the user
+  authored a new prompt and almost certainly wants to see the result); or the pinned version is no longer in the
+  ready set.
+- Polling cycles where `latestReadyVersion.version` doesn't change leave the pin valid — the derivation only flips
+  when one of the invalidation conditions becomes true, not on every refetch.
+
+This is read-only — pinning an older version is preview-only and does **not** mutate `app_versions` or change which
+version is served outside the generation page (the public `/preview` route still shows the latest ready version). A
+true "restore this version as v_next" flow is a separate, later step ([GLITCH-443](https://linear.app/lightdash/issue/GLITCH-443)).
 
 ### Deletion
 
@@ -123,16 +249,40 @@ Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates 
 `permanentDeleteApp`, which each enforce the appropriate manage scope (see [Permissions](#permissions) below) and
 handle sandbox/S3 cleanup.
 
+### Preview environments and promotion
+
+Data apps are **not yet duplicated** when a project is copied to a preview environment, and **not yet remapped**
+during cross-project promotion. The preview-copy step in `ProjectModel.duplicateContent` does copy
+`dashboard_tile_data_apps` rows — but it leaves their `app_uuid` pointing at the source project's app rather than
+creating a fresh `apps` row in the preview. The preview project ends up with zero `apps` rows of its own; any data
+app dashboard tile in the preview is a read-through window to the source project's app.
+
+What this means in practice:
+
+- **Preview rendering.** If the user opening the preview has view access to the source project's app, the tile
+  renders normally. Otherwise the existing `DashboardDataAppTile` error states show a "Data app not found" or
+  "No access" placeholder; the rest of the dashboard renders fine.
+- **Iterating inside the preview.** Not supported — the preview project has no `apps` row, so the AppGenerate page
+  isn't reachable from within the preview. Iteration still happens on the source project's app.
+- **Promote-back from preview to source.** Works: the tile's `app_uuid` is the source app's UUID, so the upstream
+  insert succeeds.
+- **Cross-project promotion between unrelated projects.** Data app tiles can be promoted but the tile's `app_uuid`
+  is not remapped — it stays pointing at the downstream project's app. Effectively the same read-through behavior
+  as previews.
+
+Full preview/promote support (copying `apps` + `app_versions` + S3 artifacts and remapping `app_uuid` during
+promotion) is tracked in [PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
+
 ---
 
 ## Data Model
 
 ### Database Tables
 
-| Table          | Purpose                                                               |
-| -------------- | --------------------------------------------------------------------- |
-| `apps`         | App metadata: name, description, project, creator, sandbox ID         |
-| `app_versions` | Version history: prompt, build status, error messages, status updates |
+| Table          | Purpose                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `apps`         | App metadata: name, description, project, creator, sandbox ID, template  |
+| `app_versions` | Version history: prompt, build status, error messages, status updates    |
 
 Key relationships:
 
@@ -154,6 +304,7 @@ type DbApp = {
   project_uuid: string;
   space_uuid: string | null;
   sandbox_id: string | null; // E2B sandbox ID for resume
+  template: 'dashboard' | 'slideshow' | 'pdf' | null; // null = custom (or pre-persistence)
   created_at: Date;
   created_by_user_uuid: string;
   deleted_at: Date | null; // soft delete
@@ -239,6 +390,15 @@ Allowed routes (defined in `packages/frontend/src/features/apps/hooks/useAppSdkB
 
 All other routes are rejected.
 
+The same postMessage channel carries the capability announces
+(`lightdash:inspect:available`, `lightdash:sdk:screenshot-available`),
+inspector toggle/click events, and the screenshot round-trip
+(`lightdash:sdk:screenshot-request` / `…response`). The bridge filters by
+message `type` and forwards each to the right hook —
+`useAppSdkBridge` for SDK fetches and capability announces,
+`useIframeScreenshot` for screenshot responses. See
+[Screenshot Capture](#screenshot-capture) below.
+
 ### Preview Token Authentication
 
 Preview requests use short-lived JWTs (signed with `LIGHTDASH_SECRET`), not session cookies:
@@ -252,62 +412,166 @@ Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
 - `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'self' {lightdashOrigin} https:` — allow API calls back to Lightdash
+- `connect-src 'none'` — block all `fetch`/`XHR`/`WebSocket` from the iframe; API calls reach Lightdash only through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request)
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 ---
 
 ## Image Uploads
 
-Users can attach images (screenshots, mockups, diagrams) to their prompts. These images are uploaded to S3 and passed
-to Claude as context during code generation.
+Users can attach images to their prompts. There are two kinds and they share the same upload pipeline,
+distinguished only by an opaque `kind` tag stored on the S3 object's metadata:
+
+| Kind                       | Source                                                                                | Purpose for the agent                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **attachment** *(default)* | User picks an image from disk / pastes / drag-and-drops in the chat UI.               | A **design reference** for layout, color, component choice — something to approximate. |
+| **screenshot**             | "Screenshot" button captures the live preview iframe (see [Screenshot Capture](#screenshot-capture)). | The **current state** of the built app — what the user is looking at when they prompt. |
+
+Up to `MAX_IMAGES_PER_VERSION = 4` images per submit, mixed kinds allowed.
 
 ### Upload Flow
 
 ```mermaid
 flowchart LR
-    A["1. User attaches\nimage in chat UI"] --> B["2. POST raw bytes\nto backend"]
-    B --> C["3. Backend streams\nto S3 staging path"]
+    A["1. User attaches image\n(or clicks Screenshot)"] --> B["2. POST raw bytes\nto backend\n?kind=screenshot if applicable"]
+    B --> C["3. Backend streams to\nS3 staging path,\nstamps kind metadata"]
     C --> D["4. Return imageId\n(opaque UUID)"]
     D --> E["5. Include imageId in\ngenerate/iterate request"]
     E --> F["6. Pipeline copies to\nversion assets folder"]
-    F --> G["7. Write to sandbox\nfor Claude"]
+    F --> G["7. Write to sandbox\nfor Claude with\nkind-aware filename"]
 ```
 
-1. **User attaches image** — The chat UI lets users add an image file. A local preview is shown immediately.
+1. **User attaches image (or captures screenshot)** — The chat UI shows a local preview immediately. Screenshots
+   originate from the iframe-side capture pipeline (see [Screenshot Capture](#screenshot-capture)); from the upload's
+   perspective they're just another `File`.
 
-2. **Upload to backend** — The frontend sends the raw file bytes directly to the backend via
+2. **Upload to backend** — The frontend sends the raw bytes directly to
    `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/upload-image` with the image's MIME type as the
-   `Content-Type` header. This is a plain `fetch` call (not `lightdashApi`) because the body is raw binary, not JSON.
+   `Content-Type` header. For screenshots the URL gains `?kind=screenshot`. This is a plain `fetch` (not `lightdashApi`)
+   because the body is raw binary, not JSON.
 
-3. **Stream to S3 staging** — The backend streams the request body directly to S3 via `PutObjectCommand` without
-   buffering the entire file in memory. The image is stored at a deterministic staging path:
-   `apps/{appUuid}/uploads/{imageId}` (no file extension — MIME type is stored as the S3 object's `ContentType`).
+3. **Stream to S3 staging, stamp kind** — The backend buffers and validates the body (magic-byte check), then writes
+   it to a deterministic staging path: `apps/{appUuid}/uploads/{imageId}` (no file extension — MIME is stored on the
+   S3 object's `ContentType`). When `kind=screenshot` is set, the upload also writes `Metadata: { kind: 'screenshot' }`
+   on the staging object so downstream stages can tell the two apart without a DB column.
 
-4. **Return imageId** — The backend returns `{ imageId }` — an opaque UUID. The frontend never sees the S3 key.
+4. **Return imageId** — The backend returns `{ imageId }` — an opaque UUID. The frontend never sees the S3 key or the
+   stored `kind`.
 
-5. **Attach to prompt** — When the user submits their prompt, the `imageId` is included in the generate or iterate
-   request body. The backend reconstructs the S3 staging key from the deterministic convention.
+5. **Attach to prompt** — When the user submits, every `imageId` (attachments and screenshots alike) goes in the same
+   `imageIds: string[]` field on the generate or iterate request. The backend reconstructs the S3 staging key from the
+   deterministic convention.
 
-6. **Copy to version assets** — During the pipeline, the image is copied from the staging path to the version assets
-   folder: `apps/{appUuid}/versions/{version}/assets/images/{imageId}.{ext}`.
+6. **Copy to version assets** — During the pipeline, each image is copied from staging to the version's assets folder:
+   `apps/{appUuid}/versions/{version}/assets/images/{filename}`. For screenshots, `filename` is `screenshot-{imageId}.{ext}`;
+   for attachments it's `{imageId}.{ext}`. Mirroring the prefix into the archive keeps the artifact identifiable later.
 
-7. **Write to sandbox** — The image bytes are written to the E2B sandbox at `/tmp/images/reference.{ext}` for Claude
-   to read as a design reference.
+7. **Write to sandbox** — Bytes are written to the E2B sandbox at `/tmp/images/{filename}` using the same `screenshot-`
+   prefix convention. The prompt-prepend step emits a different sentence for each kind, anchored on that filename.
+
+### Telling the agent what kind it's looking at
+
+`AppGenerateService.writeCatalogAndPrompt` prepends a one-line reference to `/tmp/prompt.txt` per attached image,
+with wording chosen from the filename:
+
+- **Attachment** → `[Design reference image N at /tmp/images/<uuid>.<ext> — use the Read tool to view it]`
+- **Screenshot** → `[Screenshot of the current app at /tmp/images/screenshot-<uuid>.<ext> — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`
+
+The screenshot wording is paired with a section in `sandboxes/data-apps/template/skill.md` ("Attached images") that
+documents the filename convention so Claude doesn't try to reproduce its own screenshot pixel-for-pixel. Both lines
+are added by `writeCatalogAndPrompt` in `AppGenerateService.ts` — if you change the prefix string or the filename
+convention, update the skill at the same time.
 
 ### Security
 
 The frontend only ever sees an opaque `imageId` (UUID). It has no knowledge of S3 keys, bucket names, or storage
 paths. The backend reconstructs all storage paths from a deterministic convention using values it controls
 (`appUuid` + `imageId`). This eliminates Insecure Direct Object Reference (IDOR) risks where a modified client
-could read arbitrary S3 objects.
+could read arbitrary S3 objects. The `kind` tag is set by the backend at upload time based on the validated
+query param — clients can't retroactively re-label an image once staged.
 
 ### Constraints
 
 - **Allowed MIME types**: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
 - **Max size**: 10 MB (validated via `Content-Length` header before streaming)
+- **Max per submit**: `MAX_IMAGES_PER_VERSION = 4` (attachments + screenshots combined)
 - **Permission**: For an existing app, the standard manage check applies (space role, self for personal apps, or
   project admin). For an upload tied to a not-yet-created app (initial creation flow), `create:DataApp` is required.
+
+### Screenshot Capture
+
+Screenshots are produced **inside** the sandboxed preview iframe and shipped back to the parent as a PNG `Blob` over
+postMessage. The iframe is the only thing that can read its own DOM (the parent has no `allow-same-origin` access),
+so it's also the only thing that should be rendering it. Doing the rasterization there keeps the trust boundary
+intact: pixels cross to the parent, not HTML.
+
+```mermaid
+flowchart LR
+    A["1. Iframe announces\nscreenshot-available\non mount"] --> B["2. Parent shows\nScreenshot button"]
+    B --> C["3. User clicks\nScreenshot"]
+    C --> D["4. Parent posts\nscreenshot-request"]
+    D --> E["5. Iframe rasterizes\ndocument.body with\nhtml-to-image"]
+    E --> F["6. canvas.toBlob → PNG"]
+    F --> G["7. Iframe posts\nscreenshot-response\n{ id, blob }"]
+    G --> H["8. Parent wraps Blob\nin File, attaches as\nscreenshot kind"]
+```
+
+1. **Capability announce** — On mount, `sandboxes/data-apps/template/src/screenshotHandler.js` posts
+   `{ type: 'lightdash:sdk:screenshot-available' }` to `window.parent`. `useAppSdkBridge` routes the announce to
+   `AppIframePreview`, which flips `screenshotAvailable` in `AppGenerate` to `true`. Older templates running in
+   resumed sandboxes never announce, so the Screenshot button stays hidden for them — they keep working as before.
+   Mirrors the inspector availability handshake.
+
+2. **Request** — `useIframeScreenshot.captureScreenshot()` posts `{ type: 'lightdash:sdk:screenshot-request', id }`
+   to the iframe's `contentWindow` and arms a 30s timeout. The parent exposes this through the
+   `AppIframePreviewHandle` imperative handle.
+
+3. **Rasterize inside the iframe** — `screenshotHandler.js` calls `toBlob(document.body, { pixelRatio })` from
+   [`html-to-image`](https://www.npmjs.com/package/html-to-image). The library walks the live DOM, copies
+   `computedStyle.cssText` straight onto the clone, then wraps the result in SVG `<foreignObject>` and rasterizes
+   via `<img src="data:image/svg+xml,...">` → canvas → blob. **Crucially it does not internally create any hidden
+   iframe.** This matters here: the preview iframe runs with `sandbox="allow-scripts"` (no `allow-same-origin`) so
+   its origin is opaque, and any child iframe it creates would land in a *different* opaque origin — two opaque
+   origins are never same-origin with each other, so the parent iframe's own JS can't read its child iframe's
+   document. That breaks both `html2canvas` (clones the whole page into a nested iframe) and `modern-screenshot`
+   (creates a sandbox iframe for default-style computation): both throw `Permission denied to access property
+   'document' on cross-origin object`. `html-to-image` avoids the problem by never touching a nested document.
+
+4. **Response** — The iframe posts back `{ type: 'lightdash:sdk:screenshot-response', id, blob }` to
+   `window.parent` with `'*'` as the target origin (the sandboxed iframe's origin is opaque). The parent listener
+   filters by `event.source === iframe.contentWindow` (unforgeable Window reference, mirrors `useAppSdkBridge`).
+
+5. **Wrap and upload** — The parent wraps the Blob in a `File` named `screenshot.png` and feeds it into
+   `handleImageAttach(file, 'screenshot')`. From there the regular [Upload Flow](#upload-flow) takes over and the
+   `?kind=screenshot` query param flows down to the backend.
+
+The bridge protocol types (`SdkScreenshotRequest`, `SdkScreenshotResponse`, `SdkScreenshotAvailableMessage`) live in
+`packages/query-sdk/src/postMessageTransport.ts` alongside the existing SDK fetch and inspector types.
+
+### Why iframe-side capture
+
+The alternative — serializing the DOM out of the iframe and re-rendering it in a hidden `srcdoc` iframe on the
+parent side — would force adversarial HTML across the trust boundary and depend on a `sandbox` attribute to keep
+the parent's origin safe. Capturing in-iframe avoids all of that, plus:
+
+- **Live state, not a cold re-render.** `<input>`/`<textarea>` values, hover/focus visuals, animation mid-frames,
+  IntersectionObserver-driven state, chart canvas pixels — all preserved, because html-to-image walks the live DOM.
+- **No silent CSS dropout.** Anything visible to the iframe is visible to its in-iframe rasterizer. No
+  cross-origin-stylesheet skipping.
+- **No payload-size cap.** The transferred payload is a Blob bounded by the rendered canvas size, not a stringified
+  HTML snapshot that has to be capped to keep `iframe.srcdoc = ...` from crashing the parent.
+- **Smaller surface area.** ~70 lines of new code total (handler + hook) vs. the parent-side approach's hidden
+  srcdoc iframe + DOM-clone + CSS-inlining + size-cap path.
+
+### Trust boundary summary
+
+There's only one trust boundary that matters: the preview iframe's `sandbox="allow-scripts allow-modals"`. The
+screenshot path doesn't cross any new boundary — pixels are inert. Two defences keep the path robust:
+
+1. **`event.source` identity check** in `useIframeScreenshot`'s response listener — only messages from the actual
+   preview `contentWindow` are accepted, so a sibling window can't deliver a fake blob to upload.
+2. **Capability handshake** — the parent only shows the Screenshot button after the iframe announces capability,
+   so the user can't trigger a request against a template that never installed the handler.
 
 ---
 
@@ -335,6 +599,7 @@ could read arbitrary S3 objects.
 | `useAppPreviewToken`   | `features/apps/hooks/useAppPreviewToken.ts`   | Mint JWT for iframe preview          |
 | `useCancelAppVersion`  | `features/apps/hooks/useCancelAppVersion.ts`  | Cancel a building version            |
 | `useUpdateApp`         | `features/apps/hooks/useUpdateApp.ts`         | Update app name/description          |
+| `useIframeScreenshot`  | `features/apps/hooks/useIframeScreenshot.ts`  | Requests a PNG blob from the iframe (rasterized in-iframe by html-to-image) |
 
 ### Build Status Polling
 
@@ -358,10 +623,25 @@ notification via `useBuildNotification`.
 APP_RUNTIME_ENABLED=true                           # Master feature flag
 E2B_API_KEY=...                                    # E2B sandbox API key
 E2B_TEMPLATE_NAME=lightdash-data-app               # Optional E2B template override (for dev)
+E2B_TEMPLATE_TAG=0.2870.0                          # Optional E2B template tag override (defaults to current Lightdash version)
 APP_RUNTIME_LIGHTDASH_ORIGIN=https://app.example   # Origin for CORS/CSP (defaults to SITE_URL)
 APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving
 ```
+
+### Template versioning
+
+Each Lightdash release publishes an [E2B template tag](https://e2b.dev/docs/template/tags)
+matching the release version, so the running backend launches sandboxes from a build that
+was tested against that exact source tree.
+
+- `E2B_TEMPLATE_TAG` defaults to the backend's `VERSION`, producing
+  `lightdash-data-app:<version>` at sandbox creation time.
+- The release-driven jobs in `.github/workflows/post-release.yml` guarantee that tag exists
+  for every released version. They rebuild the template only when `sandboxes/data-apps/**`
+  or `packages/query-sdk/**` changed; otherwise they re-tag the existing `:latest` build.
+- Set `E2B_TEMPLATE_TAG=` (empty) to fall back to E2B's implicit `default` tag — useful for
+  rollbacks or for dev environments running against a personal template.
 
 S3 credentials are configured through the existing `S3_*` environment variables used by the app runtime config.
 
@@ -379,8 +659,11 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 | `packages/backend/src/database/entities/apps.ts`                            | DB entity type definitions                     |
 | `packages/common/src/ee/apps/types.ts`                                      | Shared API response types                      |
 | `packages/frontend/src/pages/AppGenerate.tsx`                               | Split-panel chat UI for creation and iteration |
-| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component                     |
-| `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`              | postMessage fetch proxy for iframe API access  |
+| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component (forwards ref so the parent can call `captureScreenshot()`) |
+| `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`              | postMessage fetch proxy + inspector/screenshot capability routing |
+| `packages/frontend/src/features/apps/hooks/useIframeScreenshot.ts`          | postMessage round-trip to fetch a PNG blob from the iframe |
+| `sandboxes/data-apps/template/src/screenshotHandler.js`                     | Iframe-side handler — html-to-image rasterizes the live DOM and posts the blob back |
+| `packages/query-sdk/src/postMessageTransport.ts`                            | Shared SDK message types — fetch, ready, inspector, screenshot |
 
 ---
 
@@ -393,7 +676,7 @@ scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 | Scope                  | Granted to          | Effect                                                                                                       |
 | ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).               |
-| `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. Newly-created apps are personal until moved into a space.                     |
+| `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. By default the app is personal until moved into a space; passing `spaceUuid` on the create request creates it directly in a space (also requires `manage:DataApp@space` on that space). |
 | `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                     |
 | `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                   |
 | `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role. |
@@ -424,8 +707,10 @@ helpers in `AppGenerateService.ts` carry the context-aware logic:
 - `assertCanManageApp(user, app, msg)` — used by `iterateApp`, `cancelVersion`, `updateApp`, `togglePinning`,
   `deleteApp`, `moveToSpace`, and `uploadImage` (when the app exists). Same subject shape, checks the `manage` action.
 
-`generateApp` (creation) checks the `create` action against a project-scoped subject — no app exists yet to provide
-space or creator context.
+`generateApp` (creation) checks the `create` action against a project-scoped subject. When the request carries a
+`spaceUuid` (the app should be created directly in a space, e.g. via the space's "+ Add" menu), it additionally
+checks the `manage` action against a subject that includes that space's access context — so a user creating in a
+space must be EDITOR/ADMIN of it, the same gate dashboards/charts get implicitly via their space-scoped create scope.
 
 `restoreApp` and `permanentDeleteApp` deliberately bypass the context-aware helper and use the bare project-wide
 `manage:DataApp` check, since restoring deleted content is an admin-only recovery flow.

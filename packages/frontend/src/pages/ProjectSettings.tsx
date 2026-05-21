@@ -11,6 +11,7 @@ import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
 import PreAggregateAudit from '../components/PreAggregateAudit';
 import PreAggregateMaterializations from '../components/PreAggregateMaterializations';
 import ProjectUserAccess from '../components/ProjectAccess';
+import ProjectAppearance from '../components/ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -57,6 +58,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/projectAccess`,
                 element: <ProjectUserAccess projectUuid={projectUuid} />,
+            },
+            {
+                path: `/appearance`,
+                element: <ProjectAppearance projectUuid={projectUuid} />,
             },
             {
                 path: `/usageAnalytics`,

@@ -7,19 +7,8 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Collapse,
-    Group,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { Group, Select, Stack, TextInput, Accordion } from '@mantine-8/core';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
@@ -27,10 +16,10 @@ import {
     getFilterOptions,
 } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
-import MantineIcon from '../../common/MantineIcon';
+import { AccordionControl } from '../common/AccordionControl';
 
 interface Props {
-    isDefaultOpen?: boolean;
+    accordionValue: string;
     ruleIndex: number;
     rule: ConditionalFormattingWithFilterOperator;
     field: FilterableItem | undefined;
@@ -41,7 +30,7 @@ interface Props {
 }
 
 const BigNumberConditionalFormattingRule: FC<Props> = ({
-    isDefaultOpen = true,
+    accordionValue,
     ruleIndex,
     rule,
     field,
@@ -51,9 +40,6 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
     hasRemove,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const { ref, hovered } = useHover();
-    const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
         useMemo(() => {
@@ -97,38 +83,17 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
     );
 
     return (
-        <Stack spacing="xs" ref={ref}>
-            <Group noWrap position="apart">
-                <Group spacing="xs">
-                    <Text fw={500} fz="xs">
-                        Condition {ruleIndex + 1}
-                    </Text>
+        <Accordion.Item value={accordionValue}>
+            <AccordionControl
+                label={`Condition ${ruleIndex + 1}`}
+                onRemove={hasRemove ? onRemoveRule : undefined}
+            />
 
-                    {hasRemove && hovered && (
-                        <Tooltip
-                            variant="xs"
-                            label="Remove condition"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon onClick={onRemoveRule}>
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-
-                <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
-                    <MantineIcon
-                        icon={isOpen ? IconChevronUp : IconChevronDown}
-                    />
-                </ActionIcon>
-            </Group>
-
-            <Collapse in={isOpen}>
-                <Stack spacing="xs">
-                    <Group noWrap spacing="xs">
+            <Accordion.Panel>
+                <Stack gap="xs">
+                    <Group wrap="nowrap" gap="xs" align="flex-start">
                         <Select
+                            size="xs"
                             value={rule.operator}
                             data={filterOperatorOptions}
                             onChange={(value) => {
@@ -140,6 +105,7 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
                         />
 
                         <Select
+                            size="xs"
                             display={field && filterType ? 'none' : 'block'}
                             placeholder="Value(s)"
                             data={[]}
@@ -159,6 +125,7 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
                                         />
                                     ) : (
                                         <TextInput
+                                            size="xs"
                                             disabled={true}
                                             placeholder="Values"
                                         />
@@ -167,8 +134,8 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
                             )}
                     </Group>
                 </Stack>
-            </Collapse>
-        </Stack>
+            </Accordion.Panel>
+        </Accordion.Item>
     );
 };
 

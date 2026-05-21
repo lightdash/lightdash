@@ -3,6 +3,7 @@ import {
     Button,
     Menu,
     rem,
+    ScrollArea,
     Stack,
     Text,
     type ButtonProps,
@@ -76,51 +77,54 @@ export const ModelSelector: FC<Props> = ({
             </Menu.Target>
 
             <Menu.Dropdown>
-                {providerGroups.map((provider, groupIndex) => {
-                    const providerModels = groupedModels.get(provider) ?? [];
-                    return (
-                        <div key={provider}>
-                            {providerGroups.length > 1 && (
-                                <Menu.Label>{provider}</Menu.Label>
-                            )}
+                <ScrollArea.Autosize mah={200}>
+                    {providerGroups.map((provider, groupIndex) => {
+                        const providerModels =
+                            groupedModels.get(provider) ?? [];
+                        return (
+                            <div key={provider}>
+                                {providerGroups.length > 1 && (
+                                    <Menu.Label>{provider}</Menu.Label>
+                                )}
 
-                            {providerModels.map((model) => {
-                                const modelKey = getModelKey(model);
-                                const isSelected = modelKey === value;
-                                return (
-                                    <Menu.Item
-                                        key={modelKey}
-                                        onClick={() => onChange(modelKey)}
-                                        rightSection={
-                                            isSelected ? (
-                                                <MantineIcon
-                                                    icon={IconCheck}
-                                                    size="sm"
-                                                    color="blue"
-                                                />
-                                            ) : null
-                                        }
-                                    >
-                                        <Stack gap={0}>
-                                            <Text size="sm" fw={500}>
-                                                {model.displayName}
-                                            </Text>
-                                            {model.description && (
-                                                <Text size="xs" c="dimmed">
-                                                    {model.description}
+                                {providerModels.map((model) => {
+                                    const modelKey = getModelKey(model);
+                                    const isSelected = modelKey === value;
+                                    return (
+                                        <Menu.Item
+                                            key={modelKey}
+                                            onClick={() => onChange(modelKey)}
+                                            rightSection={
+                                                isSelected ? (
+                                                    <MantineIcon
+                                                        icon={IconCheck}
+                                                        size="sm"
+                                                        color="blue"
+                                                    />
+                                                ) : null
+                                            }
+                                        >
+                                            <Stack gap={0}>
+                                                <Text size="sm" fw={500}>
+                                                    {model.displayName}
                                                 </Text>
-                                            )}
-                                        </Stack>
-                                    </Menu.Item>
-                                );
-                            })}
+                                                {model.description && (
+                                                    <Text size="xs" c="dimmed">
+                                                        {model.description}
+                                                    </Text>
+                                                )}
+                                            </Stack>
+                                        </Menu.Item>
+                                    );
+                                })}
 
-                            {groupIndex < providerGroups.length - 1 && (
-                                <Menu.Divider />
-                            )}
-                        </div>
-                    );
-                })}
+                                {groupIndex < providerGroups.length - 1 && (
+                                    <Menu.Divider />
+                                )}
+                            </div>
+                        );
+                    })}
+                </ScrollArea.Autosize>
             </Menu.Dropdown>
         </Menu>
     );

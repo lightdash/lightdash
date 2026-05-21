@@ -15,6 +15,10 @@ import {
     storeSlackContext,
 } from '../controllers/authentication';
 import {
+    createAzureAdOidcStrategyForConfig,
+    isAzureAdPassportStrategyAvailableToUse,
+} from '../controllers/authentication/strategies/azureStrategy';
+import {
     createDatabricksStrategy,
     databricksPassportStrategy,
     getDatabricksOidcEndpointsFromHost,
@@ -26,6 +30,7 @@ import { createActorFromUser } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 import { UserModel } from '../models/UserModel';
+import { aiAgentMcpServerRouter } from './aiAgentMcpServerRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
 import { inviteLinksRouter } from './inviteLinksRouter';
@@ -149,6 +154,62 @@ const getOrCreateDatabricksStrategy = (
     return strategyName;
 };
 
+// Cache dynamic Azure AD strategies to avoid leaking memory by registering a
+// new passport strategy on every request. Strategies are evicted after 10
+// minutes so rotated client secrets are eventually picked up.
+const AZURE_AD_STRATEGY_TTL_MS = 10 * 60 * 1000;
+const azureAdStrategyCache = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout> }
+>();
+
+const registerAzureAdStrategyForOrg = (
+    organizationUuid: string,
+    config: import('@lightdash/common').AzureAdSsoConfig,
+): string => {
+    const strategyName = `azuread:${organizationUuid}`;
+    const existing = azureAdStrategyCache.get(strategyName);
+    // Always re-register so config changes (e.g. rotated secret) take effect.
+    passport.use(strategyName, createAzureAdOidcStrategyForConfig(config));
+    if (existing) {
+        clearTimeout(existing.timer);
+    }
+    const timer = setTimeout(() => {
+        azureAdStrategyCache.delete(strategyName);
+        passport.unuse(strategyName);
+    }, AZURE_AD_STRATEGY_TTL_MS);
+    azureAdStrategyCache.set(strategyName, { timer });
+    return strategyName;
+};
+
+/**
+ * Resolves the right Azure AD strategy name for this request and registers
+ * the strategy dynamically. Returns undefined if no Azure config is available
+ * (neither per-org DB config matching the email domain nor an env-based
+ * fallback).
+ */
+const resolveAzureAdStrategyName = async (
+    req: express.Request,
+): Promise<string | undefined> => {
+    const ssoService = req.services.getOrganizationSsoService();
+    const email = getLoginHint(req);
+
+    if (email) {
+        const method = await ssoService.findEnabledAzureAdMethodForEmail(email);
+        if (method) {
+            return registerAzureAdStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    }
+    // Fall back to the env-based strategy registered at startup, if available.
+    if (isAzureAdPassportStrategyAvailableToUse) {
+        return 'azuread';
+    }
+    return undefined;
+};
+
 const authenticateDatabricks = (
     getAuthenticateOptions?: (
         req: express.Request,
@@ -255,17 +316,75 @@ apiV1Router.get(lightdashConfig.auth.okta.callbackPath, (req, res, next) =>
 apiV1Router.get(
     lightdashConfig.auth.azuread.loginPath,
     storeOIDCRedirect,
-    passport.authenticate('azuread', {
-        scope: ['openid', 'profile', 'email'].join(' '),
-    }),
+    async (req, res, next) => {
+        try {
+            const strategyName = await resolveAzureAdStrategyName(req);
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'Azure AD SSO is not configured',
+                });
+                return;
+            }
+            req.session.oauth = req.session.oauth || {};
+            req.session.oauth.azureAdStrategyName = strategyName;
+            const loginHint = getLoginHint(req);
+            passport.authenticate(strategyName, {
+                scope: ['openid', 'profile', 'email'].join(' '),
+                // Forward the user's email to Azure as login_hint so Microsoft
+                // surfaces the right account (and re-prompts when its session
+                // cookie holds a different one).
+                ...(loginHint
+                    ? ({ loginHint } as Record<string, unknown>)
+                    : {}),
+            } as passport.AuthenticateOptions)(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
-apiV1Router.get(lightdashConfig.auth.azuread.callbackPath, (req, res, next) =>
-    passport.authenticate('azuread', {
-        failureRedirect: getOidcRedirectURL(false)(req),
-        successRedirect: getOidcRedirectURL(true)(req),
-        failureFlash: true,
-    })(req, res, next),
+apiV1Router.get(
+    lightdashConfig.auth.azuread.callbackPath,
+    async (req, res, next) => {
+        try {
+            // Prefer the strategy name stored on the session when login was
+            // initiated; falls back to dynamic resolution (or env) for
+            // resilience against expired sessions.
+            const sessionStrategyName = req.session.oauth?.azureAdStrategyName;
+            const strategyName =
+                sessionStrategyName ?? (await resolveAzureAdStrategyName(req));
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'Azure AD SSO is not configured',
+                });
+                return;
+            }
+            // If the strategy name encodes an org but the strategy isn't
+            // currently registered (e.g. server restart between login and
+            // callback), re-register it from the DB config.
+            if (
+                strategyName.startsWith('azuread:') &&
+                !azureAdStrategyCache.has(strategyName)
+            ) {
+                const orgUuid = strategyName.slice('azuread:'.length);
+                const config = await req.services
+                    .getOrganizationSsoService()
+                    .getAzureAdConfigForOrganization(orgUuid);
+                if (config) {
+                    registerAzureAdStrategyForOrg(orgUuid, config);
+                }
+            }
+            passport.authenticate(strategyName, {
+                failureRedirect: getOidcRedirectURL(false)(req),
+                successRedirect: getOidcRedirectURL(true)(req),
+                failureFlash: true,
+            })(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
 apiV1Router.get(
@@ -309,9 +428,23 @@ apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
     (req, res, next) => {
+        const { includeBigqueryScope } = lightdashConfig.auth.google;
+        const scope = ['profile', 'email'];
+        if (includeBigqueryScope) {
+            scope.push('https://www.googleapis.com/auth/bigquery');
+        }
         passport.authenticate('google', {
-            scope: ['profile', 'email'],
+            scope,
             loginHint: getLoginHint(req),
+            // Request a refresh token and force the consent screen so we can
+            // store BigQuery credentials. Only needed when the BigQuery scope
+            // is bundled into the login flow.
+            ...(includeBigqueryScope && {
+                accessType: 'offline',
+                prompt: 'consent',
+                session: false,
+                includeGrantedScopes: true,
+            }),
         })(req, res, next);
     },
 );
@@ -510,6 +643,7 @@ apiV1Router.use('/saved', savedChartRouter);
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
+apiV1Router.use('/projects/:projectUuid', aiAgentMcpServerRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);

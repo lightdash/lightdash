@@ -31,4 +31,6 @@ export enum States {
     LIST,
     CREATE,
     EDIT,
+    VIEW_HISTORY,
+    VIEW_RUN_DETAILS,
 }

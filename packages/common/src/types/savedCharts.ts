@@ -7,6 +7,7 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
@@ -224,6 +225,28 @@ export enum MapChartType {
     SCATTER = 'scatter',
     AREA = 'area',
     HEATMAP = 'heatmap',
+    HEXBIN = 'hexbin',
+}
+
+export enum MapHexbinSizingMode {
+    /** Resolution is derived from current map zoom level. */
+    DYNAMIC = 'dynamic',
+    /** Resolution is fixed by the user, independent of zoom. */
+    FIXED = 'fixed',
+}
+
+export enum MapHexbinValueBasis {
+    /** Color cells by the count of points they contain. */
+    COUNT = 'count',
+    /** Color cells by an aggregation over a chosen value field. */
+    FIELD = 'field',
+}
+
+export enum MapHexbinAggregation {
+    SUM = 'sum',
+    AVG = 'avg',
+    MIN = 'min',
+    MAX = 'max',
 }
 
 export enum MapTileBackground {
@@ -285,6 +308,26 @@ export type MapChart = {
         blur?: number;
         /** Opacity of the heatmap layer */
         opacity?: number;
+    };
+    /** Configuration for H3 hexagonal binning visualization */
+    hexbinConfig?: {
+        /** Opacity of hex polygons (0.1 to 1) */
+        opacity?: number;
+        /** How bin size is determined. Defaults to DYNAMIC if unset. */
+        sizingMode?: MapHexbinSizingMode;
+        /** H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise. */
+        fixedResolution?: number;
+        /** What drives cell color: count of points (default) or an aggregation
+         *  over a chosen value field (controlled via the chart's `valueFieldId`). */
+        valueBasis?: MapHexbinValueBasis;
+        /** Aggregation applied when valueBasis = FIELD. Defaults to SUM. */
+        aggregation?: MapHexbinAggregation;
+        /** Render outlined empty cells across the visible map area, so the user
+         *  can see "where there is no data" relative to the hex grid. */
+        showEmptyBins?: boolean;
+        /** Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8
+         *  (#rrggbbaa) = fill with alpha, null/undefined = outline only. */
+        emptyBinColor?: string | null;
     };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
@@ -840,7 +883,25 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    /**
+     * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
+     * only the resolved colors and will be removed once renderers migrate to
+     * `resolvedColorPalette`, which also exposes the source entity, palette
+     * UUID/name, and dark colors.
+     */
     colorPalette: string[];
+    /**
+     * Chart-level palette override pointer. `null` means inherit from the
+     * containing dashboard / space / project / org. Writable via
+     * `UpdateSavedChart`.
+     */
+    colorPaletteUuid: string | null;
+    /**
+     * Fully resolved palette for this chart, computed from the
+     * org → project → space → dashboard → chart hierarchy. Read-only — set
+     * the chart's own palette via `colorPaletteUuid`.
+     */
+    readonly resolvedColorPalette: ResolvedProjectColorPalette;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
@@ -894,6 +955,8 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
+    | 'colorPaletteUuid'
+    | 'resolvedColorPalette'
     | 'inheritsFromOrgOrProject'
     | 'access'
     | 'slug'
@@ -903,7 +966,7 @@ export type CreateSavedChartVersion = Omit<
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
-    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
@@ -987,6 +1050,15 @@ export const ECHARTS_DEFAULT_COLORS = [
 
 export const getDefaultSeriesColor = (index: number) =>
     ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
+
+export const getDefaultResolvedColorPalette =
+    (): ResolvedProjectColorPalette => ({
+        colors: ECHARTS_DEFAULT_COLORS,
+        darkColors: null,
+        paletteUuid: null,
+        paletteName: null,
+        source: { type: 'default' },
+    });
 
 export const isSeriesWithMixedChartTypes = (
     series: Series[] | undefined,
@@ -1188,8 +1260,6 @@ export type CalculateTotalFromQuery = {
     explore: string;
     parameters?: ParametersValuesMap;
     invalidateCache?: boolean;
-    /** UUID of the saved chart this query was loaded from, when applicable. */
-    savedChartUuid?: string;
 };
 
 export type ApiCalculateTotalResponse = {

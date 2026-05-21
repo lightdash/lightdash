@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
     NotFoundError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
     resolveSpaceAccess,
     type AbilityAction,
     type OrganizationSpaceAccess,
@@ -15,11 +17,19 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
+export type SpaceAdmin = {
+    userUuid: string;
+    source: 'organization' | 'project';
+};
+
 export type SpaceAccessContextForCasl = {
     organizationUuid: string;
     projectUuid: string;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
+    // Admins reach the space via CASL even when `resolveSpaceAccess` omits
+    // them (private spaces with no direct entry). Surfaced for audit display.
+    admins: SpaceAdmin[];
 };
 
 export class SpacePermissionService extends BaseService {
@@ -31,15 +41,15 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Checks if the actor has access to all the space uuids
+     * Checks if the user has access to all the space uuids
      * @param action - The action to check permissions for
-     * @param actor - The session user to check permissions for
+     * @param user - The session user to check permissions for
      * @param spaceUuids - The space uuids to check permissions for
      * @returns The access context for the given space uuids
      */
     async can(
         action: AbilityAction,
-        actor: SessionUser,
+        user: SessionUser,
         spaceUuids: string[] | string,
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
@@ -47,32 +57,32 @@ export class SpacePermissionService extends BaseService {
             : [spaceUuids];
 
         const accessContext = await this.getSpacesCaslContext(spaceUuidsArray, {
-            userUuid: actor.userUuid,
+            userUuid: user.userUuid,
         });
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         return Object.values(accessContext).every((access) =>
             auditedAbility.can(action, subject('Space', access)),
         );
     }
 
     /**
-     * Gets the accessible space uuids for a given action and actor
+     * Gets the accessible space uuids for a given action and user
      * @param action - The action to check permissions for
-     * @param actor - The session user to check permissions for
+     * @param user - The session user to check permissions for
      * @param spaceUuids - The space uuids to get the accessible space uuids for
      * @returns The accessible space uuids
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
-        actor: SessionUser,
+        user: SessionUser,
         spaceUuids: string[],
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
-            userUuid: actor.userUuid,
+            userUuid: user.userUuid,
         });
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         return Object.entries(accessContext)
             .filter(([_, access]) =>
                 auditedAbility.can(action, subject('Space', access)),
@@ -238,11 +248,30 @@ export class SpacePermissionService extends BaseService {
                 organizationAccess: orgAccess,
             });
 
+            // Build the admin map project-first, then overwrite with org —
+            // org source wins on dedup.
+            const adminSource = new Map<string, SpaceAdmin['source']>();
+            for (const a of projectAccess) {
+                if (a.role === ProjectMemberRole.ADMIN) {
+                    adminSource.set(a.userUuid, 'project');
+                }
+            }
+            for (const a of orgAccess) {
+                if (a.role === OrganizationMemberRole.ADMIN) {
+                    adminSource.set(a.userUuid, 'organization');
+                }
+            }
+            const admins: SpaceAdmin[] = Array.from(
+                adminSource,
+                ([userUuid, source]) => ({ userUuid, source }),
+            );
+
             result[spaceUuid] = {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
+                admins,
             };
         }
         return result;
@@ -256,18 +285,18 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Returns the UUID of the first root space the actor can view in the project.
+     * Returns the UUID of the first root space the user can view in the project.
      * Uses CASL-based permission checking via getAccessibleSpaceUuids.
      */
     async getFirstViewableSpaceUuid(
-        actor: SessionUser,
+        user: SessionUser,
         projectUuid: string,
     ): Promise<string> {
         const allRootSpaceUuids =
             await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
         const accessible = await this.getAccessibleSpaceUuids(
             'view',
-            actor,
+            user,
             allRootSpaceUuids,
         );
         if (accessible.length === 0) {

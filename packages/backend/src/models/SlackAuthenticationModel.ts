@@ -131,6 +131,7 @@ export class SlackAuthenticationModel {
             scopes: row.installation?.bot?.scopes || [],
             notificationChannel: row.notification_channel ?? undefined,
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
+            unfurlsEnabled: row.unfurls_enabled ?? true,
         };
     }
 
@@ -167,7 +168,11 @@ export class SlackAuthenticationModel {
 
     async updateAppCustomSettings(
         organizationUuid: string,
-        { notificationChannel, appProfilePhotoUrl }: SlackAppCustomSettings,
+        {
+            notificationChannel,
+            appProfilePhotoUrl,
+            unfurlsEnabled,
+        }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
 
@@ -175,7 +180,18 @@ export class SlackAuthenticationModel {
             .update({
                 notification_channel: notificationChannel,
                 app_profile_photo_url: appProfilePhotoUrl,
+                unfurls_enabled: unfurlsEnabled,
             })
             .where('organization_id', organizationId);
+    }
+
+    async getUnfurlsEnabled(teamId: string): Promise<boolean> {
+        const row = await this.database(SlackAuthTokensTableName)
+            .select<Pick<DbSlackAuthTokens, 'unfurls_enabled'>>(
+                'unfurls_enabled',
+            )
+            .where('slack_team_id', teamId)
+            .first();
+        return row?.unfurls_enabled ?? true;
     }
 }

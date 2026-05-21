@@ -1,15 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AnyType,
     ApiSqlQueryResults,
     DashboardFilters,
     DateGranularity,
-    DimensionType,
     DownloadFileType,
     ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
+    formatTemporalCellForSpreadsheet,
     friendlyName,
     getErrorMessage,
     getItemLabel,
@@ -17,8 +18,6 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
-    isDimension,
-    isField,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
@@ -248,24 +247,12 @@ export class CsvService extends BaseService {
                 return data;
             }
 
-            const itemIsField = isField(item);
-            if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                const m = timezone
-                    ? moment.utc(data).tz(timezone)
-                    : moment(data);
-                return m.format('YYYY-MM-DD HH:mm:ss.SSS');
-            }
-            if (itemIsField && item.type === DimensionType.DATE) {
-                // Only TZ format dates that have timestamps as base dimensions
-                const m =
-                    timezone &&
-                    isDimension(item) &&
-                    item.timeIntervalBaseDimensionType ===
-                        DimensionType.TIMESTAMP
-                        ? moment.utc(data).tz(timezone)
-                        : moment(data);
-                return m.format('YYYY-MM-DD');
-            }
+            const spreadsheetTemporal = formatTemporalCellForSpreadsheet(
+                item,
+                data,
+                timezone,
+            );
+            if (spreadsheetTemporal !== undefined) return spreadsheetTemporal;
 
             // Return raw value and let csv-stringify handle the rest
             if (onlyRaw) return data;
@@ -620,7 +607,7 @@ export class CsvService extends BaseService {
      * This method is used to schedule a CSV download for a dashboard.
      */
     async scheduleExportCsvDashboard(
-        user: SessionUser,
+        account: Account,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
         selectedTabs: string[] | null,
@@ -628,7 +615,7 @@ export class CsvService extends BaseService {
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -653,7 +640,7 @@ export class CsvService extends BaseService {
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             schedulerUuid: undefined,
         };
         const { jobId } = await this.schedulerClient.scheduleTask(

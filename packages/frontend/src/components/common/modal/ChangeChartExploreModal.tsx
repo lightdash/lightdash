@@ -25,6 +25,7 @@ import { pollJobStatus } from '../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplores } from '../../../hooks/useExplores';
 import useApp from '../../../providers/App/useApp';
+import Callout from '../Callout';
 import MantineModal from '../MantineModal';
 
 const renameChartExplore = async ({
@@ -59,6 +60,7 @@ interface ChangeChartExploreModalProps extends Pick<
     projectUuid: string;
     chartUuid: string;
     currentExploreName: string;
+    hasUnsavedChanges: boolean;
 }
 
 const FORM_ID = 'change-chart-explore-form';
@@ -69,6 +71,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     projectUuid,
     chartUuid,
     currentExploreName,
+    hasUnsavedChanges,
 }) => {
     const queryClient = useQueryClient();
     const { user } = useApp();
@@ -204,6 +207,13 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
         >
             <form id={FORM_ID} onSubmit={handleSubmit}>
                 <Stack>
+                    {hasUnsavedChanges && (
+                        <Callout variant="warning">
+                            You have unsaved changes to this chart. They will be
+                            discarded when the explore is changed.
+                        </Callout>
+                    )}
+
                     <Text fz="sm" c="dimmed">
                         Change which explore this chart uses. All field
                         references will be remapped to the new explore.

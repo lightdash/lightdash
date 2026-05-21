@@ -135,6 +135,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(
                         `(SELECT last_name FROM users WHERE user_uuid = ${AppsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
+                    knex.raw(`null::timestamp as verified_at`),
+                    knex.raw(`null::uuid as verified_by_user_uuid`),
+                    knex.raw(`null as verified_by_user_first_name`),
+                    knex.raw(`null as verified_by_user_last_name`),
                     knex.raw(
                         `json_build_object(
                             'latestVersionNumber', latest_version.version,

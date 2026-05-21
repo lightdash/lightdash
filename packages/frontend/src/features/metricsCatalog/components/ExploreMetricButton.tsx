@@ -1,8 +1,8 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
-import { type MRT_Row } from 'mantine-react-table';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { type MRT_Row } from '../../../components/common/ContentTable';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';

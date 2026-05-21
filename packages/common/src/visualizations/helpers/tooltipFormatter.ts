@@ -639,6 +639,12 @@ export function createStack100TooltipFormatter(
 
                 const percentage = valueObject[dimensionName];
 
+                // Skip series rows that have no data at this x — happens on
+                // gap rows inserted by padDatasetForContinuousAxis. Without
+                // this guard the formatter would render a "0.0% (0)" line
+                // per series at every gap date.
+                if (percentage === undefined) return '';
+
                 // Get the raw x-axis value from the data for originalValues lookup
                 const rawXValue = String(valueObject[xAxisField] ?? '');
                 const originalValue =
@@ -665,6 +671,10 @@ export function createStack100TooltipFormatter(
             })
             .filter(Boolean)
             .join('');
+
+        // No data at this x (e.g., gap row from continuous-axis padding):
+        // suppress the tooltip entirely rather than showing an empty header.
+        if (!rowsHtml) return '';
 
         const divider = getTooltipDivider();
 
@@ -696,12 +706,16 @@ export function transformToPercentageStacking<
     const originalValues = new Map<string, Map<string, number>>();
     const totals = new Map<string, number>();
 
-    // Calculate totals for each x-axis value
+    // Calculate totals for each x-axis value. Skip fields absent from the
+    // row so gap rows (inserted by padDatasetForContinuousAxis) don't
+    // contribute zeros to originalValues — that would surface as
+    // "0.0% (0)" tooltip lines at gap dates.
     rows.forEach((row) => {
         const xValue = String(row[xAxisField]);
         let total = 0;
 
         yFieldRefs.forEach((yField) => {
+            if (row[yField] === undefined) return;
             const value = toNumber(row[yField]) || 0;
             total += value;
 
@@ -715,13 +729,15 @@ export function transformToPercentageStacking<
         totals.set(xValue, total);
     });
 
-    // Transform data to percentages
+    // Transform data to percentages. Preserve absence for gap-row yFields
+    // so ECharts (and the tooltip) treat them as missing instead of 0%.
     const transformedResults = rows.map((row) => {
         const xValue = String(row[xAxisField]);
         const total = totals.get(xValue) || 1; // Avoid division by zero
         const newRow = { ...row };
 
         yFieldRefs.forEach((yField) => {
+            if (row[yField] === undefined) return;
             const value = toNumber(row[yField]) || 0;
             (newRow as Record<string, unknown>)[yField] = (value / total) * 100;
         });
@@ -1413,6 +1429,11 @@ export const buildCartesianTooltipFormatter =
                 tooltipHtml = '';
             }
         }
+
+        // No data at this x and no custom template (e.g., gap row from
+        // continuous-axis padding): suppress the tooltip entirely rather
+        // than showing an empty header.
+        if (!rowsHtml && !tooltipHtml) return '';
 
         const divider = getTooltipDivider();
         const dimensionId = params[0]?.dimensionNames?.[0];

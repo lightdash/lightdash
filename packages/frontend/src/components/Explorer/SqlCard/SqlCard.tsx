@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
-import { formatSql, hasSqlAuthoredFields } from '@lightdash/common';
+import {
+    formatSql,
+    isCustomSqlDimension,
+    isSqlTableCalculation,
+} from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     CopyButton,
     Group,
     SegmentedControl,
@@ -33,6 +38,7 @@ import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCus
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import Callout from '../../common/Callout';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { type SqlViewType } from '../../RenderedSql';
@@ -59,7 +65,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
-    const { user } = useApp();
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -67,14 +72,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         },
         [dispatch],
     );
+    const { user } = useApp();
     const { data: project } = useProject(projectUuid);
 
-    // Hide the SQL panel when the chart contains SQL-authored fields and the
-    // user lacks `manage:CustomFields`. The compiled SQL would inline the
-    // body of those fields, leaking authored SQL the user has no permission
-    // to see — and the legacy compileQuery endpoint also 403s on this path.
+    const hasSqlAuthoredFields =
+        !!metricQuery.customDimensions?.some(isCustomSqlDimension) ||
+        !!metricQuery.tableCalculations?.some(isSqlTableCalculation);
     const cannotViewSqlAuthoredFields =
-        hasSqlAuthoredFields(metricQuery) && cannotAuthorCustomSql;
+        hasSqlAuthoredFields && cannotAuthorCustomSql;
 
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
@@ -92,10 +97,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         [selectedSql, project?.warehouseConnection?.type],
     );
 
-    if (cannotViewSqlAuthoredFields) {
-        return null;
-    }
-
     return (
         <CollapsableCard
             isVisualizationCard
@@ -105,7 +106,10 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
             headerElement={
-                (hovered || sqlIsOpen) && data && isSuccess ? (
+                !cannotViewSqlAuthoredFields &&
+                (hovered || sqlIsOpen) &&
+                data &&
+                isSuccess ? (
                     <CopyButton value={formattedSql} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
@@ -138,7 +142,8 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 ) : undefined
             }
             rightHeaderElement={
-                sqlIsOpen && (
+                sqlIsOpen &&
+                !cannotViewSqlAuthoredFields && (
                     <Group spacing="xs">
                         {hasPivotQuery && (
                             <SegmentedControl
@@ -173,9 +178,18 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 )
             }
         >
-            <Suspense fallback={<Skeleton height={60} radius="sm" />}>
-                <LazyRenderedSql selectedView={selectedView} />
-            </Suspense>
+            {cannotViewSqlAuthoredFields ? (
+                <Box p="sm">
+                    <Callout variant="info" title="SQL preview unavailable">
+                        This chart contains custom SQL fields that you don't
+                        have permission to view.
+                    </Callout>
+                </Box>
+            ) : (
+                <Suspense fallback={<Skeleton height={60} radius="sm" />}>
+                    <LazyRenderedSql selectedView={selectedView} />
+                </Suspense>
+            )}
         </CollapsableCard>
     );
 });

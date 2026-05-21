@@ -1,14 +1,20 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     ParameterError,
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
+    type ApiAppSchedulersResponse,
     type ApiCancelAppVersionResponse,
+    type ApiClarifyAppRequest,
+    type ApiClarifyAppResponse,
+    type ApiCreateAppSchedulerResponse,
     type ApiDeleteAppResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiRestoreAppVersionResponse,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
@@ -31,9 +37,11 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
@@ -51,16 +59,53 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateAppRequestBody,
     ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.getAppGenerateService().generateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             body.prompt,
-            body.imageId,
+            body.imageIds ?? [],
             body.appUuid,
-            body.chartUuids,
-            body.dashboardUuid,
+            body.charts,
+            body.dashboard,
             body.template,
+            body.clarifications,
+            body.spaceUuid,
+            body.claudeModel,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Pre-build clarifying questions. Returns 0–4 short questions whose
+     * answers will materially refine the prompt before the (slow) build
+     * pipeline starts. Stateless — answers are sent back as
+     * `clarifications` on the eventual generate request.
+     * @summary Get clarifying questions for a new app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/clarify')
+    @OperationId('clarifyApp')
+    async clarifyApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiClarifyAppRequest,
+    ): Promise<ApiClarifyAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().clarifyApp(
+            toSessionUser(req.account),
+            projectUuid,
+            body.prompt,
+            body.template,
+            body.charts,
+            body.dashboard,
+            body.imageIds,
         );
         return {
             status: 'ok',
@@ -82,7 +127,9 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() kind?: 'screenshot',
     ): Promise<ApiAppImageUploadResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const mimeType = req.headers['content-type'];
         if (!mimeType) {
@@ -98,12 +145,13 @@ export class AppGenerateController extends BaseController {
             );
         }
         const result = await this.getAppGenerateService().uploadImage(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             mimeType,
             req,
             contentLength,
             appUuid,
+            kind,
         );
         return {
             status: 'ok',
@@ -126,8 +174,9 @@ export class AppGenerateController extends BaseController {
         @Query() beforeVersion?: number,
         @Query() limit?: number,
     ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().getAppVersions(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             { beforeVersion, limit },
@@ -153,15 +202,17 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Body() body: GenerateAppRequestBody,
     ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.getAppGenerateService().iterateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             body.prompt,
-            body.imageId,
-            body.chartUuids,
-            body.dashboardUuid,
+            body.imageIds ?? [],
+            body.charts,
+            body.dashboard,
+            body.claudeModel,
         );
         return {
             status: 'ok',
@@ -183,8 +234,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiCancelAppVersionResponse> {
+        assertRegisteredAccount(req.account);
         await this.getAppGenerateService().cancelVersion(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             version,
@@ -192,6 +244,39 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Restore an earlier ready version by duplicating it into a new ready
+     * version at the head of the timeline. Fast: no sandbox work, no rebuild —
+     * a single DB insert plus an S3 server-side copy of the source tarball.
+     * The preview iframe can serve the restored content immediately. The
+     * next generation triggered after this call resets the sandbox working
+     * tree from the restored tarball.
+     * @summary Restore app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/restore')
+    @OperationId('restoreAppVersion')
+    async restoreAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+    ): Promise<ApiRestoreAppVersionResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().restoreVersion(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            version,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 
@@ -209,8 +294,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Body() body: ApiUpdateAppRequest,
     ): Promise<ApiUpdateAppResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().updateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             body,
@@ -236,8 +322,9 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
     ): Promise<ApiDeleteAppResponse> {
+        assertRegisteredAccount(req.account);
         await this.getAppGenerateService().deleteApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
         );
@@ -260,8 +347,9 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
     ): Promise<ApiTogglePinnedItem> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().togglePinning(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
         );
@@ -285,8 +373,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
         const token = await this.getAppGenerateService().getPreviewToken(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             version,
@@ -307,8 +396,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() imageId: string,
     ): Promise<ApiAppImageUrlResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().getImageUrl(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             imageId,
@@ -316,6 +406,60 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * List schedulers for a data app
+     * @summary List app schedulers
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/schedulers')
+    @OperationId('getAppSchedulers')
+    async getAppSchedulers(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiAppSchedulersResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getAppSchedulers(toSessionUser(req.account), appUuid),
+        };
+    }
+
+    /**
+     * Create a scheduler for a data app
+     * @summary Create app scheduler
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/schedulers')
+    @OperationId('createAppScheduler')
+    async createAppScheduler(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiCreateAppSchedulerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .createAppScheduler(
+                    toSessionUser(req.account),
+                    appUuid,
+                    req.body,
+                ),
         };
     }
 
@@ -341,10 +485,11 @@ export class UserAppsController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiMyAppsResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.services
             .getAppGenerateService<AppGenerateService>()
             .listMyApps(
-                req.user!,
+                toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
             );
         return {

@@ -35,6 +35,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     // we need to set it as undefined to avoid overwritting saved value
     startOfWeek: undefined,
     dataTimezone: undefined,
+    accessUrl: '',
 };
 
 export const DatabricksDefaultValues: CreateDatabricksCredentials = {

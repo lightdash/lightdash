@@ -445,4 +445,48 @@ export class AnalyticsModel {
             },
         );
     }
+
+    async getLastViewedAtForCharts(
+        chartUuids: string[],
+    ): Promise<Map<string, Date>> {
+        if (chartUuids.length === 0) {
+            return new Map();
+        }
+
+        const rows = await this.database(AnalyticsChartViewsTableName)
+            .select('chart_uuid')
+            .max<{ chart_uuid: string; last_viewed_at: Date }[]>({
+                last_viewed_at: 'timestamp',
+            })
+            .whereIn('chart_uuid', chartUuids)
+            .groupBy('chart_uuid');
+
+        return new Map(
+            rows
+                .filter((row) => row.last_viewed_at)
+                .map((row) => [row.chart_uuid, row.last_viewed_at]),
+        );
+    }
+
+    async getLastViewedAtForDashboards(
+        dashboardUuids: string[],
+    ): Promise<Map<string, Date>> {
+        if (dashboardUuids.length === 0) {
+            return new Map();
+        }
+
+        const rows = await this.database(AnalyticsDashboardViewsTableName)
+            .select('dashboard_uuid')
+            .max<{ dashboard_uuid: string; last_viewed_at: Date }[]>({
+                last_viewed_at: 'timestamp',
+            })
+            .whereIn('dashboard_uuid', dashboardUuids)
+            .groupBy('dashboard_uuid');
+
+        return new Map(
+            rows
+                .filter((row) => row.last_viewed_at)
+                .map((row) => [row.dashboard_uuid, row.last_viewed_at]),
+        );
+    }
 }

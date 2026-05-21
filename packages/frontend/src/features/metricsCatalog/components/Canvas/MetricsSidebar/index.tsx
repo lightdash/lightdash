@@ -13,17 +13,20 @@ import {
 import {
     IconBook,
     IconGripVertical,
+    IconHierarchy3,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useCallback, useMemo, type DragEvent, type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
+import { type YamlDriverInfo } from '../CanvasYamlDriversContext';
 import { type ExpandedNodeData } from '../TreeComponents/nodes/ExpandedNode';
 import classes from './MetricsSidebar.module.css';
 
 type MetricsSidebarProps = {
     nodes: ExpandedNodeData[];
+    yamlDriversByTarget: Map<string, YamlDriverInfo[]>;
     hasMore?: boolean;
     isLoadingMore?: boolean;
     onLoadMore?: () => void;
@@ -31,6 +34,7 @@ type MetricsSidebarProps = {
 
 type DraggableMetricItemProps = {
     node: ExpandedNodeData;
+    hasYamlDrivers: boolean;
     onDragStart: (
         event: DragEvent<HTMLDivElement>,
         node: ExpandedNodeData,
@@ -38,7 +42,7 @@ type DraggableMetricItemProps = {
 };
 
 const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
-    ({ node, onDragStart }) => {
+    ({ node, hasYamlDrivers, onDragStart }) => {
         const title = useMemo(
             () => friendlyName(node.data.label),
             [node.data.label],
@@ -74,6 +78,18 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                             {title}
                         </Text>
                     </Tooltip>
+                    {hasYamlDrivers && (
+                        <Tooltip
+                            label="Drivers defined in YAML"
+                            openDelay={300}
+                        >
+                            <MantineIcon
+                                icon={IconHierarchy3}
+                                size={10}
+                                color="ldGray.4"
+                            />
+                        </Tooltip>
+                    )}
                     <Tooltip
                         label={
                             <Text size="xs" fw="bold">
@@ -97,7 +113,7 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
 );
 
 const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
-    ({ nodes, hasMore, isLoadingMore, onLoadMore }) => {
+    ({ nodes, yamlDriversByTarget, hasMore, isLoadingMore, onLoadMore }) => {
         const handleDragStart = useCallback(
             (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
                 event.dataTransfer.setData(
@@ -165,6 +181,9 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                               <DraggableMetricItem
                                                   key={node.id}
                                                   node={node}
+                                                  hasYamlDrivers={yamlDriversByTarget.has(
+                                                      node.id,
+                                                  )}
                                                   onDragStart={handleDragStart}
                                               />
                                           ))

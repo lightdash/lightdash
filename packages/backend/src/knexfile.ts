@@ -40,6 +40,8 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
         tableName: 'knex_migrations',
         extension: 'ts',
         loadExtensions: ['.ts'],
+        disableMigrationsListValidation:
+            lightdashConfig.database.allowMissingMigrations,
     },
     seeds: {
         directory: [

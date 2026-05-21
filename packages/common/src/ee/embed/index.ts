@@ -72,6 +72,14 @@ export const InteractivityOptionsSchema = z.object({
     canDateZoom: z.boolean().optional(),
     canExplore: z.boolean().optional(),
     canViewUnderlyingData: z.boolean().optional(),
+    // Authorizes embed users to view data app tiles on the dashboard.
+    // Off by default — without it, data app tiles render as a placeholder.
+    // Setting it grants the embed JWT the broader CASL abilities a data app
+    // needs (view:DataApp + view:Explore project-wide) so it can mint a
+    // preview token and run its arbitrary metric queries. Mirrors the
+    // existing canExplore opt-in: an explicit decision to widen the embed's
+    // surface beyond pre-built chart queries.
+    canViewDataApps: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -161,6 +169,7 @@ export type CommonEmbedJwtContent = {
     canExportPagePdf?: boolean;
     canExplore?: boolean;
     canViewUnderlyingData?: boolean;
+    canViewDataApps?: boolean;
 };
 
 type CommonChartEmbedJwtContent = {

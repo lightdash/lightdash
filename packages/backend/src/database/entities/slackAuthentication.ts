@@ -16,6 +16,7 @@ export type DbSlackAuthTokens = {
     ai_require_oauth: boolean;
     ai_multi_agent_channel_id: string | null;
     ai_multi_agent_project_uuids: string[] | null;
+    unfurls_enabled: boolean;
     // Channel sync status
     channels_last_sync_at: Date | null;
     channels_sync_started_at: Date | null;
@@ -38,6 +39,7 @@ export type UpdateDbSlackAuthTokens = Partial<
         | 'ai_require_oauth'
         | 'ai_multi_agent_channel_id'
         | 'ai_multi_agent_project_uuids'
+        | 'unfurls_enabled'
         | 'channels_last_sync_at'
         | 'channels_sync_started_at'
         | 'channels_sync_status'

@@ -1,6 +1,7 @@
 import {
     type AppVersionResources,
     type AppVersionStatus,
+    type DataAppTemplate,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -21,11 +22,13 @@ export type DbApp = {
     project_uuid: string;
     space_uuid: string | null;
     sandbox_id: string | null;
+    template: Exclude<DataAppTemplate, 'custom'> | null;
     created_at: Date;
     created_by_user_uuid: string;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
     views_count: number;
+    search_vector: string;
 };
 
 export type AppsTable = Knex.CompositeTableType<
@@ -34,7 +37,12 @@ export type AppsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbApp,
-                'app_id' | 'name' | 'description' | 'space_uuid' | 'sandbox_id'
+                | 'app_id'
+                | 'name'
+                | 'description'
+                | 'space_uuid'
+                | 'sandbox_id'
+                | 'template'
             >
         >,
     Partial<

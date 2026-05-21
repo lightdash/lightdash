@@ -5,6 +5,8 @@ import type {
     MovingWindowFnName,
     OneOrTwoArgFnName,
     SingleArgFnName,
+    ThreeArgFnName,
+    TwoArgFnName,
     VariadicFnName,
     WindowFnName,
     ZeroArgFnName,
@@ -70,9 +72,13 @@ export type ASTNode =
     | IfNode
     | ConditionalAggregateNode
     | CountIfNode
+    | CountDistinctNode
+    | WindowedAggregateNode
     | ZeroArgFnNode
     | SingleArgFnNode
     | OneOrTwoArgFnNode
+    | TwoArgFnNode
+    | ThreeArgFnNode
     | ZeroOrOneArgFnNode
     | VariadicFnNode
     | WindowFnNode
@@ -117,6 +123,31 @@ export interface CountIfNode {
     condition: ASTNode;
 }
 
+export interface CountDistinctNode {
+    type: 'CountDistinct';
+    arg: ASTNode;
+}
+
+// Wraps an aggregate AST node with an explicit OVER (PARTITION BY … [ORDER BY
+// …]) clause. Kept as a wrapper rather than threading an optional
+// `windowClause` through every aggregate node — the boolean "is this windowed?"
+// is one type-check instead of six, and the underlying aggregate node shapes
+// stay strict. The codegen path bypasses the renderAggregate hook for this
+// node because the OVER clause is provided explicitly.
+export type WindowableAggregateNode =
+    | ConditionalAggregateNode
+    | CountIfNode
+    | CountDistinctNode
+    | SingleArgFnNode
+    | OneOrTwoArgFnNode
+    | ZeroOrOneArgFnNode;
+
+export interface WindowedAggregateNode {
+    type: 'WindowedAggregate';
+    aggregate: WindowableAggregateNode;
+    windowClause: WindowClauseNode;
+}
+
 export interface ZeroArgFnNode {
     type: 'ZeroArgFn';
     name: ZeroArgFnName;
@@ -132,6 +163,18 @@ export interface OneOrTwoArgFnNode {
     type: 'OneOrTwoArgFn';
     name: OneOrTwoArgFnName;
     args: [ASTNode] | [ASTNode, ASTNode];
+}
+
+export interface TwoArgFnNode {
+    type: 'TwoArgFn';
+    name: TwoArgFnName;
+    args: [ASTNode, ASTNode];
+}
+
+export interface ThreeArgFnNode {
+    type: 'ThreeArgFn';
+    name: ThreeArgFnName;
+    args: [ASTNode, ASTNode, ASTNode];
 }
 
 export interface ZeroOrOneArgFnNode {

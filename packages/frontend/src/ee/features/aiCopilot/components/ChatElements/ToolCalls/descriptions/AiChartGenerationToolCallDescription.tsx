@@ -1,4 +1,5 @@
-import { Badge, Group, rem, Stack, Text } from '@mantine-8/core';
+import { Group, rem, Stack, Text } from '@mantine-8/core';
+import { ToolCallChip } from '../ToolCallChip';
 
 export const AiChartGenerationToolCallDescription = ({
     title,
@@ -10,19 +11,7 @@ export const AiChartGenerationToolCallDescription = ({
             <Group gap="xs">
                 <Text c="dimmed" size="xs">
                     Generated chart{' '}
-                    <Badge
-                        mx={rem(2)}
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {title}
-                    </Badge>{' '}
+                    <ToolCallChip mx={rem(2)}>{title}</ToolCallChip>{' '}
                 </Text>
             </Group>
         </Stack>

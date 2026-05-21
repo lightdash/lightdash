@@ -66,6 +66,7 @@ export type Space = {
     parentSpaceUuid: string | null;
     inheritParentPermissions: boolean;
     projectMemberAccessRole: SpaceMemberRole | null;
+    colorPaletteUuid: string | null;
     // ltree path serialized as string
     path: string;
     breadcrumbs?: {
@@ -121,12 +122,14 @@ export type UpdateSpace = {
     inheritParentPermissions?: boolean;
     /** When set, all project members get this role on the space */
     projectMemberAccessRole?: SpaceMemberRole | null;
+    colorPaletteUuid?: string | null;
 };
 
 export type SpaceAccessUserMetadata = {
     firstName: string;
     lastName: string;
     email: string;
+    isInternal: boolean;
 };
 
 export type SpaceInheritanceChainItem = {

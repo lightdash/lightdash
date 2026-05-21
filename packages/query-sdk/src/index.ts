@@ -42,4 +42,13 @@ export type {
     SdkFetchRequest,
     SdkFetchResponse,
     SdkReadyMessage,
+    SdkScreenshotAvailableMessage,
+    SdkScreenshotRequest,
+    SdkScreenshotResponse,
 } from './postMessageTransport';
+
+// Element inspector (click-to-edit) — protocol types for parent bridge.
+export type {
+    InspectAvailableMessage,
+    InspectSelectedMessage,
+} from './inspector';

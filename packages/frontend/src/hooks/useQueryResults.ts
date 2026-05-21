@@ -38,12 +38,6 @@ export type QueryResultsProps = {
     csvLimit?: number | null; //giving null returns all results (no limit)
     chartUuid?: string;
     chartVersionUuid?: string;
-    /**
-     * UUID of the saved chart this query was loaded from. Set on the
-     * edit-mode (metric-query) path so the backend can exempt unchanged
-     * SQL-authored fields from the `manage:CustomFields` gate.
-     */
-    savedChartUuid?: string;
     dateZoomGranularity?: DateGranularity | string;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
@@ -106,6 +100,7 @@ export const scheduleDownloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',
@@ -174,7 +169,6 @@ const executeAsyncQuery = (
                 usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
-                savedChartUuid: data.savedChartUuid,
             },
             { signal },
         );

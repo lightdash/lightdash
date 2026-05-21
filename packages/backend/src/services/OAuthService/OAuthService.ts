@@ -4,8 +4,8 @@ import {
     NotFoundError,
     ParameterError,
     UserWithOrganizationUuid,
+    type Account,
     type OAuthClientSummary,
-    type SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -128,14 +128,14 @@ export class OAuthService extends BaseService {
         });
     }
 
-    public async listClients(user: SessionUser): Promise<OAuthClientSummary[]> {
-        const auditedAbility = this.createAuditedAbility(user);
+    public async listClients(account: Account): Promise<OAuthClientSummary[]> {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            !user.organizationUuid ||
+            !account.organization.organizationUuid ||
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid,
                 }),
             )
         ) {
@@ -143,11 +143,13 @@ export class OAuthService extends BaseService {
                 'You do not have permission to manage OAuth clients',
             );
         }
-        return this.oauthModel.listClientsByOrganization(user.organizationUuid);
+        return this.oauthModel.listClientsByOrganization(
+            account.organization.organizationUuid,
+        );
     }
 
     public async createAdminClient(
-        user: SessionUser,
+        account: Account,
         {
             clientName,
             redirectUris,
@@ -156,13 +158,13 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ) {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            !user.organizationUuid ||
+            !account.organization.organizationUuid ||
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid,
                 }),
             )
         ) {
@@ -183,13 +185,13 @@ export class OAuthService extends BaseService {
         return this.oauthModel.createClient({
             clientName,
             redirectUris,
-            organizationUuid: user.organizationUuid,
-            createdByUserUuid: user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+            createdByUserUuid: account.user.id,
         });
     }
 
     public async updateClient(
-        user: SessionUser,
+        account: Account,
         clientId: string,
         {
             clientName,
@@ -199,13 +201,13 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            !user.organizationUuid ||
+            !account.organization.organizationUuid ||
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid,
                     metadata: { clientId },
                 }),
             )
@@ -226,7 +228,7 @@ export class OAuthService extends BaseService {
 
         const updated = await this.oauthModel.updateClient(
             clientId,
-            user.organizationUuid,
+            account.organization.organizationUuid,
             { clientName, redirectUris },
         );
         if (!updated) {
@@ -236,16 +238,16 @@ export class OAuthService extends BaseService {
     }
 
     public async deleteClient(
-        user: SessionUser,
+        account: Account,
         clientId: string,
     ): Promise<void> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            !user.organizationUuid ||
+            !account.organization.organizationUuid ||
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid,
                     metadata: { clientId },
                 }),
             )
@@ -257,7 +259,7 @@ export class OAuthService extends BaseService {
 
         const deleted = await this.oauthModel.deleteClient(
             clientId,
-            user.organizationUuid,
+            account.organization.organizationUuid,
         );
         if (!deleted) {
             throw new NotFoundError('OAuth client not found');

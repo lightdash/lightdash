@@ -20,6 +20,7 @@ export function mockUserResponse(
         isSetupComplete: true,
         role: OrganizationMemberRole.ADMIN,
         isActive: true,
+        timezone: null,
         abilityRules: [
             {
                 action: 'view',

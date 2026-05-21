@@ -2,7 +2,15 @@ import { ValidationErrorType, ValidationSourceType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbValidationTable = {
-    validation_id: number;
+    validation_uuid: string;
+    /**
+     * @deprecated Legacy auto-increment integer ID. The IDENTITY/sequence was
+     * removed (see migration 20260501144729_validations_uuid_pk.ts) to prevent
+     * INTEGER sequence exhaustion. Column is retained for back-compat with
+     * downstream replication consumers and legacy URLs; new rows leave it NULL.
+     * Use `validation_uuid` as the canonical identifier.
+     */
+    validation_id: number | null;
     created_at: Date;
     project_uuid: string;
     error: string;

@@ -1,4 +1,8 @@
-import { type ApiError, type ServiceAccount } from '@lightdash/common';
+import {
+    type ApiError,
+    type ServiceAccount,
+    type ServiceAccountWithProjectAccessCount,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
@@ -10,10 +14,10 @@ type CreateServiceAccountResult = ServiceAccount & { token: string };
 export const useServiceAccounts = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    const listAccounts = useQuery<ServiceAccount[]>({
+    const listAccounts = useQuery<ServiceAccountWithProjectAccessCount[]>({
         queryKey: [CACHE_KEY],
         queryFn: () =>
-            lightdashApi<ServiceAccount[]>({
+            lightdashApi<ServiceAccountWithProjectAccessCount[]>({
                 method: 'GET',
                 url: '/service-accounts',
             }),
@@ -67,11 +71,38 @@ export const useServiceAccounts = () => {
         },
     });
 
+    const rotateAccount = useMutation<
+        CreateServiceAccountResult,
+        ApiError,
+        { uuid: string; expiresAt: string }
+    >({
+        mutationKey: [CACHE_KEY],
+        mutationFn: ({ uuid, expiresAt }) =>
+            lightdashApi<CreateServiceAccountResult>({
+                method: 'PATCH',
+                url: `/service-accounts/${uuid}/rotate`,
+                body: JSON.stringify({ expiresAt }),
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({
+                title: `Success! Your token was rotated.`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to rotate token`,
+                apiError: error,
+            });
+        },
+    });
+
     return useMemo(() => {
         return {
             listAccounts,
             createAccount,
             deleteAccount,
+            rotateAccount,
         };
-    }, [listAccounts, createAccount, deleteAccount]);
+    }, [listAccounts, createAccount, deleteAccount, rotateAccount]);
 };

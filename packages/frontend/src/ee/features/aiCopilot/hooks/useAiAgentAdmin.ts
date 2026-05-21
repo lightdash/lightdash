@@ -97,11 +97,12 @@ const getAiAgentAdminAgents = async () => {
     });
 };
 
-export const useAiAgentAdminAgents = () => {
+export const useAiAgentAdminAgents = (options?: { enabled?: boolean }) => {
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: ['ai-agent-admin-list'],
         queryFn: getAiAgentAdminAgents,
         keepPreviousData: true,
+        enabled: options?.enabled ?? true,
     });
 };
 

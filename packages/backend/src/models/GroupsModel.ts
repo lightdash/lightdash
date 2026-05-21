@@ -59,7 +59,9 @@ export class GroupsModel {
             throw new NotFoundError(`No group found`);
         }
 
-        // Check what members exist and are part of the organization
+        // Check what members exist and are part of the organization.
+        // Internal user records (service accounts etc.) are not eligible
+        // for human group membership.
         const users = await trx('users')
             .innerJoin(
                 'organization_memberships',
@@ -70,6 +72,7 @@ export class GroupsModel {
                 'organization_memberships.organization_id',
                 group.organization_id,
             )
+            .where('users.is_internal', false)
             .whereIn('user_uuid', memberUuids)
             .select('users.user_id', 'user_uuid');
 
@@ -671,6 +674,7 @@ export class GroupsModel {
         const userIdToInsert = (
             await this.database('users')
                 .where('user_uuid', userUuid)
+                .where('is_internal', false)
                 .first('user_id')
         )?.user_id;
         if (!userIdToInsert) {

@@ -15,7 +15,15 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import schedulerWorkerEventEmitter, {
+    wireWorkerHealthEvents,
+} from './scheduler/SchedulerWorkerEventEmitter';
+import {
+    derivePoolIdFromEnv,
+    SchedulerWorkerHealth,
+} from './scheduler/SchedulerWorkerHealth';
 import { IGNORE_ERRORS } from './sentry';
+import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -46,6 +54,7 @@ const schedulerWorkerFactory = (context: {
     models: ModelRepository;
     clients: ClientRepository;
     utils: UtilRepository;
+    workerHealth: SchedulerWorkerHealth;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -76,6 +85,10 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        workerHealth: context.workerHealth,
+        resolveOrganizationName: createOrganizationNameResolver(
+            context.models.getOrganizationModel(),
+        ),
     });
 
 export default class SchedulerApp {
@@ -181,9 +194,9 @@ export default class SchedulerApp {
             return this.toString();
         };
         await this.initSentry();
-        const worker = await this.initWorker();
+        const { worker, workerHealth } = await this.initWorker();
         this.prometheusMetrics.monitorQueues(this.clients.getSchedulerClient());
-        await this.initServer(worker);
+        await this.initServer(worker, workerHealth);
     }
 
     private async initSentry() {
@@ -200,6 +213,8 @@ export default class SchedulerApp {
     }
 
     private async initWorker() {
+        const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
+        wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
@@ -207,26 +222,43 @@ export default class SchedulerApp {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            workerHealth,
         });
         await worker.run();
-        return worker;
+        return { worker, workerHealth };
     }
 
-    private async initServer(worker: SchedulerWorker) {
+    private async initServer(
+        worker: SchedulerWorker,
+        workerHealth: SchedulerWorkerHealth,
+    ) {
         const app = express();
+        if (this.lightdashConfig.prometheus.extendedMetricsEnabled) {
+            app.use(
+                this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
+            );
+        }
         const server = http.createServer(app);
 
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
-                '/api/v1/health': () =>
-                    new Promise((resolve, reject) => {
-                        if (worker && worker.runner && worker.isRunning) {
-                            resolve('Scheduler worker is running');
-                        } else {
-                            reject(new Error('Scheduler worker not running'));
-                        }
-                    }),
+                '/api/v1/health': () => {
+                    const status = workerHealth.isHealthy();
+                    const runnerUp = Boolean(
+                        worker?.runner && worker.isRunning,
+                    );
+                    if (runnerUp && status.ok) {
+                        return Promise.resolve('Scheduler worker is running');
+                    }
+                    const reason = !runnerUp
+                        ? 'runner not running (worker.isRunning=false or runner=undefined)'
+                        : (status.reason ?? 'unknown');
+                    Logger.warn(
+                        `[scheduler-health] probe=503 poolId=${workerHealth.getPoolId()} reason="${reason}" runnerUp=${runnerUp}`,
+                    );
+                    return Promise.reject(new Error(reason));
+                },
                 '/api/v1/livez': () => Promise.resolve(),
             },
             beforeShutdown: async () => {

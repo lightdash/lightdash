@@ -14,8 +14,7 @@
         "@mantine/core": "8.0.0",
         "i18next": "24.2.2",
         "i18next-browser-languagedetector": "8.0.3",
-        "i18next-http-backend": "3.0.2",
-        "i18next-locize-backend": "7.0.3",
+        "i18next-http-backend": "3.0.5",
         "react": "19.2.0",
         "react-dom": "19.2.0",
         "react-i18next": "15.4.1"
@@ -30,7 +29,7 @@
         "knex": "3.1.0",
         "pg": "8.13.1",
         "pg-connection-string": "2.7.0",
-        "typescript": "6.0.0-beta",
-        "vite": "8.0.4"
+        "typescript": "6.0.3",
+        "vite": "8.0.5"
     }
 }

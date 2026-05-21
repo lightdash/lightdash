@@ -1,14 +1,23 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
+    getFixedBrokenMetadata,
+    getManagedAgentActionCategory,
+    getManagedAgentScheduleCron,
     ManagedAgentActionType,
+    ManagedAgentRunStatus,
     ManagedAgentTargetType,
     NotFoundError,
+    ParameterError,
     ProjectType,
     ServiceAccountScope,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentRun,
+    type ManagedAgentRunsListResponse,
+    type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type MetricQuery,
     type SavedChart,
@@ -17,10 +26,13 @@ import {
     type ValidationResponse,
 } from '@lightdash/common';
 import type { KnownBlock } from '@slack/bolt';
+import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import type { OrganizationModel } from '../../../models/OrganizationModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import type { SpaceModel } from '../../../models/SpaceModel';
@@ -28,31 +40,115 @@ import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
-import { ManagedAgentClient } from '../../clients/ManagedAgentClient';
+import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import {
+    ManagedAgentClient,
+    type ManagedAgentSessionConfig,
+} from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import {
+    formatManagedAgentToolListResult,
+    getManagedAgentToolResultLimit,
+    summarizeManagedAgentBrokenContent,
+} from './toolResults';
+
+type RunsCursor = { startedAt: Date; runUuid: string };
+
+type HeartbeatContext = {
+    runUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    settings: ManagedAgentSettings | null;
+    triggeredBy: ManagedAgentRunTriggeredBy;
+    startedAtMs: number;
+    analyticsUserId: string | null;
+};
+
+const encodeRunsCursor = (cursor: RunsCursor | null): string | null => {
+    if (!cursor) return null;
+    return Buffer.from(
+        JSON.stringify({
+            startedAt: cursor.startedAt.toISOString(),
+            runUuid: cursor.runUuid,
+        }),
+    ).toString('base64');
+};
+
+const decodeRunsCursor = (raw: string | null): RunsCursor | null => {
+    if (!raw) return null;
+    try {
+        const decoded = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+        if (
+            typeof decoded?.startedAt !== 'string' ||
+            typeof decoded?.runUuid !== 'string'
+        ) {
+            return null;
+        }
+        return {
+            startedAt: new Date(decoded.startedAt),
+            runUuid: decoded.runUuid,
+        };
+    } catch {
+        return null;
+    }
+};
+
+const FRIENDLY_TOOL_LABELS: Record<string, string> = {
+    get_recent_actions: 'Reviewing recent activity',
+    get_stale_charts: 'Looking for stale charts',
+    get_stale_dashboards: 'Looking for stale dashboards',
+    get_broken_content: 'Looking for broken content',
+    get_preview_projects: 'Inspecting preview projects',
+    get_popular_content: 'Checking popular content',
+    get_chart_details: 'Inspecting chart details',
+    get_chart_schema: 'Loading chart schema',
+    flag_content: 'Flagging content',
+    soft_delete_content: 'Cleaning up stale content',
+    log_insight: 'Logging an insight',
+    fix_broken_chart: 'Fixing a broken chart',
+    create_content_from_code: 'Creating chart suggestion',
+    get_user_questions: 'Reviewing user questions',
+    get_slow_queries: 'Checking slow queries',
+    reverse_own_action: 'Reverting earlier change',
+    write_slack_summary: 'Writing Slack summary',
+};
+
+const NON_ACTIVITY_TOOL_NAMES = new Set(['write_slack_summary']);
+
+const friendlyToolLabel = (toolName: string): string =>
+    FRIENDLY_TOOL_LABELS[toolName] ?? `Running ${toolName}`;
 
 type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     managedAgentModel: ManagedAgentModel;
     analyticsModel: AnalyticsModel;
+    organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     validationModel: ValidationModel;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    spacePermissionService: SpacePermissionService;
     userModel: UserModel;
+    featureFlagModel: FeatureFlagModel;
     serviceAccountModel: ServiceAccountModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    managedAgentClient: ManagedAgentClient;
 };
 
 export class ManagedAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly managedAgentModel: ManagedAgentModel;
 
     private readonly analyticsModel: AnalyticsModel;
+
+    private readonly organizationModel: OrganizationModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -64,7 +160,11 @@ export class ManagedAgentService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     private readonly userModel: UserModel;
+
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly serviceAccountModel: ServiceAccountModel;
 
@@ -72,22 +172,27 @@ export class ManagedAgentService extends BaseService {
 
     private readonly slackClient: SlackClient;
 
-    private client: ManagedAgentClient | null = null;
+    private readonly managedAgentClient: ManagedAgentClient;
 
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
+        this.analytics = deps.analytics;
         this.managedAgentModel = deps.managedAgentModel;
         this.analyticsModel = deps.analyticsModel;
+        this.organizationModel = deps.organizationModel;
         this.projectModel = deps.projectModel;
         this.validationModel = deps.validationModel;
         this.savedChartModel = deps.savedChartModel;
         this.dashboardModel = deps.dashboardModel;
         this.spaceModel = deps.spaceModel;
+        this.spacePermissionService = deps.spacePermissionService;
         this.userModel = deps.userModel;
+        this.featureFlagModel = deps.featureFlagModel;
         this.serviceAccountModel = deps.serviceAccountModel;
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
+        this.managedAgentClient = deps.managedAgentClient;
     }
 
     // --- Validation helpers ---
@@ -164,29 +269,45 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getClient(
+    private async getSessionConfig(
         projectUuid: string,
         serviceAccountToken: string,
-    ): Promise<ManagedAgentClient> {
-        // Always create a fresh client per heartbeat run — persisted resource
-        // IDs are loaded from the DB each time so they stay in sync.
-        const { anthropicApiKey, sessionTimeoutMs, agentId } =
-            this.lightdashConfig.managedAgent;
-        if (!anthropicApiKey) {
-            throw new Error('ANTHROPIC_API_KEY is required for managed agent');
-        }
-
-        const { environmentId, vaultId } =
-            await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
-
-        this.client = new ManagedAgentClient({
-            anthropicApiKey,
-            siteUrl: this.lightdashConfig.siteUrl,
-            serviceAccountPat: serviceAccountToken,
-            sessionTimeoutMs,
+    ): Promise<ManagedAgentSessionConfig> {
+        const {
             agentId,
+            agentConfigHash,
+            agentVersion,
+            environmentId,
+            vaultId,
+        } = await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        const organization = await this.organizationModel.get(
+            project.organizationUuid,
+        );
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+
+        return {
+            serviceAccountPat: serviceAccountToken,
+            resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
+            skillIds: this.lightdashConfig.managedAgent.skillIds,
+            toolSettings: settings?.toolSettings ?? {},
+            persistedAgentId: agentId,
+            persistedAgentConfigHash: agentConfigHash,
+            persistedAgentVersion: agentVersion,
             persistedEnvironmentId: environmentId,
             persistedVaultId: vaultId,
+            onAgentSynced: async (
+                newAgentId,
+                newAgentConfigHash,
+                newAgentVersion,
+            ) => {
+                await this.managedAgentModel.setAnthropicAgentState(
+                    projectUuid,
+                    newAgentId,
+                    newAgentConfigHash,
+                    newAgentVersion,
+                );
+            },
             onResourcesCreated: async (newEnvId, newVaultId) => {
                 await this.managedAgentModel.setAnthropicResourceIds(
                     projectUuid,
@@ -194,8 +315,482 @@ export class ManagedAgentService extends BaseService {
                     newVaultId,
                 );
             },
-        });
-        return this.client;
+        };
+    }
+
+    private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
+        const serviceAccountToken =
+            await this.managedAgentModel.getServiceAccountToken(projectUuid);
+
+        if (!serviceAccountToken) {
+            return;
+        }
+
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
+
+        await this.managedAgentClient.syncAgent(sessionConfig);
+    }
+
+    private async getAutopilotActor(projectUuid: string): Promise<SessionUser> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const enabledByUserUuid = settings?.enabledByUserUuid;
+        if (!enabledByUserUuid) {
+            throw new ForbiddenError(
+                `Autopilot actor is not configured for project ${projectUuid}`,
+            );
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return this.userModel.findSessionUserAndOrgByUuid(
+            enabledByUserUuid,
+            organizationUuid,
+        );
+    }
+
+    private async canActorViewProject(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(actor);
+        return auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { projectUuid },
+            }),
+        );
+    }
+
+    private async assertActorCanViewProject(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (!(await this.canActorViewProject(actor, projectUuid))) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot view project ${projectUuid}`,
+            );
+        }
+    }
+
+    private async assertActorCanManageProject(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot manage project ${projectUuid}`,
+            );
+        }
+    }
+
+    private async getChartAccessContext(
+        actor: SessionUser,
+        chart: {
+            spaceUuid: string;
+        },
+    ): Promise<{
+        inheritsFromOrgOrProject: boolean;
+        access: unknown[];
+    }> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                actor.userUuid,
+                chart.spaceUuid,
+            );
+        return { inheritsFromOrgOrProject, access };
+    }
+
+    private async canActorViewChart(
+        actor: SessionUser,
+        chart: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ): Promise<boolean> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.getChartAccessContext(actor, chart);
+        const auditedAbility = this.createAuditedAbility(actor);
+        return auditedAbility.can(
+            'view',
+            subject('SavedChart', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: {
+                    savedChartUuid: chart.uuid,
+                    savedChartName: chart.name,
+                },
+            }),
+        );
+    }
+
+    private async assertActorCanUpdateChart(
+        actor: SessionUser,
+        chart: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ): Promise<void> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.getChartAccessContext(actor, chart);
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot update chart ${chart.uuid}`,
+            );
+        }
+    }
+
+    private async assertActorCanDeleteChart(
+        actor: SessionUser,
+        chart: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ): Promise<void> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.getChartAccessContext(actor, chart);
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'delete',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot delete chart ${chart.uuid}`,
+            );
+        }
+    }
+
+    private async assertActorCanRestoreChart(
+        actor: SessionUser,
+        chart: {
+            uuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+            deletedBy?: {
+                userUuid: string;
+            } | null;
+        },
+    ): Promise<void> {
+        await this.assertActorCanViewProject(actor, chart.projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(actor);
+        const canManageDeletedContent = auditedAbility.can(
+            'manage',
+            subject('DeletedContent', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+                metadata: { savedChartUuid: chart.uuid },
+            }),
+        );
+
+        if (
+            !canManageDeletedContent &&
+            chart.deletedBy?.userUuid !== actor.userUuid
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot restore chart ${chart.uuid}`,
+            );
+        }
+    }
+
+    private async assertActorCanCreateSpace(
+        actor: SessionUser,
+        projectUuid: string,
+        spaceName: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('Space', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { spaceName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot create space "${spaceName}"`,
+            );
+        }
+    }
+
+    private async assertActorCanCreateChart(
+        actor: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+        chartName: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                actor.userUuid,
+                spaceUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: { savedChartName: chartName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot create chart "${chartName}"`,
+            );
+        }
+    }
+
+    private async getDashboardAccessContext(
+        actor: SessionUser,
+        dashboard: {
+            spaceUuid: string;
+        },
+    ): Promise<{
+        inheritsFromOrgOrProject: boolean;
+        access: unknown[];
+    }> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                actor.userUuid,
+                dashboard.spaceUuid,
+            );
+        return { inheritsFromOrgOrProject, access };
+    }
+
+    private async canActorViewDashboard(
+        actor: SessionUser,
+        dashboard: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ): Promise<boolean> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.getDashboardAccessContext(actor, dashboard);
+        const auditedAbility = this.createAuditedAbility(actor);
+        return auditedAbility.can(
+            'view',
+            subject('Dashboard', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: {
+                    dashboardUuid: dashboard.uuid,
+                    dashboardName: dashboard.name,
+                },
+            }),
+        );
+    }
+
+    private async assertActorCanDeleteDashboard(
+        actor: SessionUser,
+        dashboard: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ): Promise<void> {
+        const { inheritsFromOrgOrProject, access } =
+            await this.getDashboardAccessContext(actor, dashboard);
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'delete',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot delete dashboard ${dashboard.uuid}`,
+            );
+        }
+    }
+
+    private async assertActorCanRestoreDashboard(
+        actor: SessionUser,
+        dashboard: {
+            uuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+        },
+    ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot restore dashboard ${dashboard.uuid}`,
+            );
+        }
+    }
+
+    private async canActorViewTarget(
+        actor: SessionUser,
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+    ): Promise<boolean> {
+        try {
+            switch (targetType) {
+                case ManagedAgentTargetType.CHART: {
+                    const chart = await this.savedChartModel.get(
+                        targetUuid,
+                        undefined,
+                        { deleted: 'any' },
+                    );
+                    return await this.canActorViewChart(actor, chart);
+                }
+                case ManagedAgentTargetType.DASHBOARD: {
+                    const dashboard = await this.dashboardModel.getByIdOrSlug(
+                        targetUuid,
+                        { deleted: 'any' },
+                    );
+                    return await this.canActorViewDashboard(actor, dashboard);
+                }
+                case ManagedAgentTargetType.PROJECT:
+                    return await this.canActorViewProject(actor, targetUuid);
+                default:
+                    return await this.canActorViewProject(actor, projectUuid);
+            }
+        } catch {
+            return false;
+        }
+    }
+
+    private createContentVisibilityChecker(actor: SessionUser): {
+        canViewChartUuid: (chartUuid: string) => Promise<boolean>;
+        canViewDashboardUuid: (dashboardUuid: string) => Promise<boolean>;
+    } {
+        const chartVisibilityCache = new Map<string, Promise<boolean>>();
+        const dashboardVisibilityCache = new Map<string, Promise<boolean>>();
+
+        const getCachedVisibility = (
+            cache: Map<string, Promise<boolean>>,
+            uuid: string,
+            loadVisibility: () => Promise<boolean>,
+        ): Promise<boolean> => {
+            const cachedVisibility = cache.get(uuid);
+            if (cachedVisibility) {
+                return cachedVisibility;
+            }
+
+            const visibility = loadVisibility().catch(() => false);
+            cache.set(uuid, visibility);
+            return visibility;
+        };
+
+        return {
+            canViewChartUuid: (chartUuid: string) =>
+                getCachedVisibility(
+                    chartVisibilityCache,
+                    chartUuid,
+                    async () => {
+                        const chart = await this.savedChartModel.get(
+                            chartUuid,
+                            undefined,
+                            { deleted: 'any' },
+                        );
+                        return this.canActorViewChart(actor, chart);
+                    },
+                ),
+            canViewDashboardUuid: (dashboardUuid: string) =>
+                getCachedVisibility(
+                    dashboardVisibilityCache,
+                    dashboardUuid,
+                    async () => {
+                        const dashboard =
+                            await this.dashboardModel.getByIdOrSlug(
+                                dashboardUuid,
+                                { deleted: 'any' },
+                            );
+                        return this.canActorViewDashboard(actor, dashboard);
+                    },
+                ),
+        };
     }
 
     // --- Authorization ---
@@ -251,6 +846,7 @@ export class ManagedAgentService extends BaseService {
         update: UpdateManagedAgentSettings,
     ): Promise<ManagedAgentSettings> {
         await this.assertCanManageProject(user, projectUuid);
+        const previous = await this.managedAgentModel.getSettings(projectUuid);
         const settings = await this.managedAgentModel.upsertSettings(
             projectUuid,
             userUuid,
@@ -287,7 +883,7 @@ export class ManagedAgentService extends BaseService {
 
             // Schedule the first heartbeat job
             const schedule =
-                settings.scheduleCron ??
+                getManagedAgentScheduleCron(settings.schedule) ??
                 this.lightdashConfig.managedAgent.schedule;
             await this.schedulerClient.scheduleManagedAgentHeartbeat(
                 schedule,
@@ -298,11 +894,163 @@ export class ManagedAgentService extends BaseService {
             await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
         }
 
+        if (update.enabled || update.toolSettings !== undefined) {
+            await this.syncProjectAgentConfig(projectUuid);
+        }
+
+        await this.trackSettingsChange(
+            projectUuid,
+            userUuid,
+            previous,
+            settings,
+        );
+
+        if (!previous?.enabled && settings.enabled) {
+            void this.startHeartbeat(user, projectUuid, 'on_enable').catch(
+                (error) => {
+                    this.logger.error(
+                        `Failed to trigger run-on-enable for project ${projectUuid}: ${
+                            error instanceof Error ? error.message : 'Unknown'
+                        }`,
+                    );
+                },
+            );
+        }
+
         return settings;
+    }
+
+    private async trackSettingsChange(
+        projectUuid: string,
+        userUuid: string,
+        previous: ManagedAgentSettings | null,
+        next: ManagedAgentSettings,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const enabledTools = Object.entries(next.toolSettings)
+            .filter(([, on]) => on)
+            .map(([key]) => key);
+        const disabledTools = Object.entries(next.toolSettings)
+            .filter(([, on]) => !on)
+            .map(([key]) => key);
+
+        if (previous === null) {
+            this.analytics.track({
+                event: 'managed_agent.settings_created',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    enabled: next.enabled,
+                    schedule: next.schedule,
+                    hasSlackChannel: next.slackChannelId !== null,
+                    enabledTools,
+                    disabledTools,
+                },
+            });
+            return;
+        }
+
+        const changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        > = [];
+        if (previous.enabled !== next.enabled) {
+            changes.push(next.enabled ? 'enabled' : 'disabled');
+        }
+        if (previous.schedule !== next.schedule) {
+            changes.push('schedule');
+        }
+        if (previous.slackChannelId !== next.slackChannelId) {
+            changes.push('slack_channel');
+        }
+        const toolKeys = new Set([
+            ...Object.keys(previous.toolSettings),
+            ...Object.keys(next.toolSettings),
+        ]);
+        const toolsChanged = [...toolKeys].some(
+            (key) => previous.toolSettings[key] !== next.toolSettings[key],
+        );
+        if (toolsChanged) {
+            changes.push('tools');
+        }
+
+        if (changes.length === 0) return;
+
+        this.analytics.track({
+            event: 'managed_agent.settings_updated',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                enabled: next.enabled,
+                schedule: next.schedule,
+                hasSlackChannel: next.slackChannelId !== null,
+                enabledTools,
+                disabledTools,
+                changes,
+                previousEnabled: previous.enabled,
+                previousSchedule: previous.schedule,
+            },
+        });
     }
 
     async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
         return this.managedAgentModel.getEnabledProjects();
+    }
+
+    // Worker-only entry point: creates the run row at the start of a
+    // heartbeat. No permission check because the only caller is the scheduler
+    // worker (system context, no SessionUser). User-facing triggers go
+    // through `startHeartbeat` which performs `assertCanManageProject`
+    // before enqueueing the worker job.
+    async startRun(
+        projectUuid: string,
+        triggeredBy: ManagedAgentRunTriggeredBy,
+    ): Promise<ManagedAgentRun> {
+        return this.managedAgentModel.createRun({ projectUuid, triggeredBy });
+    }
+
+    async getLatestRun(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ManagedAgentRun | null> {
+        await this.assertCanViewProject(user, projectUuid);
+        return this.managedAgentModel.getLatestRun(projectUuid);
+    }
+
+    async getRuns(
+        user: SessionUser,
+        projectUuid: string,
+        opts: { limit: number; cursor: string | null },
+    ): Promise<ManagedAgentRunsListResponse> {
+        await this.assertCanViewProject(user, projectUuid);
+        const decodedCursor = decodeRunsCursor(opts.cursor);
+        const { runs, nextCursor } = await this.managedAgentModel.getRuns(
+            projectUuid,
+            { limit: opts.limit, cursor: decodedCursor },
+        );
+        return { runs, nextCursor: encodeRunsCursor(nextCursor) };
+    }
+
+    async isAiAutopilotEnabledForProject(
+        settings: ManagedAgentSettings,
+    ): Promise<boolean> {
+        const project = await this.projectModel.getSummary(
+            settings.projectUuid,
+        );
+        const user = settings.enabledByUserUuid
+            ? await this.userModel.findSessionUserAndOrgByUuid(
+                  settings.enabledByUserUuid,
+                  project.organizationUuid,
+              )
+            : undefined;
+        const featureFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiAutopilot,
+        });
+
+        return featureFlag.enabled;
     }
 
     // --- Actions API ---
@@ -357,81 +1105,370 @@ export class ManagedAgentService extends BaseService {
                     );
                 }
                 break;
+            case ManagedAgentActionType.FIXED_BROKEN:
+                await this.restorePreviousChartVersion(action, user);
+                break;
             case ManagedAgentActionType.FLAGGED_STALE:
             case ManagedAgentActionType.FLAGGED_BROKEN:
+            case ManagedAgentActionType.FLAGGED_SLOW:
             case ManagedAgentActionType.INSIGHT:
-            case ManagedAgentActionType.FIXED_BROKEN:
-                // These are log-only entries — marking as reversed dismisses them
+                // Log-only entries — marking as reversed dismisses them
                 break;
             default:
                 break;
         }
 
-        return this.managedAgentModel.reverseAction(actionUuid, userUuid);
+        const reversed = await this.managedAgentModel.reverseAction(
+            actionUuid,
+            userUuid,
+        );
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        this.analytics.track({
+            event: 'managed_agent.action_reversed',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                actionType: action.actionType,
+                actionCategory: getManagedAgentActionCategory(
+                    action.actionType,
+                ),
+                targetType: action.targetType,
+                sessionId: action.sessionId,
+                actionAgeMs: Date.now() - new Date(action.createdAt).getTime(),
+            },
+        });
+
+        return reversed;
+    }
+
+    private async restorePreviousChartVersion(
+        action: ManagedAgentAction,
+        user: SessionUser,
+    ): Promise<void> {
+        if (action.targetType !== ManagedAgentTargetType.CHART) {
+            return;
+        }
+        const metadata = getFixedBrokenMetadata(action.metadata);
+        if (!metadata) {
+            throw new ParameterError(
+                'This fix was recorded before revert support — restore manually via the chart version history.',
+            );
+        }
+        const previousChart = await this.savedChartModel.get(
+            action.targetUuid,
+            metadata.previousVersionUuid,
+        );
+        await this.savedChartModel.createVersion(
+            action.targetUuid,
+            previousChart,
+            user,
+        );
     }
 
     // --- Heartbeat ---
 
-    async runHeartbeat(projectUuid: string): Promise<void> {
-        const settings = await this.managedAgentModel.getSettings(projectUuid);
-        if (!settings?.enabled) {
+    async runHeartbeat(projectUuid: string, runUuid: string): Promise<void> {
+        const ctx = await this.loadHeartbeatContext(projectUuid, runUuid);
+        if (!ctx) return;
+
+        this.trackRunStarted(ctx);
+
+        if (!ctx.settings?.enabled) {
+            await this.failRunSafely(ctx, 'Autopilot disabled');
             return;
         }
 
-        // Get the auto-created PAT for MCP auth
         const serviceAccountToken =
             await this.managedAgentModel.getServiceAccountToken(projectUuid);
         if (!serviceAccountToken) {
             this.logger.warn(
                 `No service account token for project ${projectUuid}, skipping heartbeat`,
             );
+            await this.failRunSafely(ctx, 'No service account token');
             return;
         }
 
         this.logger.info(`Running heartbeat for project: ${projectUuid}`);
 
-        const client = await this.getClient(projectUuid, serviceAccountToken);
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
         let sessionId = '';
-        let agentSummary = '';
+        let slackSummary = '';
+        let runError: string | null = null;
 
         const onToolCall = async (
             toolName: string,
             input: Record<string, unknown>,
         ): Promise<string> =>
-            this.handleToolCall(projectUuid, sessionId, toolName, input);
+            this.handleToolCall(
+                projectUuid,
+                sessionId,
+                runUuid,
+                toolName,
+                input,
+            );
 
         const onSessionCreated = (id: string) => {
             sessionId = id;
+            void this.managedAgentModel
+                .setRunSessionId(runUuid, id)
+                .catch((e) =>
+                    this.logger.error(
+                        `Failed to set session_id on run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
         };
 
         try {
-            const result = await client.runSession(
+            const result = await this.managedAgentClient.runSession(
+                sessionConfig,
                 projectUuid,
                 onToolCall,
                 onSessionCreated,
             );
             sessionId = result.sessionId;
-            agentSummary = result.summary;
+            slackSummary = result.slackSummary ?? '';
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
+            runError = error instanceof Error ? error.message : 'Unknown';
         } finally {
+            const actionCountsByType = await this.managedAgentModel
+                .getActionCountsByTypeForRun(runUuid)
+                .catch(() => ({}) as Record<string, number>);
+            const actionCount = Object.values(actionCountsByType).reduce(
+                (sum, n) => sum + n,
+                0,
+            );
+            await this.managedAgentModel
+                .finishRun(runUuid, {
+                    status: runError
+                        ? ManagedAgentRunStatus.ERROR
+                        : ManagedAgentRunStatus.COMPLETED,
+                    actionCount,
+                    summary: slackSummary || null,
+                    error: runError,
+                })
+                .catch((e) =>
+                    this.logger.error(
+                        `Failed to finish run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
+
             // Post summary to Slack even if the session errored — actions
             // recorded via custom tools before the crash are still valuable.
-            this.logger.info(
-                `Slack notification check: slackChannelId=${settings.slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+            const slackPosted = await this.maybePostHeartbeatSlackSummary(
+                ctx,
+                sessionId,
+                slackSummary,
             );
-            if (settings.slackChannelId && sessionId) {
-                await this.postHeartbeatSummaryToSlack(
-                    projectUuid,
-                    sessionId,
-                    settings.slackChannelId,
-                    agentSummary,
-                );
-            }
+
+            this.trackRunCompleted(ctx, {
+                status: runError ? 'error' : 'completed',
+                actionCount,
+                actionCountsByType,
+                slackPosted,
+                error: runError,
+            });
         }
+    }
+
+    private async loadHeartbeatContext(
+        projectUuid: string,
+        runUuid: string,
+    ): Promise<HeartbeatContext | null> {
+        const run = await this.managedAgentModel.getRun(runUuid);
+        if (!run) {
+            this.logger.error(`Run ${runUuid} not found, aborting heartbeat`);
+            return null;
+        }
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return {
+            runUuid,
+            projectUuid,
+            organizationUuid,
+            settings,
+            triggeredBy: run.triggeredBy,
+            startedAtMs: run.startedAt.getTime(),
+            analyticsUserId: settings?.enabledByUserUuid ?? null,
+        };
+    }
+
+    private trackRunStarted(ctx: HeartbeatContext): void {
+        if (!ctx.analyticsUserId) {
+            this.logger.warn(
+                `Skipping run_started analytics — no enabledByUserUuid for run ${ctx.runUuid}`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.run_started',
+            userId: ctx.analyticsUserId,
+            properties: {
+                organizationId: ctx.organizationUuid,
+                projectId: ctx.projectUuid,
+                runUuid: ctx.runUuid,
+                triggeredBy: ctx.triggeredBy,
+                schedule: ctx.settings?.schedule ?? 'unknown',
+                hasSlackChannel: !!ctx.settings?.slackChannelId,
+            },
+        });
+    }
+
+    private trackActionCreated(
+        actor: SessionUser,
+        runUuid: string,
+        action: ManagedAgentAction,
+    ): void {
+        if (!actor.userUuid || !actor.organizationUuid) {
+            this.logger.warn(
+                `Skipping action_created analytics — actor missing userUuid or organizationUuid (action ${action.actionUuid})`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.action_created',
+            userId: actor.userUuid,
+            properties: {
+                organizationId: actor.organizationUuid,
+                projectId: action.projectUuid,
+                runUuid,
+                sessionId: action.sessionId,
+                actionType: action.actionType,
+                targetType: action.targetType,
+            },
+        });
+    }
+
+    private trackRunCompleted(
+        ctx: HeartbeatContext,
+        outcome: {
+            status: 'completed' | 'error';
+            actionCount: number;
+            actionCountsByType: Record<string, number>;
+            slackPosted: boolean;
+            error: string | null;
+        },
+    ): void {
+        if (!ctx.analyticsUserId) {
+            this.logger.warn(
+                `Skipping run_completed analytics — no enabledByUserUuid for run ${ctx.runUuid}`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.run_completed',
+            userId: ctx.analyticsUserId,
+            properties: {
+                organizationId: ctx.organizationUuid,
+                projectId: ctx.projectUuid,
+                runUuid: ctx.runUuid,
+                triggeredBy: ctx.triggeredBy,
+                status: outcome.status,
+                durationMs: Date.now() - ctx.startedAtMs,
+                actionCount: outcome.actionCount,
+                actionCountsByType: outcome.actionCountsByType,
+                slackPosted: outcome.slackPosted,
+                error: outcome.error ? outcome.error.slice(0, 500) : null,
+            },
+        });
+    }
+
+    private async maybePostHeartbeatSlackSummary(
+        ctx: HeartbeatContext,
+        sessionId: string,
+        agentSummary: string,
+    ): Promise<boolean> {
+        const slackChannelId = ctx.settings?.slackChannelId;
+        this.logger.info(
+            `Slack notification check: slackChannelId=${slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+        );
+        if (!slackChannelId || !sessionId) return false;
+        try {
+            await this.postHeartbeatSummaryToSlack(
+                ctx.projectUuid,
+                sessionId,
+                slackChannelId,
+                agentSummary,
+            );
+            return true;
+        } catch (e) {
+            this.logger.error(
+                `Failed to post Slack heartbeat summary for ${ctx.projectUuid}: ${
+                    e instanceof Error ? e.message : 'Unknown'
+                }`,
+            );
+            return false;
+        }
+    }
+
+    private async failRunSafely(
+        ctx: HeartbeatContext,
+        error: string,
+    ): Promise<void> {
+        await this.managedAgentModel
+            .finishRun(ctx.runUuid, {
+                status: ManagedAgentRunStatus.ERROR,
+                actionCount: 0,
+                summary: null,
+                error,
+            })
+            .catch((e) =>
+                this.logger.error(
+                    `Failed to fail run ${ctx.runUuid}: ${
+                        e instanceof Error ? e.message : 'Unknown'
+                    }`,
+                ),
+            );
+        this.trackRunCompleted(ctx, {
+            status: 'error',
+            actionCount: 0,
+            actionCountsByType: {},
+            slackPosted: false,
+            error,
+        });
+    }
+
+    async startHeartbeat(
+        user: SessionUser,
+        projectUuid: string,
+        triggeredBy: 'manual' | 'on_enable' = 'manual',
+    ): Promise<void> {
+        await this.assertCanManageProject(user, projectUuid);
+
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        if (settings) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            this.analytics.track({
+                event: 'managed_agent.run_now_triggered',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    schedule: settings.schedule,
+                    triggeredBy,
+                },
+            });
+        }
+
+        await this.schedulerClient.triggerManagedAgentHeartbeat(
+            projectUuid,
+            triggeredBy,
+        );
     }
 
     private async postHeartbeatSummaryToSlack(
@@ -463,7 +1500,7 @@ export class ManagedAgentService extends BaseService {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
             const { siteUrl } = this.lightdashConfig;
-            const activityUrl = `${siteUrl}/projects/${projectUuid}/improve`;
+            const activityUrl = `${siteUrl}/projects/${projectUuid}/autopilot`;
 
             // Build compact action counts
             const counts: Record<string, number> = {};
@@ -481,7 +1518,7 @@ export class ManagedAgentService extends BaseService {
             if (counts.flagged_broken)
                 summaryParts.push(`*${counts.flagged_broken}* flagged broken`);
             if (counts.soft_deleted)
-                summaryParts.push(`*${counts.soft_deleted}* cleaned up`);
+                summaryParts.push(`*${counts.soft_deleted}* deleted`);
             if (counts.insight)
                 summaryParts.push(
                     `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
@@ -565,60 +1602,124 @@ export class ManagedAgentService extends BaseService {
     private async handleToolCall(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         toolName: string,
         input: Record<string, unknown>,
     ): Promise<string> {
+        if (!NON_ACTIVITY_TOOL_NAMES.has(toolName)) {
+            void this.managedAgentModel
+                .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
+                .catch((e) =>
+                    this.logger.warn(
+                        `Failed to update current_activity for run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
+        }
+        const actor = await this.getAutopilotActor(projectUuid);
+        await this.assertActorCanViewProject(actor, projectUuid);
         switch (toolName) {
             case 'get_recent_actions':
                 return this.handleGetRecentActions(
+                    actor,
                     projectUuid,
                     input.limit as number | undefined,
                 );
             case 'get_stale_charts':
-                return this.handleGetStaleContent(projectUuid, 'charts');
+                return this.handleGetStaleContent(actor, projectUuid, 'charts');
             case 'get_stale_dashboards':
-                return this.handleGetStaleContent(projectUuid, 'dashboards');
+                return this.handleGetStaleContent(
+                    actor,
+                    projectUuid,
+                    'dashboards',
+                );
             case 'get_broken_content':
-                return this.handleGetBrokenContent(projectUuid);
+                return this.handleGetBrokenContent(actor, projectUuid);
             case 'get_preview_projects':
-                return this.handleGetPreviewProjects(projectUuid);
+                return this.handleGetPreviewProjects(actor, projectUuid);
             case 'get_popular_content':
-                return this.handleGetPopularContent(projectUuid);
+                return this.handleGetPopularContent(actor, projectUuid);
             case 'flag_content':
-                return this.handleFlagContent(projectUuid, sessionId, input);
+                return this.handleFlagContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'soft_delete_content':
-                return this.handleSoftDelete(projectUuid, sessionId, input);
+                return this.handleSoftDelete(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'log_insight':
-                return this.handleLogInsight(projectUuid, sessionId, input);
+                return this.handleLogInsight(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'get_chart_details':
-                return this.handleGetChartDetails(projectUuid, input);
+                return this.handleGetChartDetails(actor, projectUuid, input);
             case 'get_chart_schema':
                 return this.handleGetChartSchema();
             case 'fix_broken_chart':
-                return this.handleFixBrokenChart(projectUuid, sessionId, input);
+                return this.handleFixBrokenChart(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'create_content_from_code':
-                return this.handleCreateContent(projectUuid, sessionId, input);
+                return this.handleCreateContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'get_user_questions':
-                return this.handleGetUserQuestions(projectUuid, input);
+                return this.handleGetUserQuestions(actor, projectUuid, input);
             case 'get_slow_queries':
-                return this.handleGetSlowQueries(projectUuid, input);
+                return this.handleGetSlowQueries(actor, projectUuid, input);
             case 'reverse_own_action':
-                return this.handleReverseOwnAction(projectUuid, input);
+                return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
                 return JSON.stringify({ error: `Unknown tool: ${toolName}` });
         }
     }
 
     private async handleGetRecentActions(
+        actor: SessionUser,
         projectUuid: string,
         limit?: number,
     ): Promise<string> {
         const actions = await this.managedAgentModel.getRecentActions(
             projectUuid,
-            limit ?? 50,
+            getManagedAgentToolResultLimit(limit, 50),
         );
-        return JSON.stringify(
-            actions.map((a) => ({
+        const visibleActions = (
+            await Promise.all(
+                actions.map(async (action) =>
+                    (await this.canActorViewTarget(
+                        actor,
+                        projectUuid,
+                        action.targetType,
+                        action.targetUuid,
+                    ))
+                        ? action
+                        : null,
+                ),
+            )
+        ).filter((action): action is ManagedAgentAction => action !== null);
+        return formatManagedAgentToolListResult(
+            visibleActions.map((a) => ({
                 action_uuid: a.actionUuid,
                 action_type: a.actionType,
                 target_name: a.targetName,
@@ -631,13 +1732,38 @@ export class ManagedAgentService extends BaseService {
     }
 
     private async handleGetStaleContent(
+        actor: SessionUser,
         projectUuid: string,
         type: 'charts' | 'dashboards',
     ): Promise<string> {
         const unused = await this.analyticsModel.getUnusedContent(projectUuid);
         const items = type === 'charts' ? unused.charts : unused.dashboards;
-        return JSON.stringify(
-            items.map((item) => ({
+        const visibleItems = (
+            await Promise.all(
+                items.map(async (item) => {
+                    if (item.contentType === 'chart') {
+                        const chart = await this.savedChartModel.get(
+                            item.contentUuid,
+                            undefined,
+                            { deleted: 'any' },
+                        );
+                        return (await this.canActorViewChart(actor, chart))
+                            ? item
+                            : null;
+                    }
+
+                    const dashboard = await this.dashboardModel.getByIdOrSlug(
+                        item.contentUuid,
+                        { deleted: 'any' },
+                    );
+                    return (await this.canActorViewDashboard(actor, dashboard))
+                        ? item
+                        : null;
+                }),
+            )
+        ).filter((item) => item !== null);
+        return formatManagedAgentToolListResult(
+            visibleItems.map((item) => ({
                 uuid: item.contentUuid,
                 name: item.contentName,
                 type: item.contentType,
@@ -649,26 +1775,64 @@ export class ManagedAgentService extends BaseService {
         );
     }
 
-    private async handleGetBrokenContent(projectUuid: string): Promise<string> {
+    private async handleGetBrokenContent(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<string> {
         const validations: ValidationResponse[] =
             await this.validationModel.get(projectUuid);
-        return JSON.stringify(
-            validations.map((v) => ({
-                uuid: (() => {
-                    if ('chartUuid' in v) return v.chartUuid;
-                    if ('dashboardUuid' in v) return v.dashboardUuid;
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor);
+
+        const visibleValidations = (
+            await Promise.all(
+                validations.map(async (validation) => {
+                    if ('chartUuid' in validation && validation.chartUuid) {
+                        if (!(await canViewChartUuid(validation.chartUuid))) {
+                            return null;
+                        }
+                        return {
+                            uuid: validation.chartUuid,
+                            name: validation.name ?? 'Unknown',
+                            type: 'chart' as const,
+                            error: validation.error,
+                            error_type: validation.errorType,
+                            source: validation.source,
+                        };
+                    }
+
+                    if (
+                        'dashboardUuid' in validation &&
+                        validation.dashboardUuid
+                    ) {
+                        if (
+                            !(await canViewDashboardUuid(
+                                validation.dashboardUuid,
+                            ))
+                        ) {
+                            return null;
+                        }
+                        return {
+                            uuid: validation.dashboardUuid,
+                            name: validation.name ?? 'Unknown',
+                            type: 'dashboard' as const,
+                            error: validation.error,
+                            error_type: validation.errorType,
+                            source: validation.source,
+                        };
+                    }
+
                     return null;
-                })(),
-                name: v.name ?? 'Unknown',
-                type: 'chartUuid' in v ? 'chart' : 'dashboard',
-                error: v.error,
-                error_type: v.errorType,
-                source: v.source,
-            })),
+                }),
+            )
+        ).filter((validation) => validation !== null);
+        return formatManagedAgentToolListResult(
+            summarizeManagedAgentBrokenContent(visibleValidations),
         );
     }
 
     private async handleGetPreviewProjects(
+        actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
         const project = await this.projectModel.get(projectUuid);
@@ -686,9 +1850,24 @@ export class ManagedAgentService extends BaseService {
                 p.upstreamProjectUuid === projectUuid &&
                 new Date(p.createdAt) < threeMonthsAgo,
         );
+        const visiblePreviews = (
+            await Promise.all(
+                oldPreviews.map(async (preview) =>
+                    (await this.canActorViewProject(actor, preview.projectUuid))
+                        ? preview
+                        : null,
+                ),
+            )
+        )
+            .filter((preview) => preview !== null)
+            .sort(
+                (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime(),
+            );
 
-        return JSON.stringify(
-            oldPreviews.map((p) => ({
+        return formatManagedAgentToolListResult(
+            visiblePreviews.map((p) => ({
                 uuid: p.projectUuid,
                 name: p.name,
                 created_at: p.createdAt,
@@ -697,23 +1876,75 @@ export class ManagedAgentService extends BaseService {
     }
 
     private async handleGetPopularContent(
+        actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        // getUnusedContent returns all content sorted by least-viewed first.
-        // We invert: take items with views, sort descending, and cap at 20.
-        const unused = await this.analyticsModel.getUnusedContent(projectUuid);
-        const allItems = [...unused.charts, ...unused.dashboards]
-            .filter((item) => item.viewsCount > 0)
-            .sort((a, b) => b.viewsCount - a.viewsCount)
-            .slice(0, 20);
-        return JSON.stringify(
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const spaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                actor,
+                spaces.map((space) => space.uuid),
+            );
+        if (spaceUuids.length === 0) {
+            return JSON.stringify([]);
+        }
+        const [popularCharts, popularDashboards] = await Promise.all([
+            this.spaceModel.getSpaceQueries(spaceUuids, {
+                mostPopular: true,
+            }),
+            this.spaceModel.getSpaceDashboards(spaceUuids, {
+                mostPopular: true,
+            }),
+        ]);
+
+        const allItems = [
+            ...popularCharts.map((item) => ({
+                uuid: item.uuid,
+                name: item.name,
+                type: 'chart' as const,
+                views_count: item.views,
+                created_by: item.updatedByUser
+                    ? `${item.updatedByUser.firstName} ${item.updatedByUser.lastName}`.trim()
+                    : '',
+            })),
+            ...popularDashboards.map((item) => ({
+                uuid: item.uuid,
+                name: item.name,
+                type: 'dashboard' as const,
+                views_count: item.views,
+                created_by: item.updatedByUser
+                    ? `${item.updatedByUser.firstName} ${item.updatedByUser.lastName}`.trim()
+                    : '',
+            })),
+        ]
+            .sort((a, b) => b.views_count - a.views_count)
+            .slice(0, this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+
+        const chartUuids = allItems
+            .filter((item) => item.type === 'chart')
+            .map((item) => item.uuid);
+        const dashboardUuids = allItems
+            .filter((item) => item.type === 'dashboard')
+            .map((item) => item.uuid);
+
+        const [chartViews, dashboardViews] = await Promise.all([
+            this.analyticsModel.getLastViewedAtForCharts(chartUuids),
+            this.analyticsModel.getLastViewedAtForDashboards(dashboardUuids),
+        ]);
+
+        return formatManagedAgentToolListResult(
             allItems.map((item) => ({
-                uuid: item.contentUuid,
-                name: item.contentName,
-                type: item.contentType,
-                views_count: item.viewsCount,
-                last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
-                created_by: item.createdByUserName,
+                uuid: item.uuid,
+                name: item.name,
+                type: item.type,
+                views_count: item.views_count,
+                last_viewed_at:
+                    (item.type === 'chart'
+                        ? chartViews.get(item.uuid)
+                        : dashboardViews.get(item.uuid)
+                    )?.toISOString?.() ?? null,
+                created_by: item.created_by,
             })),
         );
     }
@@ -786,6 +2017,7 @@ chartConfig:
     }
 
     private async handleGetChartDetails(
+        actor: SessionUser,
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
@@ -800,6 +2032,11 @@ chartConfig:
             'Chart',
             chartUuid,
         );
+        if (!(await this.canActorViewChart(actor, chart))) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot view chart ${chartUuid}`,
+            );
+        }
         return JSON.stringify({
             uuid: chart.uuid,
             name: chart.name,
@@ -812,8 +2049,10 @@ chartConfig:
     }
 
     private async handleFixBrokenChart(
+        actor: SessionUser,
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const chartUuid = input.chart_uuid as string;
@@ -839,6 +2078,17 @@ chartConfig:
             'Chart',
             chartUuid,
         );
+        await this.assertActorCanManageProject(actor, projectUuid);
+        await this.assertActorCanUpdateChart(actor, chart);
+
+        const previousVersion =
+            await this.savedChartModel.getLatestVersionSummary(chartUuid);
+        if (!previousVersion) {
+            throw new Error(
+                `Cannot fix chart ${chartUuid}: no existing version found`,
+            );
+        }
+        const previousVersionUuid = previousVersion.versionUuid;
 
         // Create a new version with the fixed config
         await this.savedChartModel.createVersion(
@@ -853,7 +2103,7 @@ chartConfig:
                 pivotConfig: chart.pivotConfig,
                 parameters: chart.parameters,
             },
-            undefined, // user — not needed for version creation
+            actor,
         );
 
         // Clear stale validation errors for this chart — the fix should resolve them.
@@ -863,13 +2113,15 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.FIXED_BROKEN,
             targetType: ManagedAgentTargetType.CHART,
             targetUuid: chartUuid,
             targetName: chartName,
             description,
-            metadata: {},
+            metadata: { previousVersionUuid },
         });
+        this.trackActionCreated(actor, runUuid, action);
 
         return JSON.stringify({
             action_uuid: action.actionUuid,
@@ -877,7 +2129,10 @@ chartConfig:
         });
     }
 
-    private async getOrCreateAgentSpace(projectUuid: string): Promise<string> {
+    private async getOrCreateAgentSpace(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<string> {
         // Find existing "Agent Suggestions" space
         const spaces = await this.spaceModel.find({
             projectUuid,
@@ -886,6 +2141,11 @@ chartConfig:
         if (spaces.length > 0) {
             return spaces[0].uuid;
         }
+        await this.assertActorCanCreateSpace(
+            actor,
+            projectUuid,
+            'Agent Suggestions',
+        );
 
         // Get the user who enabled the agent to use as the space creator
         const settings = await this.managedAgentModel.getSettings(projectUuid);
@@ -912,8 +2172,10 @@ chartConfig:
     }
 
     private async handleCreateContent(
+        actor: SessionUser,
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const chartAsCode = input.chart_as_code as Record<string, unknown>;
@@ -1001,7 +2263,14 @@ chartConfig:
         }
 
         // Get or create the Agent Suggestions space
-        const spaceUuid = await this.getOrCreateAgentSpace(projectUuid);
+        await this.assertActorCanManageProject(actor, projectUuid);
+        const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
+        await this.assertActorCanCreateChart(
+            actor,
+            projectUuid,
+            spaceUuid,
+            chartName,
+        );
 
         // Use the user who enabled the agent
         const settings = await this.managedAgentModel.getSettings(projectUuid);
@@ -1040,6 +2309,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.CREATED_CONTENT,
             targetType: ManagedAgentTargetType.CHART,
             targetUuid: chart.uuid,
@@ -1047,6 +2317,7 @@ chartConfig:
             description,
             metadata: { chart_as_code: chartAsCode },
         });
+        this.trackActionCreated(actor, runUuid, action);
 
         return JSON.stringify({
             action_uuid: action.actionUuid,
@@ -1062,8 +2333,10 @@ chartConfig:
     ]);
 
     private async handleFlagContent(
+        actor: SessionUser,
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1087,6 +2360,18 @@ chartConfig:
             ManagedAgentTargetType,
             'target_type',
         );
+        if (
+            !(await this.canActorViewTarget(
+                actor,
+                projectUuid,
+                targetType,
+                targetUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot view ${targetType} ${targetUuid}`,
+            );
+        }
 
         // Block flagging agent-created charts as stale
         if (
@@ -1109,6 +2394,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: flagType as ManagedAgentActionType,
             targetType,
             targetUuid,
@@ -1116,12 +2402,15 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
     private async handleSoftDelete(
+        actor: SessionUser,
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1138,6 +2427,7 @@ chartConfig:
             ManagedAgentTargetType,
             'target_type',
         );
+        await this.assertActorCanManageProject(actor, projectUuid);
 
         // Use the admin who enabled the agent as the actor
         const settings = await this.managedAgentModel.getSettings(projectUuid);
@@ -1155,6 +2445,7 @@ chartConfig:
                 'Chart',
                 targetUuid,
             );
+            await this.assertActorCanDeleteChart(actor, chart);
             // Hard guardrail: never delete agent-created charts
             if (chart.slug?.startsWith('agent-')) {
                 return JSON.stringify({
@@ -1181,6 +2472,7 @@ chartConfig:
                 'Dashboard',
                 targetUuid,
             );
+            await this.assertActorCanDeleteDashboard(actor, dashboard);
             // Hard guardrail: never delete dashboards created in the last 30 days
             const dashCreatedAt =
                 await this.managedAgentModel.getDashboardCreatedAt(targetUuid);
@@ -1200,6 +2492,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.SOFT_DELETED,
             targetType,
             targetUuid,
@@ -1207,6 +2500,7 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({
             action_uuid: action.actionUuid,
             recoverable: true,
@@ -1214,8 +2508,10 @@ chartConfig:
     }
 
     private async handleLogInsight(
+        actor: SessionUser,
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1232,10 +2528,23 @@ chartConfig:
             ManagedAgentTargetType,
             'target_type',
         );
+        if (
+            !(await this.canActorViewTarget(
+                actor,
+                projectUuid,
+                targetType,
+                targetUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                `Autopilot actor cannot view ${targetType} ${targetUuid}`,
+            );
+        }
 
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.INSIGHT,
             targetType,
             targetUuid,
@@ -1243,14 +2552,16 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
     private async handleGetUserQuestions(
+        _actor: SessionUser,
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
-        const limit = (input.limit as number) ?? 30;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
         const days = (input.days as number) ?? 30;
 
         const questions = await this.managedAgentModel.getUserQuestions(
@@ -1259,7 +2570,7 @@ chartConfig:
             limit,
         );
 
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             questions.map((q) => ({
                 question: q.prompt,
                 asked_by: q.userName,
@@ -1269,20 +2580,41 @@ chartConfig:
     }
 
     private async handleGetSlowQueries(
+        actor: SessionUser,
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const thresholdMs = (input.threshold_ms as number) ?? 2000;
-        const limit = (input.limit as number) ?? 20;
+        const limit = getManagedAgentToolResultLimit(input.limit, 20);
 
         const slowQueries = await this.managedAgentModel.getSlowQueries(
             projectUuid,
             thresholdMs,
             limit,
         );
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor);
 
-        return JSON.stringify(
-            slowQueries.map((q) => ({
+        const visibleQueries = (
+            await Promise.all(
+                slowQueries.map(async (query) => {
+                    if (query.chartUuid) {
+                        return (await canViewChartUuid(query.chartUuid))
+                            ? query
+                            : null;
+                    }
+                    if (query.dashboardUuid) {
+                        return (await canViewDashboardUuid(query.dashboardUuid))
+                            ? query
+                            : null;
+                    }
+                    return query;
+                }),
+            )
+        ).filter((query) => query !== null);
+
+        return formatManagedAgentToolListResult(
+            visibleQueries.map((q) => ({
                 execution_time_ms: q.executionTimeMs,
                 execution_time_seconds: (q.executionTimeMs / 1000).toFixed(1),
                 context: q.context,
@@ -1296,6 +2628,7 @@ chartConfig:
     }
 
     private async handleReverseOwnAction(
+        actor: SessionUser,
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
@@ -1320,20 +2653,38 @@ chartConfig:
                 reversed_at: action.reversedAt,
             });
         }
+        await this.assertActorCanManageProject(actor, projectUuid);
 
         // Perform the reversal
         switch (action.actionType) {
             case ManagedAgentActionType.SOFT_DELETED:
                 if (action.targetType === ManagedAgentTargetType.CHART) {
+                    const chart = await this.savedChartModel.get(
+                        action.targetUuid,
+                        undefined,
+                        { deleted: true },
+                    );
+                    await this.assertActorCanRestoreChart(actor, chart);
                     await this.savedChartModel.restore(action.targetUuid);
                 } else if (
                     action.targetType === ManagedAgentTargetType.DASHBOARD
                 ) {
+                    const dashboard = await this.dashboardModel.getByIdOrSlug(
+                        action.targetUuid,
+                        { deleted: true },
+                    );
+                    await this.assertActorCanRestoreDashboard(actor, dashboard);
                     await this.dashboardModel.restore(action.targetUuid);
                 }
                 break;
             case ManagedAgentActionType.CREATED_CONTENT:
                 if (action.targetType === ManagedAgentTargetType.CHART) {
+                    const chart = await this.savedChartModel.get(
+                        action.targetUuid,
+                        undefined,
+                        { deleted: 'any' },
+                    );
+                    await this.assertActorCanDeleteChart(actor, chart);
                     const settings =
                         await this.managedAgentModel.getSettings(projectUuid);
                     const actorUuid =

@@ -119,7 +119,7 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      preview: ${{ steps.changes.outputs.preview == 'true' || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
+      preview: ${{ (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
       frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
       backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
@@ -235,7 +235,7 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Context
-        uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
+        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
         with:
           url: ${{ secrets.OKTETO_CONTEXT }}
           token: ${{ secrets.OKTETO_TOKEN }}
@@ -251,7 +251,7 @@ jobs:
 
       - name: Deploy preview environment
         id: deploy
-        uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
+        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -342,7 +342,7 @@ jobs:
 
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 20
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "E2E: API (Vitest)"

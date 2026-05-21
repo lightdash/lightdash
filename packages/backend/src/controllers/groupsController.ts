@@ -5,6 +5,7 @@ import {
     ApiGroupResponse,
     ApiSuccessEmpty,
     ApiUpdateProjectGroupAccess,
+    assertRegisteredAccount,
     CreateProjectGroupAccess,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
@@ -25,6 +26,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     CreateDBProjectGroupAccess,
     UpdateDBProjectGroupAccess,
@@ -56,12 +58,18 @@ export class GroupsController extends BaseController {
         @Query() includeMembers?: number,
         @Query() offset?: number,
     ): Promise<ApiGroupResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGroupService()
-                .get(req.user!, groupUuid, includeMembers, offset),
+                .get(
+                    toSessionUser(req.account),
+                    groupUuid,
+                    includeMembers,
+                    offset,
+                ),
         };
     }
 
@@ -81,8 +89,11 @@ export class GroupsController extends BaseController {
         @Path() groupUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
-        await this.services.getGroupService().delete(req.user!, groupUuid);
+        await this.services
+            .getGroupService()
+            .delete(toSessionUser(req.account), groupUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -107,9 +118,10 @@ export class GroupsController extends BaseController {
         @Path() userUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         const createdMember = await this.services
             .getGroupService()
-            .addGroupMember(req.user!, {
+            .addGroupMember(toSessionUser(req.account), {
                 groupUuid,
                 userUuid,
             });
@@ -138,9 +150,10 @@ export class GroupsController extends BaseController {
         @Path() userUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         const deleted = await this.services
             .getGroupService()
-            .removeGroupMember(req.user!, {
+            .removeGroupMember(toSessionUser(req.account), {
                 userUuid,
                 groupUuid,
             });
@@ -163,12 +176,13 @@ export class GroupsController extends BaseController {
         @Path() groupUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGroupMembersResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGroupService()
-                .getGroupMembers(req.user!, groupUuid),
+                .getGroupMembers(toSessionUser(req.account), groupUuid),
         };
     }
 
@@ -188,9 +202,10 @@ export class GroupsController extends BaseController {
         @Request() req: express.Request,
         @Body() body: UpdateGroupWithMembers,
     ): Promise<ApiGroupResponse> {
+        assertRegisteredAccount(req.account);
         const group = await this.services
             .getGroupService()
-            .update(req.user!, groupUuid, body);
+            .update(toSessionUser(req.account), groupUuid, body);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -217,9 +232,10 @@ export class GroupsController extends BaseController {
         @Body() projectGroupAccess: Pick<CreateProjectGroupAccess, 'role'>,
         @Request() req: express.Request,
     ): Promise<ApiCreateProjectGroupAccess> {
+        assertRegisteredAccount(req.account);
         const results = await this.services
             .getGroupService()
-            .addProjectAccess(req.user!, {
+            .addProjectAccess(toSessionUser(req.account), {
                 groupUuid,
                 projectUuid,
                 role: projectGroupAccess.role,
@@ -251,10 +267,11 @@ export class GroupsController extends BaseController {
         projectGroupAccess: UpdateDBProjectGroupAccess,
         @Request() req: express.Request,
     ): Promise<ApiUpdateProjectGroupAccess> {
+        assertRegisteredAccount(req.account);
         const results = await this.services
             .getGroupService()
             .updateProjectAccess(
-                req.user!,
+                toSessionUser(req.account),
                 { groupUuid, projectUuid },
                 projectGroupAccess,
             );
@@ -283,9 +300,10 @@ export class GroupsController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         const removed = await this.services
             .getGroupService()
-            .removeProjectAccess(req.user!, {
+            .removeProjectAccess(toSessionUser(req.account), {
                 groupUuid,
                 projectUuid,
             });

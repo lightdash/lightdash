@@ -1,0 +1,11 @@
+.composerFooter {
+    padding-top: 0;
+
+    @mixin light {
+        background: var(--mantine-color-body);
+    }
+
+    @mixin dark {
+        background: var(--mantine-color-body);
+    }
+}

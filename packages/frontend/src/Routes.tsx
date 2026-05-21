@@ -25,8 +25,10 @@ import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
+import MinimalApp from './pages/MinimalApp';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import MinimalSqlChart from './pages/MinimalSqlChart';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import Projects from './pages/Projects';
@@ -117,6 +119,7 @@ const PUBLIC_ROUTES: RouteObject[] = [
 const MINIMAL_ROUTES: RouteObject[] = [
     {
         path: '/minimal',
+        handle: { hideAILauncher: true },
         children: [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
@@ -133,6 +136,18 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 element: <MinimalDashboard />,
+            },
+            {
+                path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
+                element: (
+                    <Stack p="lg" h="100vh">
+                        <MinimalSqlChart />
+                    </Stack>
+                ),
+            },
+            {
+                path: '/minimal/projects/:projectUuid/apps/:appUuid',
+                element: <MinimalApp />,
             },
         ],
     },
@@ -339,7 +354,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         ),
     },
     {
-        path: 'improve',
+        path: 'autopilot',
         lazy: async () => {
             const { ManagedAgentActivityPage } =
                 await import('./ee/features/managedAgent/ManagedAgentActivityPage');
@@ -347,19 +362,27 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'improve',
+        element: <Navigate to="../autopilot" replace />,
+    },
+    {
         path: 'apps/generate',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid/versions/:version/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
         path: 'apps/:appUuid/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
@@ -372,6 +395,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'funnel-builder',
+        handle: { hideAILauncher: true },
         element: (
             <TrackPage name={PageName.FUNNEL_BUILDER}>
                 <FunnelBuilder />
@@ -401,6 +425,7 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
+                    { index: true, element: <Navigate to="home" replace /> },
                     // Legacy sqlRunner redirect (no layout needed)
                     {
                         path: 'sqlRunner',
@@ -450,6 +475,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/createProjectSettings/:projectUuid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -461,6 +487,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/generalSettings/*',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -472,6 +499,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -483,6 +511,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-project-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -494,6 +523,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/share/:shareNanoid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />

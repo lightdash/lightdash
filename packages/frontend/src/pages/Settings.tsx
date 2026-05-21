@@ -56,10 +56,12 @@ import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrgani
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
+import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
+import OrganizationSsoPanel from '../components/UserSettings/OrganizationSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -78,10 +80,7 @@ import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
@@ -105,9 +104,11 @@ const Settings: FC = () => {
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
             aiOrganizationSettingsQuery.data.isTrial);
 
-    const isServiceAccountFeatureFlagEnabled = useClientFeatureFlag(
+    const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
+    const isServiceAccountFeatureFlagEnabled =
+        serviceAccountsFlag?.enabled ?? false;
 
     const {
         health: {
@@ -126,7 +127,16 @@ const Settings: FC = () => {
         isUserImpersonationEnabled?.enabled &&
         user?.ability?.can('update', 'Organization');
 
-    const isCustomRolesEnabled = health?.isCustomRolesEnabled;
+    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
+        FeatureFlags.LeaveOrganization,
+    );
+    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
+
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
@@ -135,6 +145,12 @@ const Settings: FC = () => {
     const { data: dataAppsFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataApps,
     );
+
+    const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
+        FeatureFlags.SsoOrganizationSettings,
+    );
+    const isSsoOrganizationSettingsEnabled =
+        ssoOrganizationSettingsFlag?.enabled ?? false;
 
     const { track } = useTracking();
     const {
@@ -160,22 +176,18 @@ const Settings: FC = () => {
         health?.auth.azuread.enabled ||
         health?.auth.oidc.enabled;
 
-    if (userGroupsFeatureFlagQuery.isError) {
-        console.error(userGroupsFeatureFlagQuery.error);
-        throw new Error('Error fetching user groups feature flag');
-    }
-
     const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     // This allows us to enable service accounts in the UI for on-premise installations
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const isWarehouseCredentialsFeatureFlagEnabled = useClientFeatureFlag(
+    const { data: warehouseCredentialsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.OrganizationWarehouseCredentials,
     );
+    const isWarehouseCredentialsFeatureFlagEnabled =
+        warehouseCredentialsFlag?.enabled ?? false;
 
     // This allows us to enable organization warehouse credentials in the UI for on-premise installations
     const isWarehouseCredentialsEnabled =
@@ -191,10 +203,26 @@ const Settings: FC = () => {
             {
                 path: '/profile',
                 element: (
-                    <SettingsGridCard>
-                        <Title order={4}>Profile settings</Title>
-                        <ProfilePanel />
-                    </SettingsGridCard>
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>Profile settings</Title>
+                            <ProfilePanel />
+                        </SettingsGridCard>
+                        {isLeaveOrganizationEnabled && (
+                            <SettingsGridCard>
+                                <Box>
+                                    <Title order={4}>Danger zone</Title>
+                                    <Text c="ldGray.6" fz="xs">
+                                        Leave the organization to remove
+                                        yourself from it (you cannot leave if
+                                        you are the only admin). This action is
+                                        not reversible.
+                                    </Text>
+                                </Box>
+                                <LeaveOrganizationPanel />
+                            </SettingsGridCard>
+                        )}
+                    </Stack>
                 ),
             },
             {
@@ -301,17 +329,31 @@ const Settings: FC = () => {
                             </SettingsGridCard>
                         )}
 
-                        {user.ability?.can('delete', 'Organization') && (
+                        {(isLeaveOrganizationEnabled ||
+                            user.ability?.can('delete', 'Organization')) && (
                             <SettingsGridCard>
                                 <div>
                                     <Title order={4}>Danger zone </Title>
                                     <Text c="ldGray.6" fz="xs">
-                                        This action deletes the whole workspace
-                                        and all its content, including users.
-                                        This action is not reversible.
+                                        {isLeaveOrganizationEnabled &&
+                                            'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
+                                        {user.ability?.can(
+                                            'delete',
+                                            'Organization',
+                                        ) &&
+                                            'Deleting the organization removes the whole workspace and all its content, including users. '}
+                                        These actions are not reversible.
                                     </Text>
                                 </div>
-                                <DeleteOrganizationPanel />
+                                <Stack gap="sm" align="flex-end">
+                                    {isLeaveOrganizationEnabled && (
+                                        <LeaveOrganizationPanel />
+                                    )}
+                                    {user.ability?.can(
+                                        'delete',
+                                        'Organization',
+                                    ) && <DeleteOrganizationPanel />}
+                                </Stack>
                             </SettingsGridCard>
                         )}
                     </Stack>
@@ -422,6 +464,29 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            user?.ability.can('manage', 'Organization') &&
+            isSsoOrganizationSettingsEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/sso',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Stack gap="xs">
+                                <Title order={4}>Single Sign-On</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    Configure SSO providers for this
+                                    organization.
+                                </Text>
+                            </Stack>
+                            <OrganizationSsoPanel />
+                        </SettingsGridCard>
+                    </Stack>
+                ),
+            });
+        }
+
         // Commercial route
         if (
             user?.ability.can('manage', 'Organization') &&
@@ -476,6 +541,8 @@ const Settings: FC = () => {
         health?.hasGithub,
         health?.hasGitlab,
         dataAppsFlag?.enabled,
+        isSsoOrganizationSettingsEnabled,
+        isLeaveOrganizationEnabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -534,6 +601,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/customRoles/:roleId',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/serviceAccounts',
                 },
                 location.pathname,
             ) &&
@@ -785,6 +858,18 @@ const Settings: FC = () => {
                                     />
                                 )}
 
+                                {user.ability.can('manage', 'Organization') &&
+                                    isSsoOrganizationSettingsEnabled && (
+                                        <RouterNavLink
+                                            label="Single Sign-On"
+                                            exact
+                                            to="/generalSettings/sso"
+                                            leftSection={
+                                                <MantineIcon icon={IconLock} />
+                                            }
+                                        />
+                                    )}
+
                                 {user.ability.can(
                                     'manage',
                                     subject(
@@ -980,11 +1065,31 @@ const Settings: FC = () => {
                                         })}
                                     >
                                         <RouterNavLink
-                                            label="Query time zone"
+                                            label="Project time zone"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
                                             leftSection={
                                                 <MantineIcon icon={IconClock} />
+                                            }
+                                        />
+                                    </Can>
+
+                                    <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Appearance"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/appearance`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPalette}
+                                                />
                                             }
                                         />
                                     </Can>

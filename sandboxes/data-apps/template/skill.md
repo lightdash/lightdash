@@ -2,6 +2,14 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+## Iteration mindset
+
+This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
+
+Extended thinking adds latency and should only be used when it will meaningfully improve answer quality. Use it for genuinely load-bearing decisions: modelling a non-obvious query, resolving a semantic-layer ambiguity, picking the right chart type for an unusual data shape. Skip it for everything else — once you've picked a visual direction, don't re-ideate on it; pick reasonable defaults for naming, file structure, and component choice and move on. When in doubt, respond directly.
+
+Don't verify your own output. **After you Write or Edit a file, do not Read it back, do not Grep over it, do not run any shell command to "check" it.** The pipeline runs `pnpm build` after you exit and will surface any compile error in a follow-up turn — that's where fixes happen, not before. Re-reading your own writes catches nothing the build doesn't and burns a tool round-trip every time.
+
 ## Environment Constraints
 
 - **Only write files in `src/`** — config files, `package.json`, and everything outside `src/` is locked.
@@ -10,13 +18,13 @@ You are building a React data app that queries the Lightdash semantic layer. Thi
 
 ### Approved packages
 
-`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
 ### Pre-installed shadcn/ui components
 
 Available at `@/components/ui/<name>`:
 
-`Button`, `Badge`, `Card` (+ `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`), `Table` (+ `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`, `Skeleton`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Switch`, `Checkbox`, `Avatar`, `Alert`, `Progress`
+`Button`, `Badge`, `Card` (+ `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`), `Table` (+ `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`, `Skeleton`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Switch`, `Checkbox`, `Avatar`, `Alert`, `Progress`, `Resizable` (+ `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`)
 
 `cn()` is available from `@/lib/utils` for merging Tailwind classes.
 
@@ -142,6 +150,77 @@ Each file contains:
   **Only strip the prefix if it matches the explore name.** If it doesn't match, it's a joined table.
 - **Table calculation names:** Do NOT strip — pass them through as-is.
 
+## Attached images
+
+The user can attach images to a prompt. They land at `/tmp/images/`. Use the
+Read tool to view each one before deciding how to use it.
+
+Two kinds, distinguished by filename:
+
+| Filename pattern | Meaning | How to use it |
+|---|---|---|
+| `screenshot-<uuid>.<ext>` | A live screenshot of the **current** built app — what the user is looking at when they wrote the prompt. | Treat as *context for the request*, not a target. The user's prompt usually says "change X" or "this looks wrong" — the screenshot tells you what the layout actually renders as right now (colors, spacing, missing data, broken charts). Do NOT try to reproduce the screenshot; the existing source files already produce it. |
+| `<uuid>.<ext>` (no prefix) | A design reference uploaded by the user — mockup, sketch, screenshot from elsewhere, or a chart they like. | Treat as a *target to approximate* for layout, color, typography, or component choice. Match the spirit, not pixel-perfect. The prompt prepend will also call these "Design reference image N". |
+
+If both are attached, the user is most likely saying "here's what it looks
+like now (screenshot) — change it to look more like this (design reference)."
+
+## Element references in iteration prompts
+
+The Lightdash preview pane has an "Inspect" toggle. When the user clicks an
+element in the live preview, the chat editor inserts a bracketed reference at
+the textarea cursor. Users can stack multiple references in a single prompt
+to compose several targeted edits at once:
+
+```
+[button "Save" @src/components/Toolbar.tsx:42] make this blue
+[div "$2.4M" @src/Dashboard.tsx:88] rename to Net Revenue
+[h3 "Q1 Dashboard" @src/Dashboard.tsx:14] tighter spacing
+```
+
+Each line targets one element. Resolve each reference, edit only that
+component, and move on. The instruction immediately follows the reference
+on the same line (a colon between them is optional — users may include
+one).
+
+### Format
+
+A reference always starts with the rendered tag, optionally followed by a
+visible-text hint, optionally followed by `@<path>:<line>`:
+
+| Form | Example | Meaning |
+|---|---|---|
+| `[<tag> "<text>" @<path>:<line>]` | `[button "Save" @src/components/Toolbar.tsx:42]` | Build-time loc available — primary case. |
+| `[<tag> @<path>:<line>]` | `[svg @src/Dashboard.tsx:88]` | Element had no text (icon button, empty container) but a loc is available — open the file at that line. |
+| `[<tag> "<text>"]` *(no `@…`)* | `[button "Save"]` | Loc unavailable (DOM node injected outside JSX, or pre-transform build). Fall back to grepping the text. |
+
+The `<tag>` is the **rendered** HTML tag (`button`, `h3`, `div`, `span`,
+`svg`), not the React component name. shadcn `<Button>` renders as `<button>`,
+`<CardTitle>` as `<h3>`, `<Card>` as `<div>`. Keep that in mind when reading
+references — the source uses the React component name.
+
+### Resolution strategy
+
+1. **`@<path>:<line>` is authoritative.** It's stamped at build time on the
+   user-facing call site (props spread through shadcn primitives, so the
+   caller's loc wins over the primitive's own loc). Open that file at that
+   line — that is the component to edit. No grep needed.
+2. **No `@…` segment** — fall back to text:
+   - Grep `/app/src/` for the quoted text. It's almost always hardcoded JSX.
+     Inner double quotes are normalized to single quotes in the label, so
+     grep both forms if needed.
+   - Narrow by tag if multiple matches.
+3. **Scope edits to the matched component.** Don't refactor neighbors unless
+   the requested change requires it.
+
+### When you can't resolve a reference
+
+If grep returns no hits, the file at the given loc doesn't have anything
+matching the text/tag, or the matches are too ambiguous to choose between,
+say so and ask the user to clarify or re-select. Don't guess and edit the
+wrong component — the user will see the wrong thing change and lose trust
+in the tool.
+
 ## SDK Reference
 
 The client and provider are already set up in `main.jsx`. Import `query` and `useLightdash` — that's it.
@@ -262,10 +341,82 @@ Each additional metric needs:
 |---|---|---|
 | `data` | `Row[]` | Flat objects keyed by short field name. Raw values. Use for charts. |
 | `columns` | `Column[]` | Field metadata (`name`, `label`, `type`). Use for table headers. |
-| `format` | `(row, fieldName) => string` | Formatted display value (currency, %, dates). Use for text. |
+| `format` | `(row, fieldName) => string` | Server-side formatted value — preserves currency, %, prefix/suffix from the dbt YAML. **Tabular** form (e.g. `2025-03`, `2025-03-17`) — fine in dense table cells, **not** chart-friendly. For dates, chart axes, and human-readable date columns, prefer the `formatField` / `formatDate` / `formatNumber` helpers from `@/lib/format` (see [Formatting](#formatting)). |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
 | `refetch` | `() => void` | Re-run the query on demand. |
+
+### Formatting
+
+Every Lightdash row carries two views of each value:
+
+- `row[fieldName]` — the **raw** value. Numbers are real numbers; **dates and timestamps are full ISO strings** (e.g. `'2025-03-01T00:00:00Z'`) regardless of the truncation grain. Pass these to charts as data, not as axis labels.
+- `format(row, fieldName)` — the **server-formatted** value. Preserves dbt YAML formatting (currency, percent, prefix/suffix) but is tabular and zero-padded for dates (e.g. `'2025-03'`, `'2025-Q1'`). Fine in dense table cells, ugly on chart axes.
+
+For chart axes and any human-facing date column, use the helpers in `@/lib/format`:
+
+```tsx
+import { formatField, formatDate, formatNumber, getColumn } from '@/lib/format';
+```
+
+| Helper | Use for |
+|---|---|
+| `formatField(row, column, format, variant?)` | Default catch-all for table cells, KPI labels, and tooltip values. Routes dates through human-readable patterns, numbers through compact form on axes, and falls back to the SDK `format()` for currency/% so dbt YAML formatting is preserved. |
+| `formatDate(value, column?, variant?, opts?)` | A `tickFormatter` for date X-axes, or any place you have a raw value (no row). Variant is `'cell'` (default) or `'axis'` (compact). Pass `opts.pattern` to override with a custom date-fns pattern. |
+| `formatNumber(value, variant?)` | A `tickFormatter` for numeric Y-axes. `variant: 'axis'` returns compact form (`24K`, `$1.2M` style) without currency prefix. |
+| `getColumn(columns, name)` | Find a column by short name. Useful for passing column metadata to `formatDate` from a `tickFormatter`. |
+
+`variant: 'axis'` outputs:
+- date / timestamp by grain — `2025` (year), `Q1 '25` (quarter), `Jun '25` (month), `Jun 16 '25` (week / day)
+- number — compact (`24K`, `1.2M`)
+- timestamp without grain — `Jun 16, 14:00`
+
+`variant: 'cell'` outputs:
+- date / timestamp by grain — `2025`, `Q1 2025`, `Jun 2025`, `Jun 16, 2025`
+- number — server-formatted (currency / % / suffix preserved via the SDK `format()` you pass in)
+- timestamp without grain — `Jun 16, 2025 14:00`
+
+**Override** by passing `opts.pattern` to `formatDate`, or by formatting yourself with `date-fns`/`Intl.NumberFormat`:
+
+```tsx
+import { format as formatDateFns, parseISO } from 'date-fns';
+
+formatDate(row.order_date_month, getColumn(columns, 'order_date_month'), 'axis', { pattern: 'MMM yyyy' });
+
+// Or fully manual:
+formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
+```
+
+#### Chart axes
+
+**Every `<XAxis>` and `<YAxis>` in the app must have a `tickFormatter`.** No exceptions — including year axes that "look like they'd be fine" (`race_date_year` is still a full ISO timestamp at the data layer; Recharts will render `2025-01-01T00:00:00Z`, not `2025`).
+
+```tsx
+import { XAxis, YAxis } from 'recharts';
+import { formatDate, formatNumber, getColumn } from '@/lib/format';
+
+const dateCol = getColumn(columns, 'order_date_month');
+
+<XAxis
+    dataKey="order_date_month"
+    tickFormatter={(v) => formatDate(v, dateCol, 'axis')}
+/>
+<YAxis tickFormatter={(v) => formatNumber(v, 'axis')} />
+```
+
+**Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
+
+#### Tables
+
+Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-16`, while currency/percent metrics still flow through the SDK's server format:
+
+```tsx
+{columns.map((col) => (
+    <TableCell key={col.name}>{formatField(row, col, format, 'cell')}</TableCell>
+))}
+```
+
+For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
 
 ### Filters
 
@@ -277,6 +428,7 @@ type Filter = {
     operator: FilterOperator;
     value?: FilterValue | FilterValue[];
     unit?: UnitOfTime; // required for date/time operators
+    completed?: boolean; // for `inThePast`/`notInThePast`: restrict to fully completed periods
 };
 ```
 
@@ -285,7 +437,7 @@ type Filter = {
 | Comparison | `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual` | Multi-value: `value: ['a', 'b']` |
 | Null | `isNull`, `notNull` | No `value` needed |
 | String | `startsWith`, `endsWith`, `include`, `doesNotInclude` | |
-| Date/time | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent` | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'` |
+| Date/time | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent` | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'`. Add `completed: true` to `inThePast`/`notInThePast` to exclude the current in-progress period — e.g. `{ operator: 'inThePast', unit: 'weeks', value: 4, completed: true }` means "the last 4 completed weeks", not including this week. |
 | Range | `inBetween`, `notInBetween` | |
 
 ### User context
@@ -355,100 +507,30 @@ Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. G
 
 > **Limitation by design:** A field that legitimately exists on multiple explores (e.g. `region` joined into both `orders` and `regional_sales`) won't cross-filter under this rule. That's the safe default. If the user explicitly asks for cross-explore linking on a shared dimension, you can call `addFilter` once per explore — but never broadcast a filter to all explores blindly.
 
-Set this up once in `src/filters/FilterContext.tsx`:
+The filter context is pre-installed and wraps your app at the root. Import the hook from `@/lib/filters` — never reimplement it:
 
 ```tsx
-import {
-    createContext,
-    useCallback,
-    useContext,
-    useMemo,
-    useState,
-    type ReactNode,
-} from 'react';
-import type { Filter } from '@lightdash/query-sdk';
+import { useGlobalFilters } from '@/lib/filters';
 
-// A scoped filter is a regular Filter tagged with the explore it was created
-// from. We never apply a scoped filter to a query against a different explore.
-export type ScopedFilter = Filter & { explore: string };
-
-type FilterContextValue = {
-    addFilter: (filter: ScopedFilter) => void;
-    removeFilter: (filter: ScopedFilter) => void;
-    clearFilters: () => void;
-    filtersFor: (explore: string) => Filter[];
-    allFilters: ScopedFilter[]; // for the active-filters bar only
-};
-
-const FilterContext = createContext<FilterContextValue | null>(null);
-
-const sameTarget = (a: ScopedFilter, b: ScopedFilter) =>
-    a.explore === b.explore &&
-    a.field === b.field &&
-    JSON.stringify(a.value) === JSON.stringify(b.value);
-
-export function FilterProvider({ children }: { children: ReactNode }) {
-    const [filters, setFilters] = useState<ScopedFilter[]>([]);
-
-    const addFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => {
-            // Toggle: same explore + field + value → remove. Otherwise add.
-            const exists = prev.some((f) => sameTarget(f, filter));
-            return exists ? prev.filter((f) => !sameTarget(f, filter)) : [...prev, filter];
-        });
-    }, []);
-
-    const removeFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => prev.filter((f) => !sameTarget(f, filter)));
-    }, []);
-
-    const clearFilters = useCallback(() => setFilters([]), []);
-
-    const filtersFor = useCallback(
-        (explore: string): Filter[] =>
-            filters
-                .filter((f) => f.explore === explore)
-                // Strip the explore tag — the SDK's .filters() takes plain Filter values.
-                .map(({ explore: _e, ...rest }) => rest),
-        [filters],
-    );
-
-    const value = useMemo(
-        () => ({ addFilter, removeFilter, clearFilters, filtersFor, allFilters: filters }),
-        [addFilter, removeFilter, clearFilters, filtersFor, filters],
-    );
-
-    return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
-}
-
-export function useGlobalFilters() {
-    const ctx = useContext(FilterContext);
-    if (!ctx) throw new Error('useGlobalFilters must be used inside FilterProvider');
-    return ctx;
-}
+const { filtersFor, addFilter, removeFilter, clearFilters, allFilters } = useGlobalFilters();
 ```
 
-Wrap the entire app in `<FilterProvider>` once at the root (in `App.tsx`):
+| Member | Purpose |
+|---|---|
+| `filtersFor(explore: string): Filter[]` | Returns plain SDK `Filter[]` for one explore. Pass into `.filters([...])`. |
+| `addFilter(filter: ScopedFilter)` | Adds a filter tagged with `explore`. Same-target add toggles (removes if it already exists). |
+| `removeFilter(filter: ScopedFilter)` | Removes a specific filter (matches on explore + field + value). |
+| `clearFilters()` | Removes all filters. |
+| `allFilters: ScopedFilter[]` | All active filters across explores. Use for the active-filters bar. |
 
-```tsx
-import { FilterProvider } from '@/filters/FilterContext';
-
-export default function App() {
-    return (
-        <FilterProvider>
-            <ActiveFiltersBar />
-            <Dashboard />
-        </FilterProvider>
-    );
-}
-```
+`ScopedFilter` is `Filter & { explore: string }` and is also exported from `@/lib/filters`.
 
 **Apply global filters in every component that runs a query, scoped to that component's explore.** Use a per-file `EXPLORE` constant so the chart and its action menu agree on the explore name:
 
 ```tsx
 import { useMemo } from 'react';
 import { query, useLightdash } from '@lightdash/query-sdk';
-import { useGlobalFilters } from '@/filters/FilterContext';
+import { useGlobalFilters } from '@/lib/filters';
 
 const EXPLORE = 'orders';
 
@@ -472,74 +554,53 @@ export function RevenueBySegment() {
 
 #### Active filters bar
 
-Render the active global filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Show the explore alongside the field so users can tell which chart contributed each filter:
+Render the active filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Read `allFilters` from `useGlobalFilters()` and design the bar to match the app's visual style — `frontend-design` drives the look. Show the explore alongside the field so users can tell which chart contributed each filter, and call `removeFilter(f)` / `clearFilters()` from your dismiss buttons.
+
+### Floating surfaces — chrome is template-managed
+
+**The template owns the visual chrome (background, border, shadow, hover state) of every floating surface.** That covers shadcn's `DropdownMenuContent`, `PopoverContent`, `DialogContent`, plus any custom Recharts tooltip you wrap in `ChartTooltipSurface` (see below). The chrome adapts to whatever theme you design — `chart-overrides.css` mixes `--background` toward `--foreground` to guarantee contrast on both dark and light themes.
+
+What this means for you:
+
+- **Don't add `bg-*`, `border-*`, `shadow-*`, or inline `style={{ background, border, boxShadow }}` to floating surfaces.** Those will be overridden, and trying to fight them just produces inconsistent results across regenerations. The chrome is already correct.
+- **Inner padding, font sizes, content layout, accent stripes — all yours.** Design the contents however the app calls for; the wrapper handles the rest.
+- **Custom Recharts tooltips must be wrapped in `<ChartTooltipSurface>`** from `@/lib/floating`. Without it, the tooltip is a plain unstyled div and looks transparent over the chart.
+
+Custom tooltip example:
 
 ```tsx
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
-import { useGlobalFilters } from '@/filters/FilterContext';
+import { Tooltip } from 'recharts';
+import { ChartTooltipSurface } from '@/lib/floating';
 
-export function ActiveFiltersBar() {
-    const { allFilters, removeFilter, clearFilters } = useGlobalFilters();
-    if (allFilters.length === 0) return null;
-
+<Tooltip content={({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
     return (
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-muted/30">
-            <span className="text-sm text-muted-foreground">Filters:</span>
-            {allFilters.map((f, i) => (
-                <Badge key={i} variant="secondary" className="gap-1">
-                    <span className="text-muted-foreground">{f.explore}.</span>
-                    {f.field} {f.operator}{' '}
-                    {Array.isArray(f.value) ? f.value.join(', ') : String(f.value)}
-                    <button
-                        onClick={() => removeFilter(f)}
-                        className="ml-1 hover:text-destructive"
-                        aria-label={`Remove filter on ${f.field}`}
-                    >
-                        <X className="h-3 w-3" />
-                    </button>
-                </Badge>
-            ))}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Clear all
-            </Button>
-        </div>
+        <ChartTooltipSurface>
+            <div className="font-semibold mb-1">{label}</div>
+            <div className="font-mono text-sm tabular-nums">
+                {payload[0].value}
+            </div>
+        </ChartTooltipSurface>
     );
-}
+}} />
 ```
 
-### Floating surfaces — always set a background
-
-**Every floating UI surface must have an explicit, opaque background and a visible border.** This is non-negotiable — without it, dropdown menus, dialogs, and popovers render transparent over charts and tables, the underlying data bleeds through, text is unreadable, and click targets are ambiguous.
-
-The rule applies to every component that floats above page content:
-
-| Component | Required classes |
-|---|---|
-| `DropdownMenuContent` | `bg-white border shadow-md` |
-| `DialogContent` | `bg-white border shadow-lg` |
-| `PopoverContent` | `bg-white border shadow-md` |
-| `SheetContent` | `bg-white border shadow-lg` |
-| `TooltipContent` | `bg-white border shadow-sm` |
+Action menus and dialogs use shadcn's components as-is — no className needed for the chrome:
 
 ```tsx
-<DropdownMenuContent className="bg-white border shadow-md">
-    {/* ... */}
+<DropdownMenuContent>
+    <DropdownMenuItem onClick={...}>Filter by {value}</DropdownMenuItem>
 </DropdownMenuContent>
-
-<DialogContent className="bg-white border shadow-lg max-w-3xl">
-    {/* ... */}
-</DialogContent>
-
-<PopoverContent className="bg-white border shadow-md">
-    {/* ... */}
-</PopoverContent>
 ```
 
-**Do not rely on shadcn defaults like `bg-popover` or `bg-background`.** Those classes resolve through CSS variables (`--popover`, `--background`) that may not be populated in the sandbox theme, leaving the surface transparent. Hard-code `bg-white` so the background renders regardless of theme state. For dark-mode support, use `bg-white dark:bg-zinc-900`.
+**One scope rule still matters:** if you toggle dark mode via the `.dark` class, set it on `<html>`, never on a wrapper `<div>`. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces leak out to light scope. Either:
 
-This rule covers every code example below — every floating component you render must include these classes.
+```js
+// main.jsx — set once at boot, applies to <html> and every portal
+document.documentElement.classList.add('dark');
+```
+
+…or skip `.dark` entirely and put dark values directly in `:root`. Do not write `<div className="dark">` anywhere.
 
 ### Data interactions — action menu
 
@@ -555,7 +616,7 @@ Use the `DropdownMenu` component. The menu opens on click; each option triggers 
 import { useState, useMemo, useRef } from 'react';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useGlobalFilters } from '@/filters/FilterContext';
+import { useGlobalFilters } from '@/lib/filters';
 
 const EXPLORE = 'orders';
 
@@ -599,7 +660,7 @@ function RevenueChart() {
                     <DropdownMenuTrigger asChild>
                         <div style={{ position: 'fixed', left: menuState.x, top: menuState.y, width: 1, height: 1 }} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-white border shadow-md">
+                    <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => {
                             // Tagged with EXPLORE so it only applies to other queries against
                             // the same explore — never broadcast across explores.
@@ -634,7 +695,7 @@ function RevenueChart() {
 
             {drillState && (
                 <Dialog open onOpenChange={() => setDrillState(null)}>
-                    <DialogContent className="bg-white border shadow-lg max-w-3xl">
+                    <DialogContent className="max-w-3xl">
                         <DialogHeader><DialogTitle>{drillState.title}</DialogTitle></DialogHeader>
                         <DrillResults query={drillState.query} />
                     </DialogContent>
@@ -674,7 +735,7 @@ function copyToClipboard(text: string) {
 function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     const header = columns.map((c) => c.label).join(',');
     const rows = data.map((row) =>
-        columns.map((c) => `"${format(row, c.name).replace(/"/g, '""')}"`).join(','),
+        columns.map((c) => `"${formatField(row, c, format, 'cell').replace(/"/g, '""')}"`).join(','),
     );
     return [header, ...rows].join('\n');
 }
@@ -700,9 +761,9 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
                         <TableCell
                             key={col.name}
                             className="cursor-pointer"
-                            onClick={() => copyToClipboard(format(row, col.name))}
+                            onClick={() => copyToClipboard(formatField(row, col, format, 'cell'))}
                         >
-                            {format(row, col.name)}
+                            {formatField(row, col, format, 'cell')}
                         </TableCell>
                     ))}
                 </TableRow>
@@ -711,6 +772,64 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     </Table>
 </ScrollArea>
 ```
+
+### Resizable panels
+
+Use the pre-installed shadcn `Resizable` component (built on `react-resizable-panels`) when the layout has **two or more sibling areas the user benefits from rebalancing in-place** — typical cases:
+
+- A chart next to a detail/inspector panel ("see the bar I clicked").
+- A dashboard split between filters/sidebar and the main grid.
+- A table beside a chart that visualizes the same query.
+- A document/explanation panel next to a live data view.
+
+**Don't reach for it by default.** If panels have a fixed information ratio (KPI row above a grid, header above content), use plain Tailwind flex/grid. Resizable is for layouts where the user has a real preference between "give me more chart" and "give me more detail."
+
+```tsx
+import {
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
+} from '@/components/ui/resizable';
+
+export function SplitDashboard() {
+    return (
+        <ResizablePanelGroup
+            direction="horizontal"
+            className="h-[calc(100vh-3rem)] rounded-md border"
+            autoSaveId="dashboard-split"   // remembers user sizing in localStorage
+        >
+            <ResizablePanel defaultSize={65} minSize={35}>
+                <RevenueByMonth />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={35} minSize={20}>
+                <SegmentBreakdown />
+            </ResizablePanel>
+        </ResizablePanelGroup>
+    );
+}
+```
+
+Rules:
+
+- **Set `autoSaveId`** so user sizing persists across reloads. The id is the localStorage key — keep it stable per layout.
+- **Always set `minSize`** on every panel. Without it, users can collapse a panel to zero and lose the chart inside.
+- **Use `withHandle` on `ResizableHandle`** for visible drag affordance. Without it, the divider is a 1-pixel hover target.
+- **Nest groups for grid layouts.** A 3-pane "filters | chart | detail" goes one `ResizablePanelGroup direction="horizontal"`. A "chart over table" goes `direction="vertical"`. Combine by nesting.
+- **Don't use it inside a card.** Resizable wants a parent with a definite height (`h-screen`, `h-[600px]`, etc.). Inside a `Card` with content-sized height it collapses.
+- **Charts inside resizable panels must use `viewBox` or Recharts' `<ResponsiveContainer>`.** Hard-coded pixel widths won't reflow on resize.
+
+When users explicitly ask for "drag to resize" or "let me adjust the panel sizes," that's the trigger. Otherwise prefer fixed proportions.
+
+## When to drop into D3
+
+**Recharts is the default.** Bars, lines, areas, scatter, pie/donut, treemap, radar — use Recharts. It composes with the action menu, color palette, and tooltip patterns above with almost no friction.
+
+**Reach for D3 only when Recharts can't express the chart** — sankey/flow, sunburst/icicle/pack, force-directed networks, chord, arc, hexbin/contour density, geographic projections (`d3-geo`), word clouds (`d3-cloud`), or pixel-precise custom encodings.
+
+If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
+
+When you do need D3, **read `/app/d3-reference.md` first.** It contains the React-19 + D3 integration pattern, four worked examples (bar, sankey, sunburst, word cloud), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
 ## `drillDown()` Reference
 
@@ -783,7 +902,7 @@ function DrillResults({ query: q }) {
                     {data.map((row, i) => (
                         <TableRow key={i}>
                             {columns.map((col) => (
-                                <TableCell key={col.name}>{format(row, col.name)}</TableCell>
+                                <TableCell key={col.name}>{formatField(row, col, format, 'cell')}</TableCell>
                             ))}
                         </TableRow>
                     ))}
@@ -815,10 +934,12 @@ function DrillResults({ query: q }) {
 | Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |
 | Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |
 | Building the filtered query inline (not memoized) | New query identity every render → infinite re-fetch | `useMemo(() => baseQuery.filters(filtersFor(EXPLORE)), [filtersFor])` |
-| Local `useState` for cross-filter state | Other components on the page can't see or react to it | Use `<FilterProvider>` at the app root and `useGlobalFilters()` everywhere |
 | Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
+| `<XAxis dataKey="order_date_month" />` with no `tickFormatter` | Recharts renders the raw ISO timestamp (e.g. `2025-03-01T00:00:00Z`) as labels | `tickFormatter={(v) => formatDate(v, getColumn(columns, 'order_date_month'), 'axis')}` from `@/lib/format` |
+| Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
+| Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
+| Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
-| Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts; clicks pass through ambiguously | Hard-code `bg-white border shadow-md` (or `shadow-lg` for dialogs) on every `DropdownMenuContent`, `DialogContent`, `PopoverContent`, `SheetContent`, and `TooltipContent`. Never rely on shadcn defaults like `bg-popover` — the underlying CSS variables aren't reliably populated. See [Floating surfaces](#floating-surfaces--always-set-a-background) |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |

@@ -51,3 +51,37 @@ export type AiAgentVizConfig =
           type: 'query_result';
           config: ToolRunQueryArgs;
       };
+
+export const AGENT_SUGGESTION_TOOLS = [
+    'generateDashboard',
+    'runQuery',
+    'runSql',
+    'proposeChange',
+    'findContent',
+] as const;
+
+export type AgentSuggestionTool = (typeof AGENT_SUGGESTION_TOOLS)[number];
+
+export type AgentSuggestionPromptChip = {
+    kind: 'prompt';
+    label: string;
+    tool: AgentSuggestionTool;
+    defaults: {
+        explore: string | null;
+        dimensions: string[];
+        metrics: string[];
+        timeframe: string | null;
+    };
+};
+
+export type AgentSuggestionNavigateChip = {
+    kind: 'navigate';
+    label: string;
+    // Resolved server-side. The LLM only declares intent (an index into
+    // recentUserConversations); the server turns that into a real URL.
+    url: string;
+};
+
+export type AgentSuggestion =
+    | AgentSuggestionPromptChip
+    | AgentSuggestionNavigateChip;

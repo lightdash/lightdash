@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getFilterRulesFromGroup,
     getItemId,
     isField,
@@ -17,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
-import useHealth from './health/useHealth';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
 
@@ -212,8 +213,10 @@ export const useFieldValues = (
     parameterValues?: ParametersValuesMap,
 ) => {
     const { embedToken } = useEmbed();
-    const { data: healthData } = useHealth();
-    const useAsyncPath = healthData?.hasResultsCaching === true;
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const useAsyncPath = resultsCacheFlag?.enabled === true;
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
@@ -355,6 +358,12 @@ export const useFieldValues = (
         }
     }, [initialData, fieldName, field.name, forceRefresh]);
 
+    const reset = useCallback(() => {
+        setSearches(new Set<string>());
+        setResults(new Set(initialData));
+        setResultCounts(new Map());
+    }, [initialData]);
+
     return {
         ...query,
         debouncedSearch,
@@ -362,6 +371,7 @@ export const useFieldValues = (
         results,
         resultCounts,
         refreshedAt,
+        reset,
     };
 };
 
@@ -430,6 +440,7 @@ export const useFieldValuesSafely = (
             results: undefined,
             resultCounts: undefined,
             refreshedAt: undefined,
+            reset: undefined,
         };
     }
 

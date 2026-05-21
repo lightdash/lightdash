@@ -66,10 +66,7 @@ export const getBedrockModel = (
         model,
         callOptions: {
             ...preset.callOptions,
-            // temperature is not supported when reasoning is enabled
-            ...(reasoningEnabled
-                ? { temperature: undefined }
-                : { temperature: 0.2 }),
+            ...(reasoningEnabled && { temperature: undefined }),
         },
         providerOptions: {
             [PROVIDER]: {

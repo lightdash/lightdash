@@ -9,8 +9,8 @@ import {
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
-import { type MRT_TableInstance } from 'mantine-react-table';
 import { useEffect, useRef, type FC } from 'react';
+import { type MRT_TableInstance } from '../../../components/common/ContentTable';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 
 type Props = {

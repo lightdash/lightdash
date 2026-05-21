@@ -14,6 +14,7 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type Router } from 'express';
 import { IncomingMessage } from 'http';
+import { validate as isValidUuid } from 'uuid';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
 import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
@@ -30,6 +31,27 @@ function getMcpService(req: express.Request): McpService {
 }
 
 const MCP_USER_ATTRIBUTE_HEADER = 'X-Lightdash-User-Attributes';
+const MCP_PROJECT_HEADER = 'X-Lightdash-Project';
+
+/**
+ * Extracts a project UUID override from the X-Lightdash-Project header.
+ * Project-level permissions are enforced downstream by the services invoked
+ * by each MCP tool (e.g. ProjectService.getProject), so we only validate the
+ * UUID shape here.
+ */
+function extractProjectUuidFromHeader(
+    req: express.Request,
+): string | undefined {
+    const headerValue = req.headers[MCP_PROJECT_HEADER.toLowerCase()];
+    if (!headerValue || typeof headerValue !== 'string') {
+        return undefined;
+    }
+    if (!isValidUuid(headerValue)) {
+        Logger.warn(`Invalid ${MCP_PROJECT_HEADER} header: not a UUID`);
+        return undefined;
+    }
+    return headerValue;
+}
 
 /**
  * Extracts user attribute overrides from the X-Lightdash-User-Attributes header.
@@ -147,7 +169,10 @@ mcpRouter.all(
                 // SDK 1.26.0 requires a new server+transport per request in stateless mode
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
-                const mcpServer = mcpService.createServer();
+                const headerProjectUuid = extractProjectUuidFromHeader(req);
+                const mcpServer = mcpService.createServer({
+                    projectPinned: headerProjectUuid !== undefined,
+                });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
                     sessionIdGenerator: undefined,
@@ -170,6 +195,7 @@ mcpRouter.all(
                         user: req.user,
                         account: oauthAuth,
                         headerUserAttributes,
+                        headerProjectUuid,
                     };
                     authReq.auth = {
                         token: oauthAuth.authentication.token,
@@ -185,6 +211,7 @@ mcpRouter.all(
                         user: req.user,
                         account: apiKeyAuth,
                         headerUserAttributes,
+                        headerProjectUuid,
                     };
                     authReq.auth = {
                         token: apiKeyAuth.authentication.source,
@@ -201,6 +228,7 @@ mcpRouter.all(
                         user: req.user,
                         account: serviceAccountAuth,
                         headerUserAttributes,
+                        headerProjectUuid,
                     };
                     authReq.auth = {
                         token: serviceAccountAuth.authentication.source,

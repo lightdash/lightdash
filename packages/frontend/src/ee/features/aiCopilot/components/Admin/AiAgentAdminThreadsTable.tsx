@@ -31,13 +31,6 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useDeferredValue,
     useEffect,
@@ -48,6 +41,13 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import {
+    ContentTable,
+    useContentTable,
+    type MRT_ColumnDef,
+    type MRT_SortingState,
+    type MRT_Virtualizer,
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -472,7 +472,7 @@ const AiAgentAdminThreadsTable = ({
         },
     ];
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: true,
@@ -600,19 +600,11 @@ const AiAgentAdminThreadsTable = ({
             const isSelected = selectedThread?.uuid === thread.uuid;
 
             return {
-                sx: {
+                style: {
                     cursor: 'pointer',
-                    '&:hover': {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
-                    ...(isSelected && {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[1],
-                        },
-                    }),
+                    backgroundColor: isSelected
+                        ? theme.colors.ldGray[1]
+                        : undefined,
                 },
                 onClick: () => {
                     setSelectedThread?.(thread);
@@ -720,12 +712,12 @@ const AiAgentAdminThreadsTable = ({
             showGlobalFilter: true,
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default AiAgentAdminThreadsTable;

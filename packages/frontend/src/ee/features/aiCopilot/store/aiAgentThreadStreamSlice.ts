@@ -1,9 +1,12 @@
-import { type ToolName } from '@lightdash/common';
+import {
+    type AiAgentToolName,
+    type AiMcpServerConnectionStatus,
+} from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type ToolCall = {
     toolCallId: string;
-    toolName: ToolName;
+    toolName: AiAgentToolName;
     toolArgs: unknown;
 };
 
@@ -12,13 +15,46 @@ type Reasoning = {
     parts: string[];
 };
 
+export type McpUnavailableNotice = {
+    serverUuid: string;
+    serverName: string;
+    message: string;
+    status: AiMcpServerConnectionStatus;
+};
+
+export type StreamPart =
+    | { type: 'text'; text: string }
+    | {
+          type: 'toolCall';
+          toolCallId: string;
+          toolName: AiAgentToolName;
+          toolArgs: unknown;
+          /**
+           * The tool's output once the call resolves. Populated for live
+           * preliminary updates (tools whose execute is an async generator
+           * like `discoverFields`) and for the final non-preliminary result.
+           * `undefined` while the tool is still streaming its input or before
+           * the first preliminary chunk lands.
+           */
+          toolOutput?: unknown;
+          /**
+           * `true` for AI-SDK preliminary tool-result chunks (each yield from
+           * an async-generator execute). `false` for the final non-preliminary
+           * tool result. `undefined` when toolOutput is absent.
+           */
+          isPreliminary?: boolean;
+      };
+
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
+    parts: StreamPart[];
     isStreaming: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
+    decidedToolCallIds: string[];
+    mcpUnavailableNotices: McpUnavailableNotice[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -34,9 +70,12 @@ const initialThread: Omit<
     'threadUuid' | 'messageUuid'
 > = {
     content: '',
+    parts: [],
     isStreaming: true,
     toolCalls: [],
     reasoning: [],
+    decidedToolCallIds: [],
+    mcpUnavailableNotices: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -71,6 +110,35 @@ export const aiAgentThreadStreamSlice = createSlice({
                 console.warn('Streaming thread or message not found:', {
                     threadUuid,
                 });
+            }
+        },
+        setParts: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                parts: StreamPart[];
+            }>,
+        ) => {
+            const { threadUuid, parts } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.parts = parts;
+            }
+        },
+        markToolCallDecided: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                toolCallId: string;
+            }>,
+        ) => {
+            const { threadUuid, toolCallId } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (
+                streamingThread &&
+                !streamingThread.decidedToolCallIds.includes(toolCallId)
+            ) {
+                streamingThread.decidedToolCallIds.push(toolCallId);
             }
         },
         stopStreaming: (
@@ -189,16 +257,38 @@ export const aiAgentThreadStreamSlice = createSlice({
                 }
             }
         },
+        addMcpUnavailableNotice: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                notice: McpUnavailableNotice;
+            }>,
+        ) => {
+            const { threadUuid, notice } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (
+                streamingThread &&
+                !streamingThread.mcpUnavailableNotices.some(
+                    (existingNotice) =>
+                        existingNotice.serverUuid === notice.serverUuid,
+                )
+            ) {
+                streamingThread.mcpUnavailableNotices.push(notice);
+            }
+        },
     },
 });
 
 export const {
     startStreaming,
     setMessage,
+    setParts,
+    markToolCallDecided,
     stopStreaming,
     setError,
     addToolCall,
     addReasoning,
+    addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

@@ -242,7 +242,9 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    /** @deprecated Use groups instead */
     groupLabel?: string;
+    groups?: string[];
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
@@ -295,6 +297,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        groups,
         warehouse,
         ymlPath,
         sqlPath,
@@ -632,6 +635,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            ...(groups && groups.length > 0 ? { groups } : {}),
             warehouse,
             ymlPath,
             sqlPath,
@@ -714,10 +718,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile dimension "${dimensionKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [dimensionKey]:
@@ -753,10 +758,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile metric "${metricKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [metricKey]: ExploreCompiler.createMetricWithError(

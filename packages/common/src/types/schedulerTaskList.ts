@@ -2,6 +2,7 @@ import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
     type ChartReference,
+    type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
@@ -42,9 +43,13 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     version: number;
     prompt: string;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
-    imageId?: string;
+    imageIds?: string[];
     isIteration: boolean;
     chartReferences?: ChartReference[];
+    // Claude model the user picked for this version. Absent on jobs enqueued
+    // before the picker shipped — the pipeline falls back to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
+    claudeModel?: DataAppClaudeModel;
 };
 
 export const EE_SCHEDULER_TASKS = {
@@ -89,6 +94,7 @@ export const SCHEDULER_TASKS = {
     CHECK_FOR_STUCK_JOBS: 'checkForStuckJobs',
     CLEAN_DEPLOY_SESSIONS: 'cleanDeploySessions',
     MANAGED_AGENT_HEARTBEAT: 'managedAgentHeartbeat',
+    CLEAN_EXPIRED_PREVIEWS: 'cleanExpiredPreviews',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -130,6 +136,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: TraceTaskBase;
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
+    [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

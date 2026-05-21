@@ -154,3 +154,29 @@ export const executeDashboardSqlChartPivotQuery = async (
 
     return getPivotQueryResults(projectUuid, executeQueryResponse.queryUuid);
 };
+
+// Embed-only path: hits the /embed/* endpoint, which authorizes via the
+// dashboard JWT instead of the registered chart access used by the v2
+// dashboard-sql-chart endpoint.
+export const executeEmbedDashboardSqlChartPivotQuery = async (
+    projectUuid: string,
+    payload: {
+        tileUuid: string;
+    } & Pick<
+        ExecuteAsyncDashboardSqlChartRequestParams,
+        | 'dashboardFilters'
+        | 'dashboardSorts'
+        | 'invalidateCache'
+        | 'parameters'
+        | 'limit'
+    >,
+) => {
+    const executeQueryResponse =
+        await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
+            url: `/embed/${projectUuid}/query/dashboard-sql-chart`,
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+
+    return getPivotQueryResults(projectUuid, executeQueryResponse.queryUuid);
+};

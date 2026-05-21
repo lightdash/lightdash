@@ -36,6 +36,7 @@ import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorer
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -86,6 +87,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    organizationSsoService: OrganizationSsoService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
@@ -126,6 +128,7 @@ interface ServiceManifest {
     aiService: unknown;
     aiAgentService: unknown;
     aiAgentAdminService: unknown;
+    aiAgentDocumentService: unknown;
     aiOrganizationSettingsService: unknown;
     scimService: unknown;
     supportService: unknown;
@@ -300,8 +303,10 @@ export class ServiceRepository
             'analyticsService',
             () =>
                 new AnalyticsService({
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
+                    downloadAuditModel: this.models.getDownloadAuditModel(),
                     projectModel: this.models.getProjectModel(),
                     csvService: this.getCsvService(),
                 }),
@@ -313,12 +318,12 @@ export class ServiceRepository
             'commentService',
             () =>
                 new CommentService({
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
                     commentModel: this.models.getCommentModel(),
                     notificationsModel: this.models.getNotificationsModel(),
                     userModel: this.models.getUserModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
@@ -366,6 +371,7 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
@@ -525,6 +531,21 @@ export class ServiceRepository
         );
     }
 
+    public getOrganizationSsoService(): OrganizationSsoService {
+        return this.getService(
+            'organizationSsoService',
+            () =>
+                new OrganizationSsoService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
+                    organizationAllowedEmailDomainsModel:
+                        this.models.getOrganizationAllowedEmailDomainsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
     public getPermissionsService(): PermissionsService {
         return this.getService(
             'permissionsService',
@@ -648,6 +669,7 @@ export class ServiceRepository
                         this.models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         this.models.getOrganizationWarehouseCredentialsModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
@@ -703,6 +725,7 @@ export class ServiceRepository
                         this.models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         this.models.getOrganizationWarehouseCredentialsModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                     permissionsService: this.getPermissionsService(),
@@ -741,6 +764,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                 }),
         );
     }
@@ -756,9 +780,11 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     dashboardModel: this.models.getDashboardModel(),
+                    appModel: this.models.getAppModel(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
+                    emailClient: this.clients.getEmailClient(),
                     userModel: this.models.getUserModel(),
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
@@ -779,6 +805,11 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Only wired when EE license is active. Core builds get
+                    // undefined and SearchService drops data apps from results.
+                    appGenerateService: this.providers.appGenerateService
+                        ? this.getAppGenerateService<AppGenerateService>()
+                        : undefined,
                 }),
         );
     }
@@ -838,6 +869,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
@@ -859,6 +891,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
+                    appModel: this.models.getAppModel(),
                     shareModel: this.models.getShareModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
@@ -908,11 +942,13 @@ export class ServiceRepository
                         this.models.getPersonalAccessTokenModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1159,6 +1195,12 @@ export class ServiceRepository
         AiOrganizationSettingsServiceImplT,
     >(): AiOrganizationSettingsServiceImplT {
         return this.getService('aiOrganizationSettingsService');
+    }
+
+    public getAiAgentDocumentService<
+        AiAgentDocumentServiceImplT,
+    >(): AiAgentDocumentServiceImplT {
+        return this.getService('aiAgentDocumentService');
     }
 
     public getRolesService(): RolesService {

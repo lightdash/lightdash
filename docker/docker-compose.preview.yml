@@ -9,7 +9,7 @@ endpoints:
 
 services:
     db-preview:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         restart: always
         environment:
             - POSTGRES_PASSWORD=${PGPASSWORD}
@@ -75,6 +75,18 @@ services:
             CUSTOM_ROLES_ENABLED: true
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true
 
+            # Force-enable embedding flag in preview envs so e2e tests work.
+            # Picked up via LEGACY_ENABLE_ENV_VARS in parseConfig.ts → unified
+            # enabledFeatureFlags allowlist (step 1a).
+            EMBEDDING_ENABLED: true
+
+            # Force-enable the SQL-pivot path in preview envs. Cloud helm sets
+            # this true; preview deploys via docker-compose and otherwise
+            # falls back to PostHog targeting, which doesn't reach the
+            # ephemeral test org — pivotTables.cy.ts then times out waiting
+            # for `pivotConfiguration` in the metric-query POST.
+            USE_SQL_PIVOT_RESULTS: true
+
             PERSISTENT_DOWNLOAD_URLS_ENABLED: true
 
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
@@ -90,9 +102,6 @@ services:
             # these are set in the okteto admin UI - DO NOT SET THESE LOCALLY WHEN DEPLOYING or they will override the values in the okteto admin UI
             RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
             RUDDERSTACK_DATA_PLANE_URL: ${RUDDERSTACK_DATA_PLANE_URL}
-            POSTHOG_FE_API_HOST: ${POSTHOG_FE_API_HOST}
-            POSTHOG_BE_API_HOST: ${POSTHOG_BE_API_HOST}
-            POSTHOG_PROJECT_API_KEY: ${POSTHOG_PROJECT_API_KEY}
             LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
             GITHUB_APP_ID: ${GITHUB_APP_ID}
             GITHUB_APP_NAME: ${GITHUB_APP_NAME}

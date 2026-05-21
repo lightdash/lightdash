@@ -23,6 +23,7 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
+import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 
 type SimpleTableProps = {
@@ -52,20 +53,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData,
         isLoading,
         isEditMode,
+        parameters,
     } = useVisualizationContext();
 
-    const hasSignaledScreenshotReady = useRef(false);
-    const { data: showHideRowsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideRows,
+    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
+        FeatureFlags.PivotColumnSort,
     );
-    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
+
+    const hasSignaledScreenshotReady = useRef(false);
 
     const rowLimit = isTableVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.rowLimit
         : undefined;
 
     const needsAllRows =
-        isShowHideRowsEnabled &&
         rowLimit != null &&
         rowLimit.count > 0 &&
         (rowLimit.direction === 'last' || rowLimit.mode === 'hide');
@@ -209,19 +211,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }, [visualizationConfig]);
 
     const slicedRows = useMemo(
-        () =>
-            sliceRows(resultsData?.rows || [], isShowHideRowsEnabled, rowLimit),
-        [resultsData?.rows, isShowHideRowsEnabled, rowLimit],
+        () => sliceRows(resultsData?.rows || [], rowLimit),
+        [resultsData?.rows, rowLimit],
     );
 
     const totalRowsCount = useMemo(
-        () =>
-            computeLimitedRowCount(
-                resultsData?.totalResults || 0,
-                isShowHideRowsEnabled,
-                rowLimit,
-            ),
-        [resultsData?.totalResults, isShowHideRowsEnabled, rowLimit],
+        () => computeLimitedRowCount(resultsData?.totalResults || 0, rowLimit),
+        [resultsData?.totalResults, rowLimit],
     );
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
@@ -294,23 +290,51 @@ const SimpleTable: FC<SimpleTableProps> = ({
             >
                 {pivotTableData.data && resultsData?.hasFetchedAllRows ? (
                     <>
-                        <PivotTable
-                            className={className}
-                            data={pivotTableData.data}
-                            isMinimal={minimal}
-                            isDashboard={isDashboard}
-                            conditionalFormattings={conditionalFormattings}
-                            minMaxMap={minMaxMap}
-                            getFieldLabel={getFieldLabel}
-                            getField={getField}
-                            hideRowNumbers={hideRowNumbers}
-                            showSubtotals={showSubtotals}
-                            columnProperties={
-                                visualizationConfig.chartConfig.columnProperties
-                            }
-                            onColumnWidthChange={onColumnWidthChange}
-                            {...rest}
-                        />
+                        {/* Dashboard mode has no explorer store — use plain
+                         * table. Gated behind PivotColumnSort flag so we can
+                         * validate the new sort UX with design partners before
+                         * GA. */}
+                        {isDashboard || !isPivotColumnSortEnabled ? (
+                            <PivotTable
+                                className={className}
+                                data={pivotTableData.data}
+                                isMinimal={minimal}
+                                isDashboard={isDashboard}
+                                conditionalFormattings={conditionalFormattings}
+                                minMaxMap={minMaxMap}
+                                getFieldLabel={getFieldLabel}
+                                getField={getField}
+                                hideRowNumbers={hideRowNumbers}
+                                showSubtotals={showSubtotals}
+                                columnProperties={
+                                    visualizationConfig.chartConfig
+                                        .columnProperties
+                                }
+                                onColumnWidthChange={onColumnWidthChange}
+                                parameters={parameters}
+                                {...rest}
+                            />
+                        ) : (
+                            <ExplorerPivotTable
+                                className={className}
+                                data={pivotTableData.data}
+                                isMinimal={minimal}
+                                isDashboard={isDashboard}
+                                conditionalFormattings={conditionalFormattings}
+                                minMaxMap={minMaxMap}
+                                getFieldLabel={getFieldLabel}
+                                getField={getField}
+                                hideRowNumbers={hideRowNumbers}
+                                showSubtotals={showSubtotals}
+                                columnProperties={
+                                    visualizationConfig.chartConfig
+                                        .columnProperties
+                                }
+                                onColumnWidthChange={onColumnWidthChange}
+                                parameters={parameters}
+                                {...rest}
+                            />
+                        )}
                         {showResultsTotal && (
                             <Flex justify="flex-end" pt="xxs" align="center">
                                 <ResultCount

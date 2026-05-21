@@ -5,6 +5,7 @@ import {
     DimensionType,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
@@ -40,6 +41,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -252,13 +254,27 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {
-            get: jest.fn(async () => ({ enabled: false })),
+            // Mirror production behaviour: ResultsCacheEnabled resolves from
+            // the env-derived lightdashConfig.results.cacheEnabled when there
+            // is no DB row.
+            get: jest.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                        return {
+                            id: featureFlagId,
+                            enabled: lightdashConfig.results.cacheEnabled,
+                        };
+                    }
+                    return { id: featureFlagId, enabled: false };
+                },
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
+        organizationModel: {} as OrganizationModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             fileStorageClient: {} as FileStorageClient,
@@ -290,7 +306,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
 
@@ -518,6 +537,118 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        // Regression: persisted metric_query.timezone must follow the gated
+        // displayTimezone, not the ungated resolvedTimezone — otherwise
+        // downstream readers (formatTimestamp, downloads, worker re-exec)
+        // apply a +TZ shift on flag-off orgs that have a project timezone.
+        test('persists displayTimezone=null when flag is off, even if a resolved timezone exists', async () => {
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    // Resolved tz is set (project has query_timezone) but
+                    // the gating flag is off — SQL was built without a
+                    // timezone-aware DATE_TRUNC, so the persisted snapshot
+                    // must not carry the resolved value either.
+                    timezone: 'Asia/Tokyo',
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        timezone: undefined,
+                    }),
+                }),
+            );
+        });
+
+        test('persists displayTimezone when flag is on', async () => {
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    timezone: 'Asia/Tokyo',
+                    displayTimezone: 'Asia/Tokyo',
+                    useTimezoneAwareDateTrunc: true,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        timezone: 'Asia/Tokyo',
+                    }),
+                }),
+            );
+        });
+
         test('Cache Invalidation - Complete Flow', async () => {
             // GIVEN: invalidateCache: true is set
             const mockCacheResult: MissCacheResult = {
@@ -563,10 +694,11 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            // THEN: findResultsCache called with invalidate flag (third parameter: true)
+            // THEN: findResultsCache called with invalidate flag (last parameter: true)
             expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String),
+                expect.any(Object), // account
                 true,
             );
 
@@ -620,6 +752,7 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClients = {};
             serviceWithoutCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => false),
                 findCachedResultsFile: jest.fn(),
             } as unknown as ICacheService;
 
@@ -664,6 +797,7 @@ describe('AsyncQueryService', () => {
             expect(findResultsCacheSpy).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String), // cache key
+                expect.any(Object), // account
                 false, // invalidateCache
             );
 
@@ -1191,7 +1325,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
         });
@@ -1656,7 +1793,10 @@ describe('AsyncQueryService', () => {
 
         beforeEach(() => {
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
             jest.clearAllMocks();
 
             serviceWithCache.findResultsCache = jest
@@ -2199,6 +2339,86 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     }),
                 ).rejects.toThrow();
+            });
+        });
+
+        describe('parameter resolution', () => {
+            // Regression for PROD-7497: virtual view "Save" sent the
+            // column-discovery query without parameter values. The placeholder
+            // ${lightdash.parameters.X} reached Postgres and produced a
+            // confusing `syntax error at or near "$"`. The service should
+            // detect unbound parameter references before hitting the warehouse
+            // and surface a clean ParameterError instead.
+            const sqlWithUnboundParam =
+                'SELECT * FROM jaffle.orders WHERE status = ${lightdash.parameters.no_default_param} LIMIT 10';
+
+            const buildService = (
+                projectParameterConfigs: {
+                    name: string;
+                    config: AnyType;
+                }[] = [],
+            ) => {
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => projectParameterConfigs),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                const streamQuery = jest.fn();
+
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        streamQuery,
+                    },
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                return { service, streamQuery };
+            };
+
+            it('throws ParameterError when SQL references a parameter that has no value and no default', async () => {
+                const { service, streamQuery } = buildService([
+                    {
+                        name: 'no_default_param',
+                        config: {
+                            label: 'No Default Param',
+                            options: ['completed', 'shipped'],
+                        },
+                    },
+                ]);
+
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: sqlWithUnboundParam,
+                        // parameters intentionally omitted to simulate the
+                        // pre-fix frontend Save flow.
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                ).rejects.toThrow(
+                    expect.objectContaining({
+                        name: 'ParameterError',
+                        message: expect.stringContaining('no_default_param'),
+                    }),
+                );
+
+                // Guardrail: we must not have shipped the unsubstituted SQL
+                // to the warehouse — that's the buggy behaviour we're fixing.
+                expect(streamQuery).not.toHaveBeenCalled();
             });
         });
 

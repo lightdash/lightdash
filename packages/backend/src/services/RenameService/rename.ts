@@ -757,14 +757,17 @@ export const renameSavedChart = ({
 }): { updatedChart: SavedChartDAO; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
-    const searchTerms = [
-        addSuffixIfPrefix(nameChanges.from, isPrefix),
-        addSuffixIfPrefix(nameChanges.fromReference, isPrefix),
-        // fromFieldName is only available when rename type is FIELD
-        nameChanges.fromFieldName
-            ? addSuffixIfPrefix(nameChanges.fromFieldName, isPrefix)
-            : null,
-    ].filter((s) => s !== null);
+    const searchTerms = isPrefix
+        ? [
+              addSuffixIfPrefix(nameChanges.from, true), // "model_" for fieldId matches
+              nameChanges.from, // "model" for tableName/exploreName matches (e.g. charts that only use joined-table fields)
+          ]
+        : [
+              nameChanges.from,
+              nameChanges.fromReference,
+              // fromFieldName is only available when rename type is FIELD
+              nameChanges.fromFieldName ?? null,
+          ].filter((s) => s !== null);
 
     const containsModelName = buildModelNameChecker(searchTerms);
     if (!containsModelName(chart)) {

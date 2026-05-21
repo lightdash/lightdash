@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -281,6 +282,24 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         </Menu.Item>
                     )}
 
+                    {isChartOrDashboard && !isSqlChart && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            chartUuid={
+                                isResourceViewItemChart(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            dashboardUuid={
+                                isResourceViewItemDashboard(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            clickedFrom="resource_action_menu"
+                            withDivider={userCanManage && !favoritesContext}
+                        />
+                    )}
+
                     {userCanManage && favoritesContext && <Menu.Divider />}
 
                     {userCanManage && (
@@ -297,7 +316,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 }}
                                 style={isSqlChart ? { display: 'none' } : {}}
                             >
-                                Rename
+                                {item.type === ResourceViewItemType.SPACE
+                                    ? 'Update space'
+                                    : 'Rename'}
                             </Menu.Item>
 
                             {item.type === ResourceViewItemType.CHART ||

@@ -67,17 +67,23 @@ export const convertDuckdbSchema = (
             );
         }
 
-        if (!target.settings?.motherduck_token) {
+        const motherduckPath = target.path.slice(3);
+        const [database, queryString = ''] = motherduckPath.split('?', 2);
+        const motherduckToken =
+            target.settings?.motherduck_token ||
+            new URLSearchParams(queryString).get('motherduck_token');
+
+        if (!motherduckToken) {
             throw new ParseError(
-                `Couldn't read profiles.yml file for ${target.type}:\nLightdash only supports MotherDuck duckdb targets. Expected settings.motherduck_token to be set.`,
+                `Couldn't read profiles.yml file for ${target.type}:\nLightdash only supports MotherDuck duckdb targets. Expected settings.motherduck_token or path query parameter motherduck_token to be set.`,
             );
         }
 
         return {
             type: WarehouseTypes.DUCKDB,
-            database: target.path.slice(3),
+            database,
             schema: target.schema,
-            token: target.settings.motherduck_token,
+            token: motherduckToken,
             threads: target.threads,
         };
     }

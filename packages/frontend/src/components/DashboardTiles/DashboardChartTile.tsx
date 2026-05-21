@@ -4,7 +4,6 @@ import {
     ChartType,
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
-    FeatureFlags,
     getChartKind,
     getCustomLabelsFromTableConfig,
     getDimensions,
@@ -13,6 +12,7 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
+    getTotalFilterRules,
     getVisibleFields,
     isCartesianChartConfig,
     isCompleteLayout,
@@ -70,6 +70,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
@@ -91,12 +92,14 @@ const getDashboardTileErrorMessage = (
     return error.error?.message;
 };
 
+import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import {
     getExpectedSeriesMap,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
 import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
@@ -120,7 +123,6 @@ import {
 } from '../../hooks/useQueryResults';
 import { useAccount } from '../../hooks/user/useAccount';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
@@ -200,7 +202,6 @@ const computeDashboardChartSeries = (
     validPivotDimensions: string[] | undefined,
     resultData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap,
-    isShowHideColumnsEnabled: boolean,
 ) => {
     if (!chart.chartConfig || !resultData || resultData.rows.length === 0) {
         return [];
@@ -224,25 +225,22 @@ const computeDashboardChartSeries = (
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
+            defaultStackLabel: firstSerie?.stackLabel,
             itemsMap,
-            columnLimit: isShowHideColumnsEnabled
-                ? chart.chartConfig.config.columnLimit
-                : undefined,
+            columnLimit: chart.chartConfig.config.columnLimit,
         });
-        const sortedByPivot =
-            !!validPivotDimensions?.length &&
-            chart.metricQuery.sorts.some((sort) =>
-                validPivotDimensions.includes(sort.fieldId),
-            );
+        const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
+            validPivotDimensions,
+            chart.chartConfig.config.layout.yField,
+            chart.metricQuery.sorts,
+        );
 
         const newSeries = mergeExistingAndExpectedSeries({
             expectedSeriesMap,
             existingSeries: chart.chartConfig.config.eChartsConfig.series || [],
             sortedByPivot,
         });
-        return isShowHideColumnsEnabled
-            ? newSeries.filter((s) => !s.isFilteredOut)
-            : newSeries;
+        return newSeries.filter((s) => !s.isFilteredOut);
     }
     return [];
 };
@@ -310,26 +308,14 @@ const ValidDashboardChartTile: FC<{
             metricQuery,
         );
 
-        const { data: showHideColumnsFlag } = useServerFeatureFlag(
-            FeatureFlags.ShowHideColumns,
-        );
-        const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
-
         const computedSeries: Series[] = useMemo(() => {
             return computeDashboardChartSeries(
                 chart,
                 validPivotDimensions,
                 resultsData,
                 fields,
-                isShowHideColumnsEnabled,
             );
-        }, [
-            resultsData,
-            chart,
-            validPivotDimensions,
-            fields,
-            isShowHideColumnsEnabled,
-        ]);
+        }, [resultsData, chart, validPivotDimensions, fields]);
 
         const resultsDataWithQueryData = useMemo(
             () => ({
@@ -459,25 +445,18 @@ const ValidDashboardChartTileMinimal: FC<{
         dashboardChartReadyQuery.executeQueryResponse.metricQuery,
     );
 
-    const { data: showHideColumnsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideColumns,
-    );
-    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
-
     const computedSeries: Series[] = useMemo(() => {
         return computeDashboardChartSeries(
             chart,
             validPivotDimensions,
             resultsData,
             dashboardChartReadyQuery.executeQueryResponse?.fields,
-            isShowHideColumnsEnabled,
         );
     }, [
         resultsData,
         chart,
         validPivotDimensions,
         dashboardChartReadyQuery.executeQueryResponse?.fields,
-        isShowHideColumnsEnabled,
     ]);
 
     const resultsDataWithQueryData = useMemo(
@@ -566,7 +545,11 @@ interface DashboardChartTileMainProps extends Pick<
     tile: IDashboardChartTile;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles?: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
@@ -805,22 +788,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         useEffect(() => {
             if (duplicatedChart && props.onAddTiles) {
-                // We duplicated a chart, we add it to the dashboard
-                props.onAddTiles([
-                    {
-                        uuid: uuid4(),
-                        properties: {
-                            savedChartUuid: duplicatedChart.uuid,
-                            chartName: duplicatedChart.name ?? '',
+                const newTileUuid = uuid4();
+                props.onAddTiles(
+                    [
+                        {
+                            uuid: newTileUuid,
+                            properties: {
+                                savedChartUuid: duplicatedChart.uuid,
+                                chartName: duplicatedChart.name ?? '',
+                            },
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: 0,
+                            y: 0,
+                            h: props.tile.h,
+                            w: props.tile.w,
+                            tabUuid: props.tile.tabUuid,
                         },
-                        type: DashboardTileTypes.SAVED_CHART,
-                        x: 0,
-                        y: 0,
-                        h: props.tile.h,
-                        w: props.tile.w,
-                        tabUuid: props.tile.tabUuid,
-                    },
-                ]);
+                    ],
+                    { [newTileUuid]: props.tile.uuid },
+                );
                 resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times
             }
         }, [props, duplicatedChart, resetDuplicatedChart]);
@@ -987,12 +973,30 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             },
             [explore, chart],
         );
-        const appliedFilterRules = appliedDashboardFilters
-            ? [
-                  ...appliedDashboardFilters.dimensions,
-                  ...appliedDashboardFilters.metrics,
-              ]
-            : [];
+        const appliedFilterRules = useMemo(
+            () =>
+                appliedDashboardFilters
+                    ? [
+                          ...appliedDashboardFilters.dimensions,
+                          ...appliedDashboardFilters.metrics,
+                      ]
+                    : [],
+            [appliedDashboardFilters],
+        );
+
+        const chartFilterRules = useMemo(
+            () => getTotalFilterRules(chart.metricQuery.filters),
+            [chart.metricQuery.filters],
+        );
+
+        const overriddenChartFilterFieldIds = useMemo(
+            () =>
+                new Set(appliedFilterRules.map((rule) => rule.target.fieldId)),
+            [appliedFilterRules],
+        );
+
+        const hasFiltersToShow =
+            appliedFilterRules.length > 0 || chartFilterRules.length > 0;
 
         const chartWithDashboardFilters = useMemo(
             () => ({
@@ -1062,6 +1066,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             chart.spaceUuid,
             ability,
         ]);
+        const downloadPivotConfig = getPivotConfig(chart);
 
         // Use the custom hook for dashboard chart downloads
         const { getDownloadQueryUuid } = useDashboardChartDownload(
@@ -1070,6 +1075,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             projectUuid,
             dashboardUuid,
             dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+            !!downloadPivotConfig,
         );
 
         const closeDataExportModal = useCallback(
@@ -1090,7 +1096,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         <>
                             {/* Dashboard comments button only appears on hover if there are no comments yet */}
                             {tileHasComments ? undefined : dashboardComments}
-                            {appliedFilterRules.length > 0 && (
+                            {hasFiltersToShow && (
                                 <HoverCard
                                     withArrow
                                     withinPortal
@@ -1101,102 +1107,269 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 >
                                     <HoverCard.Dropdown>
                                         <Stack spacing="xs" align="flex-start">
-                                            <Text color="ldGray.7" fw={500}>
-                                                Dashboard filter
-                                                {appliedFilterRules.length > 1
-                                                    ? 's'
-                                                    : ''}{' '}
-                                                applied:
-                                            </Text>
+                                            {appliedFilterRules.length > 0 && (
+                                                <>
+                                                    <Text
+                                                        color="ldGray.7"
+                                                        fw={500}
+                                                    >
+                                                        Dashboard filter
+                                                        {appliedFilterRules.length >
+                                                        1
+                                                            ? 's'
+                                                            : ''}{' '}
+                                                        applied:
+                                                    </Text>
+                                                    {appliedFilterRules.map(
+                                                        (filterRule) => {
+                                                            const fields: Field[] =
+                                                                explore
+                                                                    ? getVisibleFields(
+                                                                          explore,
+                                                                      )
+                                                                    : [];
 
-                                            {appliedFilterRules.map(
-                                                (filterRule) => {
-                                                    const fields: Field[] =
-                                                        explore
-                                                            ? getVisibleFields(
-                                                                  explore,
-                                                              )
-                                                            : [];
+                                                            const field =
+                                                                fields.find(
+                                                                    (f) => {
+                                                                        return (
+                                                                            getItemId(
+                                                                                f,
+                                                                            ) ===
+                                                                            filterRule
+                                                                                .target
+                                                                                .fieldId
+                                                                        );
+                                                                    },
+                                                                );
+                                                            if (
+                                                                !field ||
+                                                                !isFilterableField(
+                                                                    field,
+                                                                )
+                                                            )
+                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
 
-                                                    const field = fields.find(
-                                                        (f) => {
+                                                            const filterRuleLabels =
+                                                                getConditionalRuleLabelFromItem(
+                                                                    filterRule,
+                                                                    field,
+                                                                );
                                                             return (
-                                                                getItemId(f) ===
-                                                                filterRule
-                                                                    .target
-                                                                    .fieldId
-                                                            );
-                                                        },
-                                                    );
-                                                    if (
-                                                        !field ||
-                                                        !isFilterableField(
-                                                            field,
-                                                        )
-                                                    )
-                                                        return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-
-                                                    const filterRuleLabels =
-                                                        getConditionalRuleLabelFromItem(
-                                                            filterRule,
-                                                            field,
-                                                        );
-                                                    return (
-                                                        <Badge
-                                                            key={filterRule.id}
-                                                            variant="outline"
-                                                            color="ldGray.4"
-                                                            radius="sm"
-                                                            size="lg"
-                                                            fz="xs"
-                                                            fw="normal"
-                                                            style={{
-                                                                textTransform:
-                                                                    'none',
-                                                                color: 'black',
-                                                            }}
-                                                        >
-                                                            <Text
-                                                                fw={600}
-                                                                span
-                                                                color="foreground"
-                                                            >
-                                                                {
-                                                                    filterRuleLabels.field
-                                                                }
-                                                                :
-                                                            </Text>{' '}
-                                                            {filterRule.disabled ? (
-                                                                <Text
-                                                                    color="foreground"
-                                                                    span
+                                                                <Badge
+                                                                    key={
+                                                                        filterRule.id
+                                                                    }
+                                                                    variant="outline"
+                                                                    color="ldGray.4"
+                                                                    radius="sm"
+                                                                    size="lg"
+                                                                    fz="xs"
+                                                                    fw="normal"
+                                                                    style={{
+                                                                        textTransform:
+                                                                            'none',
+                                                                        color: 'black',
+                                                                    }}
                                                                 >
-                                                                    is any value
-                                                                </Text>
-                                                            ) : (
-                                                                <>
-                                                                    <Text
-                                                                        span
-                                                                        color="foreground"
-                                                                    >
-                                                                        {
-                                                                            filterRuleLabels.operator
-                                                                        }
-                                                                    </Text>{' '}
                                                                     <Text
                                                                         fw={600}
                                                                         span
                                                                         color="foreground"
                                                                     >
                                                                         {
-                                                                            filterRuleLabels.value
+                                                                            filterRuleLabels.field
                                                                         }
-                                                                    </Text>
-                                                                </>
-                                                            )}
-                                                        </Badge>
-                                                    );
-                                                },
+                                                                        :
+                                                                    </Text>{' '}
+                                                                    {filterRule.disabled ? (
+                                                                        <Text
+                                                                            color="foreground"
+                                                                            span
+                                                                        >
+                                                                            is
+                                                                            any
+                                                                            value
+                                                                        </Text>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Text
+                                                                                span
+                                                                                color="foreground"
+                                                                            >
+                                                                                {
+                                                                                    filterRuleLabels.operator
+                                                                                }
+                                                                            </Text>{' '}
+                                                                            <Text
+                                                                                fw={
+                                                                                    600
+                                                                                }
+                                                                                span
+                                                                                color="foreground"
+                                                                            >
+                                                                                {
+                                                                                    filterRuleLabels.value
+                                                                                }
+                                                                            </Text>
+                                                                        </>
+                                                                    )}
+                                                                </Badge>
+                                                            );
+                                                        },
+                                                    )}
+                                                </>
+                                            )}
+                                            {chartFilterRules.length > 0 && (
+                                                <>
+                                                    <Text
+                                                        color="ldGray.7"
+                                                        fw={500}
+                                                    >
+                                                        Chart filter
+                                                        {chartFilterRules.length >
+                                                        1
+                                                            ? 's'
+                                                            : ''}
+                                                        :
+                                                    </Text>
+                                                    {chartFilterRules.map(
+                                                        (filterRule) => {
+                                                            const fields: Field[] =
+                                                                explore
+                                                                    ? getVisibleFields(
+                                                                          explore,
+                                                                      )
+                                                                    : [];
+                                                            const field =
+                                                                fields.find(
+                                                                    (f) =>
+                                                                        getItemId(
+                                                                            f,
+                                                                        ) ===
+                                                                        filterRule
+                                                                            .target
+                                                                            .fieldId,
+                                                                );
+                                                            if (
+                                                                !field ||
+                                                                !isFilterableField(
+                                                                    field,
+                                                                )
+                                                            )
+                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+                                                            const filterRuleLabels =
+                                                                getConditionalRuleLabelFromItem(
+                                                                    filterRule,
+                                                                    field,
+                                                                );
+                                                            const isOverridden =
+                                                                overriddenChartFilterFieldIds.has(
+                                                                    filterRule
+                                                                        .target
+                                                                        .fieldId,
+                                                                );
+                                                            const ruleStrikeStyle:
+                                                                | React.CSSProperties
+                                                                | undefined =
+                                                                isOverridden
+                                                                    ? {
+                                                                          textDecoration:
+                                                                              'line-through',
+                                                                      }
+                                                                    : undefined;
+                                                            return (
+                                                                <Badge
+                                                                    key={
+                                                                        filterRule.id
+                                                                    }
+                                                                    variant="outline"
+                                                                    color="ldGray.4"
+                                                                    radius="sm"
+                                                                    size="lg"
+                                                                    fz="xs"
+                                                                    fw="normal"
+                                                                    style={{
+                                                                        textTransform:
+                                                                            'none',
+                                                                        color: 'black',
+                                                                        opacity:
+                                                                            isOverridden
+                                                                                ? 0.6
+                                                                                : 1,
+                                                                    }}
+                                                                >
+                                                                    <Text
+                                                                        fw={600}
+                                                                        span
+                                                                        color="foreground"
+                                                                        style={
+                                                                            ruleStrikeStyle
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            filterRuleLabels.field
+                                                                        }
+                                                                        :
+                                                                    </Text>{' '}
+                                                                    {filterRule.disabled ? (
+                                                                        <Text
+                                                                            color="foreground"
+                                                                            span
+                                                                            style={
+                                                                                ruleStrikeStyle
+                                                                            }
+                                                                        >
+                                                                            is
+                                                                            any
+                                                                            value
+                                                                        </Text>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Text
+                                                                                span
+                                                                                color="foreground"
+                                                                                style={
+                                                                                    ruleStrikeStyle
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    filterRuleLabels.operator
+                                                                                }
+                                                                            </Text>{' '}
+                                                                            <Text
+                                                                                fw={
+                                                                                    600
+                                                                                }
+                                                                                span
+                                                                                color="foreground"
+                                                                                style={
+                                                                                    ruleStrikeStyle
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    filterRuleLabels.value
+                                                                                }
+                                                                            </Text>
+                                                                        </>
+                                                                    )}
+                                                                    {isOverridden && (
+                                                                        <Text
+                                                                            span
+                                                                            color="foreground"
+                                                                            fs="italic"
+                                                                        >
+                                                                            {' '}
+                                                                            (overridden
+                                                                            by
+                                                                            dashboard)
+                                                                        </Text>
+                                                                    )}
+                                                                </Badge>
+                                                            );
+                                                        },
+                                                    )}
+                                                </>
                                             )}
                                         </Stack>
                                     </HoverCard.Dropdown>
@@ -1298,6 +1471,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             userCanManageChart ||
                             userCanExportData) && (
                             <>
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    chartUuid={savedChartUuid ?? undefined}
+                                    clickedFrom="dashboard_chart_tile"
+                                />
+
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"
@@ -1609,7 +1788,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                    pivotConfig={getPivotConfig(chart)}
+                    pivotConfig={downloadPivotConfig}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -1760,11 +1939,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         () => setIsDataExportModalOpen(false),
         [],
     );
+    const downloadPivotConfig = getPivotConfig(chart);
 
     const { getDownloadQueryUuid } = useEmbedDashboardChartDownload(
         tileUuid,
         projectUuid,
         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+        !!downloadPivotConfig,
     );
 
     const chartKind = useMemo(
@@ -1905,7 +2086,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                    pivotConfig={getPivotConfig(chart)}
+                    pivotConfig={downloadPivotConfig}
                 />
             )}
             {canExportImages && (
@@ -1959,6 +2140,29 @@ export const GenericDashboardChartTile: FC<
         dashboardUuid: string;
     }>();
     const { user } = useApp();
+
+    // Resolve the dashboard-aware palette via the shared resolver endpoint.
+    // The resolver returns chart > dashboard > space > project > org, so the
+    // result is always at least as correct as `chart.colorPalette` (which
+    // doesn't know about the container dashboard for standalone charts).
+    // React Query dedupes by key, so all tiles in the same dashboard with
+    // the same chartUuid share one in-flight request.
+    const dashboardUuidFromContext = useDashboardContext(
+        (c) => c.dashboard?.uuid,
+    );
+    const chartUuid = dashboardChartReadyQuery?.chart.uuid;
+    // Skip the resolver fetch when the parent already supplied a palette
+    // (embeds, screenshots, SDK minimal): the override always wins below,
+    // and the endpoint 403s for JWT/embed auth.
+    const { data: resolvedPalette } = useProjectColorPalette(
+        projectUuid,
+        { dashboardUuid: dashboardUuidFromContext, chartUuid },
+        { enabled: !colorPaletteOverride },
+    );
+    const effectiveColorPaletteOverride =
+        colorPaletteOverride ?? resolvedPalette?.colors;
+    const effectiveDarkColorPaletteOverride =
+        darkColorPaletteOverride ?? resolvedPalette?.darkColors;
 
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
@@ -2057,6 +2261,9 @@ export const GenericDashboardChartTile: FC<
                 dashboardChartReadyQuery.executeQueryResponse
                     .usedParametersValues
             }
+            resolvedTimezone={
+                dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone
+            }
         >
             {minimal ? (
                 <DashboardChartTileMinimal
@@ -2068,8 +2275,8 @@ export const GenericDashboardChartTile: FC<
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
                     onExplore={onExplore}
-                    colorPaletteOverride={colorPaletteOverride}
-                    darkColorPaletteOverride={darkColorPaletteOverride}
+                    colorPaletteOverride={effectiveColorPaletteOverride}
+                    darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -2079,8 +2286,8 @@ export const GenericDashboardChartTile: FC<
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     onExplore={onExplore}
-                    colorPaletteOverride={colorPaletteOverride}
-                    darkColorPaletteOverride={darkColorPaletteOverride}
+                    colorPaletteOverride={effectiveColorPaletteOverride}
+                    darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
             )}
             <UnderlyingDataModal />
@@ -2108,19 +2315,15 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         props.tile.properties?.savedChartUuid,
     );
 
-    // Use fresh chart data from useSavedQuery (which is properly cache-invalidated
-    // on verify/unverify) to keep verification status up-to-date without requiring
-    // a full page refresh.
-    const readyQueryDataWithFreshVerification = useMemo(() => {
+    // Use fresh chart data from useSavedQuery to keep dashboard tiles aligned
+    // with chart edits without requiring a full page refresh.
+    const readyQueryDataWithFreshChart = useMemo(() => {
         if (!readyQuery.data) return undefined;
         const freshChart = readyQuery.chartQuery?.data;
         if (!freshChart) return readyQuery.data;
         return {
             ...readyQuery.data,
-            chart: {
-                ...readyQuery.data.chart,
-                verification: freshChart.verification,
-            },
+            chart: freshChart,
         };
     }, [readyQuery.data, readyQuery.chartQuery?.data]);
 
@@ -2152,7 +2355,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={isLoading}
             resultsData={resultsData}
-            dashboardChartReadyQuery={readyQueryDataWithFreshVerification}
+            dashboardChartReadyQuery={readyQueryDataWithFreshChart}
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );

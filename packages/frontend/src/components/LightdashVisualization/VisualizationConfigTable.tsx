@@ -17,7 +17,6 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     invalidateCache,
     parameters,
     dateZoom,
-    isEditMode,
 }) => {
     const tableConfig = useTableConfig(
         initialChartConfig,
@@ -31,7 +30,6 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         invalidateCache,
         parameters,
         dateZoom,
-        isEditMode,
     );
 
     useEffect(() => {

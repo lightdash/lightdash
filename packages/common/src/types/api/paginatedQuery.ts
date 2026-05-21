@@ -23,12 +23,10 @@ export type ExecuteAsyncMetricQueryRequestParams =
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
-        /**
-         * UUID of the saved chart this query was loaded from, when applicable.
-         * Used by permission checks to exempt unchanged SQL-authored fields
-         * from the `manage:CustomFields` gate.
-         */
-        savedChartUuid?: string;
+        // Filters whose target field is absent from the query's explore are
+        // dropped silently — an app may run queries against multiple explores
+        // and one mismatch shouldn't break the others.
+        dashboardFilters?: DashboardFilters;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
@@ -126,6 +124,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
 };
 

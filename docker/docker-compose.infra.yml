@@ -1,3 +1,6 @@
+volumes:
+    postgres_data:
+
 services:
     minio:
         image: coollabsio/minio:latest
@@ -15,12 +18,14 @@ services:
             - MINIO_BROWSER=${MINIO_BROWSER:-off}
 
     db-dev:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         restart: always
         environment:
             POSTGRES_PASSWORD: password
         ports:
             - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql
 
     ssh-server:
         image: linuxserver/openssh-server:latest

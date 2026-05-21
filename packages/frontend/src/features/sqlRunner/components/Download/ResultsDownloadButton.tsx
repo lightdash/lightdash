@@ -8,6 +8,7 @@ import { IconDownload } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ExportResults from '../../../../components/ExportResults';
+import { type Limit } from '../../../../components/ExportResults/types';
 
 type Props = {
     projectUuid: string;
@@ -16,7 +17,11 @@ type Props = {
     columnOrder: string[];
     totalResults: number;
     chartName: string | undefined;
-    getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        limitType?: Limit,
+        exportPivotedData?: boolean,
+    ) => Promise<string>;
 };
 
 const ResultsDownloadButton: FC<Props> = ({

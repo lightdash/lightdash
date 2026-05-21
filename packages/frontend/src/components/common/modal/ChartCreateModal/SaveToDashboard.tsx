@@ -4,6 +4,7 @@ import {
     type CreateChartInDashboard,
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
+    type DashboardTile,
 } from '@lightdash/common';
 import {
     Button,
@@ -97,7 +98,6 @@ export const SaveToDashboard: FC<Props> = ({
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
     } = useDashboardStorage();
-    const unsavedDashboardTiles = getUnsavedDashboardTiles();
     const form = useForm<FormValues>({
         initialValues: {
             ...defaults,
@@ -105,13 +105,12 @@ export const SaveToDashboard: FC<Props> = ({
         validate: zodResolver(validationSchema),
     });
 
-    const activeTabUuid = getDashboardActiveTabUuid();
-
     const handleSaveChartInDashboard = useCallback(
         async (values: SaveToDashboardFormValues) => {
             if (!dashboardUuid || !projectUuid) {
                 return;
             }
+            const activeTabUuid = getDashboardActiveTabUuid(dashboardUuid);
             const newChartInDashboard: CreateChartInDashboard = {
                 ...savedData,
                 name: values.name,
@@ -130,13 +129,18 @@ export const SaveToDashboard: FC<Props> = ({
                 },
                 ...getDefaultChartTileSize(savedData.chartConfig?.type),
             };
+            const unsavedDashboardTiles =
+                getUnsavedDashboardTiles(dashboardUuid);
             const existingTiles =
-                unsavedDashboardTiles?.length > 0
+                unsavedDashboardTiles.length > 0
                     ? unsavedDashboardTiles
                     : selectedDashboard?.tiles;
 
             setUnsavedDashboardTiles(
-                appendNewTilesToBottom(existingTiles || [], [newTile]),
+                dashboardUuid,
+                appendNewTilesToBottom<
+                    DashboardTile | CreateDashboardChartTile
+                >(existingTiles || [], [newTile]),
             );
             void navigate(
                 activeTabUuid
@@ -151,13 +155,13 @@ export const SaveToDashboard: FC<Props> = ({
             savedData,
             dashboardUuid,
             createChart,
+            getDashboardActiveTabUuid,
+            getUnsavedDashboardTiles,
             setUnsavedDashboardTiles,
-            unsavedDashboardTiles,
             navigate,
             projectUuid,
             showToastSuccess,
             dashboardName,
-            activeTabUuid,
             selectedDashboard?.tiles,
         ],
     );

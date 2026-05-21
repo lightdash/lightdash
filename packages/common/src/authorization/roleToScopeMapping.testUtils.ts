@@ -206,6 +206,11 @@ export const createStandardTestCases = () => [
         subject: 'CustomFields' as const,
         resource: { projectUuid: 'test-project-uuid' },
     },
+    {
+        action: 'manage' as const,
+        subject: 'CustomSqlTableCalculations' as const,
+        resource: { projectUuid: 'test-project-uuid' },
+    },
 
     // Admin-only permissions
     {

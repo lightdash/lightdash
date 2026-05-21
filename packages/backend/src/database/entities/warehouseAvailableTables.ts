@@ -2,6 +2,7 @@ import { PartitionColumn } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbWarehouseAvailableTables = {
+    warehouse_credentials_available_table_uuid: string;
     database: string;
     schema: string;
     table: string;
@@ -12,5 +13,10 @@ export type DbWarehouseAvailableTables = {
 
 export const WarehouseAvailableTablesTableName =
     'warehouse_credentials_available_tables';
-export type WarehouseAvailableTablesTable =
-    Knex.CompositeTableType<DbWarehouseAvailableTables>;
+export type WarehouseAvailableTablesTable = Knex.CompositeTableType<
+    DbWarehouseAvailableTables,
+    Omit<
+        DbWarehouseAvailableTables,
+        'warehouse_credentials_available_table_uuid'
+    >
+>;

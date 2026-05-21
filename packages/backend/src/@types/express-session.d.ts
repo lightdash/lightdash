@@ -11,6 +11,7 @@ declare module 'express-session' {
             databricks?: {
                 projectUuid?: string | undefined;
             };
+            azureAdStrategyName?: string | undefined;
         };
         slack: {
             teamId?: string | undefined;

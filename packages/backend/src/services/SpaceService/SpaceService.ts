@@ -6,7 +6,9 @@ import {
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     SessionUser,
     Space,
     SpaceDeleteImpact,
@@ -20,6 +22,7 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -37,6 +40,7 @@ type SpaceServiceArguments = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    organizationModel: OrganizationModel;
     pinnedListModel: PinnedListModel;
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
@@ -84,6 +88,8 @@ export class SpaceService
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly organizationModel: OrganizationModel;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -100,6 +106,7 @@ export class SpaceService
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
+        this.organizationModel = args.organizationModel;
         this.pinnedListModel = args.pinnedListModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
@@ -152,16 +159,37 @@ export class SpaceService
             hasAccess: accessibleUuids.has(b.uuid),
         }));
 
+        // `resolveSpaceAccess` drops admins from restricted spaces; re-add
+        // them for audit display. A user already in `ctx.access` keeps the
+        // role they were granted directly — admin powers come via CASL.
+        const existingAccessUuids = new Set(ctx.access.map((a) => a.userUuid));
+        const adminAccess: SpaceAccess[] = ctx.admins
+            .filter((admin) => !existingAccessUuids.has(admin.userUuid))
+            .map((admin) => ({
+                userUuid: admin.userUuid,
+                role: SpaceMemberRole.ADMIN,
+                hasDirectAccess: false,
+                projectRole: ProjectMemberRole.ADMIN,
+                inheritedRole:
+                    admin.source === 'organization'
+                        ? OrganizationMemberRole.ADMIN
+                        : ProjectMemberRole.ADMIN,
+                inheritedFrom: admin.source,
+            }));
+
+        const allAccess: SpaceAccess[] = [...ctx.access, ...adminAccess];
+
         const userInfoMap =
             await this.spacePermissionService.getUserMetadataByUuids(
-                ctx.access.map((a) => a.userUuid),
+                allAccess.map((a) => a.userUuid),
             );
 
-        const access: SpaceShare[] = ctx.access.map((a) => ({
+        const access: SpaceShare[] = allAccess.map((a) => ({
             ...a,
             firstName: userInfoMap[a.userUuid]?.firstName ?? '',
             lastName: userInfoMap[a.userUuid]?.lastName ?? '',
             email: userInfoMap[a.userUuid]?.email ?? '',
+            isInternal: userInfoMap[a.userUuid]?.isInternal ?? false,
         }));
 
         const [queries, dashboards, childSpaces] = await Promise.all([
@@ -290,6 +318,18 @@ export class SpaceService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+
+        if (updateSpace.colorPaletteUuid) {
+            const palette = await this.organizationModel.findColorPalette(
+                space.organizationUuid,
+                updateSpace.colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
+        }
 
         const { inheritParentPermissions } = updateSpace;
 

@@ -1,9 +1,13 @@
 import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
+    ApiServiceAccountProjectGrantsResponse,
+    assertRegisteredAccount,
     AuthTokenPrefix,
     ServiceAccount,
     ServiceAccountScope,
+    ServiceAccountWithProjectAccessCount,
+    ServiceAccountWithToken,
 } from '@lightdash/common';
 import {
     Body,
@@ -12,17 +16,21 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
     Response,
     Route,
+    SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
@@ -41,15 +49,17 @@ export class ServiceAccountsController extends BaseController {
     @Get('/')
     @OperationId('getServiceAccounts')
     @Response<ServiceAccount[]>('200', 'Success')
-    async getServiceAccounts(
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
+    async getServiceAccounts(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: ServiceAccountWithProjectAccessCount[];
+    }> {
+        assertRegisteredAccount(req.account);
         // Here all scopes but scim to get all non scim service accounts
         const scopes = Object.values(ServiceAccountScope).filter(
             (scope) => scope !== ServiceAccountScope.SCIM_MANAGE,
         );
         const results = await this.getServiceAccountService().list(
-            req.user!,
+            toSessionUser(req.account),
             scopes,
         );
         this.setStatus(200);
@@ -57,6 +67,28 @@ export class ServiceAccountsController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * List the project grants of a single service account.
+     * Powers the org SA list's expand panel.
+     * @summary List service-account project grants
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{serviceAccountUuid}/projects')
+    @OperationId('GetServiceAccountProjectGrants')
+    async getServiceAccountProjectGrants(
+        @Path() serviceAccountUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiServiceAccountProjectGrantsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getServiceAccountService().getProjectGrants(
+            toSessionUser(req.account),
+            serviceAccountUuid,
+        );
+        return { status: 'ok', results };
     }
 
     /**
@@ -73,11 +105,13 @@ export class ServiceAccountsController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiCreateServiceAccountRequest,
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
+        assertRegisteredAccount(req.account);
         const token = await this.getServiceAccountService().create({
-            user: req.user!,
+            user: toSessionUser(req.account),
             tokenDetails: {
                 ...body,
-                organizationUuid: req.user?.organizationUuid as string,
+                organizationUuid: req.account.organization
+                    .organizationUuid as string,
             },
             prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
         });
@@ -102,13 +136,50 @@ export class ServiceAccountsController extends BaseController {
         @Request() req: express.Request,
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
         await this.getServiceAccountService().delete({
-            user: req.user!,
+            user: toSessionUser(req.account),
             tokenUuid,
         });
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Rotate a service account token by UUID
+     * @summary Rotate service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{tokenUuid}/rotate')
+    @OperationId('RotateServiceAccount')
+    async rotateServiceAccount(
+        @Path() tokenUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            expiresAt: Date;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: ServiceAccountWithToken;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getServiceAccountService().rotate({
+                user: toSessionUser(req.account),
+                tokenUuid,
+                update: body,
+                prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
+            }),
         };
     }
 

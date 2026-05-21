@@ -1,16 +1,36 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { AnyType } from '@lightdash/common';
+import type {
+    AgentCreateParams,
+    AgentUpdateParams,
+    BetaManagedAgentsAgent,
+} from '@anthropic-ai/sdk/resources/beta/agents';
+import { ParameterError } from '@lightdash/common';
+import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
+import {
+    getManagedAgentConfigHash,
+    renderManagedAgentConfig,
+} from '../services/ManagedAgentService/config/agent';
 
 type ManagedAgentClientConfig = {
-    anthropicApiKey: string;
-    siteUrl: string;
+    lightdashConfig: LightdashConfig;
+};
+
+export type ManagedAgentSessionConfig = {
     serviceAccountPat: string;
-    sessionTimeoutMs: number;
-    agentId: string | null;
+    resourceName: string;
+    skillIds: string[];
+    toolSettings: Record<string, boolean>;
+    persistedAgentId: string | null;
+    persistedAgentConfigHash: string | null;
+    persistedAgentVersion: number | null;
     persistedEnvironmentId: string | null;
     persistedVaultId: string | null;
+    onAgentSynced: (
+        agentId: string,
+        agentConfigHash: string,
+        agentVersion: number,
+    ) => Promise<void>;
     onResourcesCreated: (
         environmentId: string,
         vaultId: string,
@@ -25,80 +45,170 @@ type CustomToolHandler = (
 export class ManagedAgentClient {
     private readonly config: ManagedAgentClientConfig;
 
-    private client: Anthropic;
-
-    private agentId: string | null = null;
-
-    private environmentId: string | null = null;
-
-    private vaultId: string | null = null;
-
     constructor(config: ManagedAgentClientConfig) {
         this.config = config;
-        this.client = new Anthropic({ apiKey: config.anthropicApiKey });
     }
 
-    private async ensureAgentAndEnvironment(): Promise<{
+    private getAnthropicClient(): Anthropic {
+        const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
+        if (!anthropicApiKey) {
+            throw new ParameterError(
+                'ANTHROPIC_API_KEY is required for managed agent',
+            );
+        }
+
+        return new Anthropic({ apiKey: anthropicApiKey });
+    }
+
+    private getRenderedAgentConfig(
+        resourceName: string,
+        skillIds: string[],
+        toolSettings: Record<string, boolean>,
+    ): AgentCreateParams {
+        const renderedAgentConfig = renderManagedAgentConfig({
+            lightdashSiteUrl: this.config.lightdashConfig.siteUrl,
+            skillIds,
+            toolSettings,
+        });
+        return {
+            ...renderedAgentConfig,
+            name: `${renderedAgentConfig.name} (${resourceName})`,
+            metadata: {
+                ...renderedAgentConfig.metadata,
+                lightdash_resource: resourceName,
+            },
+        };
+    }
+
+    private async ensureAgent(
+        beta: Anthropic.Beta,
+        sessionConfig: ManagedAgentSessionConfig,
+    ): Promise<string> {
+        const desiredAgent = this.getRenderedAgentConfig(
+            sessionConfig.resourceName,
+            sessionConfig.skillIds,
+            sessionConfig.toolSettings,
+        );
+        const desiredHash = getManagedAgentConfigHash(desiredAgent);
+
+        if (
+            sessionConfig.persistedAgentId &&
+            sessionConfig.persistedAgentConfigHash === desiredHash &&
+            sessionConfig.persistedAgentVersion
+        ) {
+            Logger.info(
+                `[ManagedAgent] Reusing persisted agent: ${sessionConfig.persistedAgentId}`,
+            );
+            return sessionConfig.persistedAgentId;
+        }
+
+        if (sessionConfig.persistedAgentId) {
+            try {
+                const current = await beta.agents.retrieve(
+                    sessionConfig.persistedAgentId,
+                );
+                const updated = await this.updateAgent(
+                    beta,
+                    current,
+                    desiredAgent,
+                );
+                await sessionConfig.onAgentSynced(
+                    updated.id,
+                    desiredHash,
+                    updated.version,
+                );
+                Logger.info(
+                    `[ManagedAgent] Updated agent ${updated.id} to version ${updated.version}`,
+                );
+                return updated.id;
+            } catch (error) {
+                Logger.warn(
+                    `[ManagedAgent] Could not update persisted agent ${sessionConfig.persistedAgentId}, creating a new one: ${error instanceof Error ? error.message : 'Unknown'}`,
+                );
+            }
+        }
+
+        const created = await beta.agents.create(desiredAgent);
+        await sessionConfig.onAgentSynced(
+            created.id,
+            desiredHash,
+            created.version,
+        );
+        Logger.info(
+            `[ManagedAgent] Created agent ${created.id} at version ${created.version}`,
+        );
+        return created.id;
+    }
+
+    async syncAgent(sessionConfig: ManagedAgentSessionConfig): Promise<string> {
+        const client = this.getAnthropicClient();
+        return this.ensureAgent(client.beta, sessionConfig);
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async updateAgent(
+        beta: Anthropic.Beta,
+        current: BetaManagedAgentsAgent,
+        desiredAgent: AgentCreateParams,
+    ): Promise<BetaManagedAgentsAgent> {
+        const update: AgentUpdateParams = {
+            version: current.version,
+            description: desiredAgent.description,
+            mcp_servers: desiredAgent.mcp_servers ?? [],
+            metadata: desiredAgent.metadata ?? {},
+            model: desiredAgent.model,
+            name: desiredAgent.name,
+            skills: desiredAgent.skills ?? [],
+            system: desiredAgent.system,
+            tools: desiredAgent.tools ?? [],
+        };
+
+        return beta.agents.update(current.id, update);
+    }
+
+    private async ensureAgentAndEnvironment(
+        client: Anthropic,
+        sessionConfig: ManagedAgentSessionConfig,
+    ): Promise<{
         agentId: string;
         environmentId: string;
         vaultId: string;
     }> {
-        if (this.agentId && this.environmentId && this.vaultId) {
-            return {
-                agentId: this.agentId,
-                environmentId: this.environmentId,
-                vaultId: this.vaultId,
-            };
-        }
-
-        const { agentId: configAgentId } = this.config;
-        if (!configAgentId) {
-            throw new Error(
-                'MANAGED_AGENT_AGENT_ID is required. Create an agent at https://platform.claude.com and set the ID.',
-            );
-        }
-
-        Logger.info(`[ManagedAgent] Using agent: ${configAgentId}`);
+        const agentId = await this.ensureAgent(client.beta, sessionConfig);
 
         // Reuse persisted Anthropic resource IDs when available to avoid
         // creating duplicate environments and vaults on every restart.
-        const { persistedEnvironmentId, persistedVaultId } = this.config;
+        const { persistedEnvironmentId, persistedVaultId } = sessionConfig;
 
         if (persistedEnvironmentId && persistedVaultId) {
             Logger.info(
                 `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
             );
-            this.agentId = configAgentId;
-            this.environmentId = persistedEnvironmentId;
-            this.vaultId = persistedVaultId;
             return {
-                agentId: configAgentId,
+                agentId,
                 environmentId: persistedEnvironmentId,
                 vaultId: persistedVaultId,
             };
         }
 
-        const betaAny = this.client.beta as AnyType;
-
         // Reuse existing environment if one exists, otherwise create
-        const environment = await this.findOrCreateEnvironment(betaAny);
+        const environment = await this.findOrCreateEnvironment(
+            client.beta,
+            sessionConfig.resourceName,
+        );
 
         // Reuse existing vault if one exists, otherwise create with credentials
-        const vault = await this.findOrCreateVault(betaAny);
-
-        this.agentId = configAgentId;
-        this.environmentId = environment.id;
-        this.vaultId = vault.id;
+        const vault = await this.createVault(client.beta, sessionConfig);
 
         // Persist the IDs so they survive service restarts
-        await this.config.onResourcesCreated(environment.id, vault.id);
+        await sessionConfig.onResourcesCreated(environment.id, vault.id);
 
         Logger.info(
-            `Managed agent ready: agentId=${configAgentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
+            `Managed agent ready: agentId=${agentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
         );
 
         return {
-            agentId: configAgentId,
+            agentId,
             environmentId: environment.id,
             vaultId: vault.id,
         };
@@ -106,13 +216,14 @@ export class ManagedAgentClient {
 
     // eslint-disable-next-line class-methods-use-this
     private async findOrCreateEnvironment(
-        betaAny: AnyType,
+        beta: Anthropic.Beta,
+        resourceName: string,
     ): Promise<{ id: string }> {
-        const ENV_NAME = 'lightdash-agent-env';
+        const envName = `Env ${resourceName}`;
         try {
-            const list = await betaAny.environments.list();
+            const list = await beta.environments.list();
             const existing = list?.data?.find(
-                (e: { name: string }) => e.name === ENV_NAME,
+                (e: { name: string }) => e.name === envName,
             );
             if (existing) {
                 Logger.info(
@@ -127,8 +238,8 @@ export class ManagedAgentClient {
         }
 
         Logger.info('[ManagedAgent] Creating new environment');
-        return betaAny.environments.create({
-            name: ENV_NAME,
+        return beta.environments.create({
+            name: envName,
             config: {
                 type: 'cloud',
                 networking: { type: 'limited', allow_mcp_servers: true },
@@ -136,14 +247,20 @@ export class ManagedAgentClient {
         });
     }
 
-    private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
-        const VAULT_NAME = 'Lightdash MCP Auth';
+    private async createVault(
+        beta: Anthropic.Beta,
+        sessionConfig: Pick<
+            ManagedAgentSessionConfig,
+            'resourceName' | 'serviceAccountPat'
+        >,
+    ): Promise<{ id: string }> {
+        const vaultName = `Vault ${sessionConfig.resourceName}`;
         const credPayload = {
             display_name: 'Lightdash PAT',
             auth: {
-                type: 'static_bearer',
-                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
-                token: this.config.serviceAccountPat,
+                type: 'static_bearer' as const,
+                mcp_server_url: `${this.config.lightdashConfig.siteUrl}/api/v1/mcp`,
+                token: sessionConfig.serviceAccountPat,
             },
         };
 
@@ -152,26 +269,29 @@ export class ManagedAgentClient {
         // delete+recreate, so we create a new vault each time
         // instead of trying to update an existing one's credentials.
         Logger.info('[ManagedAgent] Creating new vault');
-        const vault = await betaAny.vaults.create({
-            display_name: VAULT_NAME,
+        const vault = await beta.vaults.create({
+            display_name: vaultName,
         });
 
-        await betaAny.vaults.credentials.create(vault.id, credPayload);
+        await beta.vaults.credentials.create(vault.id, credPayload);
 
         return vault;
     }
 
     async runSession(
+        sessionConfig: ManagedAgentSessionConfig,
         projectName: string,
         onCustomToolUse: CustomToolHandler,
         onSessionCreated?: (sessionId: string) => void,
-    ): Promise<{ sessionId: string; summary: string }> {
+    ): Promise<{
+        sessionId: string;
+        slackSummary: string | null;
+    }> {
+        const client = this.getAnthropicClient();
         const { agentId, environmentId, vaultId } =
-            await this.ensureAgentAndEnvironment();
+            await this.ensureAgentAndEnvironment(client, sessionConfig);
 
-        const betaAny = this.client.beta as AnyType;
-
-        const session = await betaAny.sessions.create({
+        const session = await client.beta.sessions.create({
             agent: agentId,
             environment_id: environmentId,
             vault_ids: [vaultId],
@@ -181,9 +301,9 @@ export class ManagedAgentClient {
         Logger.info(`[ManagedAgent] Session created: ${session.id}`);
         onSessionCreated?.(session.id);
 
-        const stream = await betaAny.sessions.events.stream(session.id);
+        const stream = await client.beta.sessions.events.stream(session.id);
 
-        await betaAny.sessions.events.send(session.id, {
+        await client.beta.sessions.events.send(session.id, {
             events: [
                 {
                     type: 'user.message',
@@ -197,7 +317,7 @@ export class ManagedAgentClient {
             ],
         });
 
-        const { sessionTimeoutMs } = this.config;
+        const { sessionTimeoutMs } = this.config.lightdashConfig.managedAgent;
 
         // Wrap the event loop in a timeout to prevent the scheduler from
         // blocking indefinitely if the agent stalls or loops.
@@ -213,8 +333,7 @@ export class ManagedAgentClient {
             );
         });
 
-        // Capture the agent's final summary text from message events
-        let lastAgentMessage = '';
+        let slackSummary: string | null = null;
 
         const eventLoop = async () => {
             for await (const event of stream) {
@@ -222,7 +341,6 @@ export class ManagedAgentClient {
                     for (const block of event.content) {
                         if ('text' in block) {
                             Logger.debug(`[ManagedAgent] ${block.text}`);
-                            lastAgentMessage = block.text;
                         }
                     }
                 } else if (event.type === 'agent.tool_use') {
@@ -233,6 +351,42 @@ export class ManagedAgentClient {
                     Logger.info(
                         `[ManagedAgent] Tool call: ${event.name} (event_id: ${event.id})`,
                     );
+                    if (event.name === 'write_slack_summary') {
+                        const summary =
+                            typeof event.input.summary === 'string'
+                                ? event.input.summary.trim()
+                                : null;
+                        if (summary) {
+                            slackSummary = summary;
+                            Logger.info(
+                                `[ManagedAgent] Captured dedicated Slack summary (${summary.length} chars)`,
+                            );
+                        } else {
+                            Logger.warn(
+                                '[ManagedAgent] write_slack_summary called without a valid summary',
+                            );
+                        }
+                        await client.beta.sessions.events.send(session.id, {
+                            events: [
+                                {
+                                    type: 'user.custom_tool_result',
+                                    custom_tool_use_id: event.id,
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text: JSON.stringify({
+                                                ok: true,
+                                                summary_length:
+                                                    summary?.length ?? 0,
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ],
+                        });
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
                     try {
                         const result = await onCustomToolUse(
                             event.name,
@@ -241,7 +395,7 @@ export class ManagedAgentClient {
                         Logger.info(
                             `[ManagedAgent] Sending result for: ${event.name} (event_id: ${event.id})`,
                         );
-                        await betaAny.sessions.events.send(session.id, {
+                        await client.beta.sessions.events.send(session.id, {
                             events: [
                                 {
                                     type: 'user.custom_tool_result',
@@ -258,7 +412,7 @@ export class ManagedAgentClient {
                         Logger.error(
                             `[ManagedAgent] Tool error: ${event.name}: ${errorMessage}`,
                         );
-                        await betaAny.sessions.events.send(session.id, {
+                        await client.beta.sessions.events.send(session.id, {
                             events: [
                                 {
                                     type: 'user.custom_tool_result',
@@ -278,7 +432,10 @@ export class ManagedAgentClient {
                     }
                 } else if (event.type === 'session.status_idle') {
                     const stopReason = event.stop_reason?.type;
-                    const eventIds = event.stop_reason?.event_ids ?? [];
+                    const eventIds =
+                        event.stop_reason?.type === 'requires_action'
+                            ? event.stop_reason.event_ids
+                            : [];
                     if (stopReason === 'end_turn') {
                         Logger.info(
                             '[ManagedAgent] Session complete (end_turn)',
@@ -302,6 +459,9 @@ export class ManagedAgentClient {
             );
         }
 
-        return { sessionId: session.id, summary: lastAgentMessage };
+        return {
+            sessionId: session.id,
+            slackSummary,
+        };
     }
 }

@@ -86,6 +86,11 @@ const explorerSlice = createSlice({
             action: PayloadAction<SavedChart | undefined>,
         ) => {
             state.savedChart = action.payload;
+            state.unsavedColorPaletteUuid =
+                action.payload?.colorPaletteUuid ?? null;
+        },
+        setColorPaletteUuid: (state, action: PayloadAction<string | null>) => {
+            state.unsavedColorPaletteUuid = action.payload;
         },
         setPreviouslyFetchedState: (
             state,
@@ -252,6 +257,19 @@ const explorerSlice = createSlice({
             action: PayloadAction<{ columns: string[] } | undefined>,
         ) => {
             state.unsavedChartVersion.pivotConfig = action.payload;
+            if (!action.payload?.columns.length) {
+                const seen = new Set<string>();
+                state.unsavedChartVersion.metricQuery.sorts =
+                    state.unsavedChartVersion.metricQuery.sorts.reduce<
+                        SortField[]
+                    >((acc, sort) => {
+                        if (seen.has(sort.fieldId)) return acc;
+                        seen.add(sort.fieldId);
+                        const { pivotValues: _pivotValues, ...rest } = sort;
+                        acc.push(rest);
+                        return acc;
+                    }, []);
+            }
         },
 
         setParameter: (
@@ -419,6 +437,12 @@ const explorerSlice = createSlice({
                 label: string;
                 description?: string;
                 fieldItem?: Item | AdditionalMetric;
+                tableMetadata?: {
+                    name: string;
+                    dbtPackageName?: string;
+                    ymlPath?: string;
+                    sqlPath?: string;
+                };
             }>,
         ) => {
             state.modals.itemDetail = {
@@ -427,6 +451,7 @@ const explorerSlice = createSlice({
                 label: action.payload.label,
                 description: action.payload.description,
                 fieldItem: action.payload.fieldItem,
+                tableMetadata: action.payload.tableMetadata,
             };
         },
         closeItemDetail: (state) => {
@@ -436,6 +461,7 @@ const explorerSlice = createSlice({
                 label: undefined,
                 description: undefined,
                 fieldItem: undefined,
+                tableMetadata: undefined,
             };
         },
 
@@ -957,7 +983,7 @@ const explorerSlice = createSlice({
         // Convenience action: Clear query but preserve tableName
         // Note: Components should also handle navigation side effects
         clearQuery: (
-            _state,
+            state,
             {
                 payload: { defaultState: d, tableName },
             }: PayloadAction<{
@@ -965,9 +991,12 @@ const explorerSlice = createSlice({
                 tableName: string;
             }>,
         ) => {
+            const { isEditMode, isMinimal } = state;
             return createNextState(d, (draft: ExplorerSliceState) => {
                 draft.unsavedChartVersion.tableName = tableName;
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
+                draft.isEditMode = isEditMode;
+                draft.isMinimal = isMinimal;
             });
         },
 

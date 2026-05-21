@@ -15,11 +15,13 @@ import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     generateFieldSuggestion,
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
+import { FormulaReferenceBar, FormulaReferencePanel } from './FormulaReference';
 import {
     generateFunctionSuggestion,
     type FunctionSuggestionItem,
@@ -162,6 +164,9 @@ type Props = {
     previewSuffix?: string | null;
     /** Preview request in flight; shows a subtle loading indicator inline. */
     isPreviewing?: boolean;
+    /** Function reference drawer state (lifted to FormulaForm for AI/drawer mutual exclusion). */
+    referenceOpened: boolean;
+    onReferenceToggle: (next: boolean) => void;
 };
 
 const PLACEHOLDER_FORMULA =
@@ -183,6 +188,8 @@ export const FormulaEditor: FC<Props> = ({
     hasAiError = false,
     previewSuffix = null,
     isPreviewing = false,
+    referenceOpened,
+    onReferenceToggle,
 }) => {
     const [currentText, setCurrentText] = useState(initialContent ?? '');
     const mode = getInputMode(currentText);
@@ -392,24 +399,81 @@ export const FormulaEditor: FC<Props> = ({
         placeholder,
     ]);
 
+    const insertFunction = (text: string) => {
+        if (!editor) return;
+        if (text.endsWith('(')) {
+            // Auto-close the parens and drop the cursor between them so the
+            // user can start typing args immediately without having to type ')'.
+            editor
+                .chain()
+                .focus()
+                .insertContent(text + ')')
+                .run();
+            const pos = editor.state.selection.from;
+            editor
+                .chain()
+                .setTextSelection(pos - 1)
+                .run();
+        } else {
+            editor.chain().focus().insertContent(text).run();
+        }
+    };
+
     return (
         <Box className={styles.container}>
-            <RichTextEditor
-                editor={editor}
-                classNames={{
-                    root: styles.editorRoot,
-                    content: styles.editorContent,
-                }}
+            <PanelGroup
+                direction="vertical"
+                className={styles.panelGroup}
+                autoSaveId="formula-editor-split"
             >
-                <Box className={styles.editorContentWrapper}>
-                    <RichTextEditor.Content
-                        className={styles.editorContentInner}
-                        style={{
-                            minHeight: isFullScreen ? '300px' : '120px',
+                <Panel
+                    id="formula-editor"
+                    order={1}
+                    defaultSize={referenceOpened ? 55 : 100}
+                    minSize={20}
+                >
+                    <RichTextEditor
+                        editor={editor}
+                        classNames={{
+                            root: styles.editorRoot,
+                            content: styles.editorContent,
                         }}
-                    />
-                </Box>
-            </RichTextEditor>
+                    >
+                        <Box className={styles.editorContentWrapper}>
+                            <RichTextEditor.Content
+                                className={styles.editorContentInner}
+                                style={{
+                                    minHeight: isFullScreen ? '300px' : '60px',
+                                }}
+                            />
+                        </Box>
+                    </RichTextEditor>
+                </Panel>
+                {referenceOpened && (
+                    <>
+                        <PanelResizeHandle
+                            className={styles.resizeHandle}
+                            aria-label="Resize formula reference"
+                        />
+                        <Panel
+                            id="formula-reference"
+                            order={2}
+                            defaultSize={45}
+                            minSize={20}
+                        >
+                            <FormulaReferencePanel
+                                opened={referenceOpened}
+                                onToggle={onReferenceToggle}
+                                onInsert={insertFunction}
+                            />
+                        </Panel>
+                    </>
+                )}
+            </PanelGroup>
+            <FormulaReferenceBar
+                opened={referenceOpened}
+                onToggle={onReferenceToggle}
+            />
         </Box>
     );
 };

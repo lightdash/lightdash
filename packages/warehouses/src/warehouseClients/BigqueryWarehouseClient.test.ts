@@ -45,6 +45,67 @@ describe('BigqueryWarehouseClient', () => {
     });
 });
 
+describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+    });
+
+    it('returns undefined when given no labels', () => {
+        expect(
+            BigqueryWarehouseClient.sanitizeLabelsWithValues(undefined),
+        ).toBeUndefined();
+    });
+
+    it('lowercases and normalises string values', () => {
+        expect(
+            BigqueryWarehouseClient.sanitizeLabelsWithValues({
+                Scheduler_Uuid: 'ABC-123',
+            }),
+        ).toEqual({ scheduler_uuid: 'abc-123' });
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('coerces numeric values without crashing and logs a warning', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            job_id: 224187 as unknown as string,
+        });
+        expect(result).toEqual({ job_id: '224187' });
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('coerced non-string label value'),
+            { key: 'job_id', valueType: 'number' },
+        );
+    });
+
+    it('replaces null/undefined with empty_value silently', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            scheduler_name: null as unknown as string,
+            saved_sql_uuid: undefined as unknown as string,
+        });
+        expect(result).toEqual({
+            scheduler_name: 'empty_value',
+            saved_sql_uuid: 'empty_value',
+        });
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('coerces boolean values', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            embed: true as unknown as string,
+        });
+        expect(result).toEqual({ embed: 'true' });
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({ valueType: 'boolean' }),
+        );
+    });
+});
+
 describe('BigquerySqlBuilder escaping', () => {
     const bigquerySqlBuilder = new BigquerySqlBuilder();
 

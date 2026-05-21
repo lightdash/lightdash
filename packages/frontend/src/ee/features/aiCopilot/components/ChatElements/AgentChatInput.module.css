@@ -143,16 +143,83 @@
 /* Minimal mode styles for existing threads */
 .minimalContainer {
     position: relative;
-    padding: var(--mantine-spacing-sm);
+    width: 100%;
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm);
+}
+
+.minimalContainerFullWidth {
+    max-width: none;
+    margin: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Chip reveal wrapper. Chips are present whenever the agent has      *
+ *  something to suggest, but we hide them while the user is scrolled  *
+ *  up reading history — they only feel useful when the input is in    *
+ *  view. Animates opacity + collapse to keep the transition calm.     *
+ * ------------------------------------------------------------------ */
+.chipReveal {
+    transition:
+        opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
+        max-height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+    max-height: 80px;
+    overflow: hidden;
+}
+
+.chipHidden {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chipReveal {
+        transition: none;
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ *  SQL mode active state — slow, smooth indigo border + halo. No      *
+ *  animation; relies on a long CSS transition so toggling on/off      *
+ *  reads as a calm fade rather than a snap.                            *
+ * ------------------------------------------------------------------ */
+.sqlModeActive {
+    border-color: var(--mantine-color-indigo-4) !important;
+    box-shadow:
+        0 0 0 1px var(--mantine-color-indigo-3),
+        0 0 24px -8px var(--mantine-color-indigo-5),
+        0 0 0 4px
+            color-mix(in srgb, var(--mantine-color-indigo-5) 10%, transparent);
+}
+
+/* Long, gentle ease applies both when toggling on *and* off. */
+.minimalInputWrapper,
+.inputCard {
+    transition:
+        border-color 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .minimalInputWrapper,
+    .inputCard {
+        transition: none;
+    }
 }
 
 .minimalInputWrapper {
     position: relative;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
+    width: 100%;
     border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-md);
-    padding-top: var(--mantine-spacing-sm);
+    padding: 6px var(--mantine-spacing-sm);
     transition:
         background-color 150ms ease,
         border-color 150ms ease;
@@ -250,4 +317,101 @@
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     background-color: var(--mantine-color-ldGray-0);
+}
+
+.editorRoot {
+    border: none;
+    background: transparent;
+    flex: 1;
+    min-width: 0;
+    --rte-bg: transparent;
+    --rte-border-color: transparent;
+
+    :global(.mantine-RichTextEditor-content),
+    :global(.mantine-8-RichTextEditor-content) {
+        background: transparent;
+        border: none;
+    }
+}
+
+.editorContent {
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+    padding-bottom: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-md);
+    line-height: 1.5;
+    min-height: 60px;
+    max-height: 240px;
+    overflow-y: auto;
+
+    :global(.ProseMirror) {
+        outline: none;
+        min-height: 36px;
+    }
+
+    :global(p.is-empty.is-editor-empty::before) {
+        content: attr(data-placeholder);
+        float: left;
+        pointer-events: none;
+        height: 0;
+
+        @mixin light {
+            color: var(--mantine-color-ldGray-6);
+        }
+
+        @mixin dark {
+            color: var(--mantine-color-ldGray-7);
+        }
+    }
+}
+
+.minimalEditorContent {
+    padding: 0;
+    padding-right: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+    min-height: 24px;
+    max-height: 144px;
+    overflow-y: auto;
+    flex: 1;
+    background: transparent;
+
+    :global(.ProseMirror) {
+        outline: none;
+        background: transparent;
+    }
+
+    :global(p.is-empty.is-editor-empty::before) {
+        content: attr(data-placeholder);
+        float: left;
+        pointer-events: none;
+        height: 0;
+
+        @mixin light {
+            color: var(--mantine-color-ldGray-6);
+        }
+
+        @mixin dark {
+            color: var(--mantine-color-ldGray-7);
+        }
+    }
+}
+
+.chipMention {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--mantine-radius-xl);
+    font-weight: 500;
+    font-size: 0.95em;
+
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+        background-color: var(--mantine-color-indigo-0);
+        border: 1px solid var(--mantine-color-indigo-2);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-2);
+        background-color: var(--mantine-color-indigo-9);
+        border: 1px solid var(--mantine-color-indigo-7);
+    }
 }

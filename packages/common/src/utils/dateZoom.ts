@@ -111,8 +111,10 @@ export const getDateZoomCapabilities = (
 
     let hasTimestampDimension = false;
     let hasDateDimension = false;
-    const availableCustomGranularities: Record<string, string> = {};
 
+    // hasDateDimension / hasTimestampDimension reflect the chart's own usage
+    // (used to gate sub-day standard granularities on DATE-only dashboards),
+    // so they stay scoped to dims referenced by the chart's metricQuery.
     for (const dimId of metricQuery.dimensions) {
         const baseDim = resolveToBaseTimeDimension(
             dimId,
@@ -127,18 +129,20 @@ export const getDateZoomCapabilities = (
             if (baseDim.type === DimensionType.DATE) {
                 hasDateDimension = true;
             }
+        }
+    }
 
-            // Find sibling dimensions with customTimeInterval
-            const baseName = baseDim.name;
-            for (const sibling of allDimensions) {
-                if (
-                    sibling.customTimeInterval &&
-                    sibling.timeIntervalBaseDimensionName === baseName
-                ) {
-                    availableCustomGranularities[sibling.customTimeInterval] =
-                        sibling.label;
-                }
-            }
+    // Custom granularities are sourced from any `customTimeInterval` dim in
+    // the explore, not just siblings of the chart's currently-queried base.
+    // The previous chart-query intersection here stripped configured customs
+    // whenever a dashboard tile's query didn't currently reference the owning
+    // base dim — and was also timing-sensitive, since metricQuery loads
+    // asynchronously alongside the explore (PROD-7514, regression of
+    // PROD-6788).
+    const availableCustomGranularities: Record<string, string> = {};
+    for (const dim of allDimensions) {
+        if (dim.customTimeInterval) {
+            availableCustomGranularities[dim.customTimeInterval] = dim.label;
         }
     }
 

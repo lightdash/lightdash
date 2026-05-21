@@ -4,7 +4,7 @@ models:
   - name: timezone_test
     description: >
       Synthetic dataset for testing data timezone (warehouse session timezone)
-      behavior. 18 timestamptz events. When dataTimezone is set, DATE_TRUNC
+      behavior. 31 timestamptz events. When dataTimezone is set, DATE_TRUNC
       boundaries shift, producing different per-bucket counts.
 
       Rows 1-10: interior rows in Jan 15-16 2024 UTC.
@@ -18,6 +18,12 @@ models:
         - 16 dst_post_fall    2024-11-03 06:30Z  -> NY 01:30 EST (fall-back; PG/DuckDB/Redshift same bucket as 15, CH/BQ may split)
         - 17 year_boundary    2024-01-01 00:00Z  -> Tokyo YEAR 2024, PP YEAR 2023
         - 18 month_boundary   2024-01-31 15:00Z  -> Tokyo MONTH 2024-02
+
+      Rows 19-31: monthly_dst series — one row per month, Jan 2024 → Jan 2025,
+      placed at noon America/New_York. DATE_TRUNC(month) in NYC produces a
+      continuous monthly axis that crosses both DST transitions (Mar 10 spring
+      forward, Nov 3 fall back). Used to exercise the cartesian category date
+      axis snap for non-UTC DST timezones.
     meta:
       group_label: timezones
     columns:
@@ -36,11 +42,36 @@ models:
         meta:
           dimension:
             type: timestamp
-            time_intervals: [RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR]
+            time_intervals: [
+              RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR,
+              DAY_OF_WEEK_INDEX, DAY_OF_MONTH_NUM, DAY_OF_YEAR_NUM, WEEK_NUM,
+              MONTH_NUM, QUARTER_NUM, YEAR_NUM, HOUR_OF_DAY_NUM, MINUTE_OF_HOUR_NUM,
+              DAY_OF_WEEK_NAME, MONTH_NAME, QUARTER_NAME,
+            ]
           metrics:
             count:
               type: count
               description: Total number of events
+      - name: event_timestamp_raw_utc
+        description: >
+          Same instants as event_timestamp, but the dimension opts out of
+          project-timezone conversion via `convert_timezone: false`. Use it
+          alongside event_timestamp to verify the per-dimension override:
+          DAY/HOUR buckets here always reflect raw UTC, regardless of the
+          project timezone.
+
+          Interior-rows DAY counts (always UTC):
+            Jan 15 = 6, Jan 16 = 4
+        meta:
+          dimension:
+            type: timestamp
+            convert_timezone: false
+            time_intervals: [
+              RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR,
+              DAY_OF_WEEK_INDEX, DAY_OF_MONTH_NUM, DAY_OF_YEAR_NUM, WEEK_NUM,
+              MONTH_NUM, QUARTER_NUM, YEAR_NUM, HOUR_OF_DAY_NUM, MINUTE_OF_HOUR_NUM,
+              DAY_OF_WEEK_NAME, MONTH_NAME, QUARTER_NAME,
+            ]
       - name: event_timestamp_ntz
         description: >
           Snowflake only. Same events as event_timestamp cast to TIMESTAMP_NTZ
@@ -48,7 +79,12 @@ models:
         meta:
           dimension:
             type: timestamp
-            time_intervals: [RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR]
+            time_intervals: [
+              RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR,
+              DAY_OF_WEEK_INDEX, DAY_OF_MONTH_NUM, DAY_OF_YEAR_NUM, WEEK_NUM,
+              MONTH_NUM, QUARTER_NUM, YEAR_NUM, HOUR_OF_DAY_NUM, MINUTE_OF_HOUR_NUM,
+              DAY_OF_WEEK_NAME, MONTH_NAME, QUARTER_NAME,
+            ]
           metrics:
             count_ntz:
               type: count

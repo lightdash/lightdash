@@ -91,7 +91,7 @@ jobs:
                   cat changelog.txt
 
             - name: Okteto context
-              uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
+              uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
               with:
                   url: ${{ secrets.OKTETO_CONTEXT }}
                   token: ${{ secrets.OKTETO_TOKEN }}
@@ -101,7 +101,7 @@ jobs:
               # The `branch` input tells Okteto to clone the released tag instead of this workflow's
               # branch — that way the preview is built from the released source, including the
               # jaffle-shop dbt files in `examples/full-jaffle-shop-demo/` that seed the demo project.
-              uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
+              uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
@@ -207,6 +207,23 @@ jobs:
 
             - name: Destroy preview
               if: always()
-              uses: okteto/destroy-preview@b3b2db89ea11724de3edddf8d4591173fbede9c7 # latest
+              uses: okteto/destroy-preview@f1897ba6c598f134ced128fb01c56ff5e9c92f73 # latest
               with:
                   name: ${{ steps.resolve.outputs.name }}
+
+            - name: Notify Slack on failure
+              # Fires when any earlier step failed — typically Okteto deploy timing out, the
+              # health probe never going green, or the agent session call returning non-2xx.
+              # The QA agent posts its own PASS/FAIL to #aqa-team when it runs, so this hook
+              # exists to surface the cases where the agent never got the chance to run.
+              if: failure()
+              run: |
+                  TAG="${{ steps.resolve.outputs.tag || github.event.release.tag_name || inputs.image_tag || 'unknown' }}"
+                  RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  curl -X POST -H 'Content-type: application/json' \
+                    --data "{
+                      \"channel\": \"#aqa-team\",
+                      \"username\": \"Release QA\",
+                      \"text\": \"<!channel> :x: Release QA workflow failed for *${TAG}* — the Claude QA agent likely never ran. <${RUN_URL}|View run logs>\"
+                    }" \
+                    ${{ secrets.SLACK_WEBHOOK_URL }}

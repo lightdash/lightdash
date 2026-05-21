@@ -16,6 +16,7 @@ import {
 import { getVizIndexTypeFromSqlRunnerFieldType } from './BaseResultsRunner';
 import {
     executeDashboardSqlChartPivotQuery,
+    executeEmbedDashboardSqlChartPivotQuery,
     executeSqlChartPivotQuery,
     executeSqlPivotQuery,
 } from './executeQuery';
@@ -204,6 +205,49 @@ export const getDashboardSqlChartPivotChartData = async ({
         limit,
         parameters,
     });
+
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
+
+    return {
+        ...pivotResults,
+        columns,
+    };
+};
+
+export const getEmbedDashboardSqlChartPivotChartData = async ({
+    projectUuid,
+    tileUuid,
+    limit,
+    dashboardFilters,
+    dashboardSorts,
+    parameters,
+    invalidateCache,
+}: {
+    projectUuid: string;
+    tileUuid: string;
+    limit?: number;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+    parameters?: ParametersValuesMap;
+    invalidateCache?: boolean;
+}): Promise<
+    PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
+> => {
+    const pivotResults = await executeEmbedDashboardSqlChartPivotQuery(
+        projectUuid,
+        {
+            tileUuid,
+            dashboardFilters,
+            dashboardSorts,
+            limit,
+            parameters,
+            invalidateCache,
+        },
+    );
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
         (field) => ({

@@ -7,6 +7,7 @@ import {
     ApiAiOrganizationSettingsResponse,
     ApiErrorPayload,
     ApiUpdateAiOrganizationSettingsResponse,
+    assertRegisteredAccount,
     KnexPaginateArgs,
     UpdateAiOrganizationSettings,
 } from '@lightdash/common';
@@ -24,6 +25,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -62,6 +64,7 @@ export class AiAgentAdminController extends BaseController {
         @Query() sortField?: AiAgentAdminSort['field'],
         @Query() sortDirection?: AiAgentAdminSort['direction'],
     ): Promise<ApiAiAgentAdminConversationsResponse> {
+        assertRegisteredAccount(req.account);
         const paginateArgs: KnexPaginateArgs | undefined =
             page !== undefined || pageSize !== undefined
                 ? {
@@ -92,7 +95,7 @@ export class AiAgentAdminController extends BaseController {
             : undefined;
 
         const threads = await this.getAiAgentAdminService().getAllThreads(
-            req.user!,
+            toSessionUser(req.account),
             paginateArgs,
             filters,
             sort,
@@ -116,10 +119,13 @@ export class AiAgentAdminController extends BaseController {
     async getAllAgents(
         @Request() req: express.Request,
     ): Promise<ApiAiAgentSummaryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getAiAgentAdminService().listAgents(req.user!),
+            results: await this.getAiAgentAdminService().listAgents(
+                toSessionUser(req.account),
+            ),
         };
     }
 
@@ -131,8 +137,9 @@ export class AiAgentAdminController extends BaseController {
     async getEmbedToken(
         @Request() req: express.Request,
     ): Promise<{ status: string; results: { token: string; url: string } }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getAiAgentAdminService().generateEmbedToken(
-            req.user!,
+            toSessionUser(req.account),
         );
 
         this.setStatus(200);
@@ -153,9 +160,10 @@ export class AiAgentAdminController extends BaseController {
     async getSettings(
         @Request() req: express.Request,
     ): Promise<ApiAiOrganizationSettingsResponse> {
+        assertRegisteredAccount(req.account);
         const settings =
             await this.getAiOrganizationSettingsService().getSettings(
-                req.user!,
+                toSessionUser(req.account),
             );
 
         this.setStatus(200);
@@ -181,9 +189,10 @@ export class AiAgentAdminController extends BaseController {
         @Request() req: express.Request,
         @Body() body: UpdateAiOrganizationSettings,
     ): Promise<ApiUpdateAiOrganizationSettingsResponse> {
+        assertRegisteredAccount(req.account);
         const settings =
             await this.getAiOrganizationSettingsService().upsertSettings(
-                req.user!,
+                toSessionUser(req.account),
                 body,
             );
 

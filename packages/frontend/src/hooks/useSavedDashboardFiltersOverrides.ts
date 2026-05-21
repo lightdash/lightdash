@@ -7,6 +7,35 @@ import { useEffect, useReducer, useRef } from 'react';
 import { useLocation } from 'react-router';
 import useToaster from './toaster/useToaster';
 
+// Lock state is metadata of the saved dashboard, not something the URL
+// should be able to assert. Strip `lockedTabUuids` from URL-provided
+// override rules so a stale shared link can't keep a filter "locked"
+// after an editor has removed the lock from the saved dashboard.
+const sanitizeOverrideRule = (
+    rule: DashboardFilterRuleOverride & { lockedTabUuids?: string[] },
+): DashboardFilterRuleOverride => {
+    const { lockedTabUuids: _, ...rest } = rule;
+    return rest;
+};
+
+const sanitizeOverrideState = (state: {
+    dimensions?: (DashboardFilterRuleOverride & {
+        lockedTabUuids?: string[];
+    })[];
+    metrics?: (DashboardFilterRuleOverride & {
+        lockedTabUuids?: string[];
+    })[];
+    tableCalculations?: (DashboardFilterRuleOverride & {
+        lockedTabUuids?: string[];
+    })[];
+}): Record<keyof DashboardFilters, DashboardFilterRuleOverride[]> => ({
+    dimensions: (state.dimensions ?? []).map(sanitizeOverrideRule),
+    metrics: (state.metrics ?? []).map(sanitizeOverrideRule),
+    tableCalculations: (state.tableCalculations ?? []).map(
+        sanitizeOverrideRule,
+    ),
+});
+
 export const hasSavedFiltersOverrides = (
     overrides: DashboardFilters | undefined,
 ) =>
@@ -88,12 +117,17 @@ export const useSavedDashboardFiltersOverrides = () => {
         reducer,
         overridesForSavedDashboardFiltersParam,
         (param) => {
-            if (!param) return { dimensions: [], metrics: [] };
+            const empty = {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+            if (!param) return empty;
             try {
-                return JSON.parse(param);
+                return sanitizeOverrideState(JSON.parse(param));
             } catch {
                 parseErrorRef.current = true;
-                return { dimensions: [], metrics: [] };
+                return empty;
             }
         },
     );
@@ -109,7 +143,7 @@ export const useSavedDashboardFiltersOverrides = () => {
     }, [showToastWarning]);
 
     const addSavedFilterOverride = (
-        { tileTargets, ...item }: DashboardFilterRule,
+        { tileTargets, lockedTabUuids, ...item }: DashboardFilterRule,
         category: FilterCategory = 'dimensions',
     ) => {
         dispatch({
@@ -120,7 +154,7 @@ export const useSavedDashboardFiltersOverrides = () => {
     };
 
     const removeSavedFilterOverride = (
-        { tileTargets, ...item }: DashboardFilterRule,
+        { tileTargets, lockedTabUuids, ...item }: DashboardFilterRule,
         category: FilterCategory = 'dimensions',
     ) => {
         dispatch({
