@@ -2,8 +2,10 @@ import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
 import {
     AnyType,
     CreateDuckdbCredentials,
-    CreateDucklakeCredentials,
+    CreateDuckdbDucklakeCredentials,
+    CreateDuckdbMotherduckCredentials,
     DimensionType,
+    DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     formatMilliseconds,
@@ -17,6 +19,7 @@ import {
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -195,8 +198,9 @@ const mapFieldTypeFromString = (typeName: string): DimensionType => {
     return DimensionType.STRING;
 };
 
-const DUCKDB_INTERNAL_CREDENTIALS: CreateDuckdbCredentials = {
+const DUCKDB_INTERNAL_CREDENTIALS: CreateDuckdbMotherduckCredentials = {
     type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.MOTHERDUCK,
     database: ':memory:',
     schema: 'main',
     token: '',
@@ -277,7 +281,7 @@ export type DuckdbWarehouseClientArgs = {
     s3Config?: DuckdbS3SessionConfig;
 };
 
-export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCredentials> {
+export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMotherduckCredentials> {
     private static readonly sharedInstances = new Map<string, DuckdbInstance>();
 
     private static readonly sharedInstanceSemaphores = new Map<
@@ -291,7 +295,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
-    private readonly ducklakeConfig?: CreateDucklakeCredentials;
+    private readonly ducklakeConfig?: CreateDuckdbDucklakeCredentials;
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
@@ -306,31 +310,31 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ) => void;
 
     constructor(
-        credentials?:
-            | CreateDuckdbCredentials
-            | CreateDucklakeCredentials
-            | DuckdbConnectionCredentials,
+        credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
         options?: DuckdbWarehouseClientOptions,
     ) {
-        const isDucklake =
-            credentials &&
-            'type' in credentials &&
-            credentials.type === WarehouseTypes.DUCKLAKE;
         const isS3Only =
             credentials &&
             'type' in credentials &&
             credentials.type === 'duckdb_s3';
+        const isDucklake =
+            !isS3Only &&
+            credentials &&
+            'type' in credentials &&
+            credentials.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.DUCKLAKE;
 
-        let effectiveCredentials: CreateDuckdbCredentials;
+        let effectiveCredentials: CreateDuckdbMotherduckCredentials;
         if (isS3Only) {
             effectiveCredentials = DUCKDB_INTERNAL_CREDENTIALS;
         } else if (isDucklake) {
-            const ducklake = credentials as CreateDucklakeCredentials;
+            const ducklake = credentials as CreateDuckdbDucklakeCredentials;
             // DuckLake is attached on top of an in-memory base instance.
             // Surface the catalog alias as the DuckDB database name so the
             // existing information_schema queries line up.
             effectiveCredentials = {
                 type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
                 database: ducklake.catalogAlias ?? 'ducklake',
                 schema: ducklake.schema,
                 token: '',
@@ -341,7 +345,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
             };
         } else {
             effectiveCredentials =
-                (credentials as CreateDuckdbCredentials) ??
+                (credentials as CreateDuckdbMotherduckCredentials) ??
                 DUCKDB_INTERNAL_CREDENTIALS;
         }
 
@@ -355,7 +359,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         }
 
         if (isDucklake) {
-            this.ducklakeConfig = credentials as CreateDucklakeCredentials;
+            this.ducklakeConfig =
+                credentials as CreateDuckdbDucklakeCredentials;
         }
 
         // Project DuckDB credentials map to MotherDuck only. The in-memory
@@ -377,9 +382,27 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
         this.resourceLimits = options?.resourceLimits;
         this.sharedResourceLimits = options?.sharedResourceLimits;
-        this.instanceCacheKey = options?.instanceCacheKey;
+        // DuckLake attaches a postgres catalog secret on every fresh DuckDB
+        // instance, and the postgres extension only pools 8 connections per
+        // instance — so parallel getFields() calls during project compile
+        // exhaust the pool. Default DuckLake clients to a shared warm instance
+        // keyed on the credentials so the attach runs once.
+        const ducklakeAutoCacheKey = this.ducklakeConfig
+            ? `ducklake:${DuckdbWarehouseClient.hashDucklakeConfig(this.ducklakeConfig)}`
+            : undefined;
+        this.instanceCacheKey =
+            options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
         this.onQueryProfile = options?.onQueryProfile;
+    }
+
+    private static hashDucklakeConfig(
+        ducklake: CreateDuckdbDucklakeCredentials,
+    ): string {
+        return createHash('sha256')
+            .update(JSON.stringify(ducklake))
+            .digest('hex')
+            .slice(0, 16);
     }
 
     static createForPreAggregate(
@@ -475,6 +498,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         await db.run('SET enable_http_metadata_cache = true;');
         await db.run('SET enable_external_file_cache = true;');
         await db.run('SET parquet_metadata_cache = true;');
+
+        if (client.ducklakeConfig) {
+            // Parallel getFields() calls during compile all funnel through the
+            // attached postgres catalog. The duckdb-postgres extension caps
+            // the per-attach pool at 8 by default, which the compile easily
+            // exhausts on projects with >8 models.
+            await db.run('SET pg_connection_limit = 64;');
+        }
 
         await DuckdbWarehouseClient.hardenInstance(db, {
             allowKnownExtensionAutoload: !!client.ducklakeConfig,
@@ -675,7 +706,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     }
 
     private static buildDucklakeCatalogSecretSql(
-        ducklake: CreateDucklakeCredentials,
+        ducklake: CreateDuckdbDucklakeCredentials,
     ): string | null {
         const e = DuckdbWarehouseClient.escapeDuckdbString;
         const { catalog } = ducklake;
@@ -698,7 +729,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     }
 
     private static buildDucklakeDataSecretSql(
-        ducklake: CreateDucklakeCredentials,
+        ducklake: CreateDuckdbDucklakeCredentials,
     ): string | null {
         const e = DuckdbWarehouseClient.escapeDuckdbString;
         const { dataPath } = ducklake;
@@ -799,13 +830,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     }
 
     private static catalogUsesSecret(
-        ducklake: CreateDucklakeCredentials,
+        ducklake: CreateDuckdbDucklakeCredentials,
     ): boolean {
         return ducklake.catalog.type === DucklakeCatalogType.POSTGRES;
     }
 
     private static buildDucklakeSecretSql(
-        ducklake: CreateDucklakeCredentials,
+        ducklake: CreateDuckdbDucklakeCredentials,
     ): string | null {
         if (!DuckdbWarehouseClient.catalogUsesSecret(ducklake)) return null;
         const e = DuckdbWarehouseClient.escapeDuckdbString;
@@ -824,7 +855,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     }
 
     private static buildDucklakeAttachSql(
-        ducklake: CreateDucklakeCredentials,
+        ducklake: CreateDuckdbDucklakeCredentials,
     ): string[] {
         const e = DuckdbWarehouseClient.escapeDuckdbString;
         const alias = ducklake.catalogAlias ?? 'ducklake';
@@ -862,7 +893,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
                 )}', READ_ONLY);`,
             );
         }
-        stmts.push(`USE ${quotedAlias};`);
 
         return stmts;
     }
@@ -1004,6 +1034,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         });
 
         await db.run(`SET temp_directory = '${tempDir}';`);
+
+        if (this.ducklakeConfig) {
+            await db.run('SET pg_connection_limit = 64;');
+        }
 
         if (this.resourceLimits?.memoryLimit) {
             await db.run(
@@ -1503,7 +1537,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
     async executeAsyncQuery(
         ...args: Parameters<
-            WarehouseBaseClient<CreateDuckdbCredentials>['executeAsyncQuery']
+            WarehouseBaseClient<CreateDuckdbMotherduckCredentials>['executeAsyncQuery']
         >
     ) {
         const [queryArgs, resultsStreamCallback] = args;
@@ -1567,7 +1601,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
     async runQuery(
         ...args: Parameters<
-            WarehouseBaseClient<CreateDuckdbCredentials>['runQuery']
+            WarehouseBaseClient<CreateDuckdbMotherduckCredentials>['runQuery']
         >
     ) {
         return super.runQuery(...args);
