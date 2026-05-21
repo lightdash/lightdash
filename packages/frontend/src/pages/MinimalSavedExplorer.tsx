@@ -1,6 +1,14 @@
+import { ChartType } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
@@ -18,6 +26,7 @@ import {
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
@@ -40,11 +49,12 @@ const MinimalExplorerContent = memo(() => {
 
     const { health } = useApp();
 
-    const {
-        ref: measureRef,
-        width: containerWidth,
-        height: containerHeight,
-    } = useElementSize();
+    // The in-repo useResizeObserver tracks ref changes via setState (unlike
+    // @mantine/hooks' useElementSize, whose [ref.current] effect dep doesn't
+    // re-run on ref attachment). Without this, containerWidth/containerHeight
+    // stay at 0 and Vega-Lite charts render at 0x0 in the minimal/export view.
+    const [measureRef, { width: containerWidth, height: containerHeight }] =
+        useResizeObserver<HTMLDivElement>();
 
     // Get query state from hook
     const { query, queryResults, explore } = useExplorerQuery();
@@ -71,7 +81,23 @@ const MinimalExplorerContent = memo(() => {
     const hasQueryError = !!query.error || !!queryResults.error;
 
     const [isScreenshotReady, setIsScreenshotReady] = useState(false);
+    const [chartHasPainted, setChartHasPainted] = useState(false);
     const hasSignaledReady = useRef(false);
+
+    // Custom (Vega-Lite) charts render asynchronously: react-vega is lazy-imported,
+    // then Vega compiles the spec and constructs its view before the chart paints.
+    // For this type we wait for the chart's own paint signal — gating only on
+    // data-loaded fires the screenshot indicator before Vega has rendered, which
+    // produces blank export PNGs.
+    const needsPaintSignal = savedChart?.chartConfig.type === ChartType.CUSTOM;
+
+    const handleChartScreenshotReady = useCallback(() => {
+        setChartHasPainted(true);
+    }, []);
+
+    const handleChartScreenshotError = useCallback(() => {
+        setChartHasPainted(true);
+    }, []);
 
     useEffect(() => {
         if (hasSignaledReady.current) return;
@@ -79,6 +105,10 @@ const MinimalExplorerContent = memo(() => {
 
         const isSuccessfullyLoaded = savedChart && !isLoadingQueryResults;
         if (!isSuccessfullyLoaded && !hasQueryError) {
+            return;
+        }
+
+        if (needsPaintSignal && !hasQueryError && !chartHasPainted) {
             return;
         }
 
@@ -90,6 +120,8 @@ const MinimalExplorerContent = memo(() => {
         hasQueryError,
         health.isInitialLoading,
         health.data,
+        needsPaintSignal,
+        chartHasPainted,
     ]);
 
     if (!savedChart || health.isInitialLoading || !health.data) {
@@ -126,6 +158,8 @@ const MinimalExplorerContent = memo(() => {
                             // get rid of the classNames once you remove analytics providers
                             className="sentry-block ph-no-capture"
                             data-testid="visualization"
+                            onScreenshotReady={handleChartScreenshotReady}
+                            onScreenshotError={handleChartScreenshotError}
                         />
                     </Box>
                 </MantineProvider>
