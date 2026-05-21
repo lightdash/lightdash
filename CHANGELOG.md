@@ -1,3 +1,10 @@
+# [0.3006.0](https://github.com/lightdash/lightdash/compare/0.3005.2...0.3006.0) (2026-05-21)
+
+
+### Features
+
+* update style and improve save on theme editor ([#23417](https://github.com/lightdash/lightdash/issues/23417)) ([26f17b4](https://github.com/lightdash/lightdash/commit/26f17b42469d00de44e906c7f9b55b40fb89fee8))
+
 ## [0.3005.2](https://github.com/lightdash/lightdash/compare/0.3005.1...0.3005.2) (2026-05-21)
 
 
