@@ -2324,6 +2324,12 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
