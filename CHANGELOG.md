@@ -1,3 +1,10 @@
+# [0.3005.0](https://github.com/lightdash/lightdash/compare/0.3004.1...0.3005.0) (2026-05-21)
+
+
+### Features
+
+* use themes in data apps ([#23393](https://github.com/lightdash/lightdash/issues/23393)) ([1cf6ad0](https://github.com/lightdash/lightdash/commit/1cf6ad0c3e10220032cf08355bb522157c9b476d))
+
 ## [0.3004.1](https://github.com/lightdash/lightdash/compare/0.3004.0...0.3004.1) (2026-05-21)
 
 
