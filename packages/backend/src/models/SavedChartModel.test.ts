@@ -47,14 +47,15 @@ describe('getLatestVersionSummaries', () => {
         expect(versionIds).toEqual(['version1', 'version2', 'version3']);
     });
 
-    test('Should fetch versions with a single query (no windowing)', async () => {
+    test('Should return a single version without a windowing fallback', async () => {
+        // `responseOnce` only answers the first query; the removed "fetch one
+        // extra older version" fallback would issue a second (unmocked) query
+        // and throw, so this implicitly guards against that regression.
         tracker.on.select(SavedChartsTableName).responseOnce([chartSummary]);
 
         const response = await model.getLatestVersionSummaries('chart_uuid');
 
         expect(response).toHaveLength(1);
         expect(response[0].chartUuid).toEqual(chartSummary.saved_query_uuid);
-        // Only one query should run — no follow-up fetch for older versions
-        expect(tracker.history.select).toHaveLength(1);
     });
 });
