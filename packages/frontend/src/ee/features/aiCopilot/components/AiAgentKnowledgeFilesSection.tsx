@@ -38,6 +38,7 @@ import {
     useDeleteAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
+import styles from './AiAgentKnowledgeFilesSection.module.css';
 
 const ACCEPT_ATTR =
     '.md,.markdown,.txt,text/markdown,text/plain,text/x-markdown';
@@ -497,12 +498,24 @@ export const AiAgentKnowledgeFilesSection = ({
                                         </Skeleton>
                                     ) : (
                                         <>
-                                            <Text size="sm" flex={1}>
-                                                {
-                                                    selectedDocument!.summary
-                                                        .description
-                                                }
-                                            </Text>
+                                            <ScrollArea
+                                                flex={1}
+                                                mih={0}
+                                                offsetScrollbars
+                                            >
+                                                <Text
+                                                    key={selectedDocument!.uuid}
+                                                    size="sm"
+                                                    className={
+                                                        styles.summaryReveal
+                                                    }
+                                                >
+                                                    {
+                                                        selectedDocument!
+                                                            .summary.description
+                                                    }
+                                                </Text>
+                                            </ScrollArea>
                                             {selectedDocument && (
                                                 <AiAgentDocumentRelevanceCard
                                                     summary={
