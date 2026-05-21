@@ -20,7 +20,6 @@ export const useGithubConfig = () => {
     return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['github_installation'],
         queryFn: () => getGithubConfig(),
-        retry: false,
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 
@@ -45,7 +44,6 @@ export const useGitHubRepositories = () => {
     return useQuery<GitRepo[], ApiError>({
         queryKey: ['github_branches'],
         queryFn: () => getGithubRepositories(),
-        retry: false,
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 

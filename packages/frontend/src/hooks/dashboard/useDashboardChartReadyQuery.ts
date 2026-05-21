@@ -15,7 +15,6 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
@@ -63,7 +62,6 @@ export const useDashboardChartReadyQuery = (
     chartUuid: string | null,
     contextOverride?: QueryExecutionContext,
 ) => {
-    const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
         (c) => c.invalidateCache,
@@ -254,7 +252,6 @@ export const useDashboardChartReadyQuery = (
         enabled: Boolean(
             chartUuid && dashboardUuid && chartQuery.data && explore,
         ),
-        ...retryConfig,
         refetchOnMount: false,
     });
 

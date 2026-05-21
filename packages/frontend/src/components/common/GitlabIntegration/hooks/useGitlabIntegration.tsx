@@ -16,7 +16,6 @@ export const useGitlabRepositories = () => {
     return useQuery<GitRepo[], ApiError>({
         queryKey: ['gitlab_repositories'],
         queryFn: () => getGitlabRepositories(),
-        retry: false,
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 

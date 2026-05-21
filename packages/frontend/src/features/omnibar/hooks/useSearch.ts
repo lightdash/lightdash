@@ -28,6 +28,7 @@ const useSearch = ({
         queryKey: [projectUuid, 'search', filters ?? 'all', query],
         queryFn: () =>
             getSearchResults({ projectUuid, query, filters, source }),
+        // Do not retry potentially stale keystrokes.
         retry: false,
         enabled: query.length >= OMNIBAR_MIN_QUERY_LENGTH,
         select: (data) => getSearchItemMap(data, projectUuid),

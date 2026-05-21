@@ -53,7 +53,6 @@ export const useOAuthClients = (
     return useQuery<OAuthClientSummary[], ApiError>({
         queryKey: ['oauth_clients'],
         queryFn: () => getOAuthClients(),
-        retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });

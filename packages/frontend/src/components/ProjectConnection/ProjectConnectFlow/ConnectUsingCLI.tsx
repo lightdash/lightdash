@@ -50,6 +50,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
         staleTime: 0,
+        // refetchInterval handles retries. Enabling retry for transient errors would unnecessarily delay UI update.
+        retry: false,
         onSuccess: async (newProjects) => {
             if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;

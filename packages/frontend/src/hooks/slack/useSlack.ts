@@ -25,7 +25,6 @@ export const useGetSlack = () =>
     useQuery<SlackSettings, ApiError>({
         queryKey: ['slack'],
         queryFn: () => getSlack(),
-        retry: false,
     });
 
 const deleteSlack = async () =>

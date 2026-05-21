@@ -20,7 +20,6 @@ export const useUserActivity = (projectUuid?: string) => {
         queryKey: ['user_activity', projectUuid],
         queryFn: () => getUserActivity(projectUuid || ''),
         enabled: projectUuid !== undefined,
-        retry: false,
         onError: (result) => setErrorResponse(result),
     });
 };

@@ -60,7 +60,6 @@ export const useTableFields = ({
                 tableName,
                 schema,
             }),
-        retry: false,
         enabled: !!tableName,
         select(data) {
             if (!data || isEmpty(data)) return;

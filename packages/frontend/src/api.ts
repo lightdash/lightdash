@@ -84,6 +84,58 @@ function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
     return url;
 }
 
+/**
+ * Symbol-keyed marker stamped on every error that originates at the
+ * network/server layer (i.e. errors produced by `handleError` here, or by
+ * other low-level network helpers like `getResultsFromStream`). The React
+ * Query retry policy uses this marker to distinguish real HTTP/network
+ * failures (retryable) from `ApiError`-shaped objects fabricated inside
+ * `queryFn` bodies — e.g. warehouse cancel/expire errors thrown by the
+ * polling hooks — which must never be retried.
+ *
+ * Using a Symbol key keeps the marker invisible to `JSON.stringify`,
+ * `Object.keys`, `for…in`, and any downstream consumer that doesn't
+ * explicitly look for it. The marker is enumerable so that shallow copies
+ * via spread (`{...err}`) and `Object.assign` preserve retry eligibility
+ * when an error is wrapped with extra context.
+ */
+export const SERVER_ERROR_MARKER = Symbol('serverError');
+
+/**
+ * Stamps {@link SERVER_ERROR_MARKER} on an error and returns it so call
+ * sites that produce a real network/server error can opt in to the retry
+ * policy with a single call. Use only at the network boundary — never on
+ * errors fabricated inside a `queryFn` from a non-transient condition.
+ */
+export const stampServerError = <T extends object>(error: T): T => {
+    Object.defineProperty(error, SERVER_ERROR_MARKER, {
+        value: true,
+        enumerable: true,
+    });
+    return error;
+};
+
+/**
+ * Symbol-keyed marker carrying the request URL through to the React Query
+ * retry layer, where it's read by `defaultQueryRetry` for analytics.
+ * Stamped at the network boundary alongside {@link SERVER_ERROR_MARKER}.
+ */
+const REQUEST_URL_MARKER = Symbol('requestUrl');
+
+export const stampRequestUrl = <T extends object>(error: T, url: string): T => {
+    Object.defineProperty(error, REQUEST_URL_MARKER, {
+        value: url,
+        enumerable: true,
+    });
+    return error;
+};
+
+export const getRequestUrl = (error: unknown): string | undefined => {
+    if (error == null || typeof error !== 'object') return undefined;
+    const url = (error as Record<symbol, unknown>)[REQUEST_URL_MARKER];
+    return typeof url === 'string' ? url : undefined;
+};
+
 const handleError = (err: any): ApiError => {
     if (err.error?.statusCode && err.error?.name) {
         if (
@@ -93,9 +145,9 @@ const handleError = (err: any): ApiError => {
             // redirect to login page when account is deactivated
             window.location.href = '/login';
         }
-        return err;
+        return stampServerError(err);
     }
-    return {
+    return stampServerError({
         status: 'error',
         error: {
             name: 'NetworkError',
@@ -104,7 +156,7 @@ const handleError = (err: any): ApiError => {
                 'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
             data: err,
         },
-    };
+    });
 };
 
 type LightdashApiPropsBase = {
@@ -211,7 +263,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             // only store last MAX_NETWORK_HISTORY requests
             if (networkHistory.length > MAX_NETWORK_HISTORY)
                 networkHistory.shift();
-            throw handleError(err);
+            throw stampRequestUrl(handleError(err), url);
         });
 };
 

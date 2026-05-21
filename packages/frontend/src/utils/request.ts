@@ -3,6 +3,7 @@ import {
     JWT_HEADER_NAME,
     type ApiError,
 } from '@lightdash/common';
+import { stampRequestUrl, stampServerError } from '../api';
 import { EMBED_KEY, type InMemoryEmbed } from '../ee/providers/Embed/types';
 import { getFromInMemoryStorage } from './inMemoryStorage';
 
@@ -74,15 +75,22 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
 
         return jsonObjects;
     } catch (e) {
-        // convert error to ApiError
-        throw <ApiError>{
-            status: 'error',
-            error: {
-                name: 'Error',
-                statusCode: 500,
-                message: getErrorMessage(e),
-                data: {},
-            },
-        };
+        // Convert to ApiError and stamp the server-error marker so the React
+        // Query retry layer treats a transient stream/fetch failure as
+        // retryable. Without the marker, the synthetic 5xx shape would be
+        // filtered out by the provenance check in `isRetryableTransientApiError`.
+        // Also stamp the URL so retry analytics can attribute the failure.
+        throw stampRequestUrl(
+            stampServerError<ApiError>({
+                status: 'error',
+                error: {
+                    name: 'Error',
+                    statusCode: 500,
+                    message: getErrorMessage(e),
+                    data: {},
+                },
+            }),
+            url ?? 'unknown',
+        );
     }
 };
