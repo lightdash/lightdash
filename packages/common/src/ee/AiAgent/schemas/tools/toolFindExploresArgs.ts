@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
+export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: find_explores
 
 Purpose:
 Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.

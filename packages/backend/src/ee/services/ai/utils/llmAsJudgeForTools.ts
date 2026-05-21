@@ -52,34 +52,6 @@ const toolEditContentArgsSchema = z
         patch: z.unknown(),
     })
     .describe('Edit a dashboard or chart by applying a patch.');
-
-const TOOL_NAME_TO_DB_TOOL_NAME = {
-    findExplores: 'find_explores',
-    findFields: 'find_fields',
-    discoverFields: 'discover_fields',
-    searchFieldValues: 'search_field_values',
-    findContent: 'find_content',
-    findDashboards: 'find_dashboards',
-    findCharts: 'find_charts',
-    getDashboardCharts: 'get_dashboard_charts',
-    readContent: 'read_content',
-    editContent: 'edit_content',
-    generateTableVizConfig: 'table',
-    generateTimeSeriesVizConfig: 'time_series_chart',
-    generateBarVizConfig: 'vertical_bar_chart',
-    loadSkill: 'load_skill',
-    runQuery: 'query_result',
-    runSavedChart: 'run_saved_chart',
-    runSql: 'run_sql',
-    listWarehouseTables: 'list_warehouse_tables',
-    describeWarehouseTable: 'describe_warehouse_table',
-    listKnowledgeDocuments: 'list_knowledge_documents',
-    getKnowledgeDocumentContent: 'get_knowledge_document_content',
-    generateDashboard: 'generate_dashboard',
-    improveContext: 'improve_context',
-    proposeChange: 'propose_change',
-} satisfies Record<ToolName, string>;
-
 // Explicit mapping of tool names to their schemas
 const TOOL_SCHEMAS = {
     findExplores: toolFindExploresArgsSchemaV3,
@@ -117,7 +89,7 @@ const getToolInfo = (toolName: string) => {
 };
 
 const availableTools = Object.entries(TOOL_SCHEMAS).map(([name, schema]) => ({
-    name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
+    name,
     description: schema.description,
 }));
 

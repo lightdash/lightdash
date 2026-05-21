@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_FIND_CONTENT_DESCRIPTION = `Tool: "findContent"
+export const TOOL_FIND_CONTENT_DESCRIPTION = `Tool: "find_content"
 Purpose:
 Finds charts or dashboards by name or description within a project, returning detailed information about each.
 

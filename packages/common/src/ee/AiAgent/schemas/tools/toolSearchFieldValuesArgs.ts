@@ -4,7 +4,7 @@ import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = `Tool: searchFieldValues
+export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = `Tool: search_field_values
 
 Purpose:
 Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.

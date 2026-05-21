@@ -8,8 +8,9 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { tableVizConfigSchema } from '../visualizations';
+import { McpToolNameResources } from './toolNames';
 
-export const TOOL_RUN_METRIC_QUERY_DESCRIPTION = `Tool: runMetricQuery
+export const TOOL_RUN_METRIC_QUERY_DESCRIPTION = `Tool: ${McpToolNameResources.runMetricQuery}
 
 Purpose:
 Run a metric query and get the results as CSV data. This is useful for data analysis and export.

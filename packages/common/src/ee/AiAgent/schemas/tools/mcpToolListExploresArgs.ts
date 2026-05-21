@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { McpToolNameResources } from './toolNames';
 
-export const MCP_TOOL_LIST_EXPLORES_DESCRIPTION = `Tool: listExplores
+export const MCP_TOOL_LIST_EXPLORES_DESCRIPTION = `Tool: ${McpToolNameResources.listExplores}
 
 Purpose:
 Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
