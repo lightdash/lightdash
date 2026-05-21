@@ -28,6 +28,10 @@ export enum WarehouseTypes {
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
     DUCKDB = 'duckdb',
+}
+
+export enum DuckdbConnectionType {
+    MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
 }
 
@@ -218,8 +222,9 @@ export type AthenaCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
-export type CreateDuckdbCredentials = {
+export type CreateDuckdbMotherduckCredentials = {
     type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.MOTHERDUCK;
     database: string;
     schema: string;
     token: string;
@@ -228,8 +233,8 @@ export type CreateDuckdbCredentials = {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
 };
-export type DuckdbCredentials = Omit<
-    CreateDuckdbCredentials,
+export type DuckdbMotherduckCredentials = Omit<
+    CreateDuckdbMotherduckCredentials,
     SensitiveCredentialsFieldNames
 >;
 
@@ -337,8 +342,9 @@ export type DucklakeDataPath =
     | DucklakeDataPathAzure
     | DucklakeDataPathLocal;
 
-export type CreateDucklakeCredentials = {
-    type: WarehouseTypes.DUCKLAKE;
+export type CreateDuckdbDucklakeCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.DUCKLAKE;
     catalog: CreateDucklakeCatalog;
     dataPath: CreateDucklakeDataPath;
     schema: string;
@@ -349,22 +355,53 @@ export type CreateDucklakeCredentials = {
     dataTimezone?: string;
 };
 
-export type DucklakeCredentials = Omit<
-    CreateDucklakeCredentials,
+export type DuckdbDucklakeCredentials = Omit<
+    CreateDuckdbDucklakeCredentials,
     'catalog' | 'dataPath'
 > & {
     catalog: DucklakeCatalog;
     dataPath: DucklakeDataPath;
 };
 
+export type CreateDuckdbCredentials =
+    | CreateDuckdbMotherduckCredentials
+    | CreateDuckdbDucklakeCredentials;
+
+export type DuckdbCredentials =
+    | DuckdbMotherduckCredentials
+    | DuckdbDucklakeCredentials;
+
+/**
+ * Rows created before the connectionType field was introduced are
+ * MotherDuck-shaped DuckDB credentials. Default the field at decrypt time
+ * so the discriminated union narrows correctly without a data migration.
+ */
+export const normalizeWarehouseCredentials = <
+    T extends CreateWarehouseCredentials,
+>(
+    credentials: T,
+): T => {
+    if (
+        credentials.type === WarehouseTypes.DUCKDB &&
+        (credentials as { connectionType?: DuckdbConnectionType })
+            .connectionType === undefined
+    ) {
+        return {
+            ...credentials,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+        };
+    }
+    return credentials;
+};
+
 /**
  * Top-level sensitive-field stripping does not reach into the nested
  * catalog/dataPath objects, so call this after the generic strip to
- * scrub nested credentials from a CreateDucklakeCredentials.
+ * scrub nested credentials from a CreateDuckdbDucklakeCredentials.
  */
 export const stripDucklakeNestedSensitive = (
-    credentials: CreateDucklakeCredentials,
-): DucklakeCredentials => {
+    credentials: CreateDuckdbDucklakeCredentials,
+): DuckdbDucklakeCredentials => {
     const stripCatalog = (catalog: CreateDucklakeCatalog): DucklakeCatalog => {
         switch (catalog.type) {
             case DucklakeCatalogType.POSTGRES: {
@@ -478,8 +515,7 @@ export type CreateWarehouseCredentials =
     | CreateTrinoCredentials
     | CreateClickhouseCredentials
     | CreateAthenaCredentials
-    | CreateDuckdbCredentials
-    | CreateDucklakeCredentials;
+    | CreateDuckdbCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -489,8 +525,7 @@ export type WarehouseCredentials =
     | TrinoCredentials
     | ClickhouseCredentials
     | AthenaCredentials
-    | DuckdbCredentials
-    | DucklakeCredentials;
+    | DuckdbCredentials;
 
 // Returns the timezone the column data is in when the query runs.
 // Snowflake's dbt translator wraps timestamps with CONVERT_TIMEZONE('UTC', col),

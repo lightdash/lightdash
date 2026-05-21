@@ -25,7 +25,6 @@ const getSqlFormatterDialect = (
         case WarehouseTypes.REDSHIFT:
             return 'redshift';
         case WarehouseTypes.DUCKDB:
-        case WarehouseTypes.DUCKLAKE:
             return 'duckdb';
         case undefined:
             return 'sql';
