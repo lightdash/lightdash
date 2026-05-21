@@ -207,39 +207,53 @@ const EmbedDashboard: FC<{
         }
     }, [dashboardTabs, setDashboardTabs, dashboard]);
 
+    // Embed is always view-only — hidden tabs (and their tiles) must not
+    // surface, neither in the tab bar nor in the grid.
+    const visibleTabs = useMemo(
+        () => dashboardTabs.filter((tab) => !tab.hidden),
+        [dashboardTabs],
+    );
+
     // Filter tiles by active tab
     const filteredTiles = useMemo(() => {
         if (!dashboard?.tiles) {
             return [];
         }
 
-        // If no tabs or only one tab, show all tiles
-        if (dashboardTabs.length <= 1) {
-            return dashboard.tiles;
+        const hiddenTabUuids = new Set(
+            dashboardTabs.filter((t) => t.hidden).map((t) => t.uuid),
+        );
+        const tilesOnVisibleTabs = dashboard.tiles.filter(
+            (tile) => !tile.tabUuid || !hiddenTabUuids.has(tile.tabUuid),
+        );
+
+        // If no tabs or only one visible tab, show all tiles on visible tabs
+        if (visibleTabs.length <= 1) {
+            return tilesOnVisibleTabs;
         }
 
         // Make sure we have a tab selected
-        const tab = activeTab || dashboardTabs[0];
+        const tab = activeTab || visibleTabs[0];
 
         // If there are tabs, filter tiles by active tab
         if (tab) {
-            return dashboard.tiles.filter((tile) => {
+            return tilesOnVisibleTabs.filter((tile) => {
                 // Show tiles that belong to the active tab
                 const tileBelongsToActiveTab = tile.tabUuid === tab.uuid;
 
                 // Show tiles that don't belong to any tab (legacy tiles) on the first tab
                 const tileHasNoTab = !tile.tabUuid;
-                const isFirstTab = tab.uuid === dashboardTabs[0]?.uuid;
+                const isFirstTab = tab.uuid === visibleTabs[0]?.uuid;
 
                 return tileBelongsToActiveTab || (tileHasNoTab && isFirstTab);
             });
         }
 
         return [];
-    }, [dashboard?.tiles, dashboardTabs, activeTab]);
+    }, [dashboard?.tiles, dashboardTabs, visibleTabs, activeTab]);
 
-    // Check if tabs should be enabled (more than one tab)
-    const tabsEnabled = dashboardTabs.length > 1;
+    // Check if tabs should be enabled (more than one visible tab)
+    const tabsEnabled = visibleTabs.length > 1;
 
     const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
     const layouts = useMemo(
@@ -307,7 +321,7 @@ const EmbedDashboard: FC<{
     // the SDK app uses the same URL as the embedding app.
     const handleTabChange = (tabUuid: string | null) => {
         if (!tabUuid) return;
-        const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
+        const tab = visibleTabs.find((t) => t.uuid === tabUuid);
         if (tab) {
             setActiveTab(tab);
 
@@ -363,11 +377,11 @@ const EmbedDashboard: FC<{
                     }}
                 >
                     <Tabs.List px="lg">
-                        {dashboardTabs.map((tab) => (
+                        {visibleTabs.map((tab) => (
                             <Tabs.Tab
                                 key={tab.uuid}
                                 value={tab.uuid}
-                                maw={`${100 / (dashboardTabs?.length || 1)}vw`}
+                                maw={`${100 / (visibleTabs.length || 1)}vw`}
                             >
                                 {tab.name}
                             </Tabs.Tab>
