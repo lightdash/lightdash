@@ -1,3 +1,10 @@
+## [0.2998.1](https://github.com/lightdash/lightdash/compare/0.2998.0...0.2998.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* detect parameter refs inside liquid {% %} tags ([#23369](https://github.com/lightdash/lightdash/issues/23369)) ([8dfb464](https://github.com/lightdash/lightdash/commit/8dfb4643588eba7522a5403a10d868268a98b61a))
+
 # [0.2998.0](https://github.com/lightdash/lightdash/compare/0.2997.2...0.2998.0) (2026-05-21)
 
 
