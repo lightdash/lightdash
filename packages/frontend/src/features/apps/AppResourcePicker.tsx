@@ -25,7 +25,6 @@ import {
     IconCamera,
     IconChartBar,
     IconCheck,
-    IconChevronDown,
     IconClick,
     IconDatabase,
     IconDatabasePlus,
@@ -33,6 +32,7 @@ import {
     IconPhoto,
     IconPlus,
     IconSearch,
+    IconSparkles,
     IconX,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
@@ -202,20 +202,22 @@ export const ModelPicker: FC<{
             trapFocus
         >
             <Popover.Target>
-                <Button
-                    variant="default"
-                    size="md"
-                    radius="md"
-                    color="gray"
-                    onClick={() => setOpened((o) => !o)}
-                    disabled={disabled}
-                    rightSection={
-                        <MantineIcon icon={IconChevronDown} size={14} />
-                    }
-                    aria-label={`Claude model: ${current.label}`}
+                <Tooltip
+                    label={`Claude model: ${current.label}`}
+                    withArrow
+                    position="top"
                 >
-                    {current.label}
-                </Button>
+                    <ActionIcon
+                        variant="default"
+                        size="lg"
+                        radius="md"
+                        onClick={() => setOpened((o) => !o)}
+                        disabled={disabled}
+                        aria-label={`Claude model: ${current.label}`}
+                    >
+                        <MantineIcon icon={IconSparkles} size={16} />
+                    </ActionIcon>
+                </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
                 <Box py="xs">
@@ -271,8 +273,9 @@ const QueryPickerView: FC<{
     selectedCharts: SelectedChart[];
     onSelect: (chart: SelectedChart) => void;
     onDeselect: (uuid: string) => void;
+    onDone: () => void;
     enabled: boolean;
-}> = ({ selectedCharts, onSelect, onDeselect, enabled }) => {
+}> = ({ selectedCharts, onSelect, onDeselect, onDone, enabled }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -429,6 +432,11 @@ const QueryPickerView: FC<{
                     </>
                 )}
             </ScrollArea.Autosize>
+            <Box className={classes.attachPickerFooter}>
+                <Button size="compact-xs" radius="md" onClick={onDone}>
+                    Done
+                </Button>
+            </Box>
         </>
     );
 };
@@ -864,6 +872,10 @@ export const AttachButton: FC<{
                                 selectedCharts={selectedCharts}
                                 onSelect={onSelectChart}
                                 onDeselect={onDeselectChart}
+                                onDone={() => {
+                                    setOpened(false);
+                                    setView('menu');
+                                }}
                                 enabled={opened}
                             />
                         ) : (
