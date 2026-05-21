@@ -700,6 +700,8 @@ export class ServiceRepository
                 new AsyncQueryService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    organizationAccessService:
+                        this.getOrganizationAccessService(),
                     projectModel: this.models.getProjectModel(),
                     preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),

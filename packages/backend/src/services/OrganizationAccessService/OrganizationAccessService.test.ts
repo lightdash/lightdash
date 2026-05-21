@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    ForbiddenError,
     OrganizationAccessStatus,
     type Account,
 } from '@lightdash/common';
@@ -16,6 +17,13 @@ const account = {
     },
     authentication: {
         type: 'session',
+    },
+} as Account;
+
+const apiAccount = {
+    ...account,
+    authentication: {
+        type: 'pat',
     },
 } as Account;
 
@@ -50,5 +58,53 @@ describe('OrganizationAccessService', () => {
         const access = await service.getOrganizationAccess(account);
 
         expect(access.status).toBe(OrganizationAccessStatus.TRIAL_WARNING);
+    });
+
+    it('gives blocked precedence over warning', async () => {
+        const service = buildService(
+            new Set([
+                FeatureFlags.OrganizationTrialWarning,
+                FeatureFlags.OrganizationTrialBlocked,
+            ]),
+        );
+
+        const access = await service.getOrganizationAccess(account);
+
+        expect(access.status).toBe(OrganizationAccessStatus.TRIAL_BLOCKED);
+    });
+
+    it('blocks query access for trial-blocked orgs', async () => {
+        const service = buildService(
+            new Set([FeatureFlags.OrganizationTrialBlocked]),
+        );
+
+        await expect(service.assertQueryAccess(account)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('allows API/CLI query access during grace period', async () => {
+        const service = buildService(
+            new Set([FeatureFlags.OrganizationTrialBlocked]),
+        );
+
+        await expect(service.assertQueryAccess(apiAccount)).resolves.toEqual(
+            expect.objectContaining({
+                status: OrganizationAccessStatus.TRIAL_BLOCKED,
+            }),
+        );
+    });
+
+    it('blocks API/CLI query access after grace period flag is enabled', async () => {
+        const service = buildService(
+            new Set([
+                FeatureFlags.OrganizationTrialBlocked,
+                FeatureFlags.OrganizationTrialApiCliBlocked,
+            ]),
+        );
+
+        await expect(service.assertQueryAccess(apiAccount)).rejects.toThrow(
+            ForbiddenError,
+        );
     });
 });

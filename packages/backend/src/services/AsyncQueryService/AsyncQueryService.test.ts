@@ -63,6 +63,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import type { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -165,6 +166,10 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
+const organizationAccessService = {
+    assertQueryAccess: jest.fn(async () => undefined),
+};
+
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
@@ -172,6 +177,8 @@ const getMockedAsyncQueryService = (
     new AsyncQueryService({
         lightdashConfig,
         analytics: analyticsMock,
+        organizationAccessService:
+            organizationAccessService as unknown as OrganizationAccessService,
         projectModel: projectModel as unknown as ProjectModel,
         preAggregateModel: {} as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -322,6 +329,41 @@ describe('AsyncQueryService', () => {
                         expiresAt: undefined,
                     }) satisfies MissCacheResult,
             );
+        });
+
+        test('blocks query execution when organization access is blocked', async () => {
+            organizationAccessService.assertQueryAccess.mockRejectedValueOnce(
+                new ForbiddenError(
+                    'Your Lightdash trial has expired. Contact sales to restore query access.',
+                ),
+            );
+
+            await expect(
+                serviceWithCache.executeAsyncQuery(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        dateZoom: undefined,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        explore: validExplore,
+                        invalidateCache: false,
+                        sql: 'SELECT * FROM test',
+                        fields: {},
+                        missingParameterReferences: [],
+                        displayTimezone: null,
+                        useTimezoneAwareDateTrunc: false,
+                    },
+                    { query: metricQueryMock },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).not.toHaveBeenCalled();
         });
 
         test('Cache Hit - Complete Flow', async () => {

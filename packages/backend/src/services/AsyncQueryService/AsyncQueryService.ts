@@ -153,6 +153,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -246,6 +247,7 @@ type AsyncQueryExecutionPlan =
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
+    organizationAccessService: OrganizationAccessService;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
     cacheService?: ICacheService;
@@ -285,10 +287,13 @@ export class AsyncQueryService extends ProjectService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    organizationAccessService: OrganizationAccessService;
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
+        this.organizationAccessService = args.organizationAccessService;
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
         this.cacheService = args.cacheService;
@@ -3579,6 +3584,7 @@ export class AsyncQueryService extends ProjectService {
         requestParameters: ExecuteAsyncQueryRequestParams,
     ): Promise<ExecuteAsyncQueryReturn> {
         assertIsAccountWithOrg(args.account);
+        await this.organizationAccessService.assertQueryAccess(args.account);
 
         const { organizationUuid } = await this.projectModel.getSummary(
             args.projectUuid,

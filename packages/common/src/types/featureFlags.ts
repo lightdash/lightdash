@@ -199,6 +199,17 @@ export enum FeatureFlags {
      * instances. This does not block product access.
      */
     OrganizationTrialWarning = 'organization-trial-warning',
+
+    /**
+     * Block query execution for an organization whose trial has expired.
+     */
+    OrganizationTrialBlocked = 'organization-trial-blocked',
+
+    /**
+     * Block API/CLI-style query execution after the agreed grace period has
+     * elapsed for a trial-blocked organization.
+     */
+    OrganizationTrialApiCliBlocked = 'organization-trial-api-cli-blocked',
 }
 
 export type FeatureFlag = {
