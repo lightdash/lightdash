@@ -1,3 +1,10 @@
+## [0.2997.1](https://github.com/lightdash/lightdash/compare/0.2997.0...0.2997.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* parse format_options jsonb when returned as string ([#22481](https://github.com/lightdash/lightdash/issues/22481)) ([af885c8](https://github.com/lightdash/lightdash/commit/af885c86947b4c931e064ed5ad053d36946a1549))
+
 # [0.2997.0](https://github.com/lightdash/lightdash/compare/0.2996.0...0.2997.0) (2026-05-20)
 
 
