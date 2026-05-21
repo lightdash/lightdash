@@ -7,6 +7,7 @@ import {
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
+    AiAgentMcpServerToolUpdate,
     AiAgentNotFoundError,
     AiAgentSummary,
     AiAgentThread,
@@ -31,6 +32,7 @@ import {
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
+    ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
@@ -1886,9 +1888,111 @@ export class AiAgentService extends BaseService {
         return server;
     }
 
+    private async assertCanManageAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid?: string,
+    ): Promise<AiAgent> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: agent.organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid: agent.uuid,
+                        agentName: agent.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return agent;
+    }
+
+    private async discoverMcpServerTools(args: {
+        projectUuid: string;
+        mcpServerUuid: string;
+        actorUserUuid?: string;
+        defaultEnabledForExistingAttachments?: boolean;
+    }) {
+        const server = await this.getProjectMcpServerOrThrow(
+            args.projectUuid,
+            args.mcpServerUuid,
+        );
+        const credential = await this.aiAgentModel.getCredential(
+            args.mcpServerUuid,
+            'shared',
+            {
+                userUuid: args.actorUserUuid,
+            },
+        );
+
+        const tools = await this.aiAgentMcpRuntimeClient.listTools({
+            projectUuid: args.projectUuid,
+            mcpServer: {
+                ...server,
+                resolvedCredential: credential?.credentials ?? null,
+                resolvedCredentialScope: credential?.credentialScope ?? null,
+            },
+        });
+
+        return this.aiAgentModel.upsertDiscoveredMcpServerTools({
+            serverUuid: args.mcpServerUuid,
+            tools,
+            defaultEnabledForExistingAttachments:
+                args.defaultEnabledForExistingAttachments,
+        });
+    }
+
     public async listMcpServers(user: SessionUser, projectUuid: string) {
         await this.assertCanManageMcpServers(user, projectUuid);
         return this.aiAgentModel.listMcpServers(projectUuid);
+    }
+
+    public async listMcpServerTools(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+    ) {
+        await this.assertCanManageMcpServers(user, projectUuid);
+
+        return this.aiAgentModel.listMcpServerTools({
+            projectUuid,
+            serverUuid: mcpServerUuid,
+        });
+    }
+
+    public async refreshMcpServerTools(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+    ) {
+        await this.assertCanManageMcpServers(user, projectUuid);
+
+        try {
+            return await this.discoverMcpServerTools({
+                projectUuid,
+                mcpServerUuid,
+                actorUserUuid: user.userUuid,
+            });
+        } catch (error) {
+            throw new ParameterError(
+                `We couldn't refresh this MCP server's tools. Check the connection and authentication settings, then try again. Details: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
     }
 
     public async listAgentMcpServers(
@@ -1914,6 +2018,49 @@ export class AiAgentService extends BaseService {
                     }) => server,
                 ),
             );
+    }
+
+    public async listAgentMcpServerTools(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        mcpServerUuid: string,
+    ) {
+        await this.assertCanManageAgent(user, agentUuid, projectUuid);
+        await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
+
+        return this.aiAgentModel.listAgentMcpServerTools({
+            agentUuid,
+            serverUuid: mcpServerUuid,
+        });
+    }
+
+    public async updateAgentMcpServerTools(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        mcpServerUuid: string,
+        body: ApiUpdateAiAgentMcpServerToolsRequest,
+    ) {
+        await this.assertCanManageAgent(user, agentUuid, projectUuid);
+        await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
+
+        const toolSettings: AiAgentMcpServerToolUpdate[] = [
+            ...new Map<string, AiAgentMcpServerToolUpdate>(
+                body.toolSettings.map(
+                    (tool): [string, AiAgentMcpServerToolUpdate] => [
+                        tool.toolName,
+                        tool,
+                    ],
+                ),
+            ).values(),
+        ];
+
+        return this.aiAgentModel.upsertAgentMcpServerToolSettings({
+            agentUuid,
+            serverUuid: mcpServerUuid,
+            toolSettings,
+        });
     }
 
     public async createMcpServer(
@@ -2014,7 +2161,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        return this.aiAgentModel.createMcpServer({
+        const server = await this.aiAgentModel.createMcpServer({
             projectUuid,
             name,
             url: normalizedUrl,
@@ -2024,6 +2171,21 @@ export class AiAgentService extends BaseService {
             credentials,
             actorUserUuid: user.userUuid,
         });
+
+        if (body.authType !== 'oauth') {
+            await this.discoverMcpServerTools({
+                projectUuid,
+                mcpServerUuid: server.uuid,
+                actorUserUuid: user.userUuid,
+            }).catch((error) => {
+                Logger.error(
+                    `[AiAgent][MCP][${server.name}] Failed to discover tools after MCP server creation`,
+                    error,
+                );
+            });
+        }
+
+        return server;
     }
 
     public async startMcpOAuthConnection(
@@ -2099,6 +2261,17 @@ export class AiAgentService extends BaseService {
             serverUrl: server.url,
             code: args.code,
             credential,
+        });
+
+        await this.discoverMcpServerTools({
+            projectUuid: args.projectUuid,
+            mcpServerUuid: args.mcpServerUuid,
+            defaultEnabledForExistingAttachments: true,
+        }).catch((error) => {
+            Logger.error(
+                `[AiAgent][MCP][${server.name}] Failed to discover tools after OAuth connection completed`,
+                error,
+            );
         });
     }
 
@@ -4885,14 +5058,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agentUuid: agentSettings.uuid,
                 projectUuid: prompt.projectUuid,
             });
+        const agentMcpServersWithSensitiveData =
+            await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                agentSettings.uuid,
+                user.userUuid,
+            );
         const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
             projectUuid: prompt.projectUuid,
             userUuid: user.userUuid,
-            mcpServers:
-                await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
-                    agentSettings.uuid,
-                    user.userUuid,
-                ),
+            mcpServers: await Promise.all(
+                agentMcpServersWithSensitiveData.map(async (mcpServer) => ({
+                    ...mcpServer,
+                    enabledToolNames:
+                        await this.aiAgentModel.getEnabledMcpServerToolNames({
+                            agentUuid: agentSettings.uuid,
+                            serverUuid: mcpServer.uuid,
+                        }),
+                })),
+            ),
         });
         const { enabled: agentRevampEnabled } =
             await this.featureFlagService.get({

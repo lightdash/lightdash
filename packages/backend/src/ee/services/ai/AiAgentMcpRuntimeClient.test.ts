@@ -164,6 +164,40 @@ describe('resolveMcpTools', () => {
         expect(close).toHaveBeenCalledTimes(1);
     });
 
+    it('filters out disabled MCP tools', async () => {
+        const close = jest.fn().mockResolvedValue(undefined);
+        const server = getMcpServer({
+            name: 'Lightdash Docs',
+            enabledToolNames: ['search_lightdash'],
+        });
+
+        createHttpMcpClientSpy.mockResolvedValue({
+            serverInfo: {
+                name: 'Lightdash Docs',
+                version: '1.0.0',
+            },
+            tools: async () => ({
+                search_lightdash: { description: 'search tool' },
+                query_docs_filesystem_lightdash: {
+                    description: 'query tool',
+                },
+            }),
+            close,
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            debugLoggingEnabled: false,
+        });
+
+        expect(Object.keys(result.tools)).toEqual([
+            'mcp_lightdash_docs__search_lightdash',
+        ]);
+
+        await result.closeMcpClients();
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
     it('preserves not_connected for authorization-required OAuth servers', async () => {
         const oauthServer = getMcpServer({
             uuid: 'oauth-server',

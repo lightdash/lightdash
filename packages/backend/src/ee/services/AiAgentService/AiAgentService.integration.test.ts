@@ -5,6 +5,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import {
     getModels,
     getServices,
@@ -16,12 +17,19 @@ describe('AiAgentService MCP support', () => {
     let context: IntegrationTestContext;
     let mcpServerUrl: string;
     let httpServer: Server;
+    let availableTools: {
+        name: string;
+        title: string;
+        description: string;
+        inputSchema: Record<string, z.ZodTypeAny>;
+    }[];
 
     beforeAll(async () => {
         context = getTestContext();
 
         const expectedBearerToken = 'secret-token-for-test-server';
         const app = createMcpExpressApp();
+        availableTools = [];
 
         app.post('/mcp', async (req, res) => {
             if (req.headers.authorization !== `Bearer ${expectedBearerToken}`) {
@@ -45,6 +53,25 @@ describe('AiAgentService MCP support', () => {
                         mimeType: 'image/svg+xml',
                     },
                 ],
+            });
+
+            availableTools.forEach((tool) => {
+                server.registerTool(
+                    tool.name,
+                    {
+                        title: tool.title,
+                        description: tool.description,
+                        inputSchema: tool.inputSchema,
+                    },
+                    async () => ({
+                        content: [
+                            {
+                                type: 'text',
+                                text: `Ran ${tool.name}`,
+                            },
+                        ],
+                    }),
+                );
             });
 
             const transport = new StreamableHTTPServerTransport({
@@ -114,6 +141,16 @@ describe('AiAgentService MCP support', () => {
         const models = getModels(context.app);
         const suffix = crypto.randomUUID().slice(0, 8);
         const expectedBearerToken = 'secret-token-for-test-server';
+        availableTools = [
+            {
+                name: 'search',
+                title: 'Search docs',
+                description: 'Search documentation',
+                inputSchema: {
+                    query: z.string(),
+                },
+            },
+        ];
 
         const mcpServer = await services.aiAgentService.createMcpServer(
             context.testUser,
@@ -149,24 +186,18 @@ describe('AiAgentService MCP support', () => {
             hasCredentials: true,
         });
 
-        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
-            serverUuid: mcpServer.uuid,
-            tools: [
-                {
-                    toolName: 'search',
-                    title: 'Search docs',
-                    description: 'Search documentation',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            query: { type: 'string' },
-                        },
-                    },
-                    annotations: null,
-                    meta: null,
-                },
-            ],
-        });
+        await expect(
+            services.aiAgentService.listMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+            ),
+        ).resolves.toMatchObject([
+            {
+                toolName: 'search',
+                title: 'Search docs',
+            },
+        ]);
 
         const agent = await services.aiAgentService.createAgent(
             context.testUser,
@@ -201,10 +232,12 @@ describe('AiAgentService MCP support', () => {
         expect(agentMcpServers[0]).not.toHaveProperty('credentials');
 
         const initialAgentToolSettings =
-            await models.aiAgentModel.listAgentMcpServerTools({
-                agentUuid: agent.uuid,
-                serverUuid: mcpServer.uuid,
-            });
+            await services.aiAgentService.listAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+            );
 
         expect(
             initialAgentToolSettings.map((tool) => ({
@@ -224,43 +257,38 @@ describe('AiAgentService MCP support', () => {
             }),
         ).resolves.toEqual(['search']);
 
-        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
-            serverUuid: mcpServer.uuid,
-            tools: [
-                {
-                    toolName: 'search',
-                    title: 'Search docs',
-                    description: 'Search documentation',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            query: { type: 'string' },
-                        },
-                    },
-                    annotations: null,
-                    meta: null,
+        availableTools = [
+            {
+                name: 'search',
+                title: 'Search docs',
+                description: 'Search documentation',
+                inputSchema: {
+                    query: z.string(),
                 },
-                {
-                    toolName: 'lookup',
-                    title: 'Lookup doc',
-                    description: 'Lookup a single document',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'string' },
-                        },
-                    },
-                    annotations: null,
-                    meta: null,
+            },
+            {
+                name: 'lookup',
+                title: 'Lookup doc',
+                description: 'Lookup a single document',
+                inputSchema: {
+                    id: z.string(),
                 },
-            ],
-        });
+            },
+        ];
+
+        await services.aiAgentService.refreshMcpServerTools(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            mcpServer.uuid,
+        );
 
         await expect(
-            models.aiAgentModel.listAgentMcpServerTools({
-                agentUuid: agent.uuid,
-                serverUuid: mcpServer.uuid,
-            }),
+            services.aiAgentService.listAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+            ),
         ).resolves.toMatchObject([
             {
                 toolName: 'lookup',
@@ -272,11 +300,15 @@ describe('AiAgentService MCP support', () => {
             },
         ]);
 
-        await models.aiAgentModel.upsertAgentMcpServerToolSettings({
-            agentUuid: agent.uuid,
-            serverUuid: mcpServer.uuid,
-            toolSettings: [{ toolName: 'lookup', enabled: true }],
-        });
+        await services.aiAgentService.updateAgentMcpServerTools(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            agent.uuid,
+            mcpServer.uuid,
+            {
+                toolSettings: [{ toolName: 'lookup', enabled: true }],
+            },
+        );
 
         await expect(
             models.aiAgentModel.getEnabledMcpServerToolNames({
@@ -285,30 +317,30 @@ describe('AiAgentService MCP support', () => {
             }),
         ).resolves.toEqual(['lookup', 'search']);
 
-        await models.aiAgentModel.upsertDiscoveredMcpServerTools({
-            serverUuid: mcpServer.uuid,
-            tools: [
-                {
-                    toolName: 'lookup',
-                    title: 'Lookup doc',
-                    description: 'Lookup a single document',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'string' },
-                        },
-                    },
-                    annotations: null,
-                    meta: null,
+        availableTools = [
+            {
+                name: 'lookup',
+                title: 'Lookup doc',
+                description: 'Lookup a single document',
+                inputSchema: {
+                    id: z.string(),
                 },
-            ],
-        });
+            },
+        ];
+
+        await services.aiAgentService.refreshMcpServerTools(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            mcpServer.uuid,
+        );
 
         const refreshedAgentToolSettings =
-            await models.aiAgentModel.listAgentMcpServerTools({
-                agentUuid: agent.uuid,
-                serverUuid: mcpServer.uuid,
-            });
+            await services.aiAgentService.listAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+            );
 
         expect(
             refreshedAgentToolSettings.map((tool) => ({
