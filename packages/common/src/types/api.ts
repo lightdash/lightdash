@@ -461,9 +461,6 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
-        versionHistory: {
-            daysLimit: number;
-        };
         disableSentryTracking: boolean;
     };
     pivotTable: {
