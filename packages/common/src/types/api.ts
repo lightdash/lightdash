@@ -34,6 +34,9 @@ import type {
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
     ApiMyAppsResponse,
+    ApiOrganizationDesignFileResponse,
+    ApiOrganizationDesignResponse,
+    ApiOrganizationDesignsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
@@ -1062,6 +1065,9 @@ type ApiResults =
     | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiOrganizationDesignResponse['results']
+    | ApiOrganizationDesignsResponse['results']
+    | ApiOrganizationDesignFileResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']

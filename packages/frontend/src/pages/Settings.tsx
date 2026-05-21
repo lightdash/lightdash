@@ -19,6 +19,7 @@ import {
     IconIdBadge2,
     IconKey,
     IconLock,
+    IconBrush,
     IconPalette,
     IconPlug,
     IconRefresh,
@@ -77,6 +78,7 @@ import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
+import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -436,6 +438,13 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/personalAccessTokens',
                 element: <AccessTokensPanel />,
+            });
+        }
+
+        if (user?.ability.can('view', 'OrganizationDesign')) {
+            allowedRoutes.push({
+                path: '/themes',
+                element: <DesignListPage />,
             });
         }
 
@@ -832,6 +841,20 @@ const Settings: FC = () => {
                                         to="/generalSettings/appearance"
                                         leftSection={
                                             <MantineIcon icon={IconPalette} />
+                                        }
+                                    />
+                                )}
+
+                                {user.ability.can(
+                                    'view',
+                                    'OrganizationDesign',
+                                ) && (
+                                    <RouterNavLink
+                                        label="Themes"
+                                        exact
+                                        to="/generalSettings/themes"
+                                        leftSection={
+                                            <MantineIcon icon={IconBrush} />
                                         }
                                     />
                                 )}
