@@ -149,6 +149,34 @@
     align-self: center;
 }
 
+.sqlMarkdownCodeBlock {
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.sqlMarkdownCodeHeader {
+    min-height: 36px;
+    padding: 6px 8px 6px 12px;
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-white);
+}
+
+.sqlMarkdownCodeBody {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    margin: 0;
+    padding: 12px 14px;
+    overflow: auto;
+    border-radius: 0;
+    background-color: transparent;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .streamPart {
         animation: none;
