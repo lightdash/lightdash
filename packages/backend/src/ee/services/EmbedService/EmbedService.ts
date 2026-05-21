@@ -265,7 +265,7 @@ export class EmbedService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const secret = nanoidGenerator();
+        const secret = nanoidGenerator(32);
         const encodedSecret = this.encryptionUtil.encrypt(secret);
         await this.embedModel.save(
             projectUuid,
