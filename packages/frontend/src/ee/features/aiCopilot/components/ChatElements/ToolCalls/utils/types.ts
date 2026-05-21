@@ -17,7 +17,3 @@ export type ToolCallSummary = {
      */
     isPreliminary?: boolean;
 };
-
-export type ToolCallActionContext = {
-    projectUuid: string;
-};

@@ -489,9 +489,6 @@ const AssistantBubbleContent: FC<{
                                     toolResults={message.toolResults}
                                     toolCalls={message.toolCalls}
                                     pendingContent={pendingApprovalContent}
-                                    actionContext={{
-                                        projectUuid,
-                                    }}
                                 />
                             )}
                             {latestTextSeg ? (
@@ -532,9 +529,6 @@ const AssistantBubbleContent: FC<{
                                 isLive={isStreaming || isPending}
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
-                                actionContext={{
-                                    projectUuid,
-                                }}
                             />
                         )}
                         {message.reasoning && message.reasoning.length > 0 && (

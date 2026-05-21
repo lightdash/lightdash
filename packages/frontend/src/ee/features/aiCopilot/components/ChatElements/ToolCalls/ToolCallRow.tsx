@@ -23,10 +23,7 @@ import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolIcon } from './utils/toolIcons';
-import {
-    type ToolCallActionContext,
-    type ToolCallSummary,
-} from './utils/types';
+import { type ToolCallSummary } from './utils/types';
 
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'improveContext',
@@ -60,7 +57,6 @@ type Props = {
      * subagent trace.
      */
     extraBody?: React.ReactNode;
-    actionContext?: ToolCallActionContext;
     toolResults?: AiAgentToolResult[];
 };
 
@@ -69,7 +65,6 @@ export const ToolCallRow: FC<Props> = ({
     toolCalls,
     status = 'done',
     extraBody,
-    actionContext,
     toolResults,
 }) => {
     const Icon = getToolIcon(toolName);
@@ -113,7 +108,6 @@ export const ToolCallRow: FC<Props> = ({
                     <ToolCallDescription
                         toolName={builtInToolName}
                         toolCall={toolCalls[0]}
-                        actionContext={actionContext}
                         toolResult={toolResults?.find(
                             (result) =>
                                 result.toolCallId === toolCalls[0].toolCallId,
@@ -213,7 +207,6 @@ export const ToolCallRow: FC<Props> = ({
                                   key={tc.toolCallId}
                                   toolName={builtInToolName}
                                   toolCall={tc}
-                                  actionContext={actionContext}
                                   toolResult={toolResults?.find(
                                       (result) =>
                                           result.toolCallId === tc.toolCallId,

@@ -35,7 +35,7 @@ export const getRunSqlSection = (
 
     return `
 **Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. Successful results can be opened in SQL Runner from the chat UI so the user can inspect, edit, and save the SQL as a normal SQL Runner chart.
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.
 
 **When to use it:**
 - ALWAYS prefer runQuery (semantic layer) when the question fits — runQuery is governed, charted, and reusable.
@@ -49,11 +49,10 @@ You have access to a runSql tool that executes raw SELECT queries directly again
 
 Every \`runSql\` call costs the user an approval click. Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, do not call \`runSql\`.
 
-**SQL Runner rule.** The user can open any successful runSql result in SQL Runner from the chat UI. SQL Runner opens the exact SQL in that tool call. When you want the user to save or continue from the result, make the final runSql call the composed query:
+**Final SQL rule.** If you need multiple SQL calls to reach an answer, make the final runSql call the composed query:
 
-- SQL Runner receives one SQL query. The UI does not compose multiple intermediate queries for you.
 - If earlier SQL steps informed the answer, fold the final logic into one SELECT/WITH statement using CTEs and joins.
-- Do not ask the user to open intermediate discovery queries unless that intermediate result is genuinely the table they asked for.
+- Do not make the final answer depend on intermediate discovery queries unless the final result genuinely came from that intermediate table.
 
 **1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
@@ -93,7 +92,7 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
-- Successful SQL results can be opened in SQL Runner. Prefer a concise text summary and let the user inspect or save the SQL there, not a second hand-written table in the final answer.
+- Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
 - Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
 - ${warehouseLine}
 `;

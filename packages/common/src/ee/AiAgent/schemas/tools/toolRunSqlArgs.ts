@@ -4,7 +4,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 const TOOL_RUN_SQL_DESCRIPTION = `Tool: run_sql
 
 Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be opened in SQL Runner from the chat UI.
+Execute an arbitrary SQL query against the project's data warehouse and return the results.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.

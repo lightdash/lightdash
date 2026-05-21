@@ -31,10 +31,7 @@ import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { getToolIcon } from './utils/toolIcons';
-import {
-    type ToolCallActionContext,
-    type ToolCallSummary,
-} from './utils/types';
+import { type ToolCallSummary } from './utils/types';
 
 export type LiveActivityToolGroup = {
     toolName: AiAgentToolName;
@@ -60,7 +57,6 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
-    actionContext?: ToolCallActionContext;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -404,7 +400,6 @@ export const LiveActivityCard: FC<Props> = ({
     toolResults,
     toolCalls,
     pendingContent,
-    actionContext,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -596,9 +591,6 @@ export const LiveActivityCard: FC<Props> = ({
                                                           latestBuiltInToolName
                                                       }
                                                       toolCall={tc}
-                                                      actionContext={
-                                                          actionContext
-                                                      }
                                                       toolResult={toolResults?.find(
                                                           (result) =>
                                                               result.toolCallId ===
@@ -653,7 +645,6 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
                                             status="done"
-                                            actionContext={actionContext}
                                             toolResults={toolResults}
                                             extraBody={
                                                 groupTrace ? (

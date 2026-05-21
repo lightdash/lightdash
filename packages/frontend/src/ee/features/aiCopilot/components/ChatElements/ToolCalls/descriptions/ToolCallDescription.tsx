@@ -23,7 +23,7 @@ import {
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import type { ToolCallActionContext, ToolCallSummary } from '../utils/types';
+import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
@@ -42,28 +42,11 @@ type ContentEditorToolArgs = {
     type?: 'dashboard' | 'chart';
 };
 
-const getToolStatus = (
-    toolCall: ToolCallSummary,
-    toolResult: AiAgentToolResult | undefined,
-) => {
-    const metadata =
-        toolResult?.metadata ??
-        (toolCall.toolOutput as { metadata?: unknown } | undefined)?.metadata;
-
-    if (!metadata || typeof metadata !== 'object' || !('status' in metadata)) {
-        return undefined;
-    }
-
-    const status = (metadata as { status?: unknown }).status;
-    return typeof status === 'string' ? status : undefined;
-};
-
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
-    actionContext?: ToolCallActionContext;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall, actionContext, toolResult }) => {
+}> = ({ toolName, toolCall }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -179,16 +162,10 @@ export const ToolCallDescription: FC<{
             );
         case 'runSql':
             const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
-            const sqlStatus = getToolStatus(toolCall, toolResult);
             return (
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
-                    actionContext={actionContext}
-                    isSuccessful={
-                        sqlStatus === 'success' &&
-                        toolCall.isPreliminary !== true
-                    }
                 />
             );
         case 'readContent':

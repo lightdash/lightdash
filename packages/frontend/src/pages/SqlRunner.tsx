@@ -32,7 +32,6 @@ import {
     setSavedChartData,
     setSidebarOpen,
     setSql,
-    setSqlLimit,
     setState,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
@@ -128,9 +127,6 @@ const SqlRunner = ({
     useEffect(() => {
         if (location.state?.sql) {
             dispatch(setSql(location.state.sql));
-            if (typeof location.state.limit === 'number') {
-                dispatch(setSqlLimit(location.state.limit));
-            }
             // clear the location state - this prevents state from being preserved on page refresh
             void navigate({ ...location }, { replace: true, state: undefined });
         }
