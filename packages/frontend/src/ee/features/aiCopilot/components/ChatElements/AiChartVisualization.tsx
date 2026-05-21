@@ -3,6 +3,7 @@ import {
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
     type AiArtifact,
+    type ToolRunSqlArgs,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -37,6 +38,11 @@ type Props = {
     showCloseButton?: boolean;
 };
 
+type SemanticChartConfig = Exclude<
+    NonNullable<AiArtifact['chartConfig']>,
+    ToolRunSqlArgs
+>;
+
 export const AiChartVisualization: FC<Props> = ({
     artifactData,
     projectUuid,
@@ -52,10 +58,12 @@ export const AiChartVisualization: FC<Props> = ({
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
 
+    const chartConfig = artifactData.chartConfig as SemanticChartConfig | null;
+
     const vizConfig = useMemo(() => {
-        if (!artifactData?.chartConfig) return null;
-        return parseVizConfig(artifactData.chartConfig);
-    }, [artifactData?.chartConfig]);
+        if (!chartConfig) return null;
+        return parseVizConfig(chartConfig);
+    }, [chartConfig]);
 
     const queryExecutionHandle = useAiAgentArtifactVizQuery(
         {
@@ -122,7 +130,7 @@ export const AiChartVisualization: FC<Props> = ({
         );
     }
 
-    if (!queryExecutionHandle.data || !vizConfig) {
+    if (!queryExecutionHandle.data || !vizConfig || !chartConfig) {
         return null;
     }
 
@@ -169,7 +177,7 @@ export const AiChartVisualization: FC<Props> = ({
         <AiVisualizationRenderer
             vizQueryData={queryExecutionHandle.data}
             results={queryResults}
-            chartConfig={artifactData.chartConfig!}
+            chartConfig={chartConfig}
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}

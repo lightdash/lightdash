@@ -33,9 +33,9 @@ import {
     ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
     ApiCreateAiAgent,
+    ApiCreateAiAgentResponse,
     ApiCreateAiAgentSqlChartArtifactRequest,
     ApiCreateAiAgentSqlChartArtifactResponse,
-    ApiCreateAiAgentResponse,
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
@@ -890,7 +890,9 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('201', 'Created')
-    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/sql-chart-artifact')
+    @Post(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/sql-chart-artifact',
+    )
     @OperationId('createSqlChartArtifact')
     async createSqlChartArtifact(
         @Request() req: express.Request,

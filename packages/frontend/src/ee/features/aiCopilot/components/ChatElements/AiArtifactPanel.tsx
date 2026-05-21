@@ -4,8 +4,10 @@ import {
     getWebAiChartConfig,
     parseVizConfig,
     toolRunSqlArgsSchema,
+    type AiArtifact,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
+    type ToolRunSqlArgs,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -48,6 +50,11 @@ type ArtifactRef = {
     messageUuid: string;
     threadUuid: string;
 };
+
+type SemanticChartConfig = Exclude<
+    NonNullable<AiArtifact['chartConfig']>,
+    ToolRunSqlArgs
+>;
 
 type AiArtifactPanelProps = {
     artifact: ArtifactRef;
@@ -107,16 +114,30 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             return parsed.success ? parsed.data : null;
         }, [artifactData?.artifactType, artifactData?.chartConfig]);
 
+        const chartConfig = useMemo<SemanticChartConfig | null>(() => {
+            if (
+                artifactData?.artifactType !== 'chart' ||
+                !artifactData.chartConfig ||
+                sqlChartConfig
+            ) {
+                return null;
+            }
+            return artifactData.chartConfig as SemanticChartConfig;
+        }, [
+            artifactData?.artifactType,
+            artifactData?.chartConfig,
+            sqlChartConfig,
+        ]);
+
         const isFloatingChart =
             variant === 'floating' &&
             artifactData?.artifactType === 'chart' &&
-            !!artifactData.chartConfig &&
-            !sqlChartConfig;
+            !!chartConfig;
 
         const vizConfig = useMemo(() => {
-            if (!isFloatingChart || !artifactData?.chartConfig) return null;
-            return parseVizConfig(artifactData.chartConfig);
-        }, [isFloatingChart, artifactData?.chartConfig]);
+            if (!isFloatingChart || !chartConfig) return null;
+            return parseVizConfig(chartConfig);
+        }, [isFloatingChart, chartConfig]);
 
         const queryExecutionHandle = useAiAgentArtifactVizQuery(
             {
@@ -147,13 +168,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             if (!isFloatingChart) return null;
             if (
                 !queryExecutionHandle.data ||
-                !artifactData?.chartConfig ||
+                !chartConfig ||
                 !queryExecutionHandle.data.query.metricQuery
             ) {
                 return null;
             }
             return getWebAiChartConfig({
-                vizConfig: artifactData.chartConfig,
+                vizConfig: chartConfig,
                 metricQuery: queryExecutionHandle.data.query.metricQuery,
                 maxQueryLimit: health?.query.maxLimit,
                 fieldsMap: queryExecutionHandle.data.query.fields,
@@ -162,7 +183,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         }, [
             isFloatingChart,
             queryExecutionHandle.data,
-            artifactData?.chartConfig,
+            chartConfig,
             health?.query.maxLimit,
             selectedChartType,
         ]);
@@ -355,7 +376,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     <AiVisualizationRenderer
                         vizQueryData={queryExecutionHandle.data}
                         results={queryResults}
-                        chartConfig={artifactData.chartConfig!}
+                        chartConfig={chartConfig!}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                     />

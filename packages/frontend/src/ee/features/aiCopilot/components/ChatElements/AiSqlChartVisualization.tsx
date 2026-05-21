@@ -93,8 +93,10 @@ const SaveSqlArtifactModal: FC<SaveSqlArtifactModalProps> = ({
     const [description, setDescription] = useState(defaultDescription ?? '');
     const [spaceUuid, setSpaceUuid] = useState<string | null>(null);
 
-    const { data: spaces = [], isLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid, true);
+    const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
     const { mutateAsync: createSqlChart, isLoading: isSaving } =
         useCreateSqlChartMutation(projectUuid);
 
@@ -365,11 +367,7 @@ export const AiSqlChartVisualization: FC<AiSqlChartVisualizationProps> = ({
             sqlLimit,
         ],
         queryFn: () =>
-            executeSqlQuery(
-                projectUuid,
-                sqlChartConfig.sql,
-                sqlLimit,
-            ),
+            executeSqlQuery(projectUuid, sqlChartConfig.sql, sqlLimit),
         enabled: !!projectUuid && !!sqlChartConfig.sql,
     });
 

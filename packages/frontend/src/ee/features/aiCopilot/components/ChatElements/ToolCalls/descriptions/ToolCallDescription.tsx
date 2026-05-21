@@ -23,10 +23,7 @@ import {
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import type {
-    ToolCallArtifactContext,
-    ToolCallSummary,
-} from '../utils/types';
+import type { ToolCallArtifactContext, ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';

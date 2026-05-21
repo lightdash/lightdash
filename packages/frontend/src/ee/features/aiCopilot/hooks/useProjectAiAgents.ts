@@ -1355,11 +1355,11 @@ const createAiAgentSqlChartArtifact = async (args: {
     messageUuid: string;
     data: ApiCreateAiAgentSqlChartArtifactRequest;
 }) =>
-    lightdashApi<ApiCreateAiAgentSqlChartArtifactResponse['results']>({
+    lightdashApi({
         url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/messages/${args.messageUuid}/sql-chart-artifact`,
         method: 'POST',
         body: JSON.stringify(args.data),
-    });
+    }) as Promise<ApiCreateAiAgentSqlChartArtifactResponse['results']>;
 
 export const useCreateAiAgentSqlChartArtifact = ({
     projectUuid,

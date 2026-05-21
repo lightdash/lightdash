@@ -2791,14 +2791,11 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const message = await this.aiAgentModel.findThreadMessage(
-            'assistant',
-            {
-                organizationUuid,
-                threadUuid,
-                messageUuid,
-            },
-        );
+        const message = await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
         if (!message) {
             throw new NotFoundError(`Message not found: ${messageUuid}`);
         }
