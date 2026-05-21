@@ -4,6 +4,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
+    DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     ParameterError,
@@ -246,23 +247,26 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
-        case WarehouseTypes.DUCKDB:
-            return {
-                target: {
-                    type: 'duckdb',
-                    path: `md:${credentials.database}`,
-                    schema: credentials.schema,
-                    threads: credentials.threads || DEFAULT_THREADS,
-                    extensions: ['motherduck'],
-                    settings: {
-                        motherduck_token: envVarReference('token'),
+        case WarehouseTypes.DUCKDB: {
+            if (
+                credentials.connectionType === DuckdbConnectionType.MOTHERDUCK
+            ) {
+                return {
+                    target: {
+                        type: 'duckdb',
+                        path: `md:${credentials.database}`,
+                        schema: credentials.schema,
+                        threads: credentials.threads || DEFAULT_THREADS,
+                        extensions: ['motherduck'],
+                        settings: {
+                            motherduck_token: envVarReference('token'),
+                        },
                     },
-                },
-                environment: {
-                    [envVar('token')]: credentials.token,
-                },
-            };
-        case WarehouseTypes.DUCKLAKE: {
+                    environment: {
+                        [envVar('token')]: credentials.token,
+                    },
+                };
+            }
             const alias = credentials.catalogAlias ?? 'ducklake';
             const extensions: string[] = ['ducklake'];
             const environment: Record<string, string> = {};

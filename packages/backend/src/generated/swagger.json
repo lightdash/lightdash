@@ -13388,19 +13388,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -16328,7 +16315,11 @@
                 "enum": ["duckdb"],
                 "type": "string"
             },
-            "Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__": {
+            "DuckdbConnectionType.MOTHERDUCK": {
+                "enum": ["motherduck"],
+                "type": "string"
+            },
+            "Pick_CreateDuckdbMotherduckCredentials.Exclude_keyofCreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
@@ -16356,18 +16347,299 @@
                     },
                     "dataTimezone": {
                         "type": "string"
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.MOTHERDUCK"
                     }
                 },
-                "required": ["type", "database", "schema"],
+                "required": ["type", "database", "schema", "connectionType"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__",
+            "Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbMotherduckCredentials.Exclude_keyofCreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "DuckdbMotherduckCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "DuckdbConnectionType.DUCKLAKE": {
+                "enum": ["ducklake"],
+                "type": "string"
+            },
+            "Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.catalog-or-dataPath__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.DUCKLAKE"
+                    },
+                    "catalogAlias": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "schema", "connectionType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbDucklakeCredentials.catalog-or-dataPath_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.catalog-or-dataPath__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DucklakeCatalogType.POSTGRES": {
+                "enum": ["postgres"],
+                "type": "string"
+            },
+            "Pick_CreateDucklakeCatalogPostgres.Exclude_keyofCreateDucklakeCatalogPostgres.user-or-password__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeCatalogType.POSTGRES"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["type", "database", "host", "port"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDucklakeCatalogPostgres.user-or-password_": {
+                "$ref": "#/components/schemas/Pick_CreateDucklakeCatalogPostgres.Exclude_keyofCreateDucklakeCatalogPostgres.user-or-password__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DucklakeCatalogPostgres": {
+                "$ref": "#/components/schemas/Omit_CreateDucklakeCatalogPostgres.user-or-password_"
+            },
+            "DucklakeCatalogType.SQLITE": {
+                "enum": ["sqlite"],
+                "type": "string"
+            },
+            "CreateDucklakeCatalogSqlite": {
+                "properties": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeCatalogType.SQLITE"
+                    }
+                },
+                "required": ["path", "type"],
+                "type": "object"
+            },
+            "DucklakeCatalogSqlite": {
+                "$ref": "#/components/schemas/CreateDucklakeCatalogSqlite"
+            },
+            "DucklakeCatalogType.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "CreateDucklakeCatalogDuckdb": {
+                "properties": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeCatalogType.DUCKDB"
+                    }
+                },
+                "required": ["path", "type"],
+                "type": "object"
+            },
+            "DucklakeCatalogDuckdb": {
+                "$ref": "#/components/schemas/CreateDucklakeCatalogDuckdb"
+            },
+            "DucklakeCatalog": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DucklakeCatalogPostgres"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DucklakeCatalogSqlite"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DucklakeCatalogDuckdb"
+                    }
+                ]
+            },
+            "DucklakeDataPathType.S3": {
+                "enum": ["s3"],
+                "type": "string"
+            },
+            "Pick_CreateDucklakeDataPathS3.Exclude_keyofCreateDucklakeDataPathS3.accessKeyId-or-secretAccessKey__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.S3"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "endpoint": {
+                        "type": "string"
+                    },
+                    "forcePathStyle": {
+                        "type": "boolean"
+                    },
+                    "useSsl": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type", "url"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDucklakeDataPathS3.accessKeyId-or-secretAccessKey_": {
+                "$ref": "#/components/schemas/Pick_CreateDucklakeDataPathS3.Exclude_keyofCreateDucklakeDataPathS3.accessKeyId-or-secretAccessKey__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DucklakeDataPathS3": {
+                "$ref": "#/components/schemas/Omit_CreateDucklakeDataPathS3.accessKeyId-or-secretAccessKey_"
+            },
+            "DucklakeDataPathType.GCS": {
+                "enum": ["gcs"],
+                "type": "string"
+            },
+            "Pick_CreateDucklakeDataPathGcs.Exclude_keyofCreateDucklakeDataPathGcs.hmacKeyId-or-hmacSecret__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.GCS"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "url"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDucklakeDataPathGcs.hmacKeyId-or-hmacSecret_": {
+                "$ref": "#/components/schemas/Pick_CreateDucklakeDataPathGcs.Exclude_keyofCreateDucklakeDataPathGcs.hmacKeyId-or-hmacSecret__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DucklakeDataPathGcs": {
+                "$ref": "#/components/schemas/Omit_CreateDucklakeDataPathGcs.hmacKeyId-or-hmacSecret_"
+            },
+            "DucklakeDataPathType.AZURE": {
+                "enum": ["azure"],
+                "type": "string"
+            },
+            "Pick_CreateDucklakeDataPathAzure.Exclude_keyofCreateDucklakeDataPathAzure.connectionString-or-accountKey__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.AZURE"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "accountName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "url"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDucklakeDataPathAzure.connectionString-or-accountKey_": {
+                "$ref": "#/components/schemas/Pick_CreateDucklakeDataPathAzure.Exclude_keyofCreateDucklakeDataPathAzure.connectionString-or-accountKey__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DucklakeDataPathAzure": {
+                "$ref": "#/components/schemas/Omit_CreateDucklakeDataPathAzure.connectionString-or-accountKey_"
+            },
+            "DucklakeDataPathType.LOCAL": {
+                "enum": ["local"],
+                "type": "string"
+            },
+            "CreateDucklakeDataPathLocal": {
+                "properties": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.LOCAL"
+                    }
+                },
+                "required": ["path", "type"],
+                "type": "object"
+            },
+            "DucklakeDataPathLocal": {
+                "$ref": "#/components/schemas/CreateDucklakeDataPathLocal"
+            },
+            "DucklakeDataPath": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DucklakeDataPathS3"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DucklakeDataPathGcs"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DucklakeDataPathAzure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DucklakeDataPathLocal"
+                    }
+                ]
+            },
+            "DuckdbDucklakeCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbDucklakeCredentials.catalog-or-dataPath_"
+                    },
+                    {
+                        "properties": {
+                            "dataPath": {
+                                "$ref": "#/components/schemas/DucklakeDataPath"
+                            },
+                            "catalog": {
+                                "$ref": "#/components/schemas/DucklakeCatalog"
+                            }
+                        },
+                        "required": ["dataPath", "catalog"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DuckdbCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_"
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DuckdbMotherduckCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbDucklakeCredentials"
+                    }
+                ]
             },
             "WarehouseCredentials": {
                 "anyOf": [
@@ -17132,7 +17404,7 @@
                 ],
                 "type": "object"
             },
-            "CreateDuckdbCredentials": {
+            "CreateDuckdbMotherduckCredentials": {
                 "properties": {
                     "dataTimezone": {
                         "type": "string"
@@ -17161,12 +17433,209 @@
                     "database": {
                         "type": "string"
                     },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.MOTHERDUCK"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
                     }
                 },
-                "required": ["token", "schema", "database", "type"],
+                "required": [
+                    "token",
+                    "schema",
+                    "database",
+                    "connectionType",
+                    "type"
+                ],
                 "type": "object"
+            },
+            "CreateDucklakeCatalogPostgres": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeCatalogType.POSTGRES"
+                    }
+                },
+                "required": [
+                    "password",
+                    "user",
+                    "database",
+                    "port",
+                    "host",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "CreateDucklakeCatalog": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeCatalogPostgres"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeCatalogSqlite"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeCatalogDuckdb"
+                    }
+                ]
+            },
+            "CreateDucklakeDataPathS3": {
+                "properties": {
+                    "useSsl": {
+                        "type": "boolean"
+                    },
+                    "forcePathStyle": {
+                        "type": "boolean"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "endpoint": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.S3"
+                    }
+                },
+                "required": ["url", "type"],
+                "type": "object"
+            },
+            "CreateDucklakeDataPathGcs": {
+                "properties": {
+                    "hmacSecret": {
+                        "type": "string"
+                    },
+                    "hmacKeyId": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.GCS"
+                    }
+                },
+                "required": ["url", "type"],
+                "type": "object"
+            },
+            "CreateDucklakeDataPathAzure": {
+                "properties": {
+                    "accountKey": {
+                        "type": "string"
+                    },
+                    "accountName": {
+                        "type": "string"
+                    },
+                    "connectionString": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DucklakeDataPathType.AZURE"
+                    }
+                },
+                "required": ["url", "type"],
+                "type": "object"
+            },
+            "CreateDucklakeDataPath": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeDataPathS3"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeDataPathGcs"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeDataPathAzure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDucklakeDataPathLocal"
+                    }
+                ]
+            },
+            "CreateDuckdbDucklakeCredentials": {
+                "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "catalogAlias": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "dataPath": {
+                        "$ref": "#/components/schemas/CreateDucklakeDataPath"
+                    },
+                    "catalog": {
+                        "$ref": "#/components/schemas/CreateDucklakeCatalog"
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.DUCKLAKE"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": [
+                    "schema",
+                    "dataPath",
+                    "catalog",
+                    "connectionType",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "CreateDuckdbCredentials": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDuckdbMotherduckCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDuckdbDucklakeCredentials"
+                    }
+                ]
             },
             "CreateWarehouseCredentials": {
                 "anyOf": [
@@ -18860,7 +19329,7 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateDuckdbCredentials.type-or-token_": {
+            "Pick_CreateDuckdbMotherduckCredentials.type-or-token_": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
@@ -18909,7 +19378,7 @@
                                 "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type-or-token_"
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbMotherduckCredentials.type-or-token_"
                             }
                         ]
                     },
@@ -24933,22 +25402,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -25310,22 +25779,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -34006,7 +34475,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3005.1",
+        "version": "0.3007.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

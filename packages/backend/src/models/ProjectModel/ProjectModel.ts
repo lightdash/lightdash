@@ -13,6 +13,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
@@ -20,6 +21,7 @@ import {
     GroupType,
     IdContentMapping,
     isExploreError,
+    normalizeWarehouseCredentials,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -239,8 +241,10 @@ export class ProjectModel {
         }
         // DuckLake nests secrets inside catalog/dataPath — see stripDucklakeNestedSensitive.
         if (
-            incompleteConfig.type === WarehouseTypes.DUCKLAKE &&
-            completeConfig.type === WarehouseTypes.DUCKLAKE
+            incompleteConfig.type === WarehouseTypes.DUCKDB &&
+            completeConfig.type === WarehouseTypes.DUCKDB &&
+            incompleteConfig.connectionType === DuckdbConnectionType.DUCKLAKE &&
+            completeConfig.connectionType === DuckdbConnectionType.DUCKLAKE
         ) {
             const mergeNested = (
                 incomplete: Record<string, AnyType>,
@@ -985,11 +989,13 @@ export class ProjectModel {
                 }
                 let sensitiveCredentials: CreateWarehouseCredentials;
                 try {
-                    sensitiveCredentials = JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            project.encrypted_credentials,
-                        ),
-                    ) as CreateWarehouseCredentials;
+                    sensitiveCredentials = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                project.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    );
                 } catch (e) {
                     throw new UnexpectedServerError(
                         'Failed to load warehouse credentials',
@@ -1109,11 +1115,13 @@ export class ProjectModel {
         }
 
         try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(
-                    orgCredentials.warehouse_connection,
-                ),
-            ) as CreateWarehouseCredentials;
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        orgCredentials.warehouse_connection,
+                    ),
+                ) as CreateWarehouseCredentials,
+            );
         } catch (e) {
             throw new UnexpectedServerError(
                 'Failed to load organization warehouse credentials',
@@ -1146,7 +1154,9 @@ export class ProjectModel {
         const scrubbedCredentials =
             nonSensitiveCredentials &&
             sensitiveCredentials &&
-            sensitiveCredentials.type === 'ducklake'
+            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
+            sensitiveCredentials.connectionType ===
+                DuckdbConnectionType.DUCKLAKE
                 ? (stripDucklakeNestedSensitive(
                       sensitiveCredentials,
                   ) as WarehouseCredentials)
@@ -2264,10 +2274,11 @@ export class ProjectModel {
         }
 
         try {
-            const credentials = JSON.parse(
-                this.encryptionUtil.decrypt(row.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-            // Store in cache
+            const credentials = normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials,
+            );
             warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;
         } catch (e) {
@@ -2305,9 +2316,11 @@ export class ProjectModel {
 
             let credentials: CreateWarehouseCredentials;
             try {
-                credentials = JSON.parse(
-                    this.encryptionUtil.decrypt(row.encrypted_credentials),
-                ) as CreateWarehouseCredentials;
+                credentials = normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                );
             } catch {
                 return false;
             }
