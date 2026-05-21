@@ -64,6 +64,39 @@ export type AiMcpServer = {
     updatedAt: Date;
 };
 
+export type AiMcpServerTool = {
+    uuid: string;
+    mcpServerUuid: string;
+    toolName: string;
+    title: string | null;
+    description: string | null;
+    inputSchema: unknown;
+    annotations: unknown | null;
+    meta: unknown | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AiMcpServerToolInput = Pick<
+    AiMcpServerTool,
+    | 'toolName'
+    | 'title'
+    | 'description'
+    | 'inputSchema'
+    | 'annotations'
+    | 'meta'
+>;
+
+export type AiAgentMcpServerTool = AiMcpServerTool & {
+    agentUuid: string;
+    enabled: boolean;
+};
+
+export type AiAgentMcpServerToolUpdate = Pick<
+    AiAgentMcpServerTool,
+    'toolName' | 'enabled'
+>;
+
 export type AiAgentIntegration = {
     type: 'slack';
     channelId: string;

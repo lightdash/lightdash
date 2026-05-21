@@ -230,3 +230,61 @@ export type AiAgentMcpServerTable = Knex.CompositeTableType<
         >
     >
 >;
+
+export const AiMcpServerToolTableName = 'ai_mcp_server_tool';
+
+export type DbAiMcpServerTool = {
+    ai_mcp_server_tool_uuid: string;
+    ai_mcp_server_uuid: string;
+    tool_name: string;
+    title: string | null;
+    description: string | null;
+    input_schema: unknown;
+    annotations: unknown | null;
+    meta: unknown | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiMcpServerToolTable = Knex.CompositeTableType<
+    DbAiMcpServerTool,
+    Omit<
+        DbAiMcpServerTool,
+        'ai_mcp_server_tool_uuid' | 'created_at' | 'updated_at'
+    >,
+    Partial<
+        Omit<
+            DbAiMcpServerTool,
+            'ai_mcp_server_tool_uuid' | 'created_at' | 'updated_at'
+        >
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
+
+export const AiAgentMcpServerToolTableName = 'ai_agent_mcp_server_tool';
+
+export type DbAiAgentMcpServerTool = {
+    ai_agent_uuid: string;
+    ai_mcp_server_uuid: string;
+    ai_mcp_server_tool_uuid: string;
+    enabled: boolean;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiAgentMcpServerToolTable = Knex.CompositeTableType<
+    DbAiAgentMcpServerTool,
+    Omit<DbAiAgentMcpServerTool, 'created_at' | 'updated_at'>,
+    Partial<
+        Omit<
+            DbAiAgentMcpServerTool,
+            | 'ai_agent_uuid'
+            | 'ai_mcp_server_uuid'
+            | 'ai_mcp_server_tool_uuid'
+            | 'created_at'
+        >
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
