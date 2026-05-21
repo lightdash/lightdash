@@ -11,6 +11,8 @@ import {
     Button,
     Center,
     Checkbox,
+    Collapse,
+    Divider,
     Group,
     Menu,
     MultiSelect,
@@ -18,7 +20,6 @@ import {
     PasswordInput,
     SegmentedControl,
     Stack,
-    Table,
     Text,
     TextInput,
     Title,
@@ -27,7 +28,10 @@ import { useForm, zodResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
+    IconChevronDown,
+    IconChevronRight,
     IconDots,
+    IconEye,
     IconPlug,
     IconPlugConnected,
     IconTrash,
@@ -39,9 +43,12 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
     useProjectAiMcpServers,
+    useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
     useStartMcpOAuthConnectionMutation,
 } from '../hooks/useProjectAiMcpServers';
+import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
+import { AiMcpServerIcon } from './AiMcpServerIcon';
 
 const CREATE_NEW_MCP_OPTION_VALUE = '__create_new_mcp__';
 
@@ -93,6 +100,22 @@ const getMcpConnectionStatusLabel = (
 };
 
 const getMcpConnectionStatusColor = (
+    connectionStatus: AiMcpServerConnectionStatus | null,
+) => {
+    switch (connectionStatus) {
+        case 'connected':
+            return 'green';
+        case 'connecting':
+            return 'blue';
+        case 'error':
+            return 'red';
+        case 'not_connected':
+        default:
+            return 'gray';
+    }
+};
+
+const getMcpServerIconColor = (
     connectionStatus: AiMcpServerConnectionStatus | null,
 ) => {
     switch (connectionStatus) {
@@ -342,11 +365,52 @@ const AttachMcpServersModal = ({
     );
 };
 
+const McpToolPermissionsSummary = ({
+    agentUuid,
+    isPersistedAttachment,
+    isSavingAgent,
+    mcpServerUuid,
+    projectUuid,
+}: {
+    agentUuid?: string;
+    isPersistedAttachment: boolean;
+    isSavingAgent?: boolean;
+    mcpServerUuid: string;
+    projectUuid: string;
+}) => {
+    const { data } = useAgentAiMcpServerTools(
+        projectUuid,
+        agentUuid,
+        mcpServerUuid,
+        {
+            enabled: !!agentUuid && isPersistedAttachment && !isSavingAgent,
+        },
+    );
+
+    if (!agentUuid || !isPersistedAttachment || isSavingAgent || !data) {
+        return null;
+    }
+
+    const enabledCount = data.filter((tool) => tool.enabled).length;
+
+    return (
+        <Text size="sm" c="dimmed">
+            {enabledCount}/{data.length} enabled
+        </Text>
+    );
+};
+
 export const AiAgentMcpServersInput = ({
+    agentUuid,
+    isSavingAgent = false,
+    persistedMcpServerUuids,
     projectUuid,
     value,
     onChange,
 }: {
+    agentUuid?: string;
+    isSavingAgent?: boolean;
+    persistedMcpServerUuids?: string[];
     projectUuid: string;
     value: string[];
     onChange: (value: string[]) => void;
@@ -356,6 +420,7 @@ export const AiAgentMcpServersInput = ({
     const [isAttachMcpServersModalOpen, attachMcpServersModalHandlers] =
         useDisclosure(false);
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
+    const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
         useProjectAiMcpServers(projectUuid);
     const { mutateAsync: createMcpServer, isLoading: isCreatingMcpServer } =
@@ -489,8 +554,44 @@ export const AiAgentMcpServersInput = ({
             onChange(
                 value.filter((selectedUuid) => selectedUuid !== mcpServerUuid),
             );
+            setExpandedMcpServers((currentExpandedMcpServers) =>
+                currentExpandedMcpServers.filter(
+                    (expandedMcpServerUuid) =>
+                        expandedMcpServerUuid !== mcpServerUuid,
+                ),
+            );
         },
         [onChange, value],
+    );
+
+    const handleToggleExpandedMcpServer = useCallback(
+        (mcpServerUuid: string) => {
+            setExpandedMcpServers((currentExpandedMcpServers) =>
+                currentExpandedMcpServers.includes(mcpServerUuid)
+                    ? currentExpandedMcpServers.filter(
+                          (expandedMcpServerUuid) =>
+                              expandedMcpServerUuid !== mcpServerUuid,
+                      )
+                    : [...currentExpandedMcpServers, mcpServerUuid],
+            );
+        },
+        [],
+    );
+
+    const handleSetExpandedMcpServer = useCallback(
+        (mcpServerUuid: string, expanded: boolean) => {
+            setExpandedMcpServers((currentExpandedMcpServers) =>
+                expanded
+                    ? currentExpandedMcpServers.includes(mcpServerUuid)
+                        ? currentExpandedMcpServers
+                        : [...currentExpandedMcpServers, mcpServerUuid]
+                    : currentExpandedMcpServers.filter(
+                          (expandedMcpServerUuid) =>
+                              expandedMcpServerUuid !== mcpServerUuid,
+                      ),
+            );
+        },
+        [],
     );
 
     const renderMcpServerActionMenu = useCallback(
@@ -498,6 +599,7 @@ export const AiAgentMcpServersInput = ({
             mcpServer: AiMcpServer,
             connectionStatus: AiMcpServerConnectionStatus | null,
             isConnecting: boolean,
+            isExpanded: boolean,
         ) => {
             return (
                 <Menu
@@ -508,17 +610,37 @@ export const AiAgentMcpServersInput = ({
                     width={220}
                 >
                     <Menu.Target>
-                        <ActionIcon variant="subtle" color="gray">
+                        <ActionIcon
+                            type="button"
+                            variant="subtle"
+                            color="gray"
+                            onClick={(event) => event.stopPropagation()}
+                        >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
+                        <Menu.Item
+                            type="button"
+                            leftSection={<MantineIcon icon={IconEye} />}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                handleSetExpandedMcpServer(
+                                    mcpServer.uuid,
+                                    !isExpanded,
+                                );
+                            }}
+                        >
+                            {isExpanded ? 'Hide tools' : 'View tools'}
+                        </Menu.Item>
                         {mcpServer.authType === 'oauth' && (
                             <Menu.Item
+                                type="button"
                                 leftSection={
                                     <MantineIcon icon={IconPlugConnected} />
                                 }
-                                onClick={() => {
+                                onClick={(event) => {
+                                    event.stopPropagation();
                                     void handleStartMcpOAuthConnection(
                                         mcpServer.uuid,
                                     );
@@ -534,10 +656,12 @@ export const AiAgentMcpServersInput = ({
                             </Menu.Item>
                         )}
                         <Menu.Item
+                            type="button"
                             leftSection={<MantineIcon icon={IconTrash} />}
-                            onClick={() =>
-                                handleRemoveMcpServer(mcpServer.uuid)
-                            }
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                handleRemoveMcpServer(mcpServer.uuid);
+                            }}
                             disabled={isConnecting}
                             color="red"
                         >
@@ -547,7 +671,11 @@ export const AiAgentMcpServersInput = ({
                 </Menu>
             );
         },
-        [handleRemoveMcpServer, handleStartMcpOAuthConnection],
+        [
+            handleRemoveMcpServer,
+            handleSetExpandedMcpServer,
+            handleStartMcpOAuthConnection,
+        ],
     );
 
     return (
@@ -598,102 +726,176 @@ export const AiAgentMcpServersInput = ({
                         </Center>
                     )}
                     {selectedMcpServers.length > 0 && (
-                        <Table.ScrollContainer minWidth={560}>
-                            <Table
-                                highlightOnHover
-                                withTableBorder
-                                withColumnBorders={false}
-                                verticalSpacing="sm"
-                                style={{
-                                    borderRadius: 'var(--mantine-radius-md)',
-                                    overflow: 'hidden',
-                                }}
-                            >
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Name</Table.Th>
-                                        <Table.Th w={140}>Type</Table.Th>
-                                        <Table.Th w={160}>Status</Table.Th>
-                                        <Table.Th w={56} />
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {selectedMcpServers.map((mcpServer) => {
-                                        const isConnecting =
-                                            mcpServer.authType === 'oauth' &&
-                                            isStartingMcpOAuthConnection &&
-                                            startingMcpOAuthConnection?.mcpServerUuid ===
-                                                mcpServer.uuid;
-                                        const connectionStatus = isConnecting
-                                            ? 'connecting'
-                                            : mcpServer.connectionStatus;
+                        <Stack gap="sm">
+                            {selectedMcpServers.map((mcpServer) => {
+                                const isConnecting =
+                                    mcpServer.authType === 'oauth' &&
+                                    isStartingMcpOAuthConnection &&
+                                    startingMcpOAuthConnection?.mcpServerUuid ===
+                                        mcpServer.uuid;
+                                const connectionStatus = isConnecting
+                                    ? 'connecting'
+                                    : mcpServer.connectionStatus;
+                                const isExpanded = expandedMcpServers.includes(
+                                    mcpServer.uuid,
+                                );
+                                const isPersistedAttachment =
+                                    persistedMcpServerUuids?.includes(
+                                        mcpServer.uuid,
+                                    ) ?? false;
 
-                                        return (
-                                            <Table.Tr key={mcpServer.uuid}>
-                                                <Table.Td>
-                                                    <Stack gap={2}>
-                                                        <Text fw={600}>
-                                                            {mcpServer.name}
-                                                        </Text>
+                                return (
+                                    <Paper
+                                        key={mcpServer.uuid}
+                                        withBorder
+                                        radius="md"
+                                        p={0}
+                                        style={{ overflow: 'hidden' }}
+                                    >
+                                        <Group
+                                            justify="space-between"
+                                            align="flex-start"
+                                            gap="md"
+                                            px="md"
+                                            py="md"
+                                        >
+                                            <Group gap="sm" align="flex-start">
+                                                <AiMcpServerIcon
+                                                    color={getMcpServerIconColor(
+                                                        connectionStatus,
+                                                    )}
+                                                    name={mcpServer.name}
+                                                    size={40}
+                                                    url={mcpServer.url}
+                                                />
+                                                <Stack gap={2}>
+                                                    <Text fw={600}>
+                                                        {mcpServer.name}
+                                                    </Text>
+                                                    <Text size="sm" c="dimmed">
+                                                        {mcpServer.url}
+                                                    </Text>
+                                                    {mcpServer.error && (
                                                         <Text
                                                             size="xs"
-                                                            c="dimmed"
+                                                            c="red.7"
                                                         >
-                                                            {mcpServer.url}
+                                                            {mcpServer.error}
                                                         </Text>
-                                                        {mcpServer.error && (
-                                                            <Text
-                                                                size="xs"
-                                                                c="red.7"
-                                                            >
-                                                                {
-                                                                    mcpServer.error
-                                                                }
-                                                            </Text>
-                                                        )}
-                                                    </Stack>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Text
-                                                        fw={450}
-                                                        c="ldDark.9"
+                                                    )}
+                                                </Stack>
+                                            </Group>
+                                            <Group
+                                                gap="xs"
+                                                align="center"
+                                                wrap="nowrap"
+                                            >
+                                                <Badge
+                                                    variant="default"
+                                                    color="gray"
+                                                >
+                                                    {getMcpAuthTypeLabel(
+                                                        mcpServer.authType,
+                                                    )}
+                                                </Badge>
+                                                <Badge
+                                                    variant="light"
+                                                    color={getMcpConnectionStatusColor(
+                                                        connectionStatus,
+                                                    )}
+                                                >
+                                                    {getMcpConnectionStatusLabel(
+                                                        connectionStatus,
+                                                    )}
+                                                </Badge>
+                                                {renderMcpServerActionMenu(
+                                                    mcpServer,
+                                                    connectionStatus,
+                                                    isConnecting,
+                                                    isExpanded,
+                                                )}
+                                            </Group>
+                                        </Group>
+                                        <Divider />
+                                        <Box
+                                            component="button"
+                                            type="button"
+                                            onClick={() =>
+                                                handleToggleExpandedMcpServer(
+                                                    mcpServer.uuid,
+                                                )
+                                            }
+                                            px="md"
+                                            py="sm"
+                                            style={{
+                                                width: '100%',
+                                                background: 'transparent',
+                                                border: 0,
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <Group
+                                                justify="space-between"
+                                                gap="sm"
+                                            >
+                                                <Group gap="xs" wrap="nowrap">
+                                                    <MantineIcon
+                                                        icon={
+                                                            isExpanded
+                                                                ? IconChevronDown
+                                                                : IconChevronRight
+                                                        }
+                                                        color="var(--mantine-color-dimmed)"
                                                         size="sm"
-                                                    >
-                                                        {getMcpAuthTypeLabel(
-                                                            mcpServer.authType,
-                                                        )}
+                                                    />
+                                                    <Text size="sm" fw={500}>
+                                                        Tool permissions
                                                     </Text>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Badge
-                                                        variant="light"
-                                                        color={getMcpConnectionStatusColor(
-                                                            connectionStatus,
-                                                        )}
-                                                    >
-                                                        {getMcpConnectionStatusLabel(
-                                                            connectionStatus,
-                                                        )}
-                                                    </Badge>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Group
-                                                        justify="flex-end"
-                                                        wrap="nowrap"
-                                                    >
-                                                        {renderMcpServerActionMenu(
-                                                            mcpServer,
-                                                            connectionStatus,
-                                                            isConnecting,
-                                                        )}
-                                                    </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        );
-                                    })}
-                                </Table.Tbody>
-                            </Table>
-                        </Table.ScrollContainer>
+                                                    <McpToolPermissionsSummary
+                                                        agentUuid={agentUuid}
+                                                        isPersistedAttachment={
+                                                            isPersistedAttachment
+                                                        }
+                                                        isSavingAgent={
+                                                            isSavingAgent
+                                                        }
+                                                        mcpServerUuid={
+                                                            mcpServer.uuid
+                                                        }
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                    />
+                                                </Group>
+                                                <Text size="sm" c="dimmed">
+                                                    {isExpanded
+                                                        ? 'Hide'
+                                                        : 'View'}
+                                                </Text>
+                                            </Group>
+                                        </Box>
+                                        <Collapse in={isExpanded}>
+                                            <Divider />
+                                            <Box px="md" py="sm">
+                                                <AiAgentMcpServerToolsPanel
+                                                    agentUuid={agentUuid}
+                                                    isSavingAgent={
+                                                        isSavingAgent
+                                                    }
+                                                    opened={isExpanded}
+                                                    projectUuid={projectUuid}
+                                                    mcpServer={mcpServer}
+                                                    isPersistedAttachment={
+                                                        isPersistedAttachment
+                                                    }
+                                                    showHeader={false}
+                                                />
+                                            </Box>
+                                        </Collapse>
+                                    </Paper>
+                                );
+                            })}
+                        </Stack>
                     )}
                 </Stack>
             </Paper>

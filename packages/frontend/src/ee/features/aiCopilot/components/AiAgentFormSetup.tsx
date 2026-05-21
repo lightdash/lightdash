@@ -79,11 +79,15 @@ export const AiAgentFormSetup = ({
     form,
     projectUuid,
     agentUuid,
+    isSavingAgent,
+    persistedMcpServerUuids,
 }: {
     mode: 'create' | 'edit';
     form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
     projectUuid: string;
-    agentUuid: string;
+    agentUuid?: string;
+    isSavingAgent?: boolean;
+    persistedMcpServerUuids?: string[];
 }) => {
     const { data: project } = useProject(projectUuid);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
@@ -281,10 +285,12 @@ export const AiAgentFormSetup = ({
                                     they work.
                                 </Text>
                             </Stack>
-                            <AiAgentKnowledgeFilesSection
-                                agentUuid={agentUuid}
-                                projectUuid={projectUuid}
-                            />
+                            {agentUuid && (
+                                <AiAgentKnowledgeFilesSection
+                                    agentUuid={agentUuid}
+                                    projectUuid={projectUuid}
+                                />
+                            )}
                             <Stack gap="sm">
                                 <Box>
                                     <Title
@@ -402,6 +408,9 @@ export const AiAgentFormSetup = ({
                     </Paper>
 
                     <AiAgentMcpServersInput
+                        agentUuid={agentUuid}
+                        isSavingAgent={isSavingAgent}
+                        persistedMcpServerUuids={persistedMcpServerUuids}
                         projectUuid={projectUuid}
                         value={form.values.mcpServerUuids}
                         onChange={(value) => {
