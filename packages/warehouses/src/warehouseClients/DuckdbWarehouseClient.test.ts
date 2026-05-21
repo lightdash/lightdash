@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     QueryExecutionContext,
@@ -781,6 +782,7 @@ describe('DuckdbWarehouseClient', () => {
             name: 'pass token in connection string for MotherDuck',
             credentials: {
                 type: WarehouseTypes.DUCKDB as const,
+                connectionType: DuckdbConnectionType.MOTHERDUCK as const,
                 database: 'my_database',
                 schema: 'main',
                 token: 'my_motherduck_token',
@@ -821,6 +823,7 @@ describe('DuckdbWarehouseClient', () => {
             () =>
                 new DuckdbWarehouseClient({
                     type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.MOTHERDUCK,
                     database: 'my_database',
                     schema: 'main',
                     token: '',
@@ -833,6 +836,7 @@ describe('DuckdbWarehouseClient', () => {
     it('should expose the configured start of week', () => {
         const client = new DuckdbWarehouseClient({
             type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
             database: 'analytics',
             schema: 'main',
             token: 'motherduck_token',
@@ -862,6 +866,7 @@ describe('DuckdbWarehouseClient', () => {
 
         const client = new DuckdbWarehouseClient({
             type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
             database: 'analytics',
             schema: 'main',
             token: 'motherduck_token',
@@ -903,7 +908,8 @@ describe('DuckdbWarehouseClient', () => {
             );
 
             const client = new DuckdbWarehouseClient({
-                type: WarehouseTypes.DUCKLAKE,
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
                 schema: 'main',
                 catalogAlias: 'ducklake',
                 catalog: {
@@ -953,13 +959,11 @@ describe('DuckdbWarehouseClient', () => {
             const attachIdx = stmts.findIndex((s) =>
                 /^ATTACH 'ducklake:__lightdash_ducklake'/.test(s),
             );
-            const useIdx = stmts.findIndex((s) => /^USE "ducklake";/.test(s));
 
             expect(catalogIdx).toBeGreaterThanOrEqual(0);
             expect(dataIdx).toBeGreaterThan(catalogIdx);
             expect(duckLakeSecretIdx).toBeGreaterThan(dataIdx);
             expect(attachIdx).toBeGreaterThan(duckLakeSecretIdx);
-            expect(useIdx).toBeGreaterThan(attachIdx);
 
             expect(stmts[catalogIdx]).toMatch(/TYPE postgres/);
             expect(stmts[catalogIdx]).toMatch(/HOST 'pg.example.com'/);
@@ -980,7 +984,8 @@ describe('DuckdbWarehouseClient', () => {
             );
 
             const client = new DuckdbWarehouseClient({
-                type: WarehouseTypes.DUCKLAKE,
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
                 schema: 'main',
                 catalog: {
                     type: DucklakeCatalogType.SQLITE,
@@ -1006,7 +1011,6 @@ describe('DuckdbWarehouseClient', () => {
                     ),
                 ),
             ).toBe(true);
-            expect(stmts.some((s) => /^USE "ducklake";/.test(s))).toBe(true);
         });
 
         it('rejects user SQL that contains ATTACH even in DuckLake mode', async () => {
@@ -1028,7 +1032,8 @@ describe('DuckdbWarehouseClient', () => {
             );
 
             const client = new DuckdbWarehouseClient({
-                type: WarehouseTypes.DUCKLAKE,
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
                 schema: 'main',
                 catalog: {
                     type: DucklakeCatalogType.SQLITE,

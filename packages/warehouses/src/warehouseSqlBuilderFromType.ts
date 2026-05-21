@@ -1,7 +1,6 @@
 import {
     isSupportedDbtAdapterType,
     SupportedDbtAdapter,
-    WarehouseTypes,
 } from '@lightdash/common';
 import { AthenaSqlBuilder } from './warehouseClients/AthenaWarehouseClient';
 import { BigquerySqlBuilder } from './warehouseClients/BigqueryWarehouseClient';
@@ -18,12 +17,7 @@ export const warehouseSqlBuilderFromType = (
     adapterType: string | SupportedDbtAdapter,
     ...args: ConstructorParameters<typeof WarehouseBaseSqlBuilder>
 ) => {
-    const normalizedAdapterType =
-        adapterType === WarehouseTypes.DUCKLAKE
-            ? SupportedDbtAdapter.DUCKDB
-            : adapterType;
-
-    if (!isSupportedDbtAdapterType(normalizedAdapterType)) {
+    if (!isSupportedDbtAdapterType(adapterType)) {
         throw new Error(
             `Invalid adapter type: ${adapterType}. Must be one of: ${Object.values(
                 SupportedDbtAdapter,
@@ -31,7 +25,7 @@ export const warehouseSqlBuilderFromType = (
         );
     }
 
-    switch (normalizedAdapterType) {
+    switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
             return new BigquerySqlBuilder(...args);
         case SupportedDbtAdapter.CLICKHOUSE:
@@ -53,7 +47,7 @@ export const warehouseSqlBuilderFromType = (
         case SupportedDbtAdapter.SPARK:
             return new DatabricksSqlBuilder(...args);
         default:
-            const never: never = normalizedAdapterType;
+            const never: never = adapterType;
             throw new Error(`Unsupported adapter type: ${adapterType}`);
     }
 };
