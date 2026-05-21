@@ -476,8 +476,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags?: Record<string, string>;
         },
     ) {
-        // MULTI_STATEMENT routes through Snowflake's stored-procedure path and resumes the warehouse, so send each statement individually to keep ALTER SESSION on the cloud-services layer.
         if (this.connectionOptions.warehouse) {
+            // eslint-disable-next-line no-console
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
@@ -491,7 +491,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         const startOfWeek = this.getStartOfWeek();
         if (isWeekDay(startOfWeek)) {
-            const snowflakeStartOfWeekIndex = startOfWeek + 1; // 1 (Monday) to 7 (Sunday)
+            const snowflakeStartOfWeekIndex = startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
             sessionParams.push(`WEEK_START = ${snowflakeStartOfWeekIndex}`);
         }
 
@@ -503,12 +503,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
         sessionParams.push(`TIMEZONE = '${timezoneQuery}'`);
 
-        // Force FALSE to avoid casing inconsistencies between Snowflake and Lightdash.
+        /**
+         * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
+         * between Snowflake <> Lightdash
+         */
         console.debug(
             'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
         );
         sessionParams.push(`QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`);
 
+        // Default timeout to 300 seconds if not specified
         const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
         console.debug(
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
