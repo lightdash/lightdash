@@ -400,9 +400,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Box pt="sm" pr="sm">
                             <AiAgentFormSetup
                                 mode={isCreateMode ? 'create' : 'edit'}
-                                agentUuid={actualAgentUuid!}
+                                agentUuid={actualAgentUuid}
                                 form={form}
                                 projectUuid={projectUuid!}
+                                isSavingAgent={isUpdatingAgent}
+                                persistedMcpServerUuids={agentMcpServers?.map(
+                                    (mcpServer) => mcpServer.uuid,
+                                )}
                             />
                         </Box>
                     )}
