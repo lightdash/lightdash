@@ -148,7 +148,7 @@ export const useCreateOrganizationDesign = () => {
 };
 
 export const useUpdateOrganizationDesign = () => {
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesign,
@@ -162,7 +162,6 @@ export const useUpdateOrganizationDesign = () => {
                 ORG_DESIGN_QUERY_KEY,
                 designUuid,
             ]);
-            showToastSuccess({ title: 'Theme updated successfully' });
         },
         onError: ({ error }) => {
             showToastApiError({

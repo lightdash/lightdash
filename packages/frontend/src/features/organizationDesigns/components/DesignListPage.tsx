@@ -3,17 +3,18 @@ import {
     ActionIcon,
     Badge,
     Button,
-    Card,
     Group,
     Menu,
+    Paper,
     Skeleton,
     Stack,
+    Table,
     Text,
     Title,
 } from '@mantine-8/core';
 import {
     IconCheck,
-    IconDotsVertical,
+    IconDots,
     IconPencil,
     IconPlus,
     IconTrash,
@@ -22,6 +23,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useApp from '../../../providers/App/useApp';
 import {
     useDeleteOrganizationDesign,
@@ -32,18 +34,18 @@ import { CreateDesignModal } from './CreateDesignModal';
 import { DeleteDesignModal } from './DeleteDesignModal';
 import { DesignDetailPanel } from './DesignDetailPanel';
 
-const DesignCard: FC<{
+const DesignRow: FC<{
     design: ApiOrganizationDesign;
     onOpenDetail: () => void;
     onSetDefault: () => void;
     onDelete: () => void;
     settingDefault: boolean;
 }> = ({ design, onOpenDetail, onSetDefault, onDelete, settingDefault }) => (
-    <Card withBorder padding="md" radius="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+    <Table.Tr>
+        <Table.Td>
+            <Stack gap="xxs" align="flex-start">
                 <Group gap="xs" wrap="nowrap">
-                    <Text fw={600} truncate>
+                    <Text fw={600} fz="sm">
                         {design.name}
                     </Text>
                     {design.isDefault && (
@@ -59,58 +61,59 @@ const DesignCard: FC<{
                     )}
                 </Group>
                 {design.description && (
-                    <Text size="sm" c="ldGray.6" lineClamp={2}>
+                    <Text size="xs" c="ldGray.6" lineClamp={2}>
                         {design.description}
                     </Text>
                 )}
-                <Text size="xs" c="ldGray.6">
-                    {design.files.length}{' '}
-                    {design.files.length === 1 ? 'file' : 'files'}
-                </Text>
             </Stack>
-
-            <Group gap="xs" wrap="nowrap">
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={onOpenDetail}
-                >
-                    Edit
-                </Button>
-                <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="More actions"
-                        >
-                            <MantineIcon icon={IconDotsVertical} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item
-                            disabled={design.isDefault || settingDefault}
-                            leftSection={<MantineIcon icon={IconCheck} />}
-                            onClick={onSetDefault}
-                        >
-                            Set as default
-                        </Menu.Item>
-                        <Menu.Item
-                            color="red"
-                            leftSection={<MantineIcon icon={IconTrash} />}
-                            onClick={onDelete}
-                        >
-                            Delete
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            </Group>
-        </Group>
-    </Card>
+        </Table.Td>
+        <Table.Td>
+            <Text fz="sm" c="ldGray.6">
+                {design.files.length}{' '}
+                {design.files.length === 1 ? 'file' : 'files'}
+            </Text>
+        </Table.Td>
+        <Table.Td w="1%">
+            <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                    <ActionIcon
+                        variant="transparent"
+                        size="sm"
+                        color="ldGray.6"
+                        aria-label="More actions"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={onOpenDetail}
+                    >
+                        Edit
+                    </Menu.Item>
+                    <Menu.Item
+                        disabled={design.isDefault || settingDefault}
+                        leftSection={<MantineIcon icon={IconCheck} />}
+                        onClick={onSetDefault}
+                    >
+                        Set as default
+                    </Menu.Item>
+                    <Menu.Item
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={onDelete}
+                    >
+                        Delete
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
+        </Table.Td>
+    </Table.Tr>
 );
 
 const DesignListPage: FC = () => {
+    const { cx, classes } = useTableStyles();
     const {
         user: { data: user },
     } = useApp();
@@ -157,26 +160,50 @@ const DesignListPage: FC = () => {
 
                     {isInitialLoading ? (
                         <Stack gap="xs">
-                            <Skeleton height={64} />
-                            <Skeleton height={64} />
+                            <Skeleton height={48} />
+                            <Skeleton height={48} />
                         </Stack>
                     ) : designs.length === 0 ? null : (
-                        <Stack gap="xs">
-                            {designs.map((design) => (
-                                <DesignCard
-                                    key={design.designUuid}
-                                    design={design}
-                                    onOpenDetail={() =>
-                                        setActiveDetailUuid(design.designUuid)
-                                    }
-                                    onSetDefault={() =>
-                                        setDefault.mutate(design.designUuid)
-                                    }
-                                    onDelete={() => setDesignToDelete(design)}
-                                    settingDefault={setDefault.isLoading}
-                                />
-                            ))}
-                        </Stack>
+                        <Paper withBorder style={{ overflow: 'hidden' }}>
+                            <Table
+                                className={cx(
+                                    classes.root,
+                                    classes.alignLastTdRight,
+                                )}
+                            >
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th w={500}>Theme</Table.Th>
+                                        <Table.Th>Files</Table.Th>
+                                        <Table.Th />
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {designs.map((design) => (
+                                        <DesignRow
+                                            key={design.designUuid}
+                                            design={design}
+                                            onOpenDetail={() =>
+                                                setActiveDetailUuid(
+                                                    design.designUuid,
+                                                )
+                                            }
+                                            onSetDefault={() =>
+                                                setDefault.mutate(
+                                                    design.designUuid,
+                                                )
+                                            }
+                                            onDelete={() =>
+                                                setDesignToDelete(design)
+                                            }
+                                            settingDefault={
+                                                setDefault.isLoading
+                                            }
+                                        />
+                                    ))}
+                                </Table.Tbody>
+                            </Table>
+                        </Paper>
                     )}
                 </Stack>
             </SettingsCard>
@@ -208,7 +235,9 @@ const DesignListPage: FC = () => {
                 onClose={() => setActiveDetailUuid(null)}
                 title="Edit theme"
                 size="xl"
-                cancelLabel="Close"
+                cancelLabel={false}
+                onConfirm={() => setActiveDetailUuid(null)}
+                confirmLabel="Done"
             >
                 {activeDetailUuid !== null && (
                     <DesignDetailPanel designUuid={activeDetailUuid} />
