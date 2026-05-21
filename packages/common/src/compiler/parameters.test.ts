@@ -99,6 +99,129 @@ describe('getParameterReferences', () => {
         });
     });
 
+    describe('Liquid template references', () => {
+        it('should extract parameters from {% if %} liquid tags', () => {
+            const sql =
+                '{% if ld.parameters.source_schema == "jaffle" %}jaffle.orders{% else %}public.orders{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['source_schema']);
+        });
+
+        it('should extract parameters from {% elsif %} branches', () => {
+            const sql =
+                '{% if ld.parameters.grain == "day" %}d' +
+                '{% elsif ld.parameters.fallback == "week" %}w' +
+                '{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toContain('grain');
+            expect(result).toContain('fallback');
+            expect(result.length).toBe(2);
+        });
+
+        it('should extract parameters from {% case %} / {% when %} blocks', () => {
+            const sql =
+                '{% case ld.parameters.region %}{% when "EU" %}eu{% when "US" %}us{% endcase %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['region']);
+        });
+
+        it('should extract parameters from {% assign %} tags', () => {
+            const sql = '{% assign foo = ld.parameters.bar %}SELECT {{ foo }}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['bar']);
+        });
+
+        it('should extract parameters used with liquid operators (contains)', () => {
+            const sql =
+                '{% if ld.parameters.tags contains "premium" %}premium{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['tags']);
+        });
+
+        it('should extract parameters from lightdash.parameters in liquid tags', () => {
+            const sql =
+                '{% if lightdash.parameters.grain == "day" %}day{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['grain']);
+        });
+
+        it('should extract model-scoped parameters from liquid tags', () => {
+            const sql =
+                '{% if ld.parameters.orders.status == "active" %}active{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['orders.status']);
+        });
+
+        it('should NOT detect ld.query.fields as a parameter', () => {
+            const sql =
+                '{% if ld.query.fields contains "orders.id" %}has_id{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual([]);
+        });
+
+        it('should extract both ${} and liquid-bare references in the same string', () => {
+            const sql =
+                '{% if ld.parameters.region == "EU" %}SELECT * FROM eu_orders{% else %}SELECT * FROM ${ld.parameters.fallback_table}{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toContain('region');
+            expect(result).toContain('fallback_table');
+            expect(result.length).toBe(2);
+        });
+
+        it('should accept multiple sources and dedupe', () => {
+            const sql = '${ld.parameters.x}';
+            const format = '${ld.parameters.x}${ld.parameters.y}';
+            const result = getParameterReferences(sql, format);
+            expect(result).toContain('x');
+            expect(result).toContain('y');
+            expect(result.length).toBe(2);
+        });
+
+        it('should ignore undefined sources', () => {
+            const result = getParameterReferences(
+                '${ld.parameters.x}',
+                undefined,
+            );
+            expect(result).toEqual(['x']);
+        });
+    });
+
+    describe('Negative cases — false-positive guards', () => {
+        it('should not match bare ld.parameters.X when no liquid tags are present', () => {
+            // Without {%, the broad scan never fires — only ${...} is matched.
+            const sql =
+                'SELECT * FROM tbl -- ld.parameters.fake_ref in a comment';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual([]);
+        });
+
+        it('should not match suffixed identifiers like myld.parameters.x in liquid SQL', () => {
+            // Left boundary in the broad regex prevents matching after a word/dot char.
+            const sql =
+                '{% if ld.parameters.real == 1 %}SELECT myld.parameters.fake{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['real']);
+        });
+
+        it('should not match if the left boundary is another dot (e.g. table.ld.parameters.x)', () => {
+            const sql =
+                '{% if ld.parameters.real == 1 %}SELECT t.ld.parameters.fake{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toEqual(['real']);
+        });
+
+        it('limitation: a quoted SQL identifier "ld.parameters.fake" inside liquid SQL IS still matched', () => {
+            // Documented behavior: column names with literal `ld.parameters.X` are
+            // exceedingly rare (warehouses require quoting for dots in identifiers)
+            // and a false-positive in detection is harmless (UI shows extra param).
+            const sql =
+                'SELECT "ld.parameters.fake" FROM t WHERE {% if ld.parameters.real %}1{% endif %}';
+            const result = getParameterReferences(sql);
+            expect(result).toContain('real');
+            expect(result).toContain('fake');
+        });
+    });
+
     describe('Edge cases and validation', () => {
         it('should return empty array when no parameter references exist', () => {
             const sql = 'SELECT * FROM users WHERE status = "active"';
