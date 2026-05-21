@@ -73,7 +73,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
-import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
+import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import AppIframePreview, {
@@ -1496,34 +1496,44 @@ const AppGenerate: FC = () => {
                                                             >
                                                                 {msg.charts.map(
                                                                     (chart) => (
-                                                                        <Group
+                                                                        <Box
                                                                             key={
                                                                                 chart.uuid
                                                                             }
-                                                                            gap="xs"
-                                                                            wrap="nowrap"
                                                                             className={
                                                                                 classes.bubbleQueryItem
                                                                             }
                                                                         >
-                                                                            <ChartIcon
-                                                                                chartKind={
-                                                                                    chart.chartKind ??
-                                                                                    ChartKind.VERTICAL_BAR
+                                                                            <Box
+                                                                                className={
+                                                                                    classes.bubbleQueryItemIcon
                                                                                 }
-                                                                            />
+                                                                            >
+                                                                                <MantineIcon
+                                                                                    icon={getChartIcon(
+                                                                                        chart.chartKind ??
+                                                                                            ChartKind.VERTICAL_BAR,
+                                                                                    )}
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    color="blue.6"
+                                                                                />
+                                                                            </Box>
                                                                             <Text
-                                                                                size="xs"
                                                                                 fw={
                                                                                     500
                                                                                 }
                                                                                 truncate
+                                                                                className={
+                                                                                    classes.bubbleQueryItemName
+                                                                                }
                                                                             >
                                                                                 {
                                                                                     chart.name
                                                                                 }
                                                                             </Text>
-                                                                        </Group>
+                                                                        </Box>
                                                                     ),
                                                                 )}
                                                             </Box>
@@ -1535,29 +1545,38 @@ const AppGenerate: FC = () => {
                                                                     classes.bubbleQueryList
                                                                 }
                                                             >
-                                                                <Group
-                                                                    gap="xs"
-                                                                    wrap="nowrap"
+                                                                <Box
                                                                     className={
                                                                         classes.bubbleQueryItem
                                                                     }
                                                                 >
-                                                                    <IconBox
-                                                                        icon={
-                                                                            IconLayoutDashboard
+                                                                    <Box
+                                                                        className={
+                                                                            classes.bubbleQueryItemIcon
                                                                         }
-                                                                        color="green.6"
-                                                                    />
+                                                                    >
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconLayoutDashboard
+                                                                            }
+                                                                            size={
+                                                                                12
+                                                                            }
+                                                                            color="green.6"
+                                                                        />
+                                                                    </Box>
                                                                     <Text
-                                                                        size="xs"
                                                                         fw={500}
                                                                         truncate
+                                                                        className={
+                                                                            classes.bubbleQueryItemName
+                                                                        }
                                                                     >
                                                                         {
                                                                             msg.dashboardName
                                                                         }
                                                                     </Text>
-                                                                </Group>
+                                                                </Box>
                                                             </Box>
                                                         )}
                                                         {msg.clarifications
