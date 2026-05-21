@@ -53,6 +53,7 @@ export type AiMcpServer = {
     projectUuid: string;
     name: string;
     url: string;
+    iconUrl: string | null;
     authType: AiMcpServerAuthType;
     hasCredentials: boolean;
     credentialScope: AiMcpCredentialScope | null;
@@ -445,6 +446,11 @@ export type AiAgentMcpToolName = string;
 export type AiAgentToolType = 'built-in' | 'mcp';
 export type AiAgentToolName = ToolName | AiAgentMcpToolName;
 
+export type AiAgentToolCallMcpServer = Pick<
+    AiMcpServer,
+    'uuid' | 'name' | 'iconUrl'
+>;
+
 export const isAiAgentMcpToolName = (
     toolName: string,
 ): toolName is AiAgentMcpToolName => toolName.startsWith('mcp_');
@@ -474,6 +480,7 @@ export type AiAgentToolCall = AiAgentBaseToolCall &
         | {
               toolType: 'mcp';
               toolName: AiAgentMcpToolName;
+              mcpServer: AiAgentToolCallMcpServer | null;
           }
     );
 

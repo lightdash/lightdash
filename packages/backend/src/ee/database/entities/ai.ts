@@ -180,6 +180,7 @@ export type DbAiAgentToolCall = {
     tool_call_id: string;
     tool_name: string;
     tool_args: object;
+    ai_mcp_server_uuid: string | null;
     parent_tool_call_id: string | null;
     created_at: Date;
 };
@@ -192,6 +193,7 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
         | 'tool_call_id'
         | 'tool_name'
         | 'tool_args'
+        | 'ai_mcp_server_uuid'
         | 'parent_tool_call_id'
     >,
     never

@@ -1988,20 +1988,23 @@ export class AiAgentService extends BaseService {
                   }
                 : null;
 
+        let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
+
         try {
             if (body.authType !== 'oauth') {
-                await this.aiAgentMcpRuntimeClient.testConnection({
-                    name,
-                    url: normalizedUrl,
-                    authType: body.authType,
-                    bearerToken: credentials?.bearerToken,
-                    onUncaughtError: (error) => {
-                        Logger.error(
-                            `[AiAgent][MCP][${name}] Uncaught MCP client error while validating connection`,
-                            error,
-                        );
-                    },
-                });
+                mcpConnectionMetadata =
+                    await this.aiAgentMcpRuntimeClient.testConnection({
+                        name,
+                        url: normalizedUrl,
+                        authType: body.authType,
+                        bearerToken: credentials?.bearerToken,
+                        onUncaughtError: (error) => {
+                            Logger.error(
+                                `[AiAgent][MCP][${name}] Uncaught MCP client error while validating connection`,
+                                error,
+                            );
+                        },
+                    });
             }
         } catch (error) {
             throw new ParameterError(
@@ -2015,6 +2018,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             name,
             url: normalizedUrl,
+            iconUrl: mcpConnectionMetadata?.iconUrl ?? null,
             authType: body.authType,
             credentialScope: credentialScope ?? 'shared',
             credentials,

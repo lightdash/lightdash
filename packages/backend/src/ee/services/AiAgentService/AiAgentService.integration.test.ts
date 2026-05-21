@@ -39,6 +39,12 @@ describe('AiAgentService MCP support', () => {
             const server = new McpServer({
                 name: 'test-mcp-server',
                 version: '1.0.0',
+                icons: [
+                    {
+                        src: '/mcp-icon.svg',
+                        mimeType: 'image/svg+xml',
+                    },
+                ],
             });
 
             const transport = new StreamableHTTPServerTransport({
@@ -123,6 +129,9 @@ describe('AiAgentService MCP support', () => {
         );
 
         expect(mcpServer.hasCredentials).toBe(true);
+        expect(mcpServer.iconUrl).toBe(
+            new URL('/mcp-icon.svg', mcpServerUrl).toString(),
+        );
         expect(mcpServer).not.toHaveProperty('credentials');
 
         const listedMcpServers = await services.aiAgentService.listMcpServers(
@@ -136,6 +145,7 @@ describe('AiAgentService MCP support', () => {
             uuid: mcpServer.uuid,
             name: `Docs MCP ${suffix}`,
             authType: 'bearer',
+            iconUrl: new URL('/mcp-icon.svg', mcpServerUrl).toString(),
             hasCredentials: true,
         });
 

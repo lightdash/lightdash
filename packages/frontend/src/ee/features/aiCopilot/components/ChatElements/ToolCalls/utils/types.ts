@@ -1,9 +1,13 @@
-import { type AiAgentToolName } from '@lightdash/common';
+import {
+    type AiAgentToolCallMcpServer,
+    type AiAgentToolName,
+} from '@lightdash/common';
 
 export type ToolCallSummary = {
     toolCallId: string;
     toolName: AiAgentToolName;
     toolArgs: unknown;
+    mcpServer?: AiAgentToolCallMcpServer | null;
     /**
      * The tool's output once it has resolved. Populated for live streaming
      * (preliminary) updates and for the final result. `undefined` while the

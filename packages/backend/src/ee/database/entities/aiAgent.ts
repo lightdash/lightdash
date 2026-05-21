@@ -159,6 +159,7 @@ export type DbAiMcpServer = {
     project_uuid: string;
     name: string;
     url: string;
+    icon_url: string | null;
     auth_type: 'none' | 'bearer' | 'oauth';
     connection_status:
         | 'not_connected'

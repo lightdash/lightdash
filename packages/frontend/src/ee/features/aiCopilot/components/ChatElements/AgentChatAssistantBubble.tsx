@@ -1,6 +1,7 @@
 import {
     type AiAgentToolName,
     type AiAgentMessageAssistant,
+    type AiMcpServer,
     isToolProposeChangeResult,
     type ToolProposeChangeArgs,
 } from '@lightdash/common';
@@ -299,7 +300,8 @@ const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
-}> = ({ message, projectUuid, agentUuid }) => {
+    mcpServers?: AiMcpServer[];
+}> = ({ message, projectUuid, agentUuid, mcpServers }) => {
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -639,6 +641,7 @@ const AssistantBubbleContent: FC<{
                                     isLive={isStreaming}
                                     toolResults={message.toolResults}
                                     toolCalls={message.toolCalls}
+                                    mcpServers={mcpServers}
                                     pendingContent={pendingApprovalContent}
                                 />
                             )}
@@ -680,6 +683,7 @@ const AssistantBubbleContent: FC<{
                                 isLive={isStreaming || isPending}
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
+                                mcpServers={mcpServers}
                             />
                         )}
                         {message.reasoning && message.reasoning.length > 0 && (
@@ -768,6 +772,7 @@ type Props = {
     onAddToEvals?: (promptUuid: string) => void;
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
+    mcpServers?: AiMcpServer[];
 };
 
 export const AssistantBubble: FC<Props> = memo(
@@ -780,6 +785,7 @@ export const AssistantBubble: FC<Props> = memo(
         onAddToEvals,
         renderArtifactsInline = false,
         showAddToEvalsButton = false,
+        mcpServers,
     }) => {
         const artifact = useAiAgentStoreSelector(
             (state) => state.aiArtifact.artifact,
@@ -872,6 +878,7 @@ export const AssistantBubble: FC<Props> = memo(
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    mcpServers={mcpServers}
                 />
 
                 {isArtifactAvailable && projectUuid && agentUuid && (

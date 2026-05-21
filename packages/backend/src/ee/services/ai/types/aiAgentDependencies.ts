@@ -171,6 +171,7 @@ export type StoreToolCallFn = (data: {
     toolCallId: string;
     toolName: string;
     toolArgs: object;
+    mcpServerUuid?: string | null;
     parentToolCallId: string | null;
 }) => Promise<void>;
 
