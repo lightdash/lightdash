@@ -47,7 +47,10 @@ const resolveNextState = <TValue,>(
 
 const getColumnId = <TData extends RowData>(
     column: ContentTableColumnDef<TData>,
-) => column.id ?? column.accessorKey;
+) =>
+    column.id ??
+    column.accessorKey ??
+    (typeof column.header === 'string' ? column.header : undefined);
 
 const DEFAULT_COLUMN_SIZE = 180;
 const DEFAULT_COLUMN_MIN_SIZE = 40;
@@ -100,7 +103,7 @@ const toTanStackColumn = <TData extends RowData>(
         maxSize: getDataColumnMaxSize(column, defaultColumn),
         minSize: getDataColumnMinSize(column, defaultColumn),
         size: getDataColumnSize(column, defaultColumn),
-        sortingFn: column.sortingFn,
+        ...(column.sortingFn ? { sortingFn: column.sortingFn } : {}),
         meta: {
             ...column.meta,
             lightdashColumnDef: column,

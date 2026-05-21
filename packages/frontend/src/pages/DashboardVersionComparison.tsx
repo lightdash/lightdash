@@ -471,6 +471,7 @@ const ChartsTable = ({
             },
             {
                 accessorFn: (row) => row.currentVersion?.createdAt,
+                id: 'currentVersion',
                 header: 'Current Version',
                 size: 200,
                 Cell: ({ row }) => (
@@ -499,6 +500,7 @@ const ChartsTable = ({
             },
             {
                 accessorFn: (row) => row.selectedVersion?.createdAt,
+                id: 'selectedVersion',
                 header: 'Selected Version',
                 size: 200,
                 Cell: ({ row }) => (
@@ -661,6 +663,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         () => [
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',
+                id: 'currentVersion',
                 header: 'Current Version',
                 size: 300,
                 Cell: ({ row }) => (
@@ -674,6 +677,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
             },
             {
                 accessorFn: (row) => row.versionFilter?.label || '-',
+                id: 'selectedVersion',
                 header: 'Selected Version',
                 size: 300,
                 Cell: ({ row }) => (
