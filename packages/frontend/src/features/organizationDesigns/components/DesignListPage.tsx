@@ -138,9 +138,9 @@ const DesignListPage: FC = () => {
                     <Group justify="space-between">
                         <Text size="sm" c="ldGray.6">
                             Shared brand assets — CSS, fonts, images, and design
-                            instructions — that your organization can apply
-                            across content. Set one as the default so new
-                            content automatically inherits it.
+                            instructions — that can be used when building data
+                            apps. New apps will automatically use the default
+                            theme.
                         </Text>
                         {canManage && (
                             <Button

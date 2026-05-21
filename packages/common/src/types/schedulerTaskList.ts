@@ -50,6 +50,11 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
     claudeModel?: DataAppClaudeModel;
+    // Theme (org design) resolved at enqueue time. `null` means no theme was
+    // chosen and no org default exists — the worker skips the sandbox copy
+    // and system-prompt augmentation entirely. Absent on jobs enqueued
+    // before the theme picker shipped.
+    designUuid?: string | null;
 };
 
 export const EE_SCHEDULER_TASKS = {

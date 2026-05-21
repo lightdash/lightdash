@@ -1,0 +1,41 @@
+.dropdown {
+    min-width: 260px;
+    max-width: 360px;
+}
+
+/* Mantine Button forces white-space:nowrap on its label, which defeats
+ * lineClamp inside the trigger. This restores normal wrapping so the
+ * description can break onto up to 3 lines. */
+.triggerWrap {
+    white-space: normal;
+}
+
+.option {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    text-align: left;
+    transition: background-color 80ms ease;
+}
+
+.option:hover {
+    background-color: var(--mantine-color-gray-1);
+}
+
+.option[aria-pressed='true'] {
+    background-color: var(--mantine-color-gray-0);
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-gray-2);
+}
+
+.manageLink {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.manageLink:hover {
+    text-decoration: underline;
+}

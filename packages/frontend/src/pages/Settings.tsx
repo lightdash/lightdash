@@ -441,7 +441,10 @@ const Settings: FC = () => {
             });
         }
 
-        if (user?.ability.can('view', 'OrganizationDesign')) {
+        if (
+            dataAppsFlag?.enabled &&
+            user?.ability.can('view', 'OrganizationDesign')
+        ) {
             allowedRoutes.push({
                 path: '/themes',
                 element: <DesignListPage />,
@@ -845,19 +848,20 @@ const Settings: FC = () => {
                                     />
                                 )}
 
-                                {user.ability.can(
-                                    'view',
-                                    'OrganizationDesign',
-                                ) && (
-                                    <RouterNavLink
-                                        label="Themes"
-                                        exact
-                                        to="/generalSettings/themes"
-                                        leftSection={
-                                            <MantineIcon icon={IconBrush} />
-                                        }
-                                    />
-                                )}
+                                {dataAppsFlag?.enabled &&
+                                    user.ability.can(
+                                        'view',
+                                        'OrganizationDesign',
+                                    ) && (
+                                        <RouterNavLink
+                                            label="Themes"
+                                            exact
+                                            to="/generalSettings/themes"
+                                            leftSection={
+                                                <MantineIcon icon={IconBrush} />
+                                            }
+                                        />
+                                    )}
 
                                 {user.ability.can('manage', 'Organization') && (
                                     <RouterNavLink

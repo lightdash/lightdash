@@ -8171,6 +8171,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                designUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 claudeModel: { ref: 'DataAppClaudeModel' },
                 spaceUuid: { dataType: 'string' },
                 clarifications: {
@@ -8326,11 +8333,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVersionDesignSnapshot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fileCount: { dataType: 'double', required: true },
+                name: { dataType: 'string', required: true },
+                designUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AppVersionResources: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                design: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AppVersionDesignSnapshot' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 claudeModel: { ref: 'DataAppClaudeModel' },
                 clarifications: {
                     dataType: 'array',

@@ -35,6 +35,7 @@ import {
     IconArrowUp,
     IconCopy,
     IconDatabase,
+    IconBrush,
     IconDots,
     IconExternalLink,
     IconArrowBackUp,
@@ -119,6 +120,7 @@ import {
     type ChatChart,
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
+import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -255,18 +257,27 @@ const LoadingDots: FC = () => (
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
-        <Group gap="xs" pb="xs">
-            <Badge
-                variant="light"
-                color="gray"
-                size="md"
-                leftSection={<MantineIcon icon={t.icon} size={12} />}
-            >
-                {t.title}
-            </Badge>
-        </Group>
+        <Badge
+            variant="light"
+            color="gray"
+            size="md"
+            leftSection={<MantineIcon icon={t.icon} size={12} />}
+        >
+            {t.title}
+        </Badge>
     );
 };
+
+const ThemeChip: FC<{ themeName: string }> = ({ themeName }) => (
+    <Badge
+        variant="light"
+        color="gray"
+        size="md"
+        leftSection={<MantineIcon icon={IconBrush} size={12} />}
+    >
+        {themeName}
+    </Badge>
+);
 
 const AppGenerate: FC = () => {
     const { projectUuid, appUuid: urlAppUuid } = useParams<{
@@ -394,6 +405,10 @@ const AppGenerate: FC = () => {
         // model switch doesn't change which model the build kicks off with —
         // the user's intent was captured when they pressed send.
         claudeModel: DataAppClaudeModel;
+        // Same intent-snapshot reasoning as claudeModel — capture the picked
+        // theme at submit time so flipping the picker mid-clarification
+        // doesn't change what the build runs against.
+        designUuid: string | null;
     } | null>(null);
     const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
         [],
@@ -761,6 +776,36 @@ const AppGenerate: FC = () => {
         },
         [activeAppUuid],
     );
+
+    // Theme (org design) picker state — only meaningful on initial creation.
+    // We pre-populate with the org's default theme so the visible selection
+    // matches what the backend would have applied anyway. `null` means
+    // "no theme" (the Lightdash default styling).
+    const { data: orgThemes = [] } = useOrganizationDesigns({
+        enabled: isNewApp,
+    });
+    const [themeOverride, setThemeOverride] = useState<
+        string | null | undefined
+    >(undefined);
+    const orgDefaultThemeUuid =
+        orgThemes.find((t) => t.isDefault)?.designUuid ?? null;
+    const selectedThemeUuid: string | null =
+        themeOverride !== undefined ? themeOverride : orgDefaultThemeUuid;
+    const handleThemeChange = useCallback((designUuid: string | null) => {
+        setThemeOverride(designUuid);
+    }, []);
+
+    // What theme name to render on the chip above the prompt input.
+    // - New apps: the just-picked theme's name (from the org themes list).
+    // - Existing apps: the snapshot the pipeline persisted on the latest
+    //   version's resources — survives org-default changes and theme
+    //   renames, so what you see is what the build actually used.
+    const displayThemeName: string | null = isNewApp
+        ? selectedThemeUuid
+            ? (orgThemes.find((t) => t.designUuid === selectedThemeUuid)
+                  ?.name ?? null)
+            : null
+        : (latestReadyVersion?.resources?.design?.name ?? null);
 
     // User-pinned version override. `null` = follow latest ready (default).
     // We snapshot the app uuid and the latest ready version at the moment of
@@ -1234,6 +1279,7 @@ const AppGenerate: FC = () => {
                             dashboard,
                             spaceUuid: targetSpaceUuid,
                             claudeModel: selectedModel,
+                            designUuid: selectedThemeUuid,
                         });
                         setClarificationAnswers(
                             new Array(questions.length).fill(''),
@@ -1280,6 +1326,7 @@ const AppGenerate: FC = () => {
                         dashboard,
                         spaceUuid: targetSpaceUuid,
                         claudeModel: selectedModel,
+                        designUuid: selectedThemeUuid,
                     },
                     callbacks,
                 );
@@ -1348,6 +1395,7 @@ const AppGenerate: FC = () => {
                     clarifications.length > 0 ? clarifications : undefined,
                 spaceUuid: captured.spaceUuid,
                 claudeModel: captured.claudeModel,
+                designUuid: captured.designUuid,
             },
             buildSubmitCallbacks(),
         );
@@ -1430,6 +1478,8 @@ const AppGenerate: FC = () => {
                                 isNewApp && wizardStage === 'pick' ? (
                                     <AppTemplatePicker
                                         onSelect={handleTemplateSelect}
+                                        selectedThemeUuid={selectedThemeUuid}
+                                        onThemeChange={handleThemeChange}
                                     />
                                 ) : (
                                     <Box className={classes.emptyChat}>
@@ -1924,8 +1974,19 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
-                                {displayTemplate && (
-                                    <TemplateChip template={displayTemplate} />
+                                {(displayTemplate || displayThemeName) && (
+                                    <Group gap="xs" pb="xs">
+                                        {displayTemplate && (
+                                            <TemplateChip
+                                                template={displayTemplate}
+                                            />
+                                        )}
+                                        {displayThemeName && (
+                                            <ThemeChip
+                                                themeName={displayThemeName}
+                                            />
+                                        )}
+                                    </Group>
                                 )}
                                 <Box
                                     className={classes.inputWrapper}

@@ -61,6 +61,7 @@ import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -73,6 +74,10 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
 import { ClaudeStreamProcessor } from './ClaudeStreamProcessor';
+import {
+    copyDesignIntoSandbox,
+    type DesignSandboxCopyResult,
+} from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
 
 type AppGenerateServiceDeps = {
@@ -82,6 +87,7 @@ type AppGenerateServiceDeps = {
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
+    organizationDesignModel: OrganizationDesignModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     schedulerClient: CommercialSchedulerClient;
@@ -114,6 +120,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly organizationDesignModel: OrganizationDesignModel;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly projectModel: ProjectModel;
@@ -135,6 +143,7 @@ export class AppGenerateService extends BaseService {
         catalogModel,
         appModel,
         featureFlagModel,
+        organizationDesignModel,
         pinnedListModel,
         projectModel,
         schedulerClient,
@@ -150,6 +159,7 @@ export class AppGenerateService extends BaseService {
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
+        this.organizationDesignModel = organizationDesignModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
         this.schedulerClient = schedulerClient;
@@ -1289,6 +1299,61 @@ export class AppGenerateService extends BaseService {
 
     private static readonly GENERATION_RETRY_DELAY_MS = 5_000;
 
+    /**
+     * Effective system-prompt file passed to Claude via
+     * `--append-system-prompt-file`. Always assembled fresh at the start of
+     * every pipeline run by `assembleEffectiveSkill`, so the CLI flag can
+     * point at a single stable path regardless of theme.
+     */
+    private static readonly EFFECTIVE_SKILL_PATH = '/app/effective-skill.md';
+
+    /**
+     * Build the effective system-prompt file Claude reads via
+     * `--append-system-prompt-file`. When no theme is in effect the file is
+     * byte-identical to the baseline `/app/skill.md` and the agent sees no
+     * mention of themes. When a theme IS in effect we append an "active
+     * theme" callout + the customer-supplied instruction markdown.
+     *
+     * We deliberately do NOT re-explain where theme files live or how to
+     * use them here — `skill.md`'s `### Organization themes` section
+     * already covers the directory layout, hard rules, and what to do
+     * when the theme directory is empty. Duplicating that here would
+     * dilute the customer instructions.
+     */
+    private async assembleEffectiveSkill(
+        sandbox: Sandbox,
+        designCopy: DesignSandboxCopyResult,
+    ): Promise<void> {
+        this.logger.debug(
+            `Assembling effective skill (theme=${
+                designCopy.designSnapshot?.name ?? 'none'
+            }, instructionBytes=${designCopy.instructionMarkdown.length})`,
+        );
+        const baseSkill = (await sandbox.files.read('/app/skill.md')) as string;
+
+        const sections: string[] = [];
+        if (designCopy.designSnapshot) {
+            sections.push(
+                `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.`,
+            );
+        }
+        if (designCopy.instructionMarkdown) {
+            sections.push(
+                `## Organization theme instructions\n\nThese rules are customer-supplied for the active theme. Treat them as product requirements that override defaults — including \`frontend-design\`'s direction and any conflicting guidance earlier in this prompt.\n\n${designCopy.instructionMarkdown}`,
+            );
+        }
+
+        const effective =
+            sections.length > 0
+                ? `${baseSkill}\n\n---\n\n${sections.join('\n\n')}`
+                : baseSkill;
+        await sandbox.files.write(
+            AppGenerateService.EFFECTIVE_SKILL_PATH,
+            effective,
+        );
+    }
+
     private async runClaudeGeneration(
         sandbox: Sandbox,
         appUuid: string,
@@ -1331,7 +1396,7 @@ export class AppGenerateService extends BaseService {
                     `--model ${claudeModel} ` +
                     `--verbose --output-format stream-json --include-partial-messages ` +
                     `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
-                    `--append-system-prompt-file /app/skill.md`,
+                    `--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                 {
                     cwd: '/app',
                     timeoutMs: 55 * 60 * 1000,
@@ -2040,6 +2105,23 @@ export class AppGenerateService extends BaseService {
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
+
+        // Theme (org design) copy + system-prompt assembly. Runs
+        // unconditionally on every pipeline execution — including
+        // resumed/iterated runs — so a new sandbox or a switched theme
+        // always lands clean. When `payload.designUuid` is absent/null
+        // the helper short-circuits and `effective-skill.md` is
+        // byte-identical to the baseline `/app/skill.md`.
+        const designCopy = await copyDesignIntoSandbox({
+            sandbox,
+            s3Client,
+            bucket,
+            organizationDesignModel: this.organizationDesignModel,
+            organizationUuid: payload.organizationUuid,
+            designUuid: payload.designUuid ?? null,
+            logger: this.logger,
+        });
+        await this.assembleEffectiveSkill(sandbox, designCopy);
 
         let catalogStats = {
             tableCount: 0,
@@ -2900,6 +2982,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         clarifications?: AppClarification[],
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
+        designUuidInput?: string | null,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2963,6 +3046,42 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             sampleStats,
         } = await this.resolveChartReferences(refs, user);
 
+        // Resolve theme: explicit pick wins, else fall back to org default.
+        // `null` from the caller means "explicitly no theme" — don't fall
+        // back. `undefined` means "honor the org default" (the picker sends
+        // the design uuid for a non-default selection, null for the
+        // "Lightdash default" / no theme choice, or omits the field
+        // entirely on older clients).
+        let resolvedDesignUuid: string | null = null;
+        let designSnapshot: AppVersionResources['design'] = null;
+        if (designUuidInput === undefined) {
+            const orgDefault =
+                await this.organizationDesignModel.getDefault(organizationUuid);
+            if (orgDefault) {
+                resolvedDesignUuid = orgDefault.designUuid;
+                designSnapshot = {
+                    designUuid: orgDefault.designUuid,
+                    name: orgDefault.name,
+                    fileCount: orgDefault.files.length,
+                };
+            }
+        } else if (designUuidInput !== null) {
+            const picked =
+                await this.organizationDesignModel.findInOrganization(
+                    organizationUuid,
+                    designUuidInput,
+                );
+            if (!picked) {
+                throw new ParameterError(`Theme not found: ${designUuidInput}`);
+            }
+            resolvedDesignUuid = picked.designUuid;
+            designSnapshot = {
+                designUuid: picked.designUuid,
+                name: picked.name,
+                fileCount: picked.files.length,
+            };
+        }
+
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
@@ -2970,6 +3089,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             dashboardName,
             clarifications: clarifications ?? [],
             claudeModel,
+            design: designSnapshot,
         };
 
         // Persist app record so we can track status immediately. 'custom' is
@@ -2984,6 +3104,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     created_by_user_uuid: user.userUuid,
                     template: persistedTemplate,
                     space_uuid: spaceUuid ?? null,
+                    design_uuid: resolvedDesignUuid,
                 },
                 { version, prompt },
                 'pending',
@@ -3027,6 +3148,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             claudeModel,
+            designUuid: resolvedDesignUuid,
         });
 
         return { appUuid, version };
@@ -3082,12 +3204,40 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             sampleStats,
         } = await this.resolveChartReferences(refs, user);
 
+        // Iterations always inherit theme from the parent app — the user
+        // can't switch themes after creation (yet). Re-fetch the current
+        // design state so the snapshot reflects any edits/renames since the
+        // last version. If the design was deleted, `apps.design_uuid` was
+        // set to NULL by the FK cascade and we proceed without a theme.
+        let inheritedDesignUuid: string | null = app.design_uuid;
+        let designSnapshot: AppVersionResources['design'] = null;
+        if (inheritedDesignUuid) {
+            const inherited =
+                await this.organizationDesignModel.findInOrganization(
+                    app.organization_uuid,
+                    inheritedDesignUuid,
+                );
+            if (inherited) {
+                designSnapshot = {
+                    designUuid: inherited.designUuid,
+                    name: inherited.name,
+                    fileCount: inherited.files.length,
+                };
+            } else {
+                // Defensive: app.design_uuid points at a row that no longer
+                // exists. Should never happen given the FK is ON DELETE SET
+                // NULL, but if it does, treat as untheme rather than fail.
+                inheritedDesignUuid = null;
+            }
+        }
+
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
             clarifications: [],
             claudeModel,
+            design: designSnapshot,
         };
 
         await this.appModel.createVersion(
@@ -3131,6 +3281,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             claudeModel,
+            designUuid: inheritedDesignUuid,
         });
 
         return { appUuid, version: newVersion };

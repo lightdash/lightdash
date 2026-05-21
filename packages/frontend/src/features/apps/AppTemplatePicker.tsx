@@ -2,14 +2,27 @@ import { type DataAppTemplate } from '@lightdash/common';
 import { Group, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine-8/core';
 import { type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
+import { ThemePicker } from '../organizationDesigns/components/ThemePicker';
 import classes from './AppTemplatePicker.module.css';
 import { TEMPLATES } from './templates';
 
 type Props = {
     onSelect: (template: DataAppTemplate) => void;
+    /**
+     * Theme (org design) selection — picked at the same moment as the
+     * template and frozen into the app at creation time. The picker is
+     * inlined here so users see both the structural starting point and the
+     * brand context in one step.
+     */
+    selectedThemeUuid: string | null;
+    onThemeChange: (designUuid: string | null) => void;
 };
 
-const AppTemplatePicker: FC<Props> = ({ onSelect }) => (
+const AppTemplatePicker: FC<Props> = ({
+    onSelect,
+    selectedThemeUuid,
+    onThemeChange,
+}) => (
     <div className={classes.wrapper}>
         <Stack gap={4} className={classes.heading}>
             <Text fw={600} size="lg">
@@ -63,6 +76,18 @@ const AppTemplatePicker: FC<Props> = ({ onSelect }) => (
                 );
             })}
         </SimpleGrid>
+        <Stack gap={4} className={classes.heading}>
+            <Text fw={600} size="lg" mt="lg">
+                Choose a theme
+            </Text>
+            <Text size="sm" c="dimmed">
+                Your app will follow the design guidelines defined in your
+                theme.
+            </Text>
+        </Stack>
+        <Group justify="center">
+            <ThemePicker value={selectedThemeUuid} onChange={onThemeChange} />
+        </Group>
     </div>
 );
 

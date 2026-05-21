@@ -4,7 +4,10 @@
     align-items: stretch;
     gap: var(--mantine-spacing-md);
     padding: var(--mantine-spacing-xl);
-    margin: auto;
+    /* Anchor toward the top instead of vertically centering — keeps the
+     * "Build a data app" headline above the fold and gives the picker
+     * areas more breathing room than the input bar below. */
+    margin: var(--mantine-spacing-xl) auto auto;
     max-width: 560px;
     width: 100%;
 }
