@@ -35,6 +35,7 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
+import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
@@ -88,6 +89,7 @@ interface ServiceManifest {
 
     organizationService: OrganizationService;
     organizationSsoService: OrganizationSsoService;
+    organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
@@ -527,6 +529,16 @@ export class ServiceRepository
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getOrganizationAccessService(): OrganizationAccessService {
+        return this.getService(
+            'organizationAccessService',
+            () =>
+                new OrganizationAccessService({
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

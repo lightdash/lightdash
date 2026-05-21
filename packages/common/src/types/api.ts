@@ -140,6 +140,7 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './organization';
+import { type OrganizationAccess } from './organizationAccess';
 import {
     type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
@@ -882,6 +883,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiHealthResults
+    | OrganizationAccess
     | Organization
     | LightdashUser
     | LoginOptions
