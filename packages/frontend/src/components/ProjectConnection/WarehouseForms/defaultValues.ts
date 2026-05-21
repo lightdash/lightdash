@@ -2,6 +2,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     WarehouseTypes,
@@ -12,7 +13,8 @@ import type {
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
     CreateDuckdbCredentials,
-    CreateDucklakeCredentials,
+    CreateDuckdbDucklakeCredentials,
+    CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
@@ -171,17 +173,20 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     dataTimezone: undefined,
 };
 
-const DuckdbDefaultValues: CreateDuckdbCredentials = {
-    type: WarehouseTypes.DUCKDB,
-    database: '',
-    schema: 'main',
-    token: '',
-    threads: 1,
-    startOfWeek: undefined,
-};
+export const DuckdbMotherduckDefaultValues: CreateDuckdbMotherduckCredentials =
+    {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.MOTHERDUCK,
+        database: '',
+        schema: 'main',
+        token: '',
+        threads: 1,
+        startOfWeek: undefined,
+    };
 
-const DucklakeDefaultValues: CreateDucklakeCredentials = {
-    type: WarehouseTypes.DUCKLAKE,
+export const DuckdbDucklakeDefaultValues: CreateDuckdbDucklakeCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.DUCKLAKE,
     schema: 'main',
     catalogAlias: 'ducklake',
     catalog: {
@@ -202,6 +207,9 @@ const DucklakeDefaultValues: CreateDucklakeCredentials = {
     startOfWeek: undefined,
 };
 
+const DuckdbDefaultValues: CreateDuckdbCredentials =
+    DuckdbMotherduckDefaultValues;
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -212,5 +220,4 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
-    [WarehouseTypes.DUCKLAKE]: DucklakeDefaultValues,
 };

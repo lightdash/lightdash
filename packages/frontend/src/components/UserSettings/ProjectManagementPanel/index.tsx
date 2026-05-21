@@ -80,8 +80,7 @@ const WAREHOUSE_LABELS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
-    [WarehouseTypes.DUCKDB]: 'MotherDuck',
-    [WarehouseTypes.DUCKLAKE]: 'DuckLake',
+    [WarehouseTypes.DUCKDB]: 'DuckDB',
 };
 
 const CopyableCommand: FC<{ label: string; command: string }> = ({

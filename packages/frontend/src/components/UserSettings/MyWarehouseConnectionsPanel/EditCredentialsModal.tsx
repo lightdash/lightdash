@@ -52,9 +52,6 @@ const getCredentialsWithPlaceholders = (
                 ...credentials,
                 token: '',
             };
-        case WarehouseTypes.DUCKLAKE:
-            // DuckLake has no per-user override surface yet.
-            return credentials;
         default:
             return assertUnreachable(
                 credentials,
