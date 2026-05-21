@@ -1689,6 +1689,24 @@ export class UnfurlService extends BaseService {
                                 animations: 'disabled',
                                 timeout: RESPONSE_TIMEOUT_MS,
                             });
+                    } else if (lightdashPage === LightdashPage.APP) {
+                        // Screenshot the iframe element directly. The iframe
+                        // was stretched above to fit its inner contentHeight,
+                        // so this captures exactly the app surface with no
+                        // surrounding parent-page whitespace. A `fullPage`
+                        // shot here picks up `documentElement.scrollHeight`,
+                        // which is consistently a few px taller than the
+                        // iframe (parent Box stays at 100vh, body/html scroll
+                        // bounds extend past the iframe bottom) — producing
+                        // a thin white sliver at the bottom of the delivery.
+                        imageBuffer = await page
+                            .locator('iframe')
+                            .first()
+                            .screenshot({
+                                path,
+                                animations: 'disabled',
+                                timeout: RESPONSE_TIMEOUT_MS,
+                            });
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({
