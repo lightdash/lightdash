@@ -955,6 +955,68 @@ describe('Query builder', () => {
         ).toThrow(ForbiddenError);
     });
 
+    test('Should replace intrinsic user attributes in selected dimensions and metrics', () => {
+        const explore: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        user_email_status: {
+                            type: DimensionType.STRING,
+                            name: 'user_email_status',
+                            label: 'user_email_status',
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.shared ELSE 'other' END`,
+                            compiledSql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".shared ELSE 'other' END`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        user_email_metric: {
+                            type: MetricType.SUM,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'user_email_metric',
+                            label: 'user_email_metric',
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.number_column ELSE 0 END`,
+                            compiledSql: `SUM(CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".number_column ELSE 0 END)`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_user_email_status'],
+                metrics: ['table1_user_email_metric'],
+                sorts: [],
+                tableCalculations: [],
+                compiledTableCalculations: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).not.toContain('${ld.user.email}');
+        expect(query).toContain("'mock@lightdash.com' = 'mock@lightdash.com'");
+        expect(query).toContain('"table1_user_email_status"');
+        expect(query).toContain('"table1_user_email_metric"');
+    });
+
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
         const { query } = buildQuery({
             explore: EXPLORE,
