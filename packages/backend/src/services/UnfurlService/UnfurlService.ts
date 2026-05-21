@@ -1410,42 +1410,48 @@ export class UnfurlService extends BaseService {
                     }
 
                     if (lightdashPage === LightdashPage.APP) {
-                        // Apps render inside a sandboxed cross-origin iframe;
-                        // no DOM-level readiness signal bubbles up to the
-                        // parent page. Use a fixed wall-clock wait while we
-                        // get the postMessage→indicator handshake plumbed.
-                        // TODO: replace with a real readiness signal.
-                        //
-                        // Implementation note: we poll a heartbeat selector
-                        // on a short interval instead of a single long
-                        // `waitForTimeout`. A long quiet wait can let the
-                        // CDP connection to a remote Chromium drop on idle,
-                        // which surfaces as `Target page, context or
-                        // browser has been closed` and fails the screenshot.
-                        // Short polling keeps CDP traffic alive without
-                        // requiring a real readiness signal.
-                        const APP_SCREENSHOT_WAIT_MS = 30_000;
+                        // Apps render inside a sandboxed cross-origin iframe,
+                        // so a DOM-level indicator inside the iframe doesn't
+                        // bubble out to the parent. `MinimalApp` mounts the
+                        // ready indicator on the *parent* page once the iframe
+                        // has loaded and all SDK-bridge queries have settled
+                        // (the bridge sees every metric query the iframe
+                        // runs). After the signal we sleep briefly so CSS /
+                        // chart entrance animations can finish.
+                        const APP_READY_TIMEOUT_MS = 60_000;
+                        const APP_ANIMATION_BUFFER_MS = 5_000;
                         this.logger.info(
-                            `Waiting ${APP_SCREENSHOT_WAIT_MS}ms for app to render - unfurlId: ${imageId}`,
+                            `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
                         );
-                        const APP_POLL_INTERVAL_MS = 1_000;
-                        const deadline = Date.now() + APP_SCREENSHOT_WAIT_MS;
-                        while (Date.now() < deadline) {
-                            const remaining = deadline - Date.now();
-                            const sleepMs = Math.min(
-                                APP_POLL_INTERVAL_MS,
-                                remaining,
+                        try {
+                            await page.waitForSelector(
+                                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                                {
+                                    state: 'attached',
+                                    timeout: APP_READY_TIMEOUT_MS,
+                                },
                             );
-                            // page.evaluate keeps CDP traffic flowing.
-                            // eslint-disable-next-line no-await-in-loop
-                            await page.evaluate(
-                                (ms) =>
-                                    new Promise((resolve) => {
-                                        setTimeout(resolve, ms);
-                                    }),
-                                sleepMs,
+                            this.logger.info(
+                                `App ready indicator found - waiting ${APP_ANIMATION_BUFFER_MS}ms for animations - unfurlId: ${imageId}`,
+                            );
+                        } catch (waitError) {
+                            // Fall through to the animation buffer so the
+                            // screenshot still happens for apps that never
+                            // signal (older bundles, or pathological cases).
+                            this.logger.warn(
+                                `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
                         }
+                        // page.evaluate keeps CDP traffic flowing during the
+                        // animation buffer so a remote Chromium doesn't drop
+                        // the connection on idle.
+                        await page.evaluate(
+                            (ms) =>
+                                new Promise((resolve) => {
+                                    setTimeout(resolve, ms);
+                                }),
+                            APP_ANIMATION_BUFFER_MS,
+                        );
                     } else {
                         this.logger.info(
                             `Waiting for screenshot ready indicator - unfurlId: ${imageId}`,

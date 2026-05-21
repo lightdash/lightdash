@@ -57,6 +57,9 @@ type Props = {
      *  Set by `DashboardDataAppTile`; left undefined by `AppGenerate` where
      *  there's no dashboard context. */
     dashboardFilters?: DashboardFilters;
+    /** Fired on every iframe `onload` (including the initial about:blank).
+     *  Used by `MinimalApp` to gate the screenshot readiness signal. */
+    onIframeLoad?: () => void;
 };
 
 /**
@@ -88,6 +91,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onScreenshotAvailabilityChange,
             onInspectorCancelled,
             dashboardFilters,
+            onIframeLoad,
         },
         ref,
     ) => {
@@ -160,6 +164,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleLoad = () => {
             handleIframeLoad();
             if (inspectorEnabled) enableInspector();
+            onIframeLoad?.();
         };
 
         return (
