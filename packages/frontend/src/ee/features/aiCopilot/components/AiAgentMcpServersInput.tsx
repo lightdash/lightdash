@@ -766,7 +766,7 @@ export const AiAgentMcpServersInput = ({
                                                     )}
                                                     name={mcpServer.name}
                                                     size={40}
-                                                    url={mcpServer.url}
+                                                    src={mcpServer.iconUrl}
                                                 />
                                                 <Stack gap={2}>
                                                     <Text fw={600}>
@@ -832,6 +832,9 @@ export const AiAgentMcpServersInput = ({
                                                 background: 'transparent',
                                                 border: 0,
                                                 cursor: 'pointer',
+                                                font: 'inherit',
+                                                color: 'inherit',
+                                                textAlign: 'inherit',
                                             }}
                                         >
                                             <Group
