@@ -1,3 +1,17 @@
+# [0.3003.0](https://github.com/lightdash/lightdash/compare/0.3002.3...0.3003.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* dashboard version comparison crashes on previous version ([#23400](https://github.com/lightdash/lightdash/issues/23400)) ([d7b1545](https://github.com/lightdash/lightdash/commit/d7b1545d87b5e4fa159f9d0ecef371986783b381))
+
+
+### Features
+
+* add `theme` prop to SDK components for light/dark mode support ([#23401](https://github.com/lightdash/lightdash/issues/23401)) ([9d50bbc](https://github.com/lightdash/lightdash/commit/9d50bbca7cd7735a56c4ec98e81fbfa0e74c7f94))
+* **ai-agents:** show MCP icons in tool calls ([#23390](https://github.com/lightdash/lightdash/issues/23390)) ([0fee7a2](https://github.com/lightdash/lightdash/commit/0fee7a227746f486f64b18fe58e78bf56453c7ee))
+* **data-apps:** duplicate an existing data app into a personal copy ([#23349](https://github.com/lightdash/lightdash/issues/23349)) ([dc6fa34](https://github.com/lightdash/lightdash/commit/dc6fa3442d18d0ed261a4a4c9c79fa18f0aafa10))
+
 ## [0.3002.3](https://github.com/lightdash/lightdash/compare/0.3002.2...0.3002.3) (2026-05-21)
 
 
