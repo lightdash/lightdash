@@ -1,6 +1,5 @@
 import './sentry'; // Sentry has to be initialized before anything else
 import {
-    Account,
     AnyType,
     ApiError,
     getErrorMessage,
@@ -9,9 +8,6 @@ import {
     LightdashVersionHeader,
     MissingConfigError,
     OauthAuthenticationError,
-    Project,
-    ServiceAccount,
-    SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -85,29 +81,9 @@ import {
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
-// We need to override this interface to have our user typing
-declare global {
-    namespace Express {
-        /**
-         * There's potentially a good case for NOT including this under the top-level of the Request,
-         * but instead under `locals` - I've yet to see a good reasoning on -why-, so for now I'm
-         * opting for the keystrokes saved through omitting `.locals`.
-         */
-        interface Request {
-            services: ServiceRepository;
-            serviceAccount?: Pick<ServiceAccount, 'organizationUuid'>;
-            // The project associated with this request
-            project?: Pick<Project, 'projectUuid'>;
-            /**
-             * @deprecated Clients should be used inside services. This will be removed soon.
-             */
-            clients: ClientRepository;
-            account?: Account;
-        }
-
-        interface User extends SessionUser {}
-    }
-}
+// Express Request/User type augmentations live in src/@types/express.d.ts
+// so they're picked up as ambient declarations regardless of which file is
+// the compilation entry point (e.g. knex seed/migrate via ts-node).
 
 const schedulerWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
