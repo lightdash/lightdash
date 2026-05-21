@@ -1,3 +1,12 @@
+## [0.3005.1](https://github.com/lightdash/lightdash/compare/0.3005.0...0.3005.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* improve app readiness indicator in deliveries ([#23410](https://github.com/lightdash/lightdash/issues/23410)) ([1f27c03](https://github.com/lightdash/lightdash/commit/1f27c0341856d4209b20b6e314790394ee526303))
+* link uploaded images in apps ([#23407](https://github.com/lightdash/lightdash/issues/23407)) ([adc46bc](https://github.com/lightdash/lightdash/commit/adc46bc1721b8e8301b098a6e9c7b7d769ea166f))
+* load images from theme correctly in apps ([#23406](https://github.com/lightdash/lightdash/issues/23406)) ([003fe37](https://github.com/lightdash/lightdash/commit/003fe37146d9bdfc6e359a131d88a77150d74c77))
+
 # [0.3005.0](https://github.com/lightdash/lightdash/compare/0.3004.1...0.3005.0) (2026-05-21)
 
 
