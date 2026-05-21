@@ -221,7 +221,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
                       ? { sql: sqlRunnerLinkState.sql }
                       : undefined;
 
-            return state ? (
+            if (!state) return null;
+
+            return (
                 <Button
                     component={Link}
                     to={{
@@ -230,20 +232,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     state={state}
                     data-content-link="true"
                     size="compact-xs"
-                    variant="light"
-                    color="gray"
-                    leftSection={<MantineIcon icon={IconTerminal2} size={13} />}
-                >
-                    {children}
-                </Button>
-            ) : (
-                <Button
-                    type="button"
-                    disabled
-                    data-content-link="true"
-                    size="compact-xs"
-                    variant="light"
-                    color="gray"
+                    variant="default"
+                    className={styles.sqlRunnerLinkButton}
                     leftSection={<MantineIcon icon={IconTerminal2} size={13} />}
                 >
                     {children}

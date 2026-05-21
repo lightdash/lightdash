@@ -253,10 +253,10 @@ const getLatestSuccessfulRunSqlLinkState = ({
 };
 
 const SqlMarkdownCodeBlock: FC<
-    CustomRendererProps & { projectUuid: string }
-> = ({ code, isIncomplete, projectUuid }) => {
+    CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
+> = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
     const sql = code.trim();
-    const canOpen = !isIncomplete && sql.length > 0;
+    const canOpen = canOpenSqlRunner && !isIncomplete && sql.length > 0;
 
     return (
         <Box className={styles.sqlMarkdownCodeBlock}>
@@ -276,29 +276,17 @@ const SqlMarkdownCodeBlock: FC<
                             pathname: `/projects/${projectUuid}/sql-runner`,
                         }}
                         state={{ sql }}
+                        data-content-link="true"
                         size="compact-xs"
-                        variant="light"
-                        color="gray"
+                        variant="default"
+                        className={styles.sqlRunnerLinkButton}
                         leftSection={
                             <MantineIcon icon={IconTerminal2} size={12} />
                         }
                     >
                         Open in SQL Runner
                     </Button>
-                ) : (
-                    <Button
-                        type="button"
-                        size="compact-xs"
-                        variant="light"
-                        color="gray"
-                        disabled
-                        leftSection={
-                            <MantineIcon icon={IconTerminal2} size={12} />
-                        }
-                    >
-                        Open in SQL Runner
-                    </Button>
-                )}
+                ) : null}
             </Group>
             <Code block className={styles.sqlMarkdownCodeBody}>
                 {code}
@@ -340,6 +328,7 @@ const AssistantBubbleContent: FC<{
         message,
         streamParts: streamingState?.parts,
     });
+    const canOpenSqlRunner = !!sqlRunnerLinkState;
     const markdownPlugins = useMemo(
         () => ({
             renderers: [
@@ -349,12 +338,13 @@ const AssistantBubbleContent: FC<{
                         <SqlMarkdownCodeBlock
                             {...props}
                             projectUuid={projectUuid}
+                            canOpenSqlRunner={canOpenSqlRunner}
                         />
                     ),
                 },
             ],
         }),
-        [projectUuid],
+        [canOpenSqlRunner, projectUuid],
     );
     const hasNoResponse =
         !isStreaming && !streamingError && !message.message && !isPending;
