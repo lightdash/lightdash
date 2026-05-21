@@ -335,20 +335,43 @@
 
 .bubbleQueryList {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .bubbleQueryItem {
-    padding: 4px 6px;
-    border-radius: var(--mantine-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+    height: 22px;
+    max-width: 100%;
+    min-width: 0;
 
     @mixin light {
         background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-3);
     }
     @mixin dark {
-        background-color: var(--mantine-color-dark-5);
+        background-color: var(--mantine-color-ldDark-4);
+        border-color: var(--mantine-color-ldDark-6);
     }
+}
+
+.bubbleQueryItemIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.bubbleQueryItemName {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 11px;
+    line-height: 1;
 }
 
 /* Full-width framed panel that hosts the clarifying questions. Sits on the
