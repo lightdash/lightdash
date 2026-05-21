@@ -29,6 +29,24 @@ export const toolGetKnowledgeDocumentContentArgsSchema = createToolSchema({
     })
     .build();
 
+export const toolGetKnowledgeDocumentContentOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.discriminatedUnion('status', [
+        z.object({
+            status: z.literal('success'),
+            name: z.string(),
+            contentSizeBytes: z.number(),
+        }),
+        z.object({
+            status: z.literal('error'),
+        }),
+    ]),
+});
+
 export type ToolGetKnowledgeDocumentContentArgs = z.infer<
     typeof toolGetKnowledgeDocumentContentArgsSchema
+>;
+
+export type ToolGetKnowledgeDocumentContentOutput = z.infer<
+    typeof toolGetKnowledgeDocumentContentOutputSchema
 >;
