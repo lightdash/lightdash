@@ -147,7 +147,7 @@ export default function MinimalApp() {
     }
 
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
     if (!previewUrl) return null;
 

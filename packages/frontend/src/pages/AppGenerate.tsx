@@ -202,7 +202,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
 
         const previewOrigin = usePreviewOrigin();
         const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
         if (isLoading) {
