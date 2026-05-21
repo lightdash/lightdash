@@ -1,3 +1,16 @@
+# [0.3000.0](https://github.com/lightdash/lightdash/compare/0.2999.2...0.3000.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* **explorer:** stop fetching joined aliases via /explores ([#23375](https://github.com/lightdash/lightdash/issues/23375)) ([66c6f59](https://github.com/lightdash/lightdash/commit/66c6f59135dbb4117109decb9144a74957174b82))
+* **warehouse-credentials:** dedup BigQuery personal credentials on re-auth ([#23370](https://github.com/lightdash/lightdash/issues/23370)) ([71c571e](https://github.com/lightdash/lightdash/commit/71c571ede50ce68b5e8b16771ade9b660a3807d0))
+
+
+### Features
+
+* add organization trial warning banner ([#23249](https://github.com/lightdash/lightdash/issues/23249)) ([8acf5f5](https://github.com/lightdash/lightdash/commit/8acf5f55740f9b49a6b5f0d8ee58b852821056d3))
+
 ## [0.2999.2](https://github.com/lightdash/lightdash/compare/0.2999.1...0.2999.2) (2026-05-21)
 
 
