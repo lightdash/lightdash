@@ -15,13 +15,20 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Button,
     Center,
+    Collapse,
+    Flex,
     Group,
     Stack,
     Text,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconExclamationCircle,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -40,6 +47,12 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import {
+    getVisualizationFieldsCount,
+    getVisualizationFiltersCount,
+    shouldDisplayMetricsAndDimensions,
+    shouldDisplayVisualizationFilters,
+} from './AiVisualizationRenderer.utils';
 
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
@@ -91,6 +104,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);
     const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
 
     // Tag the cached expanded config with the chart type it was computed
     // for. Switching types makes the cached entry "for the wrong type" and
@@ -144,9 +158,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [webAiChartConfig],
     );
 
-    const displayMetricsAndDimensions =
-        vizQueryData.type !== AiResultType.TABLE_RESULT &&
-        vizQueryData.type !== AiResultType.QUERY_RESULT;
+    const displayMetricsAndDimensions = shouldDisplayMetricsAndDimensions(
+        vizQueryData.type,
+    );
+    const displayFilters = shouldDisplayVisualizationFilters(
+        metricQuery.filters,
+    );
+    const fieldsCount = displayMetricsAndDimensions
+        ? getVisualizationFieldsCount(metricQuery)
+        : 0;
+    const filtersCount = getVisualizationFiltersCount(metricQuery.filters);
+    const displayDetails = fieldsCount > 0 || filtersCount > 0;
 
     const defaultChartType: AiAgentChartTypeOption =
         webAiChartConfig.type === AiResultType.QUERY_RESULT
@@ -213,7 +235,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
-                <Stack gap="md" h="100%">
+                <Stack gap="md" h="100%" style={{ minHeight: 0 }}>
                     {headerContent}
                     {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
                         onChartTypeChange && (
@@ -233,6 +255,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         )}
                     <Box
                         flex="1"
+                        mih={0}
                         style={{
                             // Scrolling for tables
                             overflow: 'auto',
@@ -258,23 +281,67 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         <DrillDownModal />
                     </Box>
 
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {displayMetricsAndDimensions && (
-                                <AgentVisualizationMetricsAndDimensions
-                                    metricQuery={metricQuery}
-                                    fieldsMap={fields}
-                                />
-                            )}
+                    {displayDetails ? (
+                        <Stack gap="xs" style={{ flexShrink: 0 }}>
+                            <Flex align="center" justify="flex-start">
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="ldGray"
+                                    aria-expanded={detailsExpanded}
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={
+                                                detailsExpanded
+                                                    ? IconChevronUp
+                                                    : IconChevronDown
+                                            }
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() =>
+                                        setDetailsExpanded((value) => !value)
+                                    }
+                                    styles={{
+                                        root: {
+                                            flexShrink: 0,
+                                            border: 'none',
+                                        },
+                                    }}
+                                >
+                                    {[
+                                        fieldsCount > 0
+                                            ? `Fields ${fieldsCount}`
+                                            : null,
+                                        filtersCount > 0
+                                            ? `Filters ${filtersCount}`
+                                            : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </Button>
+                            </Flex>
+                            <Collapse in={detailsExpanded}>
+                                <Stack gap="xs">
+                                    <ErrorBoundary>
+                                        {displayMetricsAndDimensions && (
+                                            <AgentVisualizationMetricsAndDimensions
+                                                metricQuery={metricQuery}
+                                                fieldsMap={fields}
+                                            />
+                                        )}
 
-                            {chartConfig.filters ? (
-                                <AgentVisualizationFilters
-                                    filters={metricQuery.filters}
-                                    fieldsMap={fields}
-                                />
-                            ) : null}
-                        </ErrorBoundary>
-                    </Stack>
+                                        {displayFilters ? (
+                                            <AgentVisualizationFilters
+                                                filters={metricQuery.filters}
+                                                fieldsMap={fields}
+                                            />
+                                        ) : null}
+                                    </ErrorBoundary>
+                                </Stack>
+                            </Collapse>
+                        </Stack>
+                    ) : null}
                 </Stack>
             </VisualizationProvider>
         </MetricQueryDataProvider>
