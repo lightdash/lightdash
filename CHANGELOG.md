@@ -1,3 +1,10 @@
+## [0.3005.2](https://github.com/lightdash/lightdash/compare/0.3005.1...0.3005.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* fit scheduled delivery to app ([#23413](https://github.com/lightdash/lightdash/issues/23413)) ([a3e3069](https://github.com/lightdash/lightdash/commit/a3e3069aeee0a23a6f56df6e2d90aced6b817dd8))
+
 ## [0.3005.1](https://github.com/lightdash/lightdash/compare/0.3005.0...0.3005.1) (2026-05-21)
 
 
