@@ -1,3 +1,10 @@
+# [0.3007.0](https://github.com/lightdash/lightdash/compare/0.3006.0...0.3007.0) (2026-05-21)
+
+
+### Features
+
+* show full dashboard and chart version history ([#23421](https://github.com/lightdash/lightdash/issues/23421)) ([445ffb9](https://github.com/lightdash/lightdash/commit/445ffb9e87197bc412935357aacbf527d4ccc883)), closes [#23418](https://github.com/lightdash/lightdash/issues/23418)
+
 # [0.3006.0](https://github.com/lightdash/lightdash/compare/0.3005.2...0.3006.0) (2026-05-21)
 
 
