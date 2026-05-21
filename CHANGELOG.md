@@ -1,3 +1,10 @@
+# [0.2998.0](https://github.com/lightdash/lightdash/compare/0.2997.2...0.2998.0) (2026-05-21)
+
+
+### Features
+
+* **ai-agents:** add knowledge document tool call description ([#23347](https://github.com/lightdash/lightdash/issues/23347)) ([881b06d](https://github.com/lightdash/lightdash/commit/881b06d69be19485538b3c1ce31f90c5bde09ba5))
+
 ## [0.2997.2](https://github.com/lightdash/lightdash/compare/0.2997.1...0.2997.2) (2026-05-21)
 
 
