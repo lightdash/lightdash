@@ -1,3 +1,22 @@
+# [0.3004.0](https://github.com/lightdash/lightdash/compare/0.3003.0...0.3004.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ai-copilot:** use iconUrl src instead of favicon fallback for MCP server icon ([#23402](https://github.com/lightdash/lightdash/issues/23402)) ([307ec6b](https://github.com/lightdash/lightdash/commit/307ec6bc8da470d827a08dcdd6ea9657c6461d31))
+* **ai:** restore artifact fields and filters ([#23405](https://github.com/lightdash/lightdash/issues/23405)) ([ba107c1](https://github.com/lightdash/lightdash/commit/ba107c1f514a632618b833fbc0864779df89ecbf))
+* always hide tiles on hidden dashboard tabs ([#23404](https://github.com/lightdash/lightdash/issues/23404)) ([ad23572](https://github.com/lightdash/lightdash/commit/ad235725bf8f6e7c3f3b85e91ac4df0698de50e3))
+
+
+### Features
+
+* add `showSubtotalsExpanded` option to default subtotals to expanded ([#23396](https://github.com/lightdash/lightdash/issues/23396)) ([ef52e2f](https://github.com/lightdash/lightdash/commit/ef52e2f892a751b78a9540642531ee479a58fa27))
+* add MCP server tool listing, refresh, and per-agent tool enable/disable APIs ([#23380](https://github.com/lightdash/lightdash/issues/23380)) ([0d70164](https://github.com/lightdash/lightdash/commit/0d70164bb1abd40faabb668b33e5a77d4e2431dd))
+* add MCP server tool permissions panel with expand/collapse and auto-refresh ([#23381](https://github.com/lightdash/lightdash/issues/23381)) ([9fc27ab](https://github.com/lightdash/lightdash/commit/9fc27ab9bba6e2122b309fa3ed7dedc4d37f447c))
+* add MCP tool discovery, persistence, and per-agent enable/disable controls ([#23352](https://github.com/lightdash/lightdash/issues/23352)) ([1830bec](https://github.com/lightdash/lightdash/commit/1830becf6067d4a61f614ee99857d9174844f043))
+* add theme management UI ([#23357](https://github.com/lightdash/lightdash/issues/23357)) ([d8304a3](https://github.com/lightdash/lightdash/commit/d8304a3e6dad906d9b5f79bf1114d15b126ec298))
+* **data-apps:** show queries panel in app preview ([#23408](https://github.com/lightdash/lightdash/issues/23408)) ([1b96f4c](https://github.com/lightdash/lightdash/commit/1b96f4ca0b5bbc7404a297dbda78225e2e25eb48))
+
 # [0.3003.0](https://github.com/lightdash/lightdash/compare/0.3002.3...0.3003.0) (2026-05-21)
 
 
