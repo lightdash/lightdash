@@ -215,6 +215,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 filterType={filterType}
                                 field={field}
                                 rule={filterRule}
+                                valuesDropdownPosition="top"
                                 onChange={(newFilterRule) =>
                                     onChangeFilterRule(
                                         newFilterRule as DashboardFilterRule,

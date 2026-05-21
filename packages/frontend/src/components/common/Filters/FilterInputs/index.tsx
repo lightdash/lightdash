@@ -16,6 +16,7 @@ export type FilterInputsProps<T extends BaseFilterRule> = {
     onChange: (value: T) => void;
     disabled?: boolean;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    valuesDropdownPosition?: 'top' | 'bottom' | 'flip';
 };
 
 const FilterInputComponent = <T extends BaseFilterRule>(

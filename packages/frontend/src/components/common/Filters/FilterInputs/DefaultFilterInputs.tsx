@@ -25,6 +25,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
     disabled,
     onChange,
     popoverProps,
+    valuesDropdownPosition,
 }: FilterInputsProps<T>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
@@ -85,6 +86,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
+                            dropdownPosition={valuesDropdownPosition}
                             values={(rule.values || []).filter(isString)}
                             singleValue={isSingleValue}
                             onChange={(values) =>
