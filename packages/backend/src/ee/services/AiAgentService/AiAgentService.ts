@@ -203,6 +203,7 @@ import {
     UpdateProgressFn,
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
+import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     getAgentConfirmationBlocks,
@@ -268,6 +269,7 @@ type AiAgentServiceDependencies = {
     savedChartService: SavedChartService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
+    aiAgentContentValidation: AiAgentContentValidation;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -447,6 +449,8 @@ export class AiAgentService extends BaseService {
 
     private readonly shareService: ShareService;
 
+    private readonly aiAgentContentValidation: AiAgentContentValidation;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -501,6 +505,7 @@ export class AiAgentService extends BaseService {
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
         this.shareService = dependencies.shareService;
+        this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -4177,12 +4182,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             'Patch must be an RFC6902 patch array',
                         );
                     }
+                    this.aiAgentContentValidation.validatePatch(type, patch);
 
                     const currentContent = await readContent({ slug, type });
                     const patchedContent = JsonPatch.applyPatch(
                         structuredClone(currentContent.content),
                         patch,
                     ).newDocument;
+                    this.aiAgentContentValidation.validateContent(
+                        type,
+                        patchedContent,
+                    );
 
                     const patchedSlug =
                         typeof patchedContent.slug === 'string' &&
