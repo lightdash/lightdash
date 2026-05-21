@@ -1,4 +1,4 @@
-import { getParameterReferencesFromSqlAndFormat } from '../../compiler/parameters';
+import { getParameterReferences } from '../../compiler/parameters';
 import type { CompiledTable } from '../../types/explore';
 import {
     DimensionType,
@@ -29,9 +29,7 @@ const makeDimension = (
     compiledSql: overrides.compiledSql ?? overrides.sql ?? '"orders".amount',
     parameterReferences:
         overrides.parameterReferences ??
-        getParameterReferencesFromSqlAndFormat(
-            overrides.sql ?? '${TABLE}.amount',
-        ),
+        getParameterReferences(overrides.sql ?? '${TABLE}.amount'),
     tablesReferences: overrides.tablesReferences ?? ['orders'],
     hidden: overrides.hidden ?? false,
 });
@@ -51,9 +49,7 @@ const makeMetric = (
         overrides.compiledSql ?? overrides.sql ?? 'SUM("orders".amount)',
     parameterReferences:
         overrides.parameterReferences ??
-        getParameterReferencesFromSqlAndFormat(
-            overrides.sql ?? 'sum(${TABLE}.amount)',
-        ),
+        getParameterReferences(overrides.sql ?? 'sum(${TABLE}.amount)'),
     tablesReferences: overrides.tablesReferences ?? ['orders'],
     hidden: overrides.hidden ?? false,
 });

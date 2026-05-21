@@ -1,4 +1,4 @@
-import { getParameterReferencesFromSqlAndFormat } from '../../compiler/parameters';
+import { getParameterReferences } from '../../compiler/parameters';
 import type { CompiledTable } from '../../types/explore';
 import {
     DimensionType,
@@ -25,7 +25,7 @@ const makeDimension = (
     compiledSql: overrides.compiledSql ?? overrides.sql ?? '"orders".id',
     parameterReferences:
         overrides.parameterReferences ??
-        getParameterReferencesFromSqlAndFormat(overrides.sql ?? '${TABLE}.id'),
+        getParameterReferences(overrides.sql ?? '${TABLE}.id'),
     tablesReferences: overrides.tablesReferences ?? ['orders'],
     hidden: overrides.hidden ?? false,
 });

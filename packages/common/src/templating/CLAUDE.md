@@ -74,7 +74,7 @@ When a query runs:
 
 ### Parameter Detection for UI
 
-`getParameterReferencesFromSqlAndFormat()` in `compiler/parameters.ts` extracts parameter names from both `${ld.parameters.x}` syntax and `{% if ld.parameters.x %}` syntax, so the UI shows the parameter selector.
+`getParameterReferences()` in `compiler/parameters.ts` extracts parameter names from both `${ld.parameters.x}` syntax and `{% if ld.parameters.x %}` syntax, so the UI shows the parameter selector.
 
 ## Safety Mechanisms
 

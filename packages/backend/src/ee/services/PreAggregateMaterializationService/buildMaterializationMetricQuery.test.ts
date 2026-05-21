@@ -2,7 +2,7 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
-    getParameterReferencesFromSqlAndFormat,
+    getParameterReferences,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
@@ -43,8 +43,7 @@ const makeDimension = ({
     hidden: false,
     compiledSql: compiledSql ?? sql ?? '"orders".id',
     parameterReferences:
-        parameterReferences ??
-        getParameterReferencesFromSqlAndFormat(sql ?? '${TABLE}.id'),
+        parameterReferences ?? getParameterReferences(sql ?? '${TABLE}.id'),
     tablesReferences: [table],
     ...(compilationError ? { compilationError } : {}),
 });
@@ -80,8 +79,7 @@ const makeMetric = ({
     hidden: false,
     compiledSql: compiledSql ?? sql ?? 'count(*)',
     parameterReferences:
-        parameterReferences ??
-        getParameterReferencesFromSqlAndFormat(sql ?? 'count(*)'),
+        parameterReferences ?? getParameterReferences(sql ?? 'count(*)'),
     tablesReferences: [table],
     ...(filters ? { filters } : {}),
     ...(compilationError ? { compilationError } : {}),

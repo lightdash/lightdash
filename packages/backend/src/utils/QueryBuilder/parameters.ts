@@ -1,4 +1,5 @@
 import {
+    getParameterReferences,
     parameterRegex,
     renderLiquidSql,
     UnexpectedServerError,
@@ -189,6 +190,14 @@ export const safeReplaceParametersWithTypes = ({
         escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
         quoteChar: sqlBuilder.getStringQuoteChar(),
         wrapChar,
+    });
+
+    // Liquid blocks (e.g. `{% if ld.parameters.x == "y" %}...{% endif %}`) reference parameters
+    // but are evaluated and consumed by `renderLiquidSql` before the `${...}` regex scan above,
+    // so their parameter references would otherwise be lost. Scan the pre-render SQL for
+    // liquid-style references and merge them into the references set.
+    getParameterReferences(sql).forEach((ref) => {
+        allParametersResult.references.add(ref);
     });
 
     // If no parameter definitions are provided, use the standard replacement

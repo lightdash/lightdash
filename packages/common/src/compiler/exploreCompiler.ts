@@ -44,7 +44,6 @@ import {
     getAvailableParameterNames,
     getAvailableParametersFromTables,
     getParameterReferences,
-    getParameterReferencesFromSqlAndFormat,
     validateParameterConfiguration,
     validateParameterNames,
     validateParameterReferences,
@@ -902,7 +901,7 @@ export class ExploreCompiler {
         const compiledSql = compiledMetric.sql;
 
         // Extract parameter references from both SQL and format string
-        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+        const parameterReferences = getParameterReferences(
             compiledSql,
             typeof metric.format === 'string' ? metric.format : undefined,
         );
@@ -1210,7 +1209,7 @@ export class ExploreCompiler {
         const compiledSql = compiledDimension.sql;
 
         // Extract parameter references from both SQL and format string
-        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+        const parameterReferences = getParameterReferences(
             compiledSql,
             typeof dimension.format === 'string' ? dimension.format : undefined,
         );
