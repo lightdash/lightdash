@@ -1049,7 +1049,6 @@ export class AppGenerateService extends BaseService {
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
-        version: number,
         projectUuid: string,
         prompt: string,
         imageIds: string[] | undefined,
@@ -1106,7 +1105,6 @@ export class AppGenerateService extends BaseService {
                     this.writeImageToSandbox(
                         sandbox,
                         appUuid,
-                        version,
                         id,
                         s3Client,
                         bucket,
@@ -1170,14 +1168,19 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Reconstruct the image's staging S3 key from convention, read the object
-     * (which gives us the MIME type from ContentType), copy it to the version
-     * assets folder, and write it into the sandbox for Claude to read.
-     * Returns the sandbox file path.
+     * (which gives us the MIME type from ContentType), and write it into the
+     * sandbox for Claude to read. Returns the sandbox file path.
+     *
+     * Design references are dual-written: once to `/tmp/images/` (read-only
+     * inspection — picked up by the prompt prepend and the agent's Read
+     * tool), and again to `/app/src/uploads/` so the agent can `import` them
+     * as Vite assets when the image should ship inside the rendered app
+     * (logo, hero illustration, etc). Screenshots are inspection-only and
+     * never end up in the bundle — they describe current state, not target.
      */
     private async writeImageToSandbox(
         sandbox: Sandbox,
         appUuid: string,
-        version: number,
         imageId: string,
         s3Client: S3Client,
         bucket: string,
@@ -1217,21 +1220,10 @@ export class AppGenerateService extends BaseService {
             throw new Error('Unexpected S3 response body type');
         }
         const buffer = Buffer.concat(chunks);
-
-        // Copy to version assets folder. Match the sandbox filename so the
-        // archived asset is identifiable as a screenshot too.
-        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${filename}`;
-        this.logger.info(
-            `App ${appUuid}: copying image to version path (${stagingKey} → ${versionKey})`,
-        );
-        await s3Client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: versionKey,
-                Body: buffer,
-                ContentType: mimeType,
-            }),
-        );
+        const arrayBuffer = buffer.buffer.slice(
+            buffer.byteOffset,
+            buffer.byteOffset + buffer.byteLength,
+        ) as ArrayBuffer;
 
         // Write to sandbox
         this.logger.info(
@@ -1240,13 +1232,21 @@ export class AppGenerateService extends BaseService {
         await sandbox.commands.run('mkdir -p /tmp/images', {
             timeoutMs: 10_000,
         });
-        await sandbox.files.write(
-            sandboxPath,
-            buffer.buffer.slice(
-                buffer.byteOffset,
-                buffer.byteOffset + buffer.byteLength,
-            ) as ArrayBuffer,
-        );
+        await sandbox.files.write(sandboxPath, arrayBuffer);
+
+        // Design references go into the Vite-bundled source tree so the agent
+        // can `import logo from './uploads/<file>'` and have the URL hashed,
+        // auth-gated, and CSP-clean — same path as theme images. Screenshots
+        // are explicitly inspection-only and skipped to keep the bundle lean.
+        if (!isScreenshot) {
+            await sandbox.commands.run('mkdir -p /app/src/uploads', {
+                timeoutMs: 10_000,
+            });
+            await sandbox.files.write(
+                `/app/src/uploads/${filename}`,
+                arrayBuffer,
+            );
+        }
 
         return sandboxPath;
     }
@@ -2150,7 +2150,6 @@ export class AppGenerateService extends BaseService {
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
-                    version,
                     projectUuid,
                     prompt,
                     imageIds,
