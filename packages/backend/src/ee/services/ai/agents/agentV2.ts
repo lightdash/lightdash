@@ -13,6 +13,7 @@ import {
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
+import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
@@ -21,6 +22,7 @@ import { getImproveContext } from '../tools/improveContext';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getProposeChange } from '../tools/proposeChange';
+import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -181,6 +183,10 @@ const getAgentTools = (
         pageSize: args.getDashboardChartsPageSize,
     });
 
+    const readContent = getReadContent({
+        readContent: dependencies.readContent,
+    });
+
     const runQuery = getRunQuery({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -231,6 +237,9 @@ const getAgentTools = (
     });
 
     const improveContext = getImproveContext();
+    const editContent = getEditContent({
+        editContent: dependencies.editContent,
+    });
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
@@ -251,10 +260,17 @@ const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        getDashboardCharts,
         discoverFields,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
+        ...(args.enableAgentRevamp
+            ? {
+                  readContent,
+                  editContent,
+              }
+            : {
+                  getDashboardCharts,
+              }),
         runQuery,
         runSavedChart,
         generateDashboard,
