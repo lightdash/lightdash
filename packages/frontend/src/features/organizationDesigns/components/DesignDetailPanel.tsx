@@ -6,7 +6,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Center,
     Divider,
     Group,
@@ -20,8 +19,8 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconDownload, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     useClearDefaultOrganizationDesign,
@@ -31,6 +30,8 @@ import {
     useUpdateOrganizationDesign,
 } from '../hooks/useOrganizationDesigns';
 import { DesignFileUpload } from './DesignFileUpload';
+
+const AUTOSAVE_DELAY_MS = 3000;
 
 type Props = {
     designUuid: string;
@@ -125,28 +126,104 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
 
     const trimmedName = form.values.name.trim();
     const trimmedDescription = form.values.description.trim();
-    const hasChanges =
+    const hasUnsavedChanges =
         trimmedName !== design.name ||
         trimmedDescription !== (design.description ?? '');
+    const canSave = hasUnsavedChanges && trimmedName.length > 0;
 
-    const handleSave = () => {
-        if (!hasChanges || !trimmedName) return;
-        updateDesign.mutate({
-            designUuid: design.designUuid,
-            data: {
-                name: trimmedName,
-                description: trimmedDescription || null,
-            },
-        });
+    const updateMutate = updateDesign.mutate;
+    const designUuid = design.designUuid;
+
+    // Auto-save: fire after the user stops typing.
+    useEffect(() => {
+        if (!canSave) return;
+        const timer = setTimeout(() => {
+            updateMutate({
+                designUuid,
+                data: {
+                    name: trimmedName,
+                    description: trimmedDescription || null,
+                },
+            });
+        }, AUTOSAVE_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [canSave, designUuid, trimmedName, trimmedDescription, updateMutate]);
+
+    // Latest values held in a ref so the unmount cleanup can flush the most
+    // recent edits even if the debounce hasn't fired yet.
+    const latestRef = useRef({
+        design,
+        trimmedName,
+        trimmedDescription,
+        mutate: updateMutate,
+    });
+    latestRef.current = {
+        design,
+        trimmedName,
+        trimmedDescription,
+        mutate: updateMutate,
+    };
+
+    // Flush pending edits on unmount (e.g. when the user clicks Done before
+    // the debounce fires).
+    useEffect(() => {
+        return () => {
+            const {
+                design: d,
+                trimmedName: n,
+                trimmedDescription: dsc,
+                mutate,
+            } = latestRef.current;
+            if (!n) return;
+            if (n === d.name && dsc === (d.description ?? '')) return;
+            mutate({
+                designUuid: d.designUuid,
+                data: { name: n, description: dsc || null },
+            });
+        };
+    }, []);
+
+    const renderSaveStatus = () => {
+        if (updateDesign.isLoading) {
+            return (
+                <>
+                    <Loader size={12} />
+                    <Text size="xs" c="ldGray.6">
+                        Saving…
+                    </Text>
+                </>
+            );
+        }
+        if (hasUnsavedChanges) {
+            return (
+                <Text size="xs" c="ldGray.6">
+                    Unsaved changes
+                </Text>
+            );
+        }
+        if (updateDesign.isSuccess) {
+            return (
+                <>
+                    <MantineIcon icon={IconCheck} size={14} color="green.6" />
+                    <Text size="xs" c="ldGray.6">
+                        Saved
+                    </Text>
+                </>
+            );
+        }
+        return null;
     };
 
     return (
         <Group align="stretch" gap="lg" wrap="nowrap">
             {/* Left column: metadata + actions */}
             <Stack gap="md" flex={1}>
-                <Box>
+                <Group justify="space-between" align="center">
                     <Title order={6}>Details</Title>
-                </Box>
+                    <Group gap="xxs" align="center" h={16}>
+                        {renderSaveStatus()}
+                    </Group>
+                </Group>
                 <TextInput
                     label="Name"
                     required
@@ -158,17 +235,6 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     autosize
                     {...form.getInputProps('description')}
                 />
-                <Group justify="flex-start">
-                    <Button
-                        variant="filled"
-                        size="xs"
-                        onClick={handleSave}
-                        disabled={!hasChanges || !trimmedName}
-                        loading={updateDesign.isLoading}
-                    >
-                        Save changes
-                    </Button>
-                </Group>
 
                 <Divider />
 
