@@ -1,3 +1,10 @@
+## [0.3002.3](https://github.com/lightdash/lightdash/compare/0.3002.2...0.3002.3) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ai-agents:** restore content tools after bad restack ([#23394](https://github.com/lightdash/lightdash/issues/23394)) ([9f60fbe](https://github.com/lightdash/lightdash/commit/9f60fbee08c3d7f8aad84c3fa0b3916715017922))
+
 ## [0.3002.2](https://github.com/lightdash/lightdash/compare/0.3002.1...0.3002.2) (2026-05-21)
 
 
