@@ -1,3 +1,11 @@
+## [0.3002.1](https://github.com/lightdash/lightdash/compare/0.3002.0...0.3002.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* prevent dashboard filter popover from dismissing on child popup interaction ([#23389](https://github.com/lightdash/lightdash/issues/23389)) ([b6a0519](https://github.com/lightdash/lightdash/commit/b6a051971a85caaadf80b6a043987249ec263e14))
+* replace user attributes in query selects ([#23119](https://github.com/lightdash/lightdash/issues/23119)) ([401e2dc](https://github.com/lightdash/lightdash/commit/401e2dccb2e384ce32f55d5461aad3d615eeae09))
+
 # [0.3002.0](https://github.com/lightdash/lightdash/compare/0.3001.1...0.3002.0) (2026-05-21)
 
 
