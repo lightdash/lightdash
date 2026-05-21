@@ -438,11 +438,26 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         return map;
     }, [tilesByTab, isEditMode, gridProps]);
 
+    // In view mode, drop tiles whose tab is hidden. Otherwise, when hiding tabs
+    // leaves only one visible tab, the non-tabbed grid path below renders every
+    // tile and the hidden tab's charts surface on the remaining grid.
+    const visibleTiles = useMemo(() => {
+        if (!dashboardTiles) return undefined;
+        if (isEditMode) return dashboardTiles;
+        const hiddenTabUuids = new Set(
+            dashboardTabs.filter((t) => t.hidden).map((t) => t.uuid),
+        );
+        if (hiddenTabUuids.size === 0) return dashboardTiles;
+        return dashboardTiles.filter(
+            (t) => !t.tabUuid || !hiddenTabUuids.has(t.tabUuid),
+        );
+    }, [dashboardTiles, dashboardTabs, isEditMode]);
+
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
         () => ({
             lg:
-                dashboardTiles?.map<Layout>((tile) =>
+                visibleTiles?.map<Layout>((tile) =>
                     getReactGridLayoutConfig(
                         tile,
                         isEditMode,
@@ -450,7 +465,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     ),
                 ) ?? [],
             md:
-                dashboardTiles?.map<Layout>((tile) =>
+                visibleTiles?.map<Layout>((tile) =>
                     getReactGridLayoutConfig(
                         tile,
                         isEditMode,
@@ -458,7 +473,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     ),
                 ) ?? [],
             sm:
-                dashboardTiles?.map<Layout>((tile) =>
+                visibleTiles?.map<Layout>((tile) =>
                     getReactGridLayoutConfig(
                         tile,
                         isEditMode,
@@ -466,7 +481,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     ),
                 ) ?? [],
         }),
-        [dashboardTiles, isEditMode, gridProps],
+        [visibleTiles, isEditMode, gridProps],
     );
 
     // Compute whether there are required filters that apply to the current tab
@@ -1160,7 +1175,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       </Activity>
                                                   ))
                                             : /* Single grid for non-tabbed dashboards */
-                                              dashboardTiles && (
+                                              visibleTiles && (
                                                   <ErrorBoundary>
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
@@ -1194,7 +1209,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                               allTilesLayouts
                                                           }
                                                       >
-                                                          {dashboardTiles.map(
+                                                          {visibleTiles.map(
                                                               (tile, idx) => (
                                                                   <div
                                                                       key={
