@@ -46,6 +46,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     hideRowNumbers,
     showColumnCalculation,
     showSubtotals,
+    showSubtotalsExpanded,
     children,
     ...rest
 }) => {
@@ -178,6 +179,9 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 ],
             },
             pagination: paginationState,
+        },
+        initialState: {
+            expanded: showSubtotalsExpanded ? true : {},
         },
         meta: {
             columnProperties,

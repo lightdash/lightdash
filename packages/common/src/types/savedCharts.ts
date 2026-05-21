@@ -424,6 +424,8 @@ export type TableChart = {
     showResultsTotal?: boolean;
     /** Show subtotal rows */
     showSubtotals?: boolean;
+    /** Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true. */
+    showSubtotalsExpanded?: boolean;
     /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
     /** Conditional formatting rules */

@@ -162,6 +162,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
+        showSubtotalsExpanded?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
@@ -191,6 +192,7 @@ const PivotTable: FC<PivotTableProps> = ({
     getField,
     className,
     showSubtotals = false,
+    showSubtotalsExpanded = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
@@ -592,6 +594,9 @@ const PivotTable: FC<PivotTableProps> = ({
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },
+        },
+        initialState: {
+            expanded: showSubtotalsExpanded ? true : {},
         },
         onGroupingChange: setGrouping,
         getExpandedRowModel: getExpandedRowModel(),

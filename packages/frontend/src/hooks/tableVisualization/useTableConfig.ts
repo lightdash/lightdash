@@ -77,6 +77,9 @@ const useTableConfig = (
     const [showSubtotals, setShowSubtotals] = useState<boolean>(
         tableChartConfig?.showSubtotals ?? false,
     );
+    const [showSubtotalsExpanded, setShowSubtotalsExpanded] = useState<boolean>(
+        tableChartConfig?.showSubtotalsExpanded ?? false,
+    );
     const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
         tableChartConfig?.hideRowNumbers === undefined
             ? false
@@ -653,6 +656,7 @@ const useTableConfig = (
             showTableNames,
             showResultsTotal,
             showSubtotals,
+            showSubtotalsExpanded,
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
@@ -666,6 +670,7 @@ const useTableConfig = (
             showTableNames,
             showResultsTotal,
             showSubtotals,
+            showSubtotalsExpanded,
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
@@ -690,6 +695,8 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            showSubtotalsExpanded,
+            setShowSubtotalsExpanded,
 
             columnProperties: exposedColumnProperties,
             setColumnProperties,
@@ -729,6 +736,8 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            showSubtotalsExpanded,
+            setShowSubtotalsExpanded,
 
             exposedColumnProperties,
             setColumnProperties,
