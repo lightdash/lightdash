@@ -1,3 +1,10 @@
+## [0.3004.1](https://github.com/lightdash/lightdash/compare/0.3004.0...0.3004.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **embed:** generate 32-char secret to satisfy HS256 minimum ([#23403](https://github.com/lightdash/lightdash/issues/23403)) ([185e8cf](https://github.com/lightdash/lightdash/commit/185e8cf2396df734ba2cefaa7790db966efe67cc))
+
 # [0.3004.0](https://github.com/lightdash/lightdash/compare/0.3003.0...0.3004.0) (2026-05-21)
 
 
