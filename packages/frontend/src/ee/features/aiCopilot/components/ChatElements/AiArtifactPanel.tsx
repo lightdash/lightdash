@@ -3,11 +3,8 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     parseVizConfig,
-    toolRunSqlArgsSchema,
-    type AiArtifact,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
-    type ToolRunSqlArgs,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -38,7 +35,6 @@ import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
-import { AiSqlChartVisualization } from './AiSqlChartVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -50,11 +46,6 @@ type ArtifactRef = {
     messageUuid: string;
     threadUuid: string;
 };
-
-type SemanticChartConfig = Exclude<
-    NonNullable<AiArtifact['chartConfig']>,
-    ToolRunSqlArgs
->;
 
 type AiArtifactPanelProps = {
     artifact: ArtifactRef;
@@ -101,43 +92,15 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const [selectedChartType, setSelectedChartType] =
             useState<AiAgentChartTypeOption | null>(null);
 
-        const sqlChartConfig = useMemo(() => {
-            if (
-                artifactData?.artifactType !== 'chart' ||
-                !artifactData.chartConfig
-            ) {
-                return null;
-            }
-            const parsed = toolRunSqlArgsSchema.safeParse(
-                artifactData.chartConfig,
-            );
-            return parsed.success ? parsed.data : null;
-        }, [artifactData?.artifactType, artifactData?.chartConfig]);
-
-        const chartConfig = useMemo<SemanticChartConfig | null>(() => {
-            if (
-                artifactData?.artifactType !== 'chart' ||
-                !artifactData.chartConfig ||
-                sqlChartConfig
-            ) {
-                return null;
-            }
-            return artifactData.chartConfig as SemanticChartConfig;
-        }, [
-            artifactData?.artifactType,
-            artifactData?.chartConfig,
-            sqlChartConfig,
-        ]);
-
         const isFloatingChart =
             variant === 'floating' &&
             artifactData?.artifactType === 'chart' &&
-            !!chartConfig;
+            !!artifactData.chartConfig;
 
         const vizConfig = useMemo(() => {
-            if (!isFloatingChart || !chartConfig) return null;
-            return parseVizConfig(chartConfig);
-        }, [isFloatingChart, chartConfig]);
+            if (!isFloatingChart || !artifactData?.chartConfig) return null;
+            return parseVizConfig(artifactData.chartConfig);
+        }, [isFloatingChart, artifactData?.chartConfig]);
 
         const queryExecutionHandle = useAiAgentArtifactVizQuery(
             {
@@ -168,13 +131,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             if (!isFloatingChart) return null;
             if (
                 !queryExecutionHandle.data ||
-                !chartConfig ||
+                !artifactData?.chartConfig ||
                 !queryExecutionHandle.data.query.metricQuery
             ) {
                 return null;
             }
             return getWebAiChartConfig({
-                vizConfig: chartConfig,
+                vizConfig: artifactData.chartConfig,
                 metricQuery: queryExecutionHandle.data.query.metricQuery,
                 maxQueryLimit: health?.query.maxLimit,
                 fieldsMap: queryExecutionHandle.data.query.fields,
@@ -183,7 +146,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         }, [
             isFloatingChart,
             queryExecutionHandle.data,
-            chartConfig,
+            artifactData?.chartConfig,
             health?.query.maxLimit,
             selectedChartType,
         ]);
@@ -258,19 +221,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         />
                     </div>
                 </div>
-            );
-        }
-
-        if (sqlChartConfig) {
-            return (
-                <AiSqlChartVisualization
-                    artifactData={artifactData}
-                    projectUuid={artifact.projectUuid}
-                    agentUuid={artifact.agentUuid}
-                    sqlChartConfig={sqlChartConfig}
-                    showCloseButton={showCloseButton}
-                    variant={variant}
-                />
             );
         }
 
@@ -376,7 +326,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     <AiVisualizationRenderer
                         vizQueryData={queryExecutionHandle.data}
                         results={queryResults}
-                        chartConfig={chartConfig!}
+                        chartConfig={artifactData.chartConfig!}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                     />

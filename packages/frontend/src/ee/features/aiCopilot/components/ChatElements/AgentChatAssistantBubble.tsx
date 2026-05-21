@@ -489,11 +489,8 @@ const AssistantBubbleContent: FC<{
                                     toolResults={message.toolResults}
                                     toolCalls={message.toolCalls}
                                     pendingContent={pendingApprovalContent}
-                                    artifactContext={{
+                                    actionContext={{
                                         projectUuid,
-                                        agentUuid,
-                                        threadUuid: message.threadUuid,
-                                        messageUuid: message.uuid,
                                     }}
                                 />
                             )}
@@ -535,11 +532,8 @@ const AssistantBubbleContent: FC<{
                                 isLive={isStreaming || isPending}
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
-                                artifactContext={{
+                                actionContext={{
                                     projectUuid,
-                                    agentUuid,
-                                    threadUuid: message.threadUuid,
-                                    messageUuid: message.uuid,
                                 }}
                             />
                         )}

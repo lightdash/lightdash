@@ -1,72 +1,42 @@
 import { Button, Code, Stack, Text } from '@mantine-8/core';
-import { IconTableShortcut } from '@tabler/icons-react';
+import { IconTerminal2 } from '@tabler/icons-react';
 import type { FC, MouseEvent } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { useCreateAiAgentSqlChartArtifact } from '../../../../hooks/useProjectAiAgents';
-import {
-    setArtifact,
-    type ArtifactData,
-} from '../../../../store/aiArtifactSlice';
-import { useAiAgentStoreDispatch } from '../../../../store/hooks';
-import type { ToolCallArtifactContext } from '../utils/types';
+import type { ToolCallActionContext } from '../utils/types';
 
 type SqlRunToolCallDescriptionProps = {
     sql: string;
     limit?: number;
-    title?: string;
-    description?: string;
-    artifactContext?: ToolCallArtifactContext;
+    actionContext?: ToolCallActionContext;
     isSuccessful?: boolean;
 };
 
-const CreateSqlChartButton: FC<{
+const OpenInSqlRunnerButton: FC<{
     sql: string;
     limit?: number;
-    title?: string;
-    description?: string;
-    artifactContext: ToolCallArtifactContext;
-}> = ({ sql, limit, title, description, artifactContext }) => {
-    const dispatch = useAiAgentStoreDispatch();
-    const createArtifact = useCreateAiAgentSqlChartArtifact(artifactContext);
-
-    const openArtifact = (
-        artifact: Pick<ArtifactData, 'artifactUuid' | 'versionUuid'>,
-    ) => {
-        dispatch(
-            setArtifact({
-                projectUuid: artifactContext.projectUuid,
-                agentUuid: artifactContext.agentUuid,
-                threadUuid: artifactContext.threadUuid,
-                messageUuid: artifactContext.messageUuid,
-                artifactUuid: artifact.artifactUuid,
-                versionUuid: artifact.versionUuid,
-            }),
-        );
-    };
-
-    const handleCreate = async (event: MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
+    actionContext: ToolCallActionContext;
+}> = ({ sql, limit, actionContext }) => {
+    const handleClick = (event: MouseEvent<HTMLElement>) => {
         event.stopPropagation();
-
-        const artifact = await createArtifact.mutateAsync({
-            sql,
-            limit,
-            title,
-            description,
-        });
-        openArtifact(artifact);
     };
+
+    const state = limit ? { sql, limit } : { sql };
 
     return (
         <Button
+            component={Link}
+            to={{
+                pathname: `/projects/${actionContext.projectUuid}/sql-runner`,
+            }}
+            state={state}
             size="compact-xs"
             variant="light"
             color="gray"
-            loading={createArtifact.isLoading}
-            leftSection={<MantineIcon icon={IconTableShortcut} size={12} />}
-            onClick={handleCreate}
+            leftSection={<MantineIcon icon={IconTerminal2} size={12} />}
+            onClick={handleClick}
         >
-            Create SQL chart
+            Open in SQL Runner
         </Button>
     );
 };
@@ -74,9 +44,7 @@ const CreateSqlChartButton: FC<{
 export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
     sql,
     limit,
-    title,
-    description,
-    artifactContext,
+    actionContext,
     isSuccessful = false,
 }) => {
     return (
@@ -92,13 +60,11 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
             >
                 {sql}
             </Code>
-            {isSuccessful && artifactContext ? (
-                <CreateSqlChartButton
+            {isSuccessful && actionContext ? (
+                <OpenInSqlRunnerButton
                     sql={sql}
                     limit={limit}
-                    title={title}
-                    description={description}
-                    artifactContext={artifactContext}
+                    actionContext={actionContext}
                 />
             ) : null}
         </Stack>

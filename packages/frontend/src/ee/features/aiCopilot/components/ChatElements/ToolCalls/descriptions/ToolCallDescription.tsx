@@ -23,7 +23,7 @@ import {
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import type { ToolCallArtifactContext, ToolCallSummary } from '../utils/types';
+import type { ToolCallActionContext, ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
@@ -61,9 +61,9 @@ const getToolStatus = (
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
-    artifactContext?: ToolCallArtifactContext;
+    actionContext?: ToolCallActionContext;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall, artifactContext, toolResult }) => {
+}> = ({ toolName, toolCall, actionContext, toolResult }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -184,9 +184,7 @@ export const ToolCallDescription: FC<{
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
-                    title={sqlToolArgs.title}
-                    description={sqlToolArgs.description}
-                    artifactContext={artifactContext}
+                    actionContext={actionContext}
                     isSuccessful={
                         sqlStatus === 'success' &&
                         toolCall.isPreliminary !== true

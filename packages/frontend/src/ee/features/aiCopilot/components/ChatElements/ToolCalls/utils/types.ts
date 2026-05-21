@@ -18,9 +18,6 @@ export type ToolCallSummary = {
     isPreliminary?: boolean;
 };
 
-export type ToolCallArtifactContext = {
+export type ToolCallActionContext = {
     projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
 };

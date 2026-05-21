@@ -28,7 +28,6 @@ import {
     ApiAiAgentThreadMessageVizQuery,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
-    ApiCreateAiAgentSqlChartArtifactRequest,
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
@@ -178,7 +177,6 @@ import {
 import { matchesPreset } from '../ai/models/presets';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
-import { validateSelectOnlySql } from '../ai/tools/sqlValidation';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -2720,107 +2718,6 @@ export class AiAgentService extends BaseService {
         );
 
         return readinessScore;
-    }
-
-    async createSqlChartArtifact(
-        user: SessionUser,
-        {
-            projectUuid,
-            agentUuid,
-            threadUuid,
-            messageUuid,
-            sql,
-            limit,
-            title,
-            description,
-        }: {
-            projectUuid: string;
-            agentUuid: string;
-            threadUuid: string;
-            messageUuid: string;
-        } & ApiCreateAiAgentSqlChartArtifactRequest,
-    ) {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-        if (!agent || agent.projectUuid !== projectUuid) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid,
-        });
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
-        }
-
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to update this thread',
-            );
-        }
-
-        const message = await this.aiAgentModel.findThreadMessage('assistant', {
-            organizationUuid,
-            threadUuid,
-            messageUuid,
-        });
-        if (!message) {
-            throw new NotFoundError(`Message not found: ${messageUuid}`);
-        }
-
-        try {
-            validateSelectOnlySql(sql);
-        } catch (e) {
-            throw new ParameterError(
-                e instanceof Error ? e.message : 'Invalid SQL query.',
-            );
-        }
-
-        return this.aiAgentModel.createOrUpdateArtifact({
-            threadUuid,
-            promptUuid: messageUuid,
-            artifactType: 'chart',
-            title: title?.trim() || 'SQL query results',
-            description: description?.trim(),
-            vizConfig: {
-                sql,
-                limit,
-                title,
-                description,
-            },
-        });
     }
 
     async getArtifactVizQuery(

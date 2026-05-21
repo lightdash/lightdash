@@ -4,7 +4,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 const TOOL_RUN_SQL_DESCRIPTION = `Tool: run_sql
 
 Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be turned into a SQL chart artifact from the chat UI.
+Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be opened in SQL Runner from the chat UI.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
@@ -14,8 +14,6 @@ The query is executed directly against the warehouse, so use the SQL dialect app
 Parameters:
 - sql: The SQL query to execute. Must be a valid SELECT statement.
 - limit: Maximum number of rows to return (default 500, max 5000).
-- title: Descriptive title to use if the result is turned into a SQL chart artifact.
-- description: Descriptive summary to use if the result is turned into a SQL chart artifact.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
@@ -52,18 +50,6 @@ export const toolRunSqlArgsSchema = createToolSchema({
             .default(500)
             .describe(
                 'Maximum number of rows to return. Defaults to 500, max 5000.',
-            ),
-        title: z
-            .string()
-            .optional()
-            .describe(
-                'A descriptive title to use if the result is turned into a SQL chart artifact.',
-            ),
-        description: z
-            .string()
-            .optional()
-            .describe(
-                'A descriptive summary or explanation to use if the result is turned into a SQL chart artifact.',
             ),
     })
     .build();

@@ -13086,8 +13086,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13145,8 +13145,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13170,6 +13170,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -13392,8 +13405,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
+                                                            "error",
                                                             "rejected",
                                                             "timeout"
                                                         ]
@@ -14108,45 +14121,6 @@
             },
             "ApiAiAgentArtifactResponseTSOACompat": {
                 "$ref": "#/components/schemas/ApiSuccess_AiArtifactTSOACompat_"
-            },
-            "ApiCreateAiAgentSqlChartArtifactResponse": {
-                "$ref": "#/components/schemas/ApiAiAgentArtifactResponseTSOACompat"
-            },
-            "Pick_ToolRunSqlArgs.sql-or-title-or-description_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    }
-                },
-                "required": ["sql"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Partial_Pick_ToolRunSqlArgs.limit__": {
-                "properties": {
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "ApiCreateAiAgentSqlChartArtifactRequest": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_ToolRunSqlArgs.sql-or-title-or-description_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_Pick_ToolRunSqlArgs.limit__"
-                    }
-                ]
             },
             "AiResultType": {
                 "enum": [
@@ -25318,9 +25292,6 @@
                     "slug": {
                         "type": "string"
                     },
-                    "sql": {
-                        "type": "string"
-                    },
                     "config": {
                         "allOf": [
                             {
@@ -25341,6 +25312,9 @@
                             }
                         ]
                     },
+                    "sql": {
+                        "type": "string"
+                    },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
                     }
@@ -25350,8 +25324,8 @@
                     "name",
                     "limit",
                     "slug",
-                    "sql",
                     "config",
+                    "sql",
                     "chartKind"
                 ],
                 "type": "object",
@@ -25475,9 +25449,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "sql": {
-                        "type": "string"
-                    },
                     "contentType": {
                         "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                     },
@@ -25488,6 +25459,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "sql": {
+                        "type": "string"
+                    },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
                     }
@@ -25497,8 +25471,8 @@
                     "limit",
                     "slug",
                     "version",
-                    "sql",
                     "spaceSlug",
+                    "sql",
                     "chartKind"
                 ],
                 "type": "object",
@@ -36733,78 +36707,6 @@
                                 },
                                 "required": ["tags"],
                                 "type": "object"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/sql-chart-artifact": {
-            "post": {
-                "operationId": "createSqlChartArtifact",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCreateAiAgentSqlChartArtifactResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "threadUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "messageUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiCreateAiAgentSqlChartArtifactRequest"
                             }
                         }
                     }

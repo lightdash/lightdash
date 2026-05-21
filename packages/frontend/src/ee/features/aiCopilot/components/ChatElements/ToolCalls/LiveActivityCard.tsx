@@ -32,7 +32,7 @@ import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { getToolIcon } from './utils/toolIcons';
 import {
-    type ToolCallArtifactContext,
+    type ToolCallActionContext,
     type ToolCallSummary,
 } from './utils/types';
 
@@ -60,7 +60,7 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
-    artifactContext?: ToolCallArtifactContext;
+    actionContext?: ToolCallActionContext;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -404,7 +404,7 @@ export const LiveActivityCard: FC<Props> = ({
     toolResults,
     toolCalls,
     pendingContent,
-    artifactContext,
+    actionContext,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -596,8 +596,8 @@ export const LiveActivityCard: FC<Props> = ({
                                                           latestBuiltInToolName
                                                       }
                                                       toolCall={tc}
-                                                      artifactContext={
-                                                          artifactContext
+                                                      actionContext={
+                                                          actionContext
                                                       }
                                                       toolResult={toolResults?.find(
                                                           (result) =>
@@ -653,7 +653,7 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
                                             status="done"
-                                            artifactContext={artifactContext}
+                                            actionContext={actionContext}
                                             toolResults={toolResults}
                                             extraBody={
                                                 groupTrace ? (

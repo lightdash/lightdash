@@ -24,7 +24,7 @@ import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolIcon } from './utils/toolIcons';
 import {
-    type ToolCallArtifactContext,
+    type ToolCallActionContext,
     type ToolCallSummary,
 } from './utils/types';
 
@@ -60,7 +60,7 @@ type Props = {
      * subagent trace.
      */
     extraBody?: React.ReactNode;
-    artifactContext?: ToolCallArtifactContext;
+    actionContext?: ToolCallActionContext;
     toolResults?: AiAgentToolResult[];
 };
 
@@ -69,7 +69,7 @@ export const ToolCallRow: FC<Props> = ({
     toolCalls,
     status = 'done',
     extraBody,
-    artifactContext,
+    actionContext,
     toolResults,
 }) => {
     const Icon = getToolIcon(toolName);
@@ -113,7 +113,7 @@ export const ToolCallRow: FC<Props> = ({
                     <ToolCallDescription
                         toolName={builtInToolName}
                         toolCall={toolCalls[0]}
-                        artifactContext={artifactContext}
+                        actionContext={actionContext}
                         toolResult={toolResults?.find(
                             (result) =>
                                 result.toolCallId === toolCalls[0].toolCallId,
@@ -213,7 +213,7 @@ export const ToolCallRow: FC<Props> = ({
                                   key={tc.toolCallId}
                                   toolName={builtInToolName}
                                   toolCall={tc}
-                                  artifactContext={artifactContext}
+                                  actionContext={actionContext}
                                   toolResult={toolResults?.find(
                                       (result) =>
                                           result.toolCallId === tc.toolCallId,

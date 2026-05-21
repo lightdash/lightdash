@@ -13,8 +13,6 @@ import type {
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
-    ApiCreateAiAgentSqlChartArtifactRequest,
-    ApiCreateAiAgentSqlChartArtifactResponse,
     AiPromptContext,
     AiPromptContextItem,
     AiPromptContextItemInput,
@@ -1346,74 +1344,6 @@ export const useAiAgentArtifactVizQuery = (
         },
         enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
     });
-};
-
-const createAiAgentSqlChartArtifact = async (args: {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
-    data: ApiCreateAiAgentSqlChartArtifactRequest;
-}) =>
-    lightdashApi({
-        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/messages/${args.messageUuid}/sql-chart-artifact`,
-        method: 'POST',
-        body: JSON.stringify(args.data),
-    }) as Promise<ApiCreateAiAgentSqlChartArtifactResponse['results']>;
-
-export const useCreateAiAgentSqlChartArtifact = ({
-    projectUuid,
-    agentUuid,
-    threadUuid,
-    messageUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
-}) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError } = useToaster();
-
-    return useMutation<
-        ApiCreateAiAgentSqlChartArtifactResponse['results'],
-        ApiError,
-        ApiCreateAiAgentSqlChartArtifactRequest
-    >(
-        (data) =>
-            createAiAgentSqlChartArtifact({
-                projectUuid,
-                agentUuid,
-                threadUuid,
-                messageUuid,
-                data,
-            }),
-        {
-            mutationKey: [
-                AI_AGENTS_KEY,
-                'create-sql-chart-artifact',
-                projectUuid,
-                agentUuid,
-                threadUuid,
-                messageUuid,
-            ],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    AI_AGENTS_KEY,
-                    projectUuid,
-                    agentUuid,
-                    'threads',
-                    threadUuid,
-                ]);
-            },
-            onError: (error) => {
-                showToastApiError({
-                    title: 'Failed to create SQL chart',
-                    apiError: error.error,
-                });
-            },
-        },
-    );
 };
 
 // Dashboard chart visualization query functionality
