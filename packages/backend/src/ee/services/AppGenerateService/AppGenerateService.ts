@@ -3203,9 +3203,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const copiedKeys = await AppGenerateService.copyVersionS3Prefix(
             s3Client,
             bucket,
-            appUuid,
-            sourceVersion,
-            newVersion,
+            { appUuid, version: sourceVersion },
+            { appUuid, version: newVersion },
         );
 
         // 2. Resync the running sandbox so the next iteration sees the
@@ -3292,20 +3291,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /**
-     * Server-side copy every object under
-     * `apps/{appUuid}/versions/{sourceVersion}/` into
-     * `apps/{appUuid}/versions/{newVersion}/`. Returns the list of
-     * destination keys so the caller can roll back on later failure.
+     * Server-side copy every object under the source version's S3 prefix
+     * into the target version's S3 prefix. Supports both same-app (restore)
+     * and cross-app (duplicate) copies. Returns the list of destination keys
+     * so the caller can roll back on later failure.
      */
     private static async copyVersionS3Prefix(
         s3Client: S3Client,
         bucket: string,
-        appUuid: string,
-        sourceVersion: number,
-        newVersion: number,
+        source: { appUuid: string; version: number },
+        target: { appUuid: string; version: number },
     ): Promise<string[]> {
-        const sourcePrefix = `apps/${appUuid}/versions/${sourceVersion}/`;
-        const destinationPrefix = `apps/${appUuid}/versions/${newVersion}/`;
+        const sourcePrefix = `apps/${source.appUuid}/versions/${source.version}/`;
+        const destinationPrefix = `apps/${target.appUuid}/versions/${target.version}/`;
         const copiedKeys: string[] = [];
 
         let continuationToken: string | undefined;
@@ -3520,6 +3518,135 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 `App ${appUuid}: failed to clean up ${keys.length} orphaned restore object(s): ${getErrorMessage(cleanupError)}`,
             );
         }
+    }
+
+    /**
+     * Duplicate an existing app the user can view into a new personal app
+     * owned by the requester. The new app starts at v1 with the source's
+     * latest ready version's S3 artifacts (dist.tar + source.tar + any
+     * extracted assets) server-side copied into the new prefix. No sandbox
+     * is created — a fresh one spins up lazily on the first iteration via
+     * the standard restore-from-tarball path.
+     *
+     * Carried over: template, chart/dashboard resource refs (UUIDs only),
+     * claudeModel, prompt (source's latest ready version's text), and the
+     * description verbatim. Dropped: images, prior version history, prior
+     * clarifications, sandbox, pin state.
+     */
+    async duplicateApp(
+        user: SessionUser,
+        projectUuid: string,
+        sourceAppUuid: string,
+    ): Promise<GenerateAppResult> {
+        await this.assertDataAppsEnabled(user);
+
+        const sourceApp = await this.appModel.getApp(
+            sourceAppUuid,
+            projectUuid,
+        );
+        await this.assertCanViewApp(user, sourceApp);
+
+        // The duplicate lands as a personal app in the same project. We need
+        // `create:DataApp` on the project itself — viewers who can read a
+        // shared app but can't author new ones must not be able to fork it.
+        this.assertDataAppAbility(
+            user,
+            'create',
+            sourceApp.organization_uuid,
+            projectUuid,
+            'Insufficient permissions to duplicate this data app',
+        );
+
+        const sourceVersion = await this.appModel.getLatestReadyVersion(
+            sourceApp.app_id,
+        );
+        if (!sourceVersion) {
+            throw new ParameterError(
+                'Cannot duplicate an app that has no successful version',
+            );
+        }
+
+        const sourceResources = sourceVersion.resources ?? null;
+        const resources: AppVersionResources = {
+            images: [],
+            charts: sourceResources?.charts ?? [],
+            dashboardName: sourceResources?.dashboardName ?? null,
+            clarifications: [],
+            ...(sourceResources?.claudeModel
+                ? { claudeModel: sourceResources.claudeModel }
+                : {}),
+        };
+
+        const newAppUuid = uuidv4();
+        const newVersion = 1;
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        const copiedKeys = await AppGenerateService.copyVersionS3Prefix(
+            s3Client,
+            bucket,
+            { appUuid: sourceApp.app_id, version: sourceVersion.version },
+            { appUuid: newAppUuid, version: newVersion },
+        );
+
+        // The user-facing chat collapses everything before the duplicate
+        // into a single v1 bubble. The original prompt would imply we're
+        // about to re-execute it; instead, frame the bubble as "copy this
+        // app" with a markdown link to the source's preview at the version
+        // we forked from, and a static assistant reply confirming success.
+        const sourceDisplayName = sourceApp.name || 'untitled app';
+        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
+
+        try {
+            await this.appModel.createWithVersion(
+                {
+                    app_id: newAppUuid,
+                    project_uuid: projectUuid,
+                    created_by_user_uuid: user.userUuid,
+                    name: `Duplicate of ${sourceDisplayName}`,
+                    description: sourceApp.description,
+                    template: sourceApp.template,
+                    space_uuid: null,
+                },
+                { version: newVersion, prompt: duplicatePrompt },
+                'ready',
+                resources,
+            );
+            await this.appModel.updateStatusMessage(
+                newAppUuid,
+                newVersion,
+                'Duplicate ready!',
+            );
+        } catch (error) {
+            // The new app row failed to insert; drop the orphaned S3 copy so
+            // we don't leak storage. Cleanup failures are swallowed (logged
+            // by the helper) — orphans are harmless.
+            await this.cleanupRestoredS3Keys(
+                s3Client,
+                bucket,
+                newAppUuid,
+                copiedKeys,
+            );
+            throw error;
+        }
+
+        this.analytics.track({
+            event: 'data_app.duplicated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid: newAppUuid,
+                duplicatedFromAppUuid: sourceApp.app_id,
+                duplicatedFromVersion: sourceVersion.version,
+            },
+        });
+
+        this.logger.info(
+            `App ${newAppUuid}: duplicated from app ${sourceApp.app_id} v${sourceVersion.version} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
+        );
+
+        return { appUuid: newAppUuid, version: newVersion };
     }
 
     async cancelVersion(

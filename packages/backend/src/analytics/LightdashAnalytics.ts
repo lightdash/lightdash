@@ -1337,6 +1337,18 @@ export type DataAppVersionRestoredEvent = BaseTrack & {
     };
 };
 
+export type DataAppDuplicatedEvent = BaseTrack & {
+    event: 'data_app.duplicated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        duplicatedFromAppUuid: string;
+        duplicatedFromVersion: number;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1345,7 +1357,8 @@ export type DataAppEvent =
     | DataAppVersionFailedEvent
     | DataAppImageUploadedEvent
     | DataAppViewedEvent
-    | DataAppVersionRestoredEvent;
+    | DataAppVersionRestoredEvent
+    | DataAppDuplicatedEvent;
 
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';

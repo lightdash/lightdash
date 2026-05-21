@@ -34,6 +34,7 @@ import {
     IconAppsOff,
     IconAppWindow,
     IconArrowUp,
+    IconCopy,
     IconDots,
     IconExternalLink,
     IconArrowBackUp,
@@ -104,6 +105,7 @@ import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
+import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -550,6 +552,8 @@ const AppGenerate: FC = () => {
         useClarifyApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
+    const { mutate: duplicateMutate, isLoading: isDuplicating } =
+        useDuplicateApp();
     const {
         mutate: restoreVersionMutate,
         isLoading: isRestoringVersion,
@@ -2280,7 +2284,10 @@ const AppGenerate: FC = () => {
                                             color="ldGray.6"
                                             aria-label="App actions"
                                         >
-                                            <IconDots size={16} />
+                                            <MantineIcon
+                                                icon={IconDots}
+                                                size={16}
+                                            />
                                         </ActionIcon>
                                     </Menu.Target>
                                     <Menu.Dropdown>
@@ -2290,7 +2297,8 @@ const AppGenerate: FC = () => {
                                                 to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
                                                 target="_blank"
                                                 leftSection={
-                                                    <IconExternalLink
+                                                    <MantineIcon
+                                                        icon={IconExternalLink}
                                                         size={14}
                                                     />
                                                 }
@@ -2301,7 +2309,41 @@ const AppGenerate: FC = () => {
                                         {previewApp && <Menu.Divider />}
                                         <Menu.Item
                                             leftSection={
-                                                <IconPencil size={14} />
+                                                <MantineIcon
+                                                    icon={IconCopy}
+                                                    size={14}
+                                                />
+                                            }
+                                            disabled={
+                                                isDuplicating || !activeAppUuid
+                                            }
+                                            onClick={() => {
+                                                if (!activeAppUuid) return;
+                                                duplicateMutate(
+                                                    {
+                                                        projectUuid,
+                                                        appUuid: activeAppUuid,
+                                                    },
+                                                    {
+                                                        onSuccess: ({
+                                                            appUuid: newAppUuid,
+                                                        }) => {
+                                                            void navigate(
+                                                                `/projects/${projectUuid}/apps/${newAppUuid}`,
+                                                            );
+                                                        },
+                                                    },
+                                                );
+                                            }}
+                                        >
+                                            Duplicate
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                    size={14}
+                                                />
                                             }
                                             onClick={() =>
                                                 setIsUpdateModalOpen(true)
@@ -2311,13 +2353,14 @@ const AppGenerate: FC = () => {
                                         </Menu.Item>
                                         <Menu.Item
                                             leftSection={
-                                                appSpaceUuid ? (
-                                                    <IconFolderSymlink
-                                                        size={14}
-                                                    />
-                                                ) : (
-                                                    <IconFolderPlus size={14} />
-                                                )
+                                                <MantineIcon
+                                                    icon={
+                                                        appSpaceUuid
+                                                            ? IconFolderSymlink
+                                                            : IconFolderPlus
+                                                    }
+                                                    size={14}
+                                                />
                                             }
                                             onClick={() =>
                                                 setIsMoveToSpaceOpen(true)
@@ -2331,7 +2374,10 @@ const AppGenerate: FC = () => {
                                         <Menu.Item
                                             color="red"
                                             leftSection={
-                                                <IconTrash size={14} />
+                                                <MantineIcon
+                                                    icon={IconTrash}
+                                                    size={14}
+                                                />
                                             }
                                             onClick={() =>
                                                 setIsDeleteModalOpen(true)

@@ -9894,6 +9894,9 @@
             "ApiRestoreAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
+            "ApiDuplicateAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
+            },
             "ApiSuccess__appUuid-string--name-string--description-string__": {
                 "properties": {
                     "results": {
@@ -11807,6 +11810,10 @@
                     "authType": {
                         "$ref": "#/components/schemas/AiMcpServerAuthType"
                     },
+                    "iconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "url": {
                         "type": "string"
                     },
@@ -11829,6 +11836,7 @@
                     "credentialScope",
                     "hasCredentials",
                     "authType",
+                    "iconUrl",
                     "url",
                     "name",
                     "projectUuid",
@@ -12974,6 +12982,26 @@
             "AiAgentMcpToolName": {
                 "type": "string"
             },
+            "Pick_AiMcpServer.uuid-or-name-or-iconUrl_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "iconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["name", "uuid", "iconUrl"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentToolCallMcpServer": {
+                "$ref": "#/components/schemas/Pick_AiMcpServer.uuid-or-name-or-iconUrl_"
+            },
             "AiAgentToolCall": {
                 "allOf": [
                     {
@@ -12997,6 +13025,14 @@
                             },
                             {
                                 "properties": {
+                                    "mcpServer": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentToolCallMcpServer"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
                                     "toolName": {
                                         "$ref": "#/components/schemas/AiAgentMcpToolName"
                                     },
@@ -13006,7 +13042,11 @@
                                         "nullable": false
                                     }
                                 },
-                                "required": ["toolName", "toolType"],
+                                "required": [
+                                    "mcpServer",
+                                    "toolName",
+                                    "toolType"
+                                ],
                                 "type": "object"
                             }
                         ]
@@ -13170,19 +13210,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -13406,19 +13433,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -33798,7 +33825,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3001.1",
+        "version": "0.3002.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
