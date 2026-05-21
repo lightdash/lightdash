@@ -8,7 +8,6 @@ import ClickhouseForm from './WarehouseForms/ClickhouseForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import DuckdbForm from './WarehouseForms/DuckdbForm';
-import DucklakeForm from './WarehouseForms/DucklakeForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
@@ -23,8 +22,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
-    [WarehouseTypes.DUCKDB]: 'MotherDuck',
-    [WarehouseTypes.DUCKLAKE]: 'DuckLake',
+    [WarehouseTypes.DUCKDB]: 'MotherDuck / DuckLake',
 };
 
 const WarehouseTypeForms = {
@@ -37,7 +35,6 @@ const WarehouseTypeForms = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseForm,
     [WarehouseTypes.ATHENA]: AthenaForm,
     [WarehouseTypes.DUCKDB]: DuckdbForm,
-    [WarehouseTypes.DUCKLAKE]: DucklakeForm,
 };
 
 interface WarehouseSettingsFormProps {

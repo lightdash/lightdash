@@ -71,7 +71,4 @@ export const warehouseValueValidators: Record<
         schema: hasNoWhiteSpaces('Schema'),
         token: hasNoWhiteSpaces('Service token'),
     },
-    [WarehouseTypes.DUCKLAKE]: {
-        schema: hasNoWhiteSpaces('Schema'),
-    },
 } as const;

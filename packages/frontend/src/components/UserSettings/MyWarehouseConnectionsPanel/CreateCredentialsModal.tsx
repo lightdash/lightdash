@@ -71,9 +71,6 @@ const defaultCredentials: Record<
         type: WarehouseTypes.DUCKDB,
         token: '',
     },
-    [WarehouseTypes.DUCKLAKE]: {
-        type: WarehouseTypes.DUCKLAKE,
-    },
 };
 
 const FORM_ID = 'create-credentials-form';
@@ -158,21 +155,16 @@ export const CreateCredentialsModal: FC<Props> = ({
                             label="Warehouse"
                             size="xs"
                             disabled={isSaving}
-                            data={Object.values(WarehouseTypes)
-                                // DuckLake has no per-user override surface yet.
-                                .filter(
-                                    (type) => type !== WarehouseTypes.DUCKLAKE,
-                                )
-                                .map((type) => {
-                                    const isDisabled =
-                                        type === WarehouseTypes.DATABRICKS &&
-                                        !isDatabricksEnabled;
-                                    return {
-                                        value: type,
-                                        label: getWarehouseLabel(type) || type,
-                                        disabled: isDisabled,
-                                    };
-                                })}
+                            data={Object.values(WarehouseTypes).map((type) => {
+                                const isDisabled =
+                                    type === WarehouseTypes.DATABRICKS &&
+                                    !isDatabricksEnabled;
+                                return {
+                                    value: type,
+                                    label: getWarehouseLabel(type) || type,
+                                    disabled: isDisabled,
+                                };
+                            })}
                             {...form.getInputProps('credentials.type')}
                         />
                     )}
