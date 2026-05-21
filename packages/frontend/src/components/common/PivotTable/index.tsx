@@ -37,6 +37,7 @@ import {
     getCoreRowModel,
     getExpandedRowModel,
     useReactTable,
+    type ExpandedState,
     type GroupingState,
     type Row,
 } from '@tanstack/react-table';
@@ -205,6 +206,15 @@ const PivotTable: FC<PivotTableProps> = ({
     const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
+    const [expanded, setExpanded] = React.useState<ExpandedState>(
+        showSubtotalsExpanded ? true : {},
+    );
+    const [prevShowSubtotalsExpanded, setPrevShowSubtotalsExpanded] =
+        React.useState(showSubtotalsExpanded);
+    if (showSubtotalsExpanded !== prevShowSubtotalsExpanded) {
+        setPrevShowSubtotalsExpanded(showSubtotalsExpanded);
+        setExpanded(showSubtotalsExpanded ? true : {});
+    }
 
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
         onColumnWidthChange,
@@ -590,15 +600,14 @@ const PivotTable: FC<PivotTableProps> = ({
         columns: columns,
         state: {
             grouping,
+            expanded,
             columnOrder: columnOrder,
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },
         },
-        initialState: {
-            expanded: showSubtotalsExpanded ? true : {},
-        },
         onGroupingChange: setGrouping,
+        onExpandedChange: setExpanded,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
         getCoreRowModel: getCoreRowModel(),

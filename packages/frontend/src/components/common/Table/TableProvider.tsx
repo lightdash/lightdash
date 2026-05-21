@@ -3,6 +3,7 @@ import {
     getExpandedRowModel,
     useReactTable,
     type ColumnOrderState,
+    type ExpandedState,
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
@@ -61,7 +62,18 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         minMaxMap,
     } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
+    const [expanded, setExpanded] = useState<ExpandedState>(
+        showSubtotalsExpanded ? true : {},
+    );
+    const [prevShowSubtotalsExpanded, setPrevShowSubtotalsExpanded] = useState(
+        showSubtotalsExpanded,
+    );
+    if (showSubtotalsExpanded !== prevShowSubtotalsExpanded) {
+        setPrevShowSubtotalsExpanded(showSubtotalsExpanded);
+        setExpanded(showSubtotalsExpanded ? true : {});
+    }
     const [columnVisibility, setColumnVisibility] = useState({});
+
     const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
         !pagination?.show || !!pagination?.defaultScroll,
     );
@@ -170,6 +182,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         columns: visibleColumns,
         state: {
             grouping,
+            expanded,
             columnVisibility,
             columnOrder: tempColumnOrder,
             columnPinning: {
@@ -180,9 +193,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
             },
             pagination: paginationState,
         },
-        initialState: {
-            expanded: showSubtotalsExpanded ? true : {},
-        },
+        onExpandedChange: setExpanded,
         meta: {
             columnProperties,
             minMaxMap,

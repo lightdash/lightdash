@@ -330,12 +330,7 @@ const GeneralSettings: FC = () => {
                 <Checkbox
                     ml="lg"
                     label="Expand subtotals by default"
-                    checked={
-                        canUseSubtotals &&
-                        !metricsAsRows &&
-                        showSubtotals &&
-                        showSubtotalsExpanded
-                    }
+                    checked={showSubtotalsExpanded ?? false}
                     onChange={() => {
                         setShowSubtotalsExpanded(!showSubtotalsExpanded);
                     }}
