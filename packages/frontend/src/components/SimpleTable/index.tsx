@@ -231,6 +231,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         getField,
         showResultsTotal,
         showSubtotals,
+        showSubtotalsExpanded,
         updateColumnProperty,
     } = visualizationConfig.chartConfig;
 
@@ -306,6 +307,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 getField={getField}
                                 hideRowNumbers={hideRowNumbers}
                                 showSubtotals={showSubtotals}
+                                showSubtotalsExpanded={showSubtotalsExpanded}
                                 columnProperties={
                                     visualizationConfig.chartConfig
                                         .columnProperties
@@ -326,6 +328,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 getField={getField}
                                 hideRowNumbers={hideRowNumbers}
                                 showSubtotals={showSubtotals}
+                                showSubtotalsExpanded={showSubtotalsExpanded}
                                 columnProperties={
                                     visualizationConfig.chartConfig
                                         .columnProperties
@@ -369,6 +372,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}
                 showSubtotals={showSubtotals}
+                showSubtotalsExpanded={showSubtotalsExpanded}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
                 onColumnWidthChange={onColumnWidthChange}
