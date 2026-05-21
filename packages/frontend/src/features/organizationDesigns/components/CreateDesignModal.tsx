@@ -1,6 +1,7 @@
 import { type ApiOrganizationDesign } from '@lightdash/common';
 import { Stack, Textarea, TextInput } from '@mantine-8/core';
-import { useEffect, useState, type FC } from 'react';
+import { useForm } from '@mantine/form';
+import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateOrganizationDesign } from '../hooks/useOrganizationDesigns';
 
@@ -15,20 +16,18 @@ export const CreateDesignModal: FC<Props> = ({
     onClose,
     onCreated,
 }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
+    const form = useForm({
+        initialValues: { name: '', description: '' },
+    });
     const createDesign = useCreateOrganizationDesign();
 
-    // Reset form whenever the modal is freshly opened.
-    useEffect(() => {
-        if (opened) {
-            setName('');
-            setDescription('');
-        }
-    }, [opened]);
+    const handleClose = () => {
+        form.reset();
+        onClose();
+    };
 
-    const trimmedName = name.trim();
-    const trimmedDescription = description.trim();
+    const trimmedName = form.values.name.trim();
+    const trimmedDescription = form.values.description.trim();
     const canSubmit = trimmedName.length > 0 && !createDesign.isLoading;
 
     const handleSubmit = () => {
@@ -39,7 +38,10 @@ export const CreateDesignModal: FC<Props> = ({
                 description: trimmedDescription || undefined,
             },
             {
-                onSuccess: (created) => onCreated(created),
+                onSuccess: (created) => {
+                    form.reset();
+                    onCreated(created);
+                },
             },
         );
     };
@@ -47,7 +49,7 @@ export const CreateDesignModal: FC<Props> = ({
     return (
         <MantineModal
             opened={opened}
-            onClose={onClose}
+            onClose={handleClose}
             title="Create new theme"
             size="md"
             onConfirm={handleSubmit}
@@ -59,18 +61,16 @@ export const CreateDesignModal: FC<Props> = ({
                 <TextInput
                     label="Name"
                     placeholder="Acme brand"
-                    value={name}
-                    onChange={(e) => setName(e.currentTarget.value)}
                     required
                     data-autofocus
+                    {...form.getInputProps('name')}
                 />
                 <Textarea
                     label="Description"
                     placeholder="Optional — what this theme is for"
-                    value={description}
-                    onChange={(e) => setDescription(e.currentTarget.value)}
                     minRows={2}
                     autosize
+                    {...form.getInputProps('description')}
                 />
             </Stack>
         </MantineModal>
