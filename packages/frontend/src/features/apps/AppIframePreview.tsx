@@ -168,7 +168,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 src={src}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="App preview"
-                sandbox="allow-scripts allow-modals"
+                sandbox="allow-scripts allow-modals allow-popups"
                 allow=""
                 onLoad={handleLoad}
             />
