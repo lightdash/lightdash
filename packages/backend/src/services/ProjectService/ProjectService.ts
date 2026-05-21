@@ -55,6 +55,7 @@ import {
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
@@ -1360,12 +1361,15 @@ export class ProjectService extends BaseService {
                 };
             }
             case WarehouseTypes.DUCKDB: {
-                return {
-                    ...credentials,
-                    token: '',
-                };
-            }
-            case WarehouseTypes.DUCKLAKE: {
+                if (
+                    credentials.connectionType ===
+                    DuckdbConnectionType.MOTHERDUCK
+                ) {
+                    return {
+                        ...credentials,
+                        token: '',
+                    };
+                }
                 const { catalog, dataPath } = credentials;
                 const clearedCatalog =
                     catalog.type === 'postgres'
@@ -1659,7 +1663,6 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
             case WarehouseTypes.DUCKDB:
-            case WarehouseTypes.DUCKLAKE:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -2191,7 +2194,6 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.ATHENA:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.DUCKLAKE:
                         break;
                     default:
                         assertUnreachable(
@@ -6198,9 +6200,10 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
-                return credentials.database;
-            case WarehouseTypes.DUCKLAKE:
-                return credentials.catalogAlias ?? 'ducklake';
+                return credentials.connectionType ===
+                    DuckdbConnectionType.DUCKLAKE
+                    ? (credentials.catalogAlias ?? 'ducklake')
+                    : credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
