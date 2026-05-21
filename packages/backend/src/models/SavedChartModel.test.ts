@@ -1,4 +1,4 @@
-import { AnyType, deepEqual } from '@lightdash/common';
+import { deepEqual, type AnyType } from '@lightdash/common';
 import knex from 'knex';
 import {
     FunctionQueryMatcher,
