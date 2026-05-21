@@ -1,4 +1,5 @@
 export * from './mcpToolListExploresArgs';
+export * from './toolNames';
 export * from './toolDashboardArgs';
 export * from './toolDashboardV2Args';
 export * from './toolDescribeWarehouseTableArgs';

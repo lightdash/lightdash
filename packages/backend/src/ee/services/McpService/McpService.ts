@@ -15,6 +15,7 @@ import {
     isExploreError,
     JobPollTimeoutError,
     mcpToolListExploresArgsSchema,
+    McpToolNameResources,
     MissingConfigError,
     NotFoundError,
     OauthAccount,
@@ -119,25 +120,6 @@ import {
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
-
-export enum McpToolName {
-    GET_LIGHTDASH_VERSION = 'get_lightdash_version',
-    LIST_EXPLORES = 'list_explores',
-    FIND_EXPLORES = 'find_explores',
-    FIND_FIELDS = 'find_fields',
-    FIND_CONTENT = 'find_content',
-    LIST_PROJECTS = 'list_projects',
-    SET_PROJECT = 'set_project',
-    GET_CURRENT_PROJECT = 'get_current_project',
-    LIST_AGENTS = 'list_agents',
-    SET_AGENT = 'set_agent',
-    CLEAR_AGENT = 'clear_agent',
-    GET_CURRENT_AGENT = 'get_current_agent',
-    RUN_METRIC_QUERY = 'run_metric_query',
-    RUN_SQL = 'run_sql',
-    SEARCH_FIELD_VALUES = 'search_field_values',
-    LIST_VERIFIED_CONTENT = 'list_verified_content',
-}
 
 const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
 
@@ -475,7 +457,7 @@ export class McpService extends BaseService {
         options: { projectPinned: boolean } = { projectPinned: false },
     ): void {
         this.mcpServer.registerTool(
-            McpToolName.GET_LIGHTDASH_VERSION,
+            McpToolNameResources.getLightdashVersion,
             {
                 description: 'Get the current Lightdash version',
                 inputSchema: {},
@@ -488,7 +470,10 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                this.trackToolCall(ctx, McpToolName.GET_LIGHTDASH_VERSION);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.getLightdashVersion,
+                );
                 return {
                     content: [
                         {
@@ -501,7 +486,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.LIST_EXPLORES,
+            McpToolNameResources.listExplores,
             {
                 description: mcpToolListExploresArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -523,7 +508,7 @@ export class McpService extends BaseService {
 
                     this.trackToolCall(
                         ctx,
-                        McpToolName.LIST_EXPLORES,
+                        McpToolNameResources.listExplores,
                         projectUuid,
                     );
 
@@ -567,7 +552,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.FIND_EXPLORES,
+            McpToolNameResources.findExplores,
             {
                 description: toolFindExploresArgsSchemaV3.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -585,7 +570,11 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.FIND_EXPLORES, projectUuid);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.findExplores,
+                    projectUuid,
+                );
 
                 const findExplores: FindExploresFn =
                     await this.getFindExploresFunction(argsWithProject, ctx);
@@ -627,7 +616,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.FIND_FIELDS,
+            McpToolNameResources.findFields,
             {
                 description: toolFindFieldsArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -645,7 +634,11 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.FIND_FIELDS, projectUuid);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.findFields,
+                    projectUuid,
+                );
 
                 const { findFields, getExplore } =
                     await this.getFindFieldsFunction(argsWithProject, ctx);
@@ -669,7 +662,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.FIND_CONTENT,
+            McpToolNameResources.findContent,
             {
                 description: toolFindContentArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -687,7 +680,11 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.FIND_CONTENT, projectUuid);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.findContent,
+                    projectUuid,
+                );
 
                 const findContent: FindContentFn =
                     await this.getFindContentFunction(argsWithProject, ctx);
@@ -713,7 +710,7 @@ export class McpService extends BaseService {
         // tools so clients can't change context for a request-scoped pin.
         if (!options.projectPinned) {
             this.mcpServer.registerTool(
-                McpToolName.LIST_PROJECTS,
+                McpToolNameResources.listProjects,
                 {
                     description:
                         'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.',
@@ -735,7 +732,7 @@ export class McpService extends BaseService {
                     const { user, organizationUuid } =
                         McpService.getAccount(ctx);
 
-                    this.trackToolCall(ctx, McpToolName.LIST_PROJECTS);
+                    this.trackToolCall(ctx, McpToolNameResources.listProjects);
 
                     const allProjects = await wrapSentryTransaction(
                         'McpService.listProjects.getAllByOrganizationUuid',
@@ -774,7 +771,7 @@ export class McpService extends BaseService {
             );
 
             this.mcpServer.registerTool(
-                McpToolName.SET_PROJECT,
+                McpToolNameResources.setProject,
                 {
                     description:
                         'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, use list_agents to discover available AI agents and optionally set_agent to activate one.',
@@ -801,7 +798,7 @@ export class McpService extends BaseService {
 
                     this.trackToolCall(
                         ctx,
-                        McpToolName.SET_PROJECT,
+                        McpToolNameResources.setProject,
                         args.projectUuid,
                     );
 
@@ -868,7 +865,7 @@ export class McpService extends BaseService {
         }
 
         this.mcpServer.registerTool(
-            McpToolName.GET_CURRENT_PROJECT,
+            McpToolNameResources.getCurrentProject,
             {
                 description:
                     'Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.',
@@ -884,7 +881,7 @@ export class McpService extends BaseService {
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
-                this.trackToolCall(ctx, McpToolName.GET_CURRENT_PROJECT);
+                this.trackToolCall(ctx, McpToolNameResources.getCurrentProject);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -930,7 +927,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.LIST_AGENTS,
+            McpToolNameResources.listAgents,
             {
                 description:
                     'List all accessible AI agents. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.',
@@ -950,7 +947,7 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(ctx, McpToolName.LIST_AGENTS);
+                this.trackToolCall(ctx, McpToolNameResources.listAgents);
 
                 const agents = await this.aiAgentService.listAgents(
                     user,
@@ -977,7 +974,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.SET_AGENT,
+            McpToolNameResources.setAgent,
             {
                 description:
                     "Set the active AI agent. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
@@ -997,7 +994,11 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(ctx, McpToolName.SET_AGENT, args.agentUuid);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.setAgent,
+                    args.agentUuid,
+                );
 
                 if (!args.agentUuid) {
                     throw new ParameterError('Agent UUID is required');
@@ -1054,7 +1055,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.CLEAR_AGENT,
+            McpToolNameResources.clearAgent,
             {
                 description:
                     "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
@@ -1070,7 +1071,7 @@ export class McpService extends BaseService {
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
-                this.trackToolCall(ctx, McpToolName.CLEAR_AGENT);
+                this.trackToolCall(ctx, McpToolNameResources.clearAgent);
 
                 const existingContext = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1108,7 +1109,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.GET_CURRENT_AGENT,
+            McpToolNameResources.getCurrentAgent,
             {
                 description:
                     "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
@@ -1126,7 +1127,7 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(ctx, McpToolName.GET_CURRENT_AGENT);
+                this.trackToolCall(ctx, McpToolNameResources.getCurrentAgent);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1211,7 +1212,7 @@ export class McpService extends BaseService {
 
         registerAppTool(
             this.mcpServer,
-            McpToolName.RUN_METRIC_QUERY,
+            McpToolNameResources.runMetricQuery,
             {
                 description: toolRunQueryArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -1232,7 +1233,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolName.RUN_METRIC_QUERY,
+                    McpToolNameResources.runMetricQuery,
                     projectUuid,
                 );
 
@@ -1447,7 +1448,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.SEARCH_FIELD_VALUES,
+            McpToolNameResources.searchFieldValues,
             {
                 description: toolSearchFieldValuesArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
@@ -1467,7 +1468,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolName.SEARCH_FIELD_VALUES,
+                    McpToolNameResources.searchFieldValues,
                     projectUuid,
                 );
 
@@ -1496,7 +1497,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.RUN_SQL,
+            McpToolNameResources.runSql,
             {
                 description: toolRunSqlArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
@@ -1531,7 +1532,11 @@ export class McpService extends BaseService {
                 const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
-                this.trackToolCall(ctx, McpToolName.RUN_SQL, projectUuid);
+                this.trackToolCall(
+                    ctx,
+                    McpToolNameResources.runSql,
+                    projectUuid,
+                );
 
                 try {
                     const { jobId } =
@@ -1595,7 +1600,7 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolName.LIST_VERIFIED_CONTENT,
+            McpToolNameResources.listVerifiedContent,
             {
                 description:
                     'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
@@ -1614,7 +1619,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolName.LIST_VERIFIED_CONTENT,
+                    McpToolNameResources.listVerifiedContent,
                     projectUuid,
                 );
 

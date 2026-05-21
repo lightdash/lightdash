@@ -543,7 +543,7 @@ describe('McpSchemaCompatLayer', () => {
 
     describe('JSON Schema $ref generation', () => {
         // Regression test: zodToJsonSchema must not produce $ref pointers in
-        // the run_metric_query schema. The MCP Gateway cannot resolve them and
+        // the runMetricQuery schema. The MCP Gateway cannot resolve them and
         // returns 500 ERR_INVALID_URL when filters are present.
         test('toolRunMetricQueryArgsSchema should not produce $ref pointers', () => {
             // Use the same zodToJsonSchema that the MCP SDK uses internally

@@ -120,7 +120,7 @@ const getToolInfo = (toolName: string) => {
 };
 
 const availableTools = Object.entries(TOOL_SCHEMAS).map(([name, schema]) => ({
-    name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
+    name,
     description: schema.description,
 }));
 
