@@ -1,7 +1,11 @@
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-type ContentType = 'dashboard-link' | 'chart-link' | 'artifact-link';
+type ContentType =
+    | 'dashboard-link'
+    | 'chart-link'
+    | 'artifact-link'
+    | 'sql-runner-link';
 
 interface LinkProcessor {
     fragment: string;
@@ -54,6 +58,12 @@ const LINK_PROCESSORS: LinkProcessor[] = [
 
             return data;
         },
+    },
+    {
+        fragment: '#sql-runner-link',
+        contentType: 'sql-runner-link',
+        cleanUrl: () => '#',
+        extractData: () => ({}),
     },
 ];
 

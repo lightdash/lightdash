@@ -5,6 +5,7 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    type AiAgentToolResult,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -47,6 +48,7 @@ type ContentEditorToolArgs = {
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
+    toolResult?: AiAgentToolResult;
 }> = ({ toolName, toolCall }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so

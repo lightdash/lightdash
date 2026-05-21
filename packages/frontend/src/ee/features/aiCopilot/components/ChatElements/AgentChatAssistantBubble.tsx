@@ -9,6 +9,7 @@ import {
     Alert,
     Box,
     Button,
+    Code,
     CopyButton,
     Group,
     Paper,
@@ -27,19 +28,20 @@ import {
     IconMessageX,
     IconPlug,
     IconRefresh,
+    IconTerminal2,
     IconTestPipe,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
     IconThumbUpFilled,
 } from '@tabler/icons-react';
-import { memo, useCallback, useState, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 // streamdown is a streaming-aware drop-in for react-markdown — used for the
 // final answer + intermediate text chunks in the AI bubble.
-import { Streamdown } from 'streamdown';
+import { Streamdown, type CustomRendererProps } from 'streamdown';
 import 'streamdown/styles.css';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useMdEditorStyle } from '../../../../../utils/markdownUtils';
@@ -62,7 +64,7 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
-import { ContentLink } from './ContentLink';
+import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
@@ -170,6 +172,129 @@ const groupPersistedToolCalls = (
     return groups;
 };
 
+const getToolOutputStatus = (toolOutput: unknown) => {
+    const metadata = (toolOutput as { metadata?: unknown } | undefined)
+        ?.metadata;
+
+    if (!metadata || typeof metadata !== 'object' || !('status' in metadata)) {
+        return undefined;
+    }
+
+    const status = (metadata as { status?: unknown }).status;
+    return typeof status === 'string' ? status : undefined;
+};
+
+const getRunSqlLinkStateFromArgs = (
+    toolArgs: unknown,
+): SqlRunnerLinkState | null => {
+    if (!toolArgs || typeof toolArgs !== 'object' || !('sql' in toolArgs)) {
+        return null;
+    }
+
+    const { sql, limit } = toolArgs as { sql?: unknown; limit?: unknown };
+
+    if (typeof sql !== 'string') {
+        return null;
+    }
+
+    return typeof limit === 'number' ? { sql, limit } : { sql };
+};
+
+const getLatestSuccessfulRunSqlLinkState = ({
+    message,
+    streamParts,
+}: {
+    message: AiAgentMessageAssistant;
+    streamParts?: StreamPart[];
+}): SqlRunnerLinkState | null => {
+    if (streamParts) {
+        for (let idx = streamParts.length - 1; idx >= 0; idx -= 1) {
+            const part = streamParts[idx];
+
+            if (
+                part.type !== 'toolCall' ||
+                part.toolName !== 'runSql' ||
+                part.isPreliminary === true ||
+                getToolOutputStatus(part.toolOutput) !== 'success'
+            ) {
+                continue;
+            }
+
+            const linkState = getRunSqlLinkStateFromArgs(part.toolArgs);
+            if (linkState) return linkState;
+        }
+    }
+
+    const successfulRunSqlToolCallIds = new Set(
+        message.toolResults
+            .filter(
+                (result) =>
+                    result.toolName === 'runSql' &&
+                    getToolOutputStatus(result) === 'success',
+            )
+            .map((result) => result.toolCallId),
+    );
+
+    for (let idx = message.toolCalls.length - 1; idx >= 0; idx -= 1) {
+        const toolCall = message.toolCalls[idx];
+
+        if (
+            toolCall.toolName !== 'runSql' ||
+            !successfulRunSqlToolCallIds.has(toolCall.toolCallId)
+        ) {
+            continue;
+        }
+
+        const linkState = getRunSqlLinkStateFromArgs(toolCall.toolArgs);
+        if (linkState) return linkState;
+    }
+
+    return null;
+};
+
+const SqlMarkdownCodeBlock: FC<
+    CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
+> = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
+    const sql = code.trim();
+    const canOpen = canOpenSqlRunner && !isIncomplete && sql.length > 0;
+
+    return (
+        <Box className={styles.sqlMarkdownCodeBlock}>
+            <Group
+                justify="space-between"
+                align="center"
+                gap="xs"
+                className={styles.sqlMarkdownCodeHeader}
+            >
+                <Text size="xs" fw={600} c="dimmed">
+                    SQL
+                </Text>
+                {canOpen ? (
+                    <Button
+                        component={Link}
+                        to={{
+                            pathname: `/projects/${projectUuid}/sql-runner`,
+                        }}
+                        state={{ sql }}
+                        data-content-link="true"
+                        size="compact-xs"
+                        variant="default"
+                        className={styles.sqlRunnerLinkButton}
+                        leftSection={
+                            <MantineIcon icon={IconTerminal2} size={12} />
+                        }
+                    >
+                        Open in SQL Runner
+                    </Button>
+                ) : null}
+            </Group>
+            <Code block className={styles.sqlMarkdownCodeBody}>
+                {code}
+            </Code>
+        </Box>
+    );
+};
+
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
@@ -199,6 +324,28 @@ const AssistantBubbleContent: FC<{
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
     const streamingError = streamingState?.error;
+    const sqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
+        message,
+        streamParts: streamingState?.parts,
+    });
+    const canOpenSqlRunner = !!sqlRunnerLinkState;
+    const markdownPlugins = useMemo(
+        () => ({
+            renderers: [
+                {
+                    language: ['sql', 'postgresql', 'bigquery', 'snowflake'],
+                    component: (props: CustomRendererProps) => (
+                        <SqlMarkdownCodeBlock
+                            {...props}
+                            projectUuid={projectUuid}
+                            canOpenSqlRunner={canOpenSqlRunner}
+                        />
+                    ),
+                },
+            ],
+        }),
+        [canOpenSqlRunner, projectUuid],
+    );
     const hasNoResponse =
         !isStreaming && !streamingError && !message.message && !isPending;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
@@ -412,6 +559,7 @@ const AssistantBubbleContent: FC<{
                                 mode={isStreaming ? 'streaming' : 'static'}
                                 remarkPlugins={[remarkGfm, remarkEmoji]}
                                 rehypePlugins={[rehypeAiAgentContentLinks]}
+                                plugins={markdownPlugins}
                                 components={{
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
@@ -428,6 +576,9 @@ const AssistantBubbleContent: FC<{
                                                 message={message}
                                                 projectUuid={projectUuid}
                                                 agentUuid={agentUuid}
+                                                sqlRunnerLinkState={
+                                                    sqlRunnerLinkState
+                                                }
                                             >
                                                 {children}
                                             </ContentLink>
@@ -552,6 +703,7 @@ const AssistantBubbleContent: FC<{
                                     mode="static"
                                     remarkPlugins={[remarkGfm, remarkEmoji]}
                                     rehypePlugins={[rehypeAiAgentContentLinks]}
+                                    plugins={markdownPlugins}
                                     components={{
                                         a: ({ node, children, ...props }) => {
                                             const contentType =
@@ -569,6 +721,9 @@ const AssistantBubbleContent: FC<{
                                                     message={message}
                                                     projectUuid={projectUuid}
                                                     agentUuid={agentUuid}
+                                                    sqlRunnerLinkState={
+                                                        sqlRunnerLinkState
+                                                    }
                                                 >
                                                     {children}
                                                 </ContentLink>

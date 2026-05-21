@@ -9,6 +9,7 @@ import {
     type ToolImproveContextOutput,
     type ToolProposeChangeOutput,
     type ToolRunQueryOutput,
+    type ToolRunSqlOutput,
     type ToolSearchFieldValuesOutput,
     type ToolTableVizOutput,
     type ToolTimeSeriesOutput,
@@ -34,6 +35,7 @@ export type AgentToolOutput =
     | ToolImproveContextOutput
     | ToolProposeChangeOutput
     | ToolRunQueryOutput
+    | ToolRunSqlOutput
     | ToolSearchFieldValuesOutput
     | ToolTableVizOutput
     | ToolTimeSeriesOutput

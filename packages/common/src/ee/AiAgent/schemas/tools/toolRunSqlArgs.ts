@@ -4,7 +4,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 const TOOL_RUN_SQL_DESCRIPTION = `Tool: run_sql
 
 Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results.
+Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
@@ -54,4 +54,12 @@ export const toolRunSqlArgsSchema = createToolSchema({
     })
     .build();
 
+export const toolRunSqlOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.object({
+        status: z.enum(['success', 'error', 'rejected', 'timeout']),
+    }),
+});
+
 export type ToolRunSqlArgs = z.infer<typeof toolRunSqlArgsSchema>;
+export type ToolRunSqlOutput = z.infer<typeof toolRunSqlOutputSchema>;

@@ -1,6 +1,7 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolResult,
     type AiAgentToolName,
     friendlyName,
     isToolName,
@@ -56,6 +57,7 @@ type Props = {
      * subagent trace.
      */
     extraBody?: React.ReactNode;
+    toolResults?: AiAgentToolResult[];
 };
 
 export const ToolCallRow: FC<Props> = ({
@@ -63,6 +65,7 @@ export const ToolCallRow: FC<Props> = ({
     toolCalls,
     status = 'done',
     extraBody,
+    toolResults,
 }) => {
     const Icon = getToolIcon(toolName);
     const builtInToolName = isToolName(toolName) ? toolName : null;
@@ -105,6 +108,10 @@ export const ToolCallRow: FC<Props> = ({
                     <ToolCallDescription
                         toolName={builtInToolName}
                         toolCall={toolCalls[0]}
+                        toolResult={toolResults?.find(
+                            (result) =>
+                                result.toolCallId === toolCalls[0].toolCallId,
+                        )}
                     />
                 </Box>
             );
@@ -200,6 +207,10 @@ export const ToolCallRow: FC<Props> = ({
                                   key={tc.toolCallId}
                                   toolName={builtInToolName}
                                   toolCall={tc}
+                                  toolResult={toolResults?.find(
+                                      (result) =>
+                                          result.toolCallId === tc.toolCallId,
+                                  )}
                               />
                           ))
                         : null}

@@ -1,11 +1,13 @@
 import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
-import { Anchor, Text } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconChartBar,
     IconLayoutDashboard,
+    IconTerminal2,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { setArtifact } from '../../store/aiArtifactSlice';
@@ -15,6 +17,11 @@ import {
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 
+export type SqlRunnerLinkState = {
+    sql: string;
+    limit?: number;
+};
+
 type ContentLinkProps = {
     contentType: string | undefined;
     props: Record<string, unknown>;
@@ -22,6 +29,7 @@ type ContentLinkProps = {
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
+    sqlRunnerLinkState?: SqlRunnerLinkState | null;
 };
 
 export const ContentLink: FC<ContentLinkProps> = ({
@@ -31,6 +39,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     message,
     projectUuid,
     agentUuid,
+    sqlRunnerLinkState,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
@@ -198,6 +207,37 @@ export const ContentLink: FC<ContentLinkProps> = ({
                         {children}
                     </Text>
                 </Anchor>
+            );
+        }
+
+        case 'sql-runner-link': {
+            const state =
+                sqlRunnerLinkState?.limit !== undefined
+                    ? {
+                          sql: sqlRunnerLinkState.sql,
+                          limit: sqlRunnerLinkState.limit,
+                      }
+                    : sqlRunnerLinkState
+                      ? { sql: sqlRunnerLinkState.sql }
+                      : undefined;
+
+            if (!state) return null;
+
+            return (
+                <Button
+                    component={Link}
+                    to={{
+                        pathname: `/projects/${projectUuid}/sql-runner`,
+                    }}
+                    state={state}
+                    data-content-link="true"
+                    size="compact-xs"
+                    variant="default"
+                    className={styles.sqlRunnerLinkButton}
+                    leftSection={<MantineIcon icon={IconTerminal2} size={13} />}
+                >
+                    {children}
+                </Button>
             );
         }
 
