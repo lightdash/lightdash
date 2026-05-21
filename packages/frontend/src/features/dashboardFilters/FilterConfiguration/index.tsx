@@ -410,7 +410,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value={FilterTabs.SETTINGS} miw={350} maw={520}>
+                <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
                     <Stack spacing="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
@@ -567,9 +567,14 @@ const FilterConfiguration: FC<Props> = ({
                             disabled={
                                 isApplyDisabled || isLockedRequiredMissingValue
                             }
-                            onClick={() => {
+                            // We use onMouseDown instead of onClick: when an
+                            // inline dropdown (Select/MultiSelect) is open,
+                            // Mantine's click-outside detector fires on
+                            // mousedown and the subsequent click event never
+                            // reaches the Apply button — so a real-user click
+                            // would otherwise need two presses to apply.
+                            onMouseDown={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);
-
                                 if (!!draftFilterRule) onSave(draftFilterRule);
                             }}
                         >
