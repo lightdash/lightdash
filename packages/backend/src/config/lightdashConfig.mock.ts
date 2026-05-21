@@ -101,11 +101,9 @@ export const lightdashConfigMock: LightdashConfig = {
         allQueryMetricsEnabled: false,
         extendedMetricsEnabled: false,
     },
-    chart: { versionHistory: { daysLimit: 0 } },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
-        versionHistory: { daysLimit: 0 },
         disableSentryTracking: false,
     },
     database: {

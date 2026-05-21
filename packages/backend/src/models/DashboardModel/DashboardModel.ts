@@ -131,22 +131,16 @@ export type GetChartTileQuery = Pick<
 
 type DashboardModelArguments = {
     database: Knex;
-    lightdashConfig?: {
-        dashboard: { versionHistory: { daysLimit: number } };
-    };
     contentVerificationModel?: ContentVerificationModel;
 };
 
 export class DashboardModel {
     private readonly database: Knex;
 
-    private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
-
     private contentVerificationModel: ContentVerificationModel | undefined;
 
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
-        this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
@@ -1742,19 +1736,6 @@ export class DashboardModel {
             .whereNull(`${DashboardsTableName}.deleted_at`);
     }
 
-    private getLastVersionUuidQuery(dashboardUuid: string) {
-        return this.database(DashboardVersionsTableName)
-            .select(`${DashboardVersionsTableName}.dashboard_version_uuid`)
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-            .limit(1);
-    }
-
     async getVersionSummaryByUuid(
         dashboardUuid: string,
         versionUuid: string,
@@ -1815,11 +1796,6 @@ export class DashboardModel {
     async getLatestVersionSummaries(
         dashboardUuid: string,
     ): Promise<DashboardVersionSummary[]> {
-        const daysLimit =
-            this.lightdashConfig?.dashboard.versionHistory.daysLimit ?? 3;
-        const getLastVersionUuidSubQuery =
-            this.getLastVersionUuidQuery(dashboardUuid);
-
         type VersionSummaryRow = {
             dashboard_uuid: string;
             dashboard_version_uuid: string;
@@ -1849,15 +1825,6 @@ export class DashboardModel {
                 `${UserTableName}.last_name`,
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-            .andWhere(function whereRecentVersionsOrCurrentVersion() {
-                void this.whereRaw(
-                    `${DashboardVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
-                    [daysLimit],
-                ).orWhere(
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    getLastVersionUuidSubQuery,
-                );
-            })
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc');
 
         const mapRow = (row: VersionSummaryRow): DashboardVersionSummary => ({
@@ -1872,39 +1839,6 @@ export class DashboardModel {
                   }
                 : null,
         });
-
-        // If there's only one version in the date range (the current one),
-        // also fetch the previous version for comparison
-        if (versions.length === 1) {
-            const oldVersions = await this.database(DashboardVersionsTableName)
-                .innerJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_id`,
-                    `${DashboardVersionsTableName}.dashboard_id`,
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${DashboardVersionsTableName}.updated_by_user_uuid`,
-                )
-                .select<VersionSummaryRow[]>(
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    `${DashboardVersionsTableName}.created_at`,
-                    `${UserTableName}.user_uuid`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                )
-                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-                .andWhereNot(
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    versions[0].dashboard_version_uuid,
-                )
-                .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-                .limit(1);
-
-            return [...versions, ...oldVersions].map(mapRow);
-        }
 
         return versions.map(mapRow);
     }

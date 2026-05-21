@@ -262,7 +262,6 @@ export class ModelRepository
             () =>
                 new DashboardModel({
                     database: this.database,
-                    lightdashConfig: this.lightdashConfig,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
                 }),

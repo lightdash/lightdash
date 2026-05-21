@@ -1041,17 +1041,9 @@ export type LightdashConfig = {
         maxColumnLimit: number;
     };
     enableImprovedExcelDates: boolean;
-    chart: {
-        versionHistory: {
-            daysLimit: number;
-        };
-    };
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
-        versionHistory: {
-            daysLimit: number;
-        };
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -2008,14 +2000,6 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
                 : undefined,
         },
-        chart: {
-            versionHistory: {
-                daysLimit:
-                    getIntegerFromEnvironmentVariable(
-                        'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
-                    ) || 3,
-            },
-        },
         dashboard: {
             maxTilesPerTab:
                 getIntegerFromEnvironmentVariable(
@@ -2025,12 +2009,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
-            versionHistory: {
-                daysLimit:
-                    getIntegerFromEnvironmentVariable(
-                        'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
-                    ) || 3,
-            },
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',
