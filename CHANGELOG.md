@@ -1,3 +1,10 @@
+## [0.2999.2](https://github.com/lightdash/lightdash/compare/0.2999.1...0.2999.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* make filter dropdowns static so Apply button stays visible (PROD-2395) ([#23379](https://github.com/lightdash/lightdash/issues/23379)) ([04f836e](https://github.com/lightdash/lightdash/commit/04f836e22c0ff58ee27d4e3142c574bd4baff856))
+
 ## [0.2999.1](https://github.com/lightdash/lightdash/compare/0.2999.0...0.2999.1) (2026-05-21)
 
 
