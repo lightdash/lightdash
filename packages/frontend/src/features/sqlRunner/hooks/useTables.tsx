@@ -46,7 +46,6 @@ export const useTables = ({ projectUuid }: GetTablesParams) => {
             fetchTables({
                 projectUuid,
             }),
-        retry: false,
         enabled: !!projectUuid,
     });
 };

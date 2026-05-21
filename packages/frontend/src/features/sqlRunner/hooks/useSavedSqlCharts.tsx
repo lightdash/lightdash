@@ -78,7 +78,6 @@ export const useSavedSqlChart = (
     return useQuery<SqlChart, ApiError>({
         queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, slug, uuid],
         queryFn: () => fetchSavedSqlChart({ projectUuid, slug, uuid }),
-        retry: false,
         enabled: !!slug || !!uuid,
         ...useQueryParams,
     });

@@ -61,7 +61,6 @@ const useBranches = (projectUuid?: string) => {
         enabled: !!projectUuid,
         queryKey: ['project_git_branches', projectUuid],
         queryFn: () => getProjectGitBranches(projectUuid!),
-        retry: false,
     });
 };
 

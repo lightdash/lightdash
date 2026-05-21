@@ -79,7 +79,6 @@ export const useProject = (
         queryKey: ['project', id],
         queryFn: () => getProject(id || ''),
         enabled: !!id,
-        retry: false,
         onError: (result) => setErrorResponse(result),
         ...options,
     });

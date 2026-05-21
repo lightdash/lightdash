@@ -19,6 +19,7 @@ export const useServerFeatureFlag = (featureFlagId: string) => {
             });
         },
         {
+            // Do not retry on failure. Combined with refetchOnMount:false the flag is fetched only once per session.
             retry: false,
             refetchOnMount: false,
         },

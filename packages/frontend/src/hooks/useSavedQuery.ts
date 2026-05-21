@@ -135,7 +135,6 @@ export const useSavedQuery = ({
             return getSavedQuery(uuidOrSlug || '', projectUuid);
         },
         enabled: uuidOrSlug !== undefined && !!projectUuid,
-        retry: false,
         ...useQueryOptions,
     });
 
@@ -151,7 +150,6 @@ export const useChartHistory = (chartUuid: string | undefined) =>
         queryKey: ['chart_history', chartUuid],
         queryFn: () => getChartHistoryQuery(chartUuid!),
         enabled: chartUuid !== undefined,
-        retry: false,
     });
 const getChartVersionQuery = async (
     chartUuid: string,
@@ -171,7 +169,6 @@ export const useChartVersion = (
         queryKey: ['chart_version', chartUuid, versionUuid],
         queryFn: () => getChartVersionQuery(chartUuid!, versionUuid!),
         enabled: versionUuid !== undefined && chartUuid !== undefined,
-        retry: false,
     });
 
 const rollbackChartQuery = async (

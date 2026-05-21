@@ -97,6 +97,8 @@ export const useJob = (
             [JobStatusType.DONE, JobStatusType.ERROR].includes(data.jobStatus)
                 ? false
                 : 500,
+        // refetch handles retries. Enabling retry for transient errors would unnecessarily delay UI update.
+        retry: false,
         staleTime: 0,
         onSuccess: async (job) => {
             if (job.jobStatus === JobStatusType.DONE) {

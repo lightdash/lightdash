@@ -50,7 +50,6 @@ export const useAccessToken = (
     return useQuery<PersonalAccessToken[], ApiError>({
         queryKey: ['personal_access_tokens'],
         queryFn: () => getAccessToken(),
-        retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });

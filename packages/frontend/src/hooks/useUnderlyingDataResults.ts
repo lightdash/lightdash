@@ -177,6 +177,5 @@ export const useUnderlyingDataResults = (
                 parameters,
             );
         },
-        retry: false,
     });
 };

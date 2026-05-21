@@ -29,7 +29,6 @@ export const useExplore = (
         queryFn: () => getExplore(projectUuid!, activeTableName || ''),
         enabled: !!activeTableName && !!projectUuid,
         onError: (result) => setErrorResponse(result),
-        retry: false,
         ...useQueryOptions,
     });
 };

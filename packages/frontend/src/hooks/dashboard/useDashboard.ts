@@ -158,7 +158,6 @@ export const useDashboardQuery = ({
             return getDashboard(uuidOrSlug || '', projectUuid);
         },
         enabled: !!uuidOrSlug && !!projectUuid,
-        retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });
@@ -702,7 +701,6 @@ export const useDashboardHistory = (dashboardUuid: string | undefined) =>
         queryKey: ['dashboard_history', dashboardUuid],
         queryFn: () => getDashboardHistory(dashboardUuid!),
         enabled: dashboardUuid !== undefined,
-        retry: false,
     });
 
 const getDashboardVersion = async (
@@ -724,7 +722,6 @@ export const useDashboardVersion = (
         queryKey: ['dashboard_version', dashboardUuid, versionUuid],
         queryFn: () => getDashboardVersion(dashboardUuid!, versionUuid!),
         enabled: dashboardUuid !== undefined && versionUuid !== undefined,
-        retry: false,
     });
 
 const rollbackDashboard = async (

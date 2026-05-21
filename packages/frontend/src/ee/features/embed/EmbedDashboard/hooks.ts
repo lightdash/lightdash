@@ -11,6 +11,5 @@ export const useEmbedDashboard = (
         queryKey: ['embed-dashboard', projectUuid, paletteUuid],
         queryFn: () => postEmbedDashboard(projectUuid!, { paletteUuid }),
         enabled: !!projectUuid && enabled,
-        retry: false,
     });
 };

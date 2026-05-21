@@ -37,7 +37,6 @@ export const useFetchLoginOptions = ({
     return useQuery<LoginOptions, ApiError>({
         queryKey: ['loginOptions', email],
         queryFn: () => fetchLoginOptions(email),
-        retry: false,
         onError: (result) => {
             setErrorResponse(result);
             if (
@@ -50,6 +49,9 @@ export const useFetchLoginOptions = ({
                 });
             }
         },
+        // Don't retry login bootstrap: repeated failures just delay the login
+        // flow and can't recover invalid/expired auth state.
+        retry: false,
         ...useQueryOptions,
     });
 };

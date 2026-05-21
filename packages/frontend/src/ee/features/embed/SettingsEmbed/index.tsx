@@ -48,7 +48,6 @@ const useEmbedConfig = (projectUuid: string) => {
                 method: 'GET',
                 body: undefined,
             }),
-        retry: false,
     });
 };
 

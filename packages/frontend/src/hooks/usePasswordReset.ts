@@ -35,6 +35,9 @@ export const usePasswordResetLink = (code: string | undefined) =>
         queryKey: ['password_reset_link'],
         queryFn: () => getPasswordResetLinkQuery(code!),
         enabled: code !== undefined,
+        // Don't retry: an invalid/expired reset code won't become valid by
+        // retrying, and a transient failure just delays the reset form.
+        retry: false,
     });
 
 export const usePasswordResetLinkMutation = () => {

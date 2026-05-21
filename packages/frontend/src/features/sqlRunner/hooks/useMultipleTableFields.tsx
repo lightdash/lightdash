@@ -42,7 +42,6 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                     tableName: ref.tableName,
                     schema: ref.schema,
                 }),
-            retry: false,
             enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
             staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
             meta: {

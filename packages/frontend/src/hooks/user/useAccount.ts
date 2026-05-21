@@ -27,6 +27,9 @@ export const useAccount = <T extends Account>(
         queryKey: ['account'],
         queryFn: getAccount,
         enabled: isAuthenticated,
+        // Don't retry /user/account: it's the auth probe (a 401 means
+        // "show login form"). Retrying just delays the login screen and
+        // can't recover from "not authenticated" anyway.
         retry: false,
     });
 };
