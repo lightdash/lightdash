@@ -313,7 +313,7 @@ export default class App {
         // route. The matching GET handler remains auth-gated by `requireToken`.
         if (this.lightdashConfig.appRuntime.s3) {
             expressApp.options(
-                '/api/apps/:appUuid/versions/:version/assets/:filename',
+                '/api/apps/:appUuid/versions/:version/t/:token/assets/:filename',
                 (_req, res) => {
                     res.setHeader('Access-Control-Allow-Origin', '*');
                     res.setHeader(

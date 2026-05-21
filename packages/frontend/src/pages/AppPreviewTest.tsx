@@ -155,7 +155,7 @@ export default function AppPreviewTest() {
     }
 
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {

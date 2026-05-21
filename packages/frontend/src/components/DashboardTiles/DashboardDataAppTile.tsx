@@ -126,7 +126,7 @@ const DataAppTile: FC<Props> = (props) => {
 
     const previewUrl =
         token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/?token=${token}&f=${encodeURIComponent(
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${encodeURIComponent(
                   filtersKey,
               )}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;

@@ -54,7 +54,7 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
     );
 
     const previewUrl = tokenQuery.data
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/?token=${tokenQuery.data.token}&f=${encodeURIComponent(
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${encodeURIComponent(
               filtersKey,
           )}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
