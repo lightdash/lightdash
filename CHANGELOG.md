@@ -1,3 +1,10 @@
+## [0.3002.2](https://github.com/lightdash/lightdash/compare/0.3002.1...0.3002.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* custom Vega-Lite charts export as blank images ([#23384](https://github.com/lightdash/lightdash/issues/23384)) ([9c73200](https://github.com/lightdash/lightdash/commit/9c73200478abd0d129022a69a6e4c574e2ccc00d))
+
 ## [0.3002.1](https://github.com/lightdash/lightdash/compare/0.3002.0...0.3002.1) (2026-05-21)
 
 
