@@ -1,3 +1,10 @@
+## [0.2999.1](https://github.com/lightdash/lightdash/compare/0.2999.0...0.2999.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **warehouse-credentials:** delete old BigQuery credentials before re-auth ([#23376](https://github.com/lightdash/lightdash/issues/23376)) ([5e241f3](https://github.com/lightdash/lightdash/commit/5e241f3ce537ebdc11db09ad48117ab6525ae072)), closes [#23364](https://github.com/lightdash/lightdash/issues/23364)
+
 # [0.2999.0](https://github.com/lightdash/lightdash/compare/0.2998.1...0.2999.0) (2026-05-21)
 
 
