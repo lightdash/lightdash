@@ -1,3 +1,10 @@
+# [0.3002.0](https://github.com/lightdash/lightdash/compare/0.3001.1...0.3002.0) (2026-05-21)
+
+
+### Features
+
+* **impersonation:** add warehouse credentials disclaimer ([#23388](https://github.com/lightdash/lightdash/issues/23388)) ([bad8989](https://github.com/lightdash/lightdash/commit/bad8989d0b0b4fe68fdfa8ded04dad74810062a5))
+
 ## [0.3001.1](https://github.com/lightdash/lightdash/compare/0.3001.0...0.3001.1) (2026-05-21)
 
 
