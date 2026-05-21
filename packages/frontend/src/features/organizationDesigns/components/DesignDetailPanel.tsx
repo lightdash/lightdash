@@ -1,4 +1,7 @@
-import { type ApiOrganizationDesignFile } from '@lightdash/common';
+import {
+    type ApiOrganizationDesign,
+    type ApiOrganizationDesignFile,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -16,8 +19,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useForm } from '@mantine/form';
 import { IconDownload, IconTrash } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     useClearDefaultOrganizationDesign,
@@ -100,50 +104,30 @@ const FileRow: FC<{
     );
 };
 
-export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
-    const { data: design, isInitialLoading } =
-        useOrganizationDesign(designUuid);
+// Inner form component keyed by designUuid so it remounts (and re-initialises
+// the form from server state) only when the user switches to a different
+// theme — not on every refetch triggered by file uploads or default toggles.
+const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const updateDesign = useUpdateOrganizationDesign();
     const setDefault = useSetDefaultOrganizationDesign();
     const clearDefault = useClearDefaultOrganizationDesign();
     const deleteFile = useDeleteDesignFile();
 
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
+    const form = useForm({
+        initialValues: {
+            name: design.name,
+            description: design.description ?? '',
+        },
+    });
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
         null,
     );
 
-    // Sync local form state when the loaded design changes (initial load,
-    // refetch after upload/delete, switching between designs).
-    useEffect(() => {
-        if (design) {
-            setName(design.name);
-            setDescription(design.description ?? '');
-        }
-    }, [design]);
-
-    const trimmedName = name.trim();
-    const trimmedDescription = description.trim();
-    const hasChanges = useMemo(() => {
-        if (!design) return false;
-        return (
-            trimmedName !== design.name ||
-            trimmedDescription !== (design.description ?? '')
-        );
-    }, [design, trimmedName, trimmedDescription]);
-
-    if (isInitialLoading) {
-        return (
-            <Center p="lg">
-                <Loader size="sm" />
-            </Center>
-        );
-    }
-
-    if (!design) {
-        return <Text c="ldGray.6">Theme not found.</Text>;
-    }
+    const trimmedName = form.values.name.trim();
+    const trimmedDescription = form.values.description.trim();
+    const hasChanges =
+        trimmedName !== design.name ||
+        trimmedDescription !== (design.description ?? '');
 
     const handleSave = () => {
         if (!hasChanges || !trimmedName) return;
@@ -165,16 +149,14 @@ export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
                 </Box>
                 <TextInput
                     label="Name"
-                    value={name}
-                    onChange={(e) => setName(e.currentTarget.value)}
                     required
+                    {...form.getInputProps('name')}
                 />
                 <Textarea
                     label="Description"
-                    value={description}
-                    onChange={(e) => setDescription(e.currentTarget.value)}
                     minRows={3}
                     autosize
+                    {...form.getInputProps('description')}
                 />
                 <Group justify="flex-start">
                     <Button
@@ -264,4 +246,23 @@ export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
             </Stack>
         </Group>
     );
+};
+
+export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
+    const { data: design, isInitialLoading } =
+        useOrganizationDesign(designUuid);
+
+    if (isInitialLoading) {
+        return (
+            <Center p="lg">
+                <Loader size="sm" />
+            </Center>
+        );
+    }
+
+    if (!design) {
+        return <Text c="ldGray.6">Theme not found.</Text>;
+    }
+
+    return <DesignForm key={design.designUuid} design={design} />;
 };
