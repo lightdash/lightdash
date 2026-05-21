@@ -364,7 +364,17 @@ const FilterConfiguration: FC<Props> = ({
         : 'Filter field and value required';
 
     return (
-        <Stack>
+        // Make inline dropdowns flow in the panel (instead of absolute), so the
+        // panel grows with them and Apply stays visible — PROD-2395 sketch.
+        <Stack
+            sx={{
+                '.mantine-Select-dropdown, .mantine-MultiSelect-dropdown': {
+                    position: 'static',
+                    width: '100%',
+                    marginTop: 4,
+                },
+            }}
+        >
             <Tabs
                 value={selectedTabId}
                 onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}

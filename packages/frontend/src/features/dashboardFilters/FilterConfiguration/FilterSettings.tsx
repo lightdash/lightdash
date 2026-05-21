@@ -208,7 +208,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 {(showValueInput || filterRule.required) && (
-                    <Group spacing="xs" noWrap align="center">
+                    <Group spacing="xs" noWrap align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
@@ -243,6 +243,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                         variant="subtle"
                                         color="gray"
                                         size="sm"
+                                        mt={4}
                                         disabled={
                                             filterRule.disabled ||
                                             (filterRule.values?.length ?? 0) ===
