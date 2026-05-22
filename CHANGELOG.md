@@ -1,3 +1,10 @@
+## [0.3009.3](https://github.com/lightdash/lightdash/compare/0.3009.2...0.3009.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* app background color should match body ([#23439](https://github.com/lightdash/lightdash/issues/23439)) ([c79bfb4](https://github.com/lightdash/lightdash/commit/c79bfb4bd3cded7636485fa4fb64ee44c59351ff))
+
 ## [0.3009.2](https://github.com/lightdash/lightdash/compare/0.3009.1...0.3009.2) (2026-05-22)
 
 
