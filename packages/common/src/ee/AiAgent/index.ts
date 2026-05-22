@@ -55,6 +55,7 @@ export type AiMcpServer = {
     url: string;
     iconUrl: string | null;
     authType: AiMcpServerAuthType;
+    allowOAuthCredentialSharing: boolean;
     hasCredentials: boolean;
     credentialScope: AiMcpCredentialScope | null;
     connectionStatus: AiMcpServerConnectionStatus | null;
@@ -333,10 +334,15 @@ export type ApiCreateAiMcpServer = {
     name: string;
     url: string;
     authType: AiMcpServerAuthType;
+    allowOAuthCredentialSharing?: boolean;
     credentialScope?: AiMcpCredentialScope;
     credentials?: {
         bearerToken: string;
     } | null;
+};
+
+export type ApiAiMcpOAuthCredentialRequest = {
+    credentialScope?: AiMcpCredentialScope;
 };
 
 export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
