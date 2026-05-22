@@ -5,10 +5,8 @@ import {
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
-    toolRunMetricQueryArgsSchema,
-    toolRunMetricQueryArgsSchemaTransformed,
-    ToolRunMetricQueryArgsTransformed,
-    toolRunMetricQueryOutputSchema,
+    ToolDefinitions,
+    type ToolRunMetricQueryArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -34,70 +32,61 @@ type Dependencies = {
     maxLimit: number;
 };
 
-export const getRunMetricQuery = ({
-    runAsyncQuery,
-    maxLimit,
-}: Dependencies) => {
-    const validateVizTool = (
-        vizTool: ToolRunMetricQueryArgsTransformed,
-        explore: Explore,
-    ) => {
-        const filterRules = getTotalFilterRules(vizTool.filters);
-        const aggregations = filterAggregationCustomMetrics(
-            vizTool.customMetrics,
-        );
-        validateFieldEntityType(
-            explore,
-            vizTool.vizConfig.dimensions,
-            'dimension',
-        );
-        validateFieldEntityType(
-            explore,
-            vizTool.vizConfig.metrics,
-            'metric',
-            aggregations,
-        );
-        validateCustomMetricsDefinition(explore, aggregations);
-        validateFilterRules(
-            explore,
-            filterRules,
-            aggregations,
-            vizTool.tableCalculations,
-        );
-        validateMetricDimensionFilterPlacement(
-            explore,
-            aggregations,
-            vizTool.tableCalculations,
-            vizTool.filters,
-        );
-        validateSelectedFieldsExistence(
-            explore,
-            vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
-            aggregations,
-            vizTool.tableCalculations,
-        );
-        validateSortFieldsAreSelected(
-            vizTool.vizConfig.sorts,
-            vizTool.vizConfig.dimensions,
-            vizTool.vizConfig.metrics,
-            aggregations,
-            vizTool.tableCalculations,
-        );
-    };
+const mcpTools = ToolDefinitions.for('mcp');
 
-    return tool({
-        description: toolRunMetricQueryArgsSchema.description,
-        inputSchema: toolRunMetricQueryArgsSchema,
-        outputSchema: toolRunMetricQueryOutputSchema,
+export function validateRunMetricQueryTool(
+    vizTool: ToolRunMetricQueryArgsTransformed,
+    explore: Explore,
+) {
+    const filterRules = getTotalFilterRules(vizTool.filters);
+    const aggregations = filterAggregationCustomMetrics(vizTool.customMetrics);
+    validateFieldEntityType(explore, vizTool.vizConfig.dimensions, 'dimension');
+    validateFieldEntityType(
+        explore,
+        vizTool.vizConfig.metrics,
+        'metric',
+        aggregations,
+    );
+    validateCustomMetricsDefinition(explore, aggregations);
+    validateFilterRules(
+        explore,
+        filterRules,
+        aggregations,
+        vizTool.tableCalculations,
+    );
+    validateMetricDimensionFilterPlacement(
+        explore,
+        aggregations,
+        vizTool.tableCalculations,
+        vizTool.filters,
+    );
+    validateSelectedFieldsExistence(
+        explore,
+        vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
+        aggregations,
+        vizTool.tableCalculations,
+    );
+    validateSortFieldsAreSelected(
+        vizTool.vizConfig.sorts,
+        vizTool.vizConfig.dimensions,
+        vizTool.vizConfig.metrics,
+        aggregations,
+        vizTool.tableCalculations,
+    );
+}
+
+export const getRunMetricQuery = ({ runAsyncQuery, maxLimit }: Dependencies) =>
+    tool({
+        description: mcpTools.runMetricQuery.description,
+        inputSchema: mcpTools.runMetricQuery.inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);
-                const vizTool =
-                    toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
+                const vizTool = mcpTools.runMetricQuery.parseInput(toolArgs);
 
                 const explore = ctx.getExplore(vizTool.vizConfig.exploreName);
 
-                validateVizTool(vizTool, explore);
+                validateRunMetricQueryTool(vizTool, explore);
 
                 const query = metricQueryTableViz({
                     vizConfig: vizTool.vizConfig,
@@ -169,4 +158,3 @@ export const getRunMetricQuery = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
-};

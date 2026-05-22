@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ToolNameSchema } from '../tools/toolNames';
 
 export * from './tableViz';
 export * from './timeSeriesViz';
@@ -9,37 +10,6 @@ const VisualizationTools = [
     'generateTableVizConfig',
     'generateTimeSeriesVizConfig',
 ] as const;
-
-// define tool names
-export const ToolNameSchema = z.enum([
-    ...VisualizationTools,
-    'generateDashboard',
-    'findContent',
-    'findExplores',
-    'findFields',
-    'discoverFields',
-    'searchFieldValues',
-    'findDashboards',
-    'findCharts',
-    'getDashboardCharts',
-    'readContent',
-    'editContent',
-    'improveContext',
-    'loadSkill',
-    'proposeChange',
-    'runQuery',
-    'runSavedChart',
-    'runSql',
-    'listWarehouseTables',
-    'describeWarehouseTable',
-    'listKnowledgeDocuments',
-    'getKnowledgeDocumentContent',
-]);
-
-export type ToolName = z.infer<typeof ToolNameSchema>;
-
-export const isToolName = (toolName: string): toolName is ToolName =>
-    ToolNameSchema.safeParse(toolName).success;
 
 // display messages schema
 export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());

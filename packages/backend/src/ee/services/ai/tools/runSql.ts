@@ -1,6 +1,6 @@
 import {
     isSlackPrompt,
-    toolRunSqlArgsSchema,
+    ToolDefinitions,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -31,6 +31,8 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
 };
+
+const agentTools = ToolDefinitions.for('agent');
 
 // Strip --line and /* block */ comments + string literals so subsequent
 // keyword checks don't false-positive on text that's inside a comment or a
@@ -79,8 +81,8 @@ export const getRunSql = ({
     autoApproveSqlUserUuid = null,
 }: Dependencies) =>
     tool({
-        description: toolRunSqlArgsSchema.description,
-        inputSchema: toolRunSqlArgsSchema,
+        description: agentTools.runSql.description,
+        inputSchema: agentTools.runSql.inputSchema,
         execute: async ({ sql, limit }, { toolCallId }) => {
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.

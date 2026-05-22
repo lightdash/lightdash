@@ -6,9 +6,8 @@ import {
     customMetricBaseSchemaTransformed,
     Explore,
     getItemId,
+    ToolDefinitions,
     ToolProposeChangeArgs,
-    toolProposeChangeArgsSchema,
-    toolProposeChangeOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetExploreCompilerFn } from '../types/aiAgentDependencies';
@@ -112,14 +111,16 @@ type GetProposeChangeArgs = {
     getExploreCompiler: GetExploreCompilerFn;
 };
 
+const agentTools = ToolDefinitions.for('agent');
+
 export const getProposeChange = ({
     createChange,
     getExploreCompiler,
 }: GetProposeChangeArgs) =>
     tool({
-        description: toolProposeChangeArgsSchema.description,
-        inputSchema: toolProposeChangeArgsSchema,
-        outputSchema: toolProposeChangeOutputSchema,
+        description: agentTools.proposeChange.description,
+        inputSchema: agentTools.proposeChange.inputSchema,
+        outputSchema: agentTools.proposeChange.outputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);

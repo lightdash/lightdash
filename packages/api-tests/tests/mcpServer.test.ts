@@ -58,7 +58,7 @@ describe('MCP server', () => {
             McpResponse<{
                 tools: Array<{
                     name: string;
-                    title?: string;
+                    title: string;
                     description: string;
                     inputSchema: unknown;
                 }>;
@@ -127,7 +127,7 @@ describe('MCP server', () => {
                 resources: Array<{
                     uri: string;
                     name: string;
-                    title?: string;
+                    title: string;
                     mimeType?: string;
                 }>;
             }>

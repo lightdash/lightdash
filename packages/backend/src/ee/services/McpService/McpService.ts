@@ -1,21 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     Account,
-    AiResultType,
     ApiKeyAccount,
     CatalogType,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     Explore,
+    filterAggregationCustomMetrics,
     filterExploreByTags,
     ForbiddenError,
     getItemLabelWithoutTableName,
-    getSlackAiEchartsConfig,
     getValidAiQueryLimit,
     isExploreError,
     JobPollTimeoutError,
-    mcpToolListExploresArgsSchema,
-    McpToolResources,
+    metricQueryTableViz,
     MissingConfigError,
     NotFoundError,
     OauthAccount,
@@ -24,17 +22,7 @@ import {
     SchedulerJobStatus,
     ServiceAcctAccount,
     SessionUser,
-    ToolFindContentArgs,
-    toolFindContentArgsSchema,
-    toolFindExploresArgsSchemaV3,
-    ToolFindExploresArgsV3,
-    ToolFindFieldsArgs,
-    toolFindFieldsArgsSchema,
-    toolRunQueryArgsSchema,
-    toolRunQueryArgsSchemaTransformed,
-    toolRunSqlArgsSchema,
-    ToolSearchFieldValuesArgs,
-    toolSearchFieldValuesArgsSchema,
+    ToolDefinitions,
     UserAttributeValueMap,
     type McpToolName,
 } from '@lightdash/common';
@@ -55,7 +43,7 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
-import { z, ZodRawShape } from 'zod';
+import { z } from 'zod';
 import {
     LightdashAnalytics,
     McpToolCallEvent,
@@ -96,7 +84,7 @@ import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
-import { validateRunQueryTool } from '../ai/tools/runQuery';
+import { validateRunMetricQueryTool } from '../ai/tools/runMetricQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
     FindContentFn,
@@ -107,11 +95,7 @@ import {
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 import { AgentContext } from '../ai/utils/AgentContext';
-import { getPivotedResults } from '../ai/utils/getPivotedResults';
-import {
-    expandMetricsWithPopAdditionalMetrics,
-    populateCustomMetricsSQL,
-} from '../ai/utils/populateCustomMetricsSQL';
+import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
 import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
@@ -120,7 +104,6 @@ import {
     registerAppTool,
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
-import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
 
@@ -300,8 +283,6 @@ export class McpService extends BaseService {
 
     private mcpServer: McpServer;
 
-    private mcpCompatLayer: McpSchemaCompatLayer;
-
     constructor({
         lightdashConfig,
         analytics,
@@ -339,7 +320,6 @@ export class McpService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.aiAgentService = aiAgentService;
-        this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = this.createMcpServer();
             this.setupHandlers();
@@ -448,21 +428,33 @@ export class McpService extends BaseService {
         return result.result;
     }
 
-    private getMcpCompatibleSchema<TShape extends ZodRawShape>(
-        schema: z.ZodObject<TShape>,
-    ): TShape {
-        return this.mcpCompatLayer.processZodType(schema).shape;
-    }
-
     setupHandlers(
         options: { projectPinned: boolean } = { projectPinned: false },
     ): void {
+        const mcpTools = ToolDefinitions.for('mcp');
+        const getLightdashVersionTool = mcpTools.getLightdashVersion;
+        const listExploresTool = mcpTools.listExplores;
+        const findExploresToolDefinition = mcpTools.findExplores;
+        const findFieldsToolDefinition = mcpTools.findFields;
+        const findContentToolDefinition = mcpTools.findContent;
+        const listProjectsTool = mcpTools.listProjects;
+        const setProjectTool = mcpTools.setProject;
+        const getCurrentProjectTool = mcpTools.getCurrentProject;
+        const listAgentsTool = mcpTools.listAgents;
+        const setAgentTool = mcpTools.setAgent;
+        const clearAgentTool = mcpTools.clearAgent;
+        const getCurrentAgentTool = mcpTools.getCurrentAgent;
+        const runMetricQueryTool = mcpTools.runMetricQuery;
+        const searchFieldValuesToolDefinition = mcpTools.searchFieldValues;
+        const runSqlTool = mcpTools.runSql;
+        const listVerifiedContentTool = mcpTools.listVerifiedContent;
+
         this.mcpServer.registerTool(
-            McpToolResources.getLightdashVersion.name,
+            getLightdashVersionTool.name,
             {
-                title: McpToolResources.getLightdashVersion.title,
-                description: 'Get the current Lightdash version',
-                inputSchema: {},
+                title: getLightdashVersionTool.title,
+                description: getLightdashVersionTool.description,
+                inputSchema: getLightdashVersionTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -472,10 +464,7 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolResources.getLightdashVersion.name,
-                );
+                this.trackToolCall(ctx, getLightdashVersionTool.name);
                 return {
                     content: [
                         {
@@ -488,13 +477,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.listExplores.name,
+            listExploresTool.name,
             {
-                title: McpToolResources.listExplores.title,
-                description: mcpToolListExploresArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpToolListExploresArgsSchema,
-                ),
+                title: listExploresTool.title,
+                description: listExploresTool.description,
+                inputSchema: listExploresTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -509,11 +496,7 @@ export class McpService extends BaseService {
 
                     const projectUuid = await this.resolveProjectUuid(ctx);
 
-                    this.trackToolCall(
-                        ctx,
-                        McpToolResources.listExplores.name,
-                        projectUuid,
-                    );
+                    this.trackToolCall(ctx, listExploresTool.name, projectUuid);
 
                     const tagsFromContext = await this.getTagsFromContext(ctx);
 
@@ -555,13 +538,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.findExplores.name,
+            findExploresToolDefinition.name,
             {
-                title: McpToolResources.findExplores.title,
-                description: toolFindExploresArgsSchemaV3.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    toolFindExploresArgsSchemaV3,
-                ),
+                title: findExploresToolDefinition.title,
+                description: findExploresToolDefinition.description,
+                inputSchema: findExploresToolDefinition.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -576,7 +557,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolResources.findExplores.name,
+                    findExploresToolDefinition.name,
                     projectUuid,
                 );
 
@@ -620,13 +601,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.findFields.name,
+            findFieldsToolDefinition.name,
             {
-                title: McpToolResources.findFields.title,
-                description: toolFindFieldsArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    toolFindFieldsArgsSchema,
-                ),
+                title: findFieldsToolDefinition.title,
+                description: findFieldsToolDefinition.description,
+                inputSchema: findFieldsToolDefinition.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -641,7 +620,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolResources.findFields.name,
+                    findFieldsToolDefinition.name,
                     projectUuid,
                 );
 
@@ -667,13 +646,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.findContent.name,
+            findContentToolDefinition.name,
             {
-                title: McpToolResources.findContent.title,
-                description: toolFindContentArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    toolFindContentArgsSchema,
-                ),
+                title: findContentToolDefinition.title,
+                description: findContentToolDefinition.description,
+                inputSchema: findContentToolDefinition.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -688,7 +665,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolResources.findContent.name,
+                    findContentToolDefinition.name,
                     projectUuid,
                 );
 
@@ -716,12 +693,11 @@ export class McpService extends BaseService {
         // tools so clients can't change context for a request-scoped pin.
         if (!options.projectPinned) {
             this.mcpServer.registerTool(
-                McpToolResources.listProjects.name,
+                listProjectsTool.name,
                 {
-                    title: McpToolResources.listProjects.title,
-                    description:
-                        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.',
-                    inputSchema: {},
+                    title: listProjectsTool.title,
+                    description: listProjectsTool.description,
+                    inputSchema: listProjectsTool.schema,
                     annotations: {
                         readOnlyHint: true,
                         destructiveHint: false,
@@ -739,7 +715,7 @@ export class McpService extends BaseService {
                     const { user, organizationUuid } =
                         McpService.getAccount(ctx);
 
-                    this.trackToolCall(ctx, McpToolResources.listProjects.name);
+                    this.trackToolCall(ctx, listProjectsTool.name);
 
                     const allProjects = await wrapSentryTransaction(
                         'McpService.listProjects.getAllByOrganizationUuid',
@@ -778,15 +754,11 @@ export class McpService extends BaseService {
             );
 
             this.mcpServer.registerTool(
-                McpToolResources.setProject.name,
+                setProjectTool.name,
                 {
-                    title: McpToolResources.setProject.title,
-                    description:
-                        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, use list_agents to discover available AI agents and optionally set_agent to activate one.',
-                    inputSchema: {
-                        projectUuid: z.string(),
-                        tags: z.array(z.string()).optional(),
-                    },
+                    title: setProjectTool.title,
+                    description: setProjectTool.description,
+                    inputSchema: setProjectTool.schema,
                     annotations: {
                         readOnlyHint: true,
                         destructiveHint: false,
@@ -806,7 +778,7 @@ export class McpService extends BaseService {
 
                     this.trackToolCall(
                         ctx,
-                        McpToolResources.setProject.name,
+                        setProjectTool.name,
                         args.projectUuid,
                     );
 
@@ -873,12 +845,11 @@ export class McpService extends BaseService {
         }
 
         this.mcpServer.registerTool(
-            McpToolResources.getCurrentProject.name,
+            getCurrentProjectTool.name,
             {
-                title: McpToolResources.getCurrentProject.title,
-                description:
-                    'Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.',
-                inputSchema: {},
+                title: getCurrentProjectTool.title,
+                description: getCurrentProjectTool.description,
+                inputSchema: getCurrentProjectTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -890,7 +861,7 @@ export class McpService extends BaseService {
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
-                this.trackToolCall(ctx, McpToolResources.getCurrentProject.name);
+                this.trackToolCall(ctx, getCurrentProjectTool.name);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -936,14 +907,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.listAgents.name,
+            listAgentsTool.name,
             {
-                title: McpToolResources.listAgents.title,
-                description:
-                    'List all accessible AI agents. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.',
-                inputSchema: {
-                    projectUuid: z.string().optional(),
-                },
+                title: listAgentsTool.title,
+                description: listAgentsTool.description,
+                inputSchema: listAgentsTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -957,7 +925,7 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(ctx, McpToolResources.listAgents.name);
+                this.trackToolCall(ctx, listAgentsTool.name);
 
                 const agents = await this.aiAgentService.listAgents(
                     user,
@@ -984,14 +952,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.setAgent.name,
+            setAgentTool.name,
             {
-                title: McpToolResources.setAgent.title,
-                description:
-                    "Set the active AI agent. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
-                inputSchema: {
-                    agentUuid: z.string(),
-                },
+                title: setAgentTool.title,
+                description: setAgentTool.description,
+                inputSchema: setAgentTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1005,11 +970,7 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolResources.setAgent.name,
-                    args.agentUuid,
-                );
+                this.trackToolCall(ctx, setAgentTool.name, args.agentUuid);
 
                 if (!args.agentUuid) {
                     throw new ParameterError('Agent UUID is required');
@@ -1066,12 +1027,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.clearAgent.name,
+            clearAgentTool.name,
             {
-                title: McpToolResources.clearAgent.title,
-                description:
-                    "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
-                inputSchema: {},
+                title: clearAgentTool.title,
+                description: clearAgentTool.description,
+                inputSchema: clearAgentTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1083,7 +1043,7 @@ export class McpService extends BaseService {
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
-                this.trackToolCall(ctx, McpToolResources.clearAgent.name);
+                this.trackToolCall(ctx, clearAgentTool.name);
 
                 const existingContext = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1121,12 +1081,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.getCurrentAgent.name,
+            getCurrentAgentTool.name,
             {
-                title: McpToolResources.getCurrentAgent.title,
-                description:
-                    "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
-                inputSchema: {},
+                title: getCurrentAgentTool.title,
+                description: getCurrentAgentTool.description,
+                inputSchema: getCurrentAgentTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1140,7 +1099,7 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                this.trackToolCall(ctx, McpToolResources.getCurrentAgent.name);
+                this.trackToolCall(ctx, getCurrentAgentTool.name);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1225,13 +1184,12 @@ export class McpService extends BaseService {
 
         registerAppTool(
             this.mcpServer,
-            McpToolResources.runMetricQuery.name,
+            runMetricQueryTool.name,
             {
-                title: McpToolResources.runMetricQuery.title,
-                description: toolRunQueryArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    toolRunQueryArgsSchema,
-                ),
+                title: runMetricQueryTool.title,
+                description: runMetricQueryTool.description,
+                inputSchema: runMetricQueryTool.schema,
+                outputSchema: runMetricQueryTool.outputSchema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1245,11 +1203,7 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ..._args, projectUuid };
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolResources.runMetricQuery.name,
-                    projectUuid,
-                );
+                this.trackToolCall(ctx, runMetricQueryTool.name, projectUuid);
 
                 try {
                     const { agentContext, runAsyncQuery } =
@@ -1259,49 +1213,38 @@ export class McpService extends BaseService {
                         );
 
                     const queryTool =
-                        toolRunQueryArgsSchemaTransformed.parse(
-                            argsWithProject,
-                        );
+                        runMetricQueryTool.parseInput(argsWithProject);
                     const explore = agentContext.getExplore(
-                        queryTool.queryConfig.exploreName,
+                        queryTool.vizConfig.exploreName,
                     );
-
-                    // Full validation including groupBy, axis, and tableCalcs
-                    validateRunQueryTool(queryTool, explore);
 
                     const maxLimit =
                         this.lightdashConfig.ai.copilot.maxQueryLimit;
+                    validateRunMetricQueryTool(queryTool, explore);
 
+                    const aggregationCustomMetrics =
+                        filterAggregationCustomMetrics(queryTool.customMetrics);
                     const additionalMetrics = populateCustomMetricsSQL(
-                        queryTool.customMetrics,
+                        aggregationCustomMetrics,
                         explore,
                     );
 
-                    const query = {
-                        exploreName: queryTool.queryConfig.exploreName,
-                        dimensions: queryTool.queryConfig.dimensions,
-                        metrics: expandMetricsWithPopAdditionalMetrics(
-                            queryTool.queryConfig.metrics,
-                            additionalMetrics,
-                        ),
-                        sorts: queryTool.queryConfig.sorts.map((sort) => ({
-                            ...sort,
-                            nullsFirst: sort.nullsFirst ?? undefined,
-                        })),
-                        limit: getValidAiQueryLimit(
-                            queryTool.queryConfig.limit,
-                            maxLimit,
-                        ),
+                    const query = metricQueryTableViz({
+                        vizConfig: queryTool.vizConfig,
                         filters: queryTool.filters,
-                        additionalMetrics,
+                        maxLimit,
+                        customMetrics: queryTool.customMetrics,
                         tableCalculations:
                             convertAiTableCalcsSchemaToTableCalcs(
                                 queryTool.tableCalculations,
                             ),
-                    };
+                    });
 
                     const results = await runAsyncQuery(
-                        query,
+                        {
+                            ...query,
+                            limit: getValidAiQueryLimit(query.limit, maxLimit),
+                        },
                         additionalMetrics,
                     );
 
@@ -1336,44 +1279,14 @@ export class McpService extends BaseService {
                         columns: csvHeaders,
                     });
 
-                    // Generate ECharts config using the shared AI chart
-                    // config — supports bar, line, scatter, pie, funnel,
-                    // horizontal bar, groupBy pivots, and secondary axes.
-                    const echartsOption = await getSlackAiEchartsConfig({
-                        toolArgs: {
-                            type: AiResultType.QUERY_RESULT,
-                            tool: queryTool,
-                        },
-                        queryResults: {
-                            rows: results.rows,
-                            fields: results.fields,
-                        },
-                        getPivotedResults,
-                    });
-
-                    // Override Slack-specific settings for interactive MCP App
-                    const mcpEchartsOption = echartsOption
-                        ? {
-                              ...echartsOption,
-                              animation: true,
-                              backgroundColor: 'transparent',
-                              tooltip: {
-                                  ...(typeof echartsOption.tooltip === 'object'
-                                      ? echartsOption.tooltip
-                                      : {}),
-                                  show: true,
-                              },
-                          }
-                        : null;
-
                     // Build "Explore from here" URL
                     const exploreConfigState = {
-                        tableName: queryTool.queryConfig.exploreName,
+                        tableName: queryTool.vizConfig.exploreName,
                         metricQuery: {
-                            exploreName: queryTool.queryConfig.exploreName,
-                            dimensions: queryTool.queryConfig.dimensions,
+                            exploreName: queryTool.vizConfig.exploreName,
+                            dimensions: queryTool.vizConfig.dimensions,
                             metrics: query.metrics,
-                            sorts: queryTool.queryConfig.sorts,
+                            sorts: queryTool.vizConfig.sorts,
                             limit: query.limit,
                             filters: queryTool.filters ?? {},
                             additionalMetrics,
@@ -1397,7 +1310,7 @@ export class McpService extends BaseService {
                             },
                         },
                     };
-                    const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
+                    const explorePath = `/projects/${projectUuid}/tables/${queryTool.vizConfig.exploreName}`;
                     const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
@@ -1441,7 +1354,6 @@ export class McpService extends BaseService {
                         structuredContent: {
                             rows: results.rows,
                             fields: results.fields,
-                            echartsOption: mcpEchartsOption,
                             exploreUrl,
                         },
                     };
@@ -1462,13 +1374,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.searchFieldValues.name,
+            searchFieldValuesToolDefinition.name,
             {
-                title: McpToolResources.searchFieldValues.title,
-                description: toolSearchFieldValuesArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    toolSearchFieldValuesArgsSchema,
-                ),
+                title: searchFieldValuesToolDefinition.title,
+                description: searchFieldValuesToolDefinition.description,
+                inputSchema: searchFieldValuesToolDefinition.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1483,7 +1393,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolResources.searchFieldValues.name,
+                    searchFieldValuesToolDefinition.name,
                     projectUuid,
                 );
 
@@ -1512,30 +1422,12 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.runSql.name,
+            runSqlTool.name,
             {
-                title: McpToolResources.runSql.title,
-                description: toolRunSqlArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
-                outputSchema: {
-                    rows: z
-                        .array(z.record(z.unknown()))
-                        .describe(
-                            'Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).',
-                        ),
-                    columns: z
-                        .array(z.string())
-                        .describe(
-                            'Ordered list of column names matching the keys in each row of `rows`.',
-                        ),
-                    rowCount: z
-                        .number()
-                        .int()
-                        .nonnegative()
-                        .describe(
-                            'Total number of rows returned. May be less than the requested limit.',
-                        ),
-                },
+                title: runSqlTool.title,
+                description: runSqlTool.description,
+                inputSchema: runSqlTool.schema,
+                outputSchema: runSqlTool.outputSchema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1548,11 +1440,7 @@ export class McpService extends BaseService {
                 const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolResources.runSql.name,
-                    projectUuid,
-                );
+                this.trackToolCall(ctx, runSqlTool.name, projectUuid);
 
                 try {
                     const { jobId } =
@@ -1616,12 +1504,11 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
-            McpToolResources.listVerifiedContent.name,
+            listVerifiedContentTool.name,
             {
-                title: McpToolResources.listVerifiedContent.title,
-                description:
-                    'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
-                inputSchema: {},
+                title: listVerifiedContentTool.title,
+                description: listVerifiedContentTool.description,
+                inputSchema: listVerifiedContentTool.schema,
                 annotations: {
                     readOnlyHint: true,
                     destructiveHint: false,
@@ -1636,7 +1523,7 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(
                     ctx,
-                    McpToolResources.listVerifiedContent.name,
+                    listVerifiedContentTool.name,
                     projectUuid,
                 );
 
@@ -2088,9 +1975,7 @@ export class McpService extends BaseService {
     }
 
     async getFindExploresFunction(
-        toolArgs: Omit<ToolFindExploresArgsV3, 'type'> & {
-            projectUuid: string;
-        },
+        toolArgs: { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindExploresFn> {
         const { user, account } = McpService.getAccount(context);
@@ -2187,7 +2072,7 @@ export class McpService extends BaseService {
     }
 
     async getFindFieldsFunction(
-        toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
+        toolArgs: { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
         const { user, account } = McpService.getAccount(context);
@@ -2258,7 +2143,7 @@ export class McpService extends BaseService {
     }
 
     async getFindContentFunction(
-        toolArgs: Omit<ToolFindContentArgs, 'type'> & { projectUuid: string },
+        toolArgs: { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindContentFn> {
         const { user, account } = McpService.getAccount(context);
@@ -2377,9 +2262,7 @@ export class McpService extends BaseService {
     }
 
     async getSearchFieldValuesFunction(
-        toolArgs: Omit<ToolSearchFieldValuesArgs, 'type'> & {
-            projectUuid: string;
-        },
+        toolArgs: { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<SearchFieldValuesFn> {
         const { user, account } = McpService.getAccount(context);

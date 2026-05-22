@@ -11,14 +11,14 @@ export type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
     schema: z.ZodObject<$Schema>;
 };
 
-const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
+export const createToolSchemaBuilder = <$Schema extends z.ZodRawShape>(
     schema: z.ZodObject<$Schema>,
 ): ToolSchemaBuilder<$Schema> => ({
     /**
      * Extends the basic schema with the given fields
      */
     extend: <$Fields extends z.ZodRawShape>(fields: $Fields) =>
-        toolSchemaBuilder(schema.extend(fields)) as ToolSchemaBuilder<
+        createToolSchemaBuilder(schema.extend(fields)) as ToolSchemaBuilder<
             $Schema & $Fields
         >,
 
@@ -26,7 +26,7 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
      * Adds a page number to the schema, this is useful for tools that rely on pagination
      */
     withPagination: () =>
-        toolSchemaBuilder(
+        createToolSchemaBuilder(
             schema.extend({
                 // We need to coerce because LLMs were passing strings instead of numbers quite often (via MCP)
                 page: z.coerce
@@ -50,15 +50,9 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
     schema,
 });
 
-function createToolSchema<$Description extends string>(args: {
-    description: $Description;
-}): ReturnType<typeof toolSchemaBuilder<{}>>;
-function createToolSchema<$Description extends string>({
-    description,
-}: {
-    description: $Description;
-}) {
-    return toolSchemaBuilder(z.object({}).describe(description));
-}
+const createToolSchema = (args: {
+    description: string;
+}): ReturnType<typeof createToolSchemaBuilder<{}>> =>
+    createToolSchemaBuilder(z.object({}).describe(args.description));
 
 export { createToolSchema };

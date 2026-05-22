@@ -1,8 +1,4 @@
-import {
-    toolSearchFieldValuesArgsSchema,
-    toolSearchFieldValuesArgsSchemaTransformed,
-    toolSearchFieldValuesOutputSchema,
-} from '@lightdash/common';
+import { ToolDefinitions } from '@lightdash/common';
 import { tool } from 'ai';
 import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
@@ -13,15 +9,16 @@ type Dependencies = {
     searchFieldValues: SearchFieldValuesFn;
 };
 
+const agentTools = ToolDefinitions.for('agent');
+
 export const getSearchFieldValues = ({ searchFieldValues }: Dependencies) =>
     tool({
-        description: toolSearchFieldValuesArgsSchema.description,
-        inputSchema: toolSearchFieldValuesArgsSchema,
-        outputSchema: toolSearchFieldValuesOutputSchema,
+        description: agentTools.searchFieldValues.description,
+        inputSchema: agentTools.searchFieldValues.inputSchema,
+        outputSchema: agentTools.searchFieldValues.outputSchema,
         execute: async (toolArgs) => {
             try {
-                const args =
-                    toolSearchFieldValuesArgsSchemaTransformed.parse(toolArgs);
+                const args = agentTools.searchFieldValues.parseInput(toolArgs);
 
                 const results = await searchFieldValues(args);
 

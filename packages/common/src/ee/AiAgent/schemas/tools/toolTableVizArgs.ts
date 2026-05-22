@@ -13,11 +13,17 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { tableVizConfigSchema } from '../visualizations';
+import { tableVizConfigSchema } from '../visualizations/tableViz';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
 export const TOOL_TABLE_VIZ_DESCRIPTION = `Use this tool to query data to display in a table or summarized if limit is set to 1.`;
 
-export const toolTableVizArgsSchema = createToolSchema({
+const toolTableVizArgsSchema = createToolSchema({
     description: TOOL_TABLE_VIZ_DESCRIPTION,
 })
     .extend({
@@ -43,8 +49,6 @@ export const toolTableVizArgsSchema = createToolSchema({
     })
     .build();
 
-export type ToolTableVizArgs = z.infer<typeof toolTableVizArgsSchema>;
-
 export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
     .extend({
         // backwards compatibility for old viz configs without customMetrics
@@ -66,13 +70,30 @@ export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
         followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 
-export type ToolTableVizArgsTransformed = z.infer<
-    typeof toolTableVizArgsSchemaTransformed
->;
-
-export const toolTableVizOutputSchema = z.object({
+const toolTableVizOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolTableVizOutput = z.infer<typeof toolTableVizOutputSchema>;
+export const generateTableVizConfigTool = defineTool({
+    canonicalName: 'generateTableVizConfig',
+    title: 'Generate Table Visualization Config',
+    contexts: ['agent'] as const,
+    buildInputSchemas: {
+        agent: () => toolTableVizArgsSchema,
+    },
+    outputSchema: toolTableVizOutputSchema,
+    parseInput: {
+        agent: (raw) => toolTableVizArgsSchemaTransformed.parse(raw),
+    },
+});
+
+export type ToolTableVizArgs = ToolInput<
+    typeof generateTableVizConfigTool,
+    'agent'
+>;
+export type ToolTableVizArgsTransformed = ToolParsedInput<
+    typeof generateTableVizConfigTool,
+    'agent'
+>;
+export type ToolTableVizOutput = ToolOutput<typeof generateTableVizConfigTool>;

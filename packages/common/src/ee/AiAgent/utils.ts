@@ -5,13 +5,12 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
-    toolRunQueryArgsSchemaTransformed,
-    toolTableVizArgsSchemaTransformed,
-    toolTimeSeriesArgsSchemaTransformed,
-    toolVerticalBarArgsSchemaTransformed,
+    ToolDefinitions,
 } from './schemas';
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
+
+const agentTools = ToolDefinitions.for('agent');
 
 export const parseVizConfig = (
     vizConfigUnknown: object | null,
@@ -21,11 +20,10 @@ export const parseVizConfig = (
         return null;
     }
 
-    const toolVerticalBarArgsParsed =
-        toolVerticalBarArgsSchemaTransformed.safeParse(vizConfigUnknown);
-
-    if (toolVerticalBarArgsParsed.success) {
-        const vizTool = toolVerticalBarArgsParsed.data;
+    const verticalBarVizToolParsed =
+        agentTools.generateBarVizConfig.safeParseInput(vizConfigUnknown);
+    if (verticalBarVizToolParsed.success) {
+        const vizTool = verticalBarVizToolParsed.data;
         const metricQuery = metricQueryVerticalBarViz({
             vizConfig: vizTool.vizConfig,
             filters: vizTool.filters,
@@ -42,10 +40,10 @@ export const parseVizConfig = (
         } as const;
     }
 
-    const toolTimeSeriesArgsParsed =
-        toolTimeSeriesArgsSchemaTransformed.safeParse(vizConfigUnknown);
-    if (toolTimeSeriesArgsParsed.success) {
-        const vizTool = toolTimeSeriesArgsParsed.data;
+    const timeSeriesVizToolParsed =
+        agentTools.generateTimeSeriesVizConfig.safeParseInput(vizConfigUnknown);
+    if (timeSeriesVizToolParsed.success) {
+        const vizTool = timeSeriesVizToolParsed.data;
         const metricQuery = metricQueryTimeSeriesViz({
             vizConfig: vizTool.vizConfig,
             filters: vizTool.filters,
@@ -62,10 +60,10 @@ export const parseVizConfig = (
         } as const;
     }
 
-    const toolTableVizArgsParsed =
-        toolTableVizArgsSchemaTransformed.safeParse(vizConfigUnknown);
-    if (toolTableVizArgsParsed.success) {
-        const vizTool = toolTableVizArgsParsed.data;
+    const tableVizToolParsed =
+        agentTools.generateTableVizConfig.safeParseInput(vizConfigUnknown);
+    if (tableVizToolParsed.success) {
+        const vizTool = tableVizToolParsed.data;
         const metricQuery = metricQueryTableViz({
             vizConfig: vizTool.vizConfig,
             filters: vizTool.filters,
@@ -82,11 +80,10 @@ export const parseVizConfig = (
         } as const;
     }
 
-    // Parse runQuery tool
-    const toolRunQueryArgsParsed =
-        toolRunQueryArgsSchemaTransformed.safeParse(vizConfigUnknown);
-    if (toolRunQueryArgsParsed.success) {
-        const vizTool = toolRunQueryArgsParsed.data;
+    const runQueryToolParsed =
+        agentTools.runQuery.safeParseInput(vizConfigUnknown);
+    if (runQueryToolParsed.success) {
+        const vizTool = runQueryToolParsed.data;
 
         const metricQuery = {
             exploreName: vizTool.queryConfig.exploreName,

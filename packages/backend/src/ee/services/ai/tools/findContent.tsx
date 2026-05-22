@@ -5,8 +5,7 @@ import {
     isDashboardSearchResult,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
-    toolFindContentArgsSchema,
-    toolFindContentOutputSchema,
+    ToolDefinitions,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
@@ -38,6 +37,8 @@ type Dependencies = {
         topResultVerified: boolean;
     }) => void;
 };
+
+const agentTools = ToolDefinitions.for('agent');
 
 const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
     const isSavedChart = isSavedChartSearchResult(chart);
@@ -185,9 +186,9 @@ export const getFindContent = ({
     trackCoverage,
 }: Dependencies) =>
     tool({
-        description: toolFindContentArgsSchema.description,
-        inputSchema: toolFindContentArgsSchema,
-        outputSchema: toolFindContentOutputSchema,
+        description: agentTools.findContent.description,
+        inputSchema: agentTools.findContent.inputSchema,
+        outputSchema: agentTools.findContent.outputSchema,
         execute: async (args) => {
             try {
                 const searchQueryResults = await Promise.all(

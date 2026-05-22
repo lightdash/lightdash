@@ -1,8 +1,13 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import { defineTool, type ToolInput, type ToolOutput } from './toolDefinition';
 
-export const TOOL_FIND_CHARTS_DESCRIPTION = `Tool: "findCharts"
+const getToolFindChartsDescription = ({
+    name,
+}: {
+    name: string;
+}) => `Tool: ${name}
+
 Purpose:
 Finds charts by name or description within a project, returning detailed info about each.
 
@@ -15,32 +20,38 @@ Usage tips:
 - Returns chart URLs when available
 `;
 
-export const toolFindChartsArgsSchema = createToolSchema({
-    description: TOOL_FIND_CHARTS_DESCRIPTION,
-})
-    .extend({
-        chartSearchQueries: z.array(
-            z.object({
-                label: z
-                    .string()
-                    .describe(
-                        'Full search query from the user (e.g., "revenue based on campaigns" not just "campaigns"). Include full context for better results.',
-                    ),
-            }),
-        ),
-    })
-    .withPagination()
-    .build();
-
-export type ToolFindChartsArgs = z.infer<typeof toolFindChartsArgsSchema>;
-
-export const toolFindChartsArgsSchemaTransformed = toolFindChartsArgsSchema;
-
-export type ToolFindChartsArgsTransformed = ToolFindChartsArgs;
-
-export const toolFindChartsOutputSchema = z.object({
+const toolFindChartsOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolFindChartsOutput = z.infer<typeof toolFindChartsOutputSchema>;
+export const findChartsTool = defineTool({
+    canonicalName: 'findCharts',
+    title: 'Find Charts',
+    contexts: ['agent'] as const,
+    description: {
+        agent: getToolFindChartsDescription,
+    },
+    buildInputSchemas: {
+        agent: ({ createSchema }) =>
+            createSchema()
+                .extend({
+                    chartSearchQueries: z.array(
+                        z.object({
+                            label: z
+                                .string()
+                                .describe(
+                                    'Full search query from the user (e.g., "revenue based on campaigns" not just "campaigns"). Include full context for better results.',
+                                ),
+                        }),
+                    ),
+                })
+                .withPagination()
+                .build(),
+    },
+    outputSchema: toolFindChartsOutputSchema,
+});
+
+export type ToolFindChartsArgs = ToolInput<typeof findChartsTool, 'agent'>;
+export type ToolFindChartsArgsTransformed = ToolFindChartsArgs;
+export type ToolFindChartsOutput = ToolOutput<typeof findChartsTool>;

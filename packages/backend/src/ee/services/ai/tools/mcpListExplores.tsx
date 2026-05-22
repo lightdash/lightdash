@@ -1,8 +1,4 @@
-import {
-    Explore,
-    mcpToolListExploresArgsSchema,
-    mcpToolListExploresOutputSchema,
-} from '@lightdash/common';
+import { Explore, ToolDefinitions } from '@lightdash/common';
 import { tool } from 'ai';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -11,6 +7,8 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     listExplores: () => Promise<Explore[]>;
 };
+
+const mcpTools = ToolDefinitions.for('mcp');
 
 const renderExplore = (explore: Explore) => (
     <explore
@@ -35,9 +33,9 @@ const renderExplore = (explore: Explore) => (
 
 export const getMcpListExplores = ({ listExplores }: Dependencies) =>
     tool({
-        description: mcpToolListExploresArgsSchema.description,
-        inputSchema: mcpToolListExploresArgsSchema,
-        outputSchema: mcpToolListExploresOutputSchema,
+        description: mcpTools.listExplores.description,
+        inputSchema: mcpTools.listExplores.inputSchema,
+        outputSchema: mcpTools.listExplores.outputSchema,
         execute: async () => {
             try {
                 const explores = await listExplores();

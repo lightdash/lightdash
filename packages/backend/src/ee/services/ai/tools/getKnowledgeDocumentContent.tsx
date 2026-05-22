@@ -1,7 +1,4 @@
-import {
-    toolGetKnowledgeDocumentContentArgsSchema,
-    toolGetKnowledgeDocumentContentOutputSchema,
-} from '@lightdash/common';
+import { ToolDefinitions } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetKnowledgeDocumentContentFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -11,13 +8,15 @@ type Dependencies = {
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
 };
 
+const agentTools = ToolDefinitions.for('agent');
+
 export const getGetKnowledgeDocumentContent = ({
     getKnowledgeDocumentContent,
 }: Dependencies) =>
     tool({
-        description: toolGetKnowledgeDocumentContentArgsSchema.description,
-        inputSchema: toolGetKnowledgeDocumentContentArgsSchema,
-        outputSchema: toolGetKnowledgeDocumentContentOutputSchema,
+        description: agentTools.getKnowledgeDocumentContent.description,
+        inputSchema: agentTools.getKnowledgeDocumentContent.inputSchema,
+        outputSchema: agentTools.getKnowledgeDocumentContent.outputSchema,
         execute: async ({ documentUuid }) => {
             try {
                 const document = await getKnowledgeDocumentContent({

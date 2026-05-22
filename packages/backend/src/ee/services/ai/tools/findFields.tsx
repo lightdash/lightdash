@@ -5,8 +5,7 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    toolFindFieldsArgsSchema,
-    toolFindFieldsOutputSchema,
+    ToolDefinitions,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -25,6 +24,8 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     pageSize: number;
 };
+
+const agentTools = ToolDefinitions.for('agent');
 
 const renderField = (catalogField: CatalogField, explore?: Explore) => {
     const isFromJoinedTable =
@@ -114,9 +115,9 @@ export const getFindFields = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolFindFieldsArgsSchema.description,
-        inputSchema: toolFindFieldsArgsSchema,
-        outputSchema: toolFindFieldsOutputSchema,
+        description: agentTools.findFields.description,
+        inputSchema: agentTools.findFields.inputSchema,
+        outputSchema: agentTools.findFields.outputSchema,
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries

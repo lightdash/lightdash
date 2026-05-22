@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import { defineTool, type ToolInput, type ToolOutput } from './toolDefinition';
 
-export const TOOL_IMPROVE_CONTEXT_DESCRIPTION = `
+const TOOL_IMPROVE_CONTEXT_DESCRIPTION = `
 Captures learnings from user corrections, clarifications, and guidance to improve future responses.
 
 **Supported Learning Categories:**
@@ -21,50 +21,57 @@ Captures learnings from user corrections, clarifications, and guidance to improv
 - Instructions should be specific and context-aware (not overly generic)
 `;
 
-export const toolImproveContextArgsSchema = createToolSchema({
-    description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
-})
-    .extend({
-        originalQuery: z
-            .string()
-            .describe('The original user query that led to incorrect results'),
-        incorrectResponse: z
-            .string()
-            .describe('What the AI incorrectly suggested or returned'),
-        correctResponse: z
-            .string()
-            .describe('What the user corrected or clarified'),
-        category: z
-            .enum([
-                'explore_selection',
-                'field_selection',
-                'filter_logic',
-                'calculation',
-                'other',
-            ])
-            .describe('Category of the learning'),
-        confidence: z
-            .number()
-            .min(0)
-            .max(1)
-            .describe(
-                'Confidence score that this is a learnable learning or more context is needed',
-            ),
-        suggestedInstruction: z
-            .string()
-            .describe('The instruction to append to agent settings'),
-    })
-    .build();
-
-export type ToolImproveContextArgs = z.infer<
-    typeof toolImproveContextArgsSchema
->;
-
-export const toolImproveContextOutputSchema = z.object({
+const toolImproveContextOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolImproveContextOutput = z.infer<
-    typeof toolImproveContextOutputSchema
+export const toolImproveContextArgsSchema = z.object({
+    originalQuery: z
+        .string()
+        .describe('The original user query that led to incorrect results'),
+    incorrectResponse: z
+        .string()
+        .describe('What the AI incorrectly suggested or returned'),
+    correctResponse: z
+        .string()
+        .describe('What the user corrected or clarified'),
+    category: z
+        .enum([
+            'explore_selection',
+            'field_selection',
+            'filter_logic',
+            'calculation',
+            'other',
+        ])
+        .describe('Category of the learning'),
+    confidence: z
+        .number()
+        .min(0)
+        .max(1)
+        .describe(
+            'Confidence score that this is a learnable learning or more context is needed',
+        ),
+    suggestedInstruction: z
+        .string()
+        .describe('The instruction to append to agent settings'),
+});
+
+export const improveContextTool = defineTool({
+    canonicalName: 'improveContext',
+    title: 'Improve Context',
+    contexts: ['agent'] as const,
+    description: {
+        agent: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
+    },
+    buildInputSchemas: {
+        agent: () => toolImproveContextArgsSchema,
+    },
+    outputSchema: toolImproveContextOutputSchema,
+});
+
+export type ToolImproveContextArgs = ToolInput<
+    typeof improveContextTool,
+    'agent'
 >;
+export type ToolImproveContextOutput = ToolOutput<typeof improveContextTool>;

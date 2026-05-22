@@ -1,7 +1,4 @@
-import {
-    toolFindExploresArgsSchemaV3,
-    toolFindExploresOutputSchema,
-} from '@lightdash/common';
+import { ToolDefinitions } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
@@ -17,6 +14,8 @@ type Dependencies = {
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
 };
+
+const agentTools = ToolDefinitions.for('agent');
 
 const generateExploreResponse = ({
     searchQuery,
@@ -108,9 +107,9 @@ export const getFindExplores = ({
     fieldSearchSize,
 }: Dependencies) =>
     tool({
-        description: toolFindExploresArgsSchemaV3.description,
-        inputSchema: toolFindExploresArgsSchemaV3,
-        outputSchema: toolFindExploresOutputSchema,
+        description: agentTools.findExplores.description,
+        inputSchema: agentTools.findExplores.inputSchema,
+        outputSchema: agentTools.findExplores.outputSchema,
         execute: async (args) => {
             try {
                 await updateProgress(
