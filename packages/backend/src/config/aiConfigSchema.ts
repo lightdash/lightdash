@@ -10,6 +10,8 @@ export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_AZURE_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
 
+const customHeadersSchema = z.record(z.string()).default({});
+
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
@@ -29,6 +31,7 @@ export const aiCopilotConfigSchema = z
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     zeroDataRetention: z.boolean().default(false),
+                    customHeaders: customHeadersSchema,
                 })
                 .optional(),
             azure: z
@@ -42,6 +45,7 @@ export const aiCopilotConfigSchema = z
                         .string()
                         .default(DEFAULT_AZURE_EMBEDDING_MODEL),
                     useDeploymentBasedUrls: z.boolean().default(true),
+                    customHeaders: customHeadersSchema,
                 })
                 .optional(),
             anthropic: z
@@ -49,6 +53,7 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
                     availableModels: z.array(z.string()).optional(),
+                    customHeaders: customHeadersSchema,
                 })
                 .optional(),
             openrouter: z
@@ -65,6 +70,7 @@ export const aiCopilotConfigSchema = z
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    customHeaders: customHeadersSchema,
                 })
                 .optional(),
             bedrock: z
@@ -80,6 +86,7 @@ export const aiCopilotConfigSchema = z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
+                        customHeaders: customHeadersSchema,
                     }),
                     z.object({
                         region: z.string(),
@@ -94,6 +101,7 @@ export const aiCopilotConfigSchema = z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
+                        customHeaders: customHeadersSchema,
                     }),
                 ])
                 .optional(),

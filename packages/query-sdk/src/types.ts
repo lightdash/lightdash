@@ -103,6 +103,14 @@ export type CustomDimension = {
     dimensionId: string;
 };
 
+// --- Parameter types ---
+
+/** A single Lightdash parameter value (`${lightdash.parameters.X}` substitution) */
+export type ParameterValue = string | number | string[] | number[];
+
+/** Map of parameter name to value, passed at query time */
+export type ParametersValuesMap = Record<string, ParameterValue>;
+
 // --- Internal types (used by transport) ---
 
 export type InternalFilterDefinition = {
@@ -122,6 +130,11 @@ export type QueryDefinition = {
     additionalMetrics: AdditionalMetric[];
     customDimensions: CustomDimension[];
     limit: number;
+    /**
+     * Lightdash parameter values (`${lightdash.parameters.X}` substitutions).
+     * Sent at the top level of the API request body, not nested under `query`.
+     */
+    parameters?: ParametersValuesMap;
     /** Human-readable label for dev tools / query inspector (not sent to the API) */
     label?: string;
 };

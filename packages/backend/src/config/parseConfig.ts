@@ -139,6 +139,24 @@ export const getObjectFromEnvironmentVariable = (
     }
 };
 
+export const getStringRecordFromEnvironmentVariable = (
+    name: string,
+): Record<string, string> | undefined => {
+    const value = getObjectFromEnvironmentVariable(name);
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const result = z.record(z.string()).safeParse(value);
+    if (!result.success) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a JSON object with string values. Error: ${result.error.message}`,
+        );
+    }
+
+    return result.data;
+};
+
 const getArrayFromCommaSeparatedList = (envVar: string) => {
     const raw = process.env[envVar];
     if (!raw) {
@@ -150,6 +168,9 @@ const getArrayFromCommaSeparatedList = (envVar: string) => {
         .map((domain) => domain.trim())
         .filter((domain) => domain.length > 0);
 };
+
+const getProviderCustomHeaders = (envVar: string): Record<string, string> =>
+    getStringRecordFromEnvironmentVariable(envVar) ?? {};
 
 export const getHexColorsFromEnvironmentVariable = (
     colorPalette: string | undefined,
@@ -827,7 +848,7 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
     return ALL_TASK_NAMES;
 };
 
-const getBedrockConfig = () => {
+const getBedrockConfig = (customHeaders: Record<string, string>) => {
     if (process.env.BEDROCK_API_KEY) {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
@@ -840,6 +861,7 @@ const getBedrockConfig = () => {
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
             ),
+            customHeaders,
         } as const;
     }
     if (process.env.BEDROCK_ACCESS_KEY_ID) {
@@ -856,6 +878,7 @@ const getBedrockConfig = () => {
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
             ),
+            customHeaders,
         } as const;
     }
 
@@ -890,6 +913,9 @@ export const getAiConfig = () => ({
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
+                  customHeaders: getProviderCustomHeaders(
+                      'AZURE_AI_CUSTOM_HEADERS',
+                  ),
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -907,6 +933,9 @@ export const getAiConfig = () => ({
                   ),
                   zeroDataRetention:
                       process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
+                  customHeaders: getProviderCustomHeaders(
+                      'OPENAI_CUSTOM_HEADERS',
+                  ),
               }
             : undefined,
         anthropic:
@@ -920,6 +949,9 @@ export const getAiConfig = () => ({
                       availableModels: getArrayFromCommaSeparatedList(
                           'ANTHROPIC_AVAILABLE_MODELS',
                       ),
+                      customHeaders: getProviderCustomHeaders(
+                          'ANTHROPIC_CUSTOM_HEADERS',
+                      ),
                   }
                 : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
@@ -932,9 +964,14 @@ export const getAiConfig = () => ({
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
                   ),
+                  customHeaders: getProviderCustomHeaders(
+                      'OPENROUTER_CUSTOM_HEADERS',
+                  ),
               }
             : undefined,
-        bedrock: getBedrockConfig(),
+        bedrock: getBedrockConfig(
+            getProviderCustomHeaders('BEDROCK_CUSTOM_HEADERS'),
+        ),
     },
     maxQueryLimit:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||

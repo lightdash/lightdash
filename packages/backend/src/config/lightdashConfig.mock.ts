@@ -238,6 +238,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'gpt-5.4',
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
+                    customHeaders: {},
                 },
             },
             verifiedAnswerSimilarityThreshold: 0.6,
