@@ -20,6 +20,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -180,6 +181,12 @@ const NewThreadPanel: FC<{
                             {agent.description}
                         </Text>
                     )}
+                </Stack>
+                <Stack px="md" pb="xs">
+                    <AiAgentNewThreadMcpConnections
+                        projectUuid={projectUuid}
+                        agentUuid={agent.uuid}
+                    />
                 </Stack>
                 {previewItems.length > 0 && (
                     <Stack gap="xxs" px="md" pb="xs">
