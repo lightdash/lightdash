@@ -1,3 +1,12 @@
+# [0.3010.0](https://github.com/lightdash/lightdash/compare/0.3009.5...0.3010.0) (2026-05-22)
+
+
+### Features
+
+* add MCP OAuth backend flow ([#23443](https://github.com/lightdash/lightdash/issues/23443)) ([0cd0020](https://github.com/lightdash/lightdash/commit/0cd0020bbc660e964ff93c8a3c9dd498e96121a0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add MCP OAuth sign-in UX ([#23444](https://github.com/lightdash/lightdash/issues/23444)) ([17febd9](https://github.com/lightdash/lightdash/commit/17febd963ae0cdaa5bc572ca6d0cf67b1f274521)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **agents:** add custom LLM provider headers ([#23448](https://github.com/lightdash/lightdash/issues/23448)) ([792239c](https://github.com/lightdash/lightdash/commit/792239c259ac8f5b1a82269a092a50a7a0935743))
+
 ## [0.3009.5](https://github.com/lightdash/lightdash/compare/0.3009.4...0.3009.5) (2026-05-22)
 
 
