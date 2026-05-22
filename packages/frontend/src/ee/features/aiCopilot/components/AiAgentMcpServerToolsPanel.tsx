@@ -1,5 +1,6 @@
 import type { AiMcpServer } from '@lightdash/common';
 import {
+    Alert,
     ActionIcon,
     Box,
     Button,
@@ -10,8 +11,8 @@ import {
     useMantineColorScheme,
 } from '@mantine-8/core';
 import {
-    IconAlertTriangle,
     IconInfoCircle,
+    IconPlugConnected,
     IconRefresh,
     IconTools,
 } from '@tabler/icons-react';
@@ -26,6 +27,7 @@ import {
 import {
     useAgentAiMcpServerTools,
     useRefreshAiMcpServerToolsMutation,
+    useStartMcpOAuthConnectionMutation,
     useUpdateAgentAiMcpServerToolsMutation,
 } from '../hooks/useProjectAiMcpServers';
 
@@ -156,6 +158,10 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
     const { mutateAsync: refreshTools, isLoading: isRefreshingTools } =
         useRefreshAiMcpServerToolsMutation(projectUuid);
     const {
+        mutateAsync: startMcpOAuthConnection,
+        isLoading: isStartingMcpOAuthConnection,
+    } = useStartMcpOAuthConnectionMutation(projectUuid);
+    const {
         mutateAsync: updateTools,
         isLoading: isUpdatingTools,
         variables: updateVariables,
@@ -216,12 +222,40 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
     if (isConnectionRequired) {
         return (
             <Box py="sm">
-                <Group gap="xs" wrap="nowrap">
-                    <MantineIcon icon={IconAlertTriangle} color="orange" />
-                    <Text size="sm" c="dimmed">
-                        Connect this MCP account to load tools.
-                    </Text>
-                </Group>
+                <Alert
+                    color="blue"
+                    variant="light"
+                    icon={<MantineIcon icon={IconInfoCircle} />}
+                    title="Connect your account"
+                >
+                    <Stack gap="sm">
+                        <Text size="sm">
+                            This OAuth MCP needs a personal connection before
+                            tool discovery can run.
+                        </Text>
+                        <Group>
+                            <Button
+                                size="compact-sm"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconPlugConnected}
+                                        size="sm"
+                                    />
+                                }
+                                loading={isStartingMcpOAuthConnection}
+                                onClick={() =>
+                                    void startMcpOAuthConnection({
+                                        mcpServerUuid: mcpServer.uuid,
+                                    })
+                                }
+                            >
+                                {mcpServer.connectionStatus === 'error'
+                                    ? 'Reconnect'
+                                    : 'Connect your account'}
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Alert>
             </Box>
         );
     }

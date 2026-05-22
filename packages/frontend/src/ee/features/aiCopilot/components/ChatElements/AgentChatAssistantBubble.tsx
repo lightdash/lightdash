@@ -472,7 +472,7 @@ const AssistantBubbleContent: FC<{
                                 fw={500}
                                 className={styles.mcpUnavailableNoticeLabel}
                             >
-                                Couldn&apos;t connect to {notice.serverName} MCP
+                                Couldn&apos;t connect to {notice.serverName}
                             </Text>
                             <Group gap={8} align="center" wrap="wrap">
                                 <Text

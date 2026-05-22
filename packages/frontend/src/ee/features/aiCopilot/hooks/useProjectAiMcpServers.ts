@@ -1,4 +1,5 @@
 import type {
+    ApiAiMcpOAuthCredentialRequest,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
@@ -92,12 +93,25 @@ const updateAgentAiMcpServerTools = async (
 const startProjectAiMcpOAuthConnection = async (
     projectUuid: string,
     mcpServerUuid: string,
+    data?: ApiAiMcpOAuthCredentialRequest,
 ): Promise<{ authorizationUrl: string }> =>
     lightdashApi<any>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/oauth/start`,
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify(data ?? {}),
+    });
+
+const disconnectProjectAiMcpOAuthConnection = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+    data?: ApiAiMcpOAuthCredentialRequest,
+): Promise<void> =>
+    lightdashApi<any>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/oauth/disconnect`,
+        method: 'POST',
+        body: JSON.stringify(data ?? {}),
     });
 
 const getProjectAiMcpServerConnectionStatus = async (
@@ -377,12 +391,17 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
     return useMutation<
         void,
         Error,
-        { mcpServerUuid: string; popupWindow?: Window | null }
+        {
+            mcpServerUuid: string;
+            credentialScope?: ApiAiMcpOAuthCredentialRequest['credentialScope'];
+            popupWindow?: Window | null;
+        }
     >({
-        mutationFn: async ({ mcpServerUuid, popupWindow }) => {
+        mutationFn: async ({ mcpServerUuid, credentialScope, popupWindow }) => {
             const { authorizationUrl } = await startProjectAiMcpOAuthConnection(
                 projectUuid,
                 mcpServerUuid,
+                credentialScope ? { credentialScope } : undefined,
             );
             await openOAuthPopup({
                 authorizationUrl,
@@ -406,6 +425,48 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
         onError: (error) => {
             showToastError({
                 title: 'Authentication failed',
+                subtitle: error.message || 'Please try again',
+            });
+        },
+    });
+};
+
+export const useDisconnectMcpOAuthConnectionMutation = (
+    projectUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        void,
+        Error,
+        {
+            mcpServerUuid: string;
+            credentialScope?: ApiAiMcpOAuthCredentialRequest['credentialScope'];
+        }
+    >({
+        mutationFn: async ({ mcpServerUuid, credentialScope }) => {
+            await disconnectProjectAiMcpOAuthConnection(
+                projectUuid,
+                mcpServerUuid,
+                credentialScope ? { credentialScope } : undefined,
+            );
+        },
+        onSuccess: async () => {
+            showToastSuccess({
+                title: 'MCP account disconnected',
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            await queryClient.refetchQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+                exact: true,
+            });
+        },
+        onError: (error) => {
+            showToastError({
+                title: 'Failed to disconnect MCP account',
                 subtitle: error.message || 'Please try again',
             });
         },

@@ -32,8 +32,10 @@ import {
     IconChevronRight,
     IconDots,
     IconEye,
+    IconInfoCircle,
     IconPlug,
     IconPlugConnected,
+    IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -42,6 +44,7 @@ import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
+    useDisconnectMcpOAuthConnectionMutation,
     useProjectAiMcpServers,
     useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
@@ -58,6 +61,7 @@ const createMcpServerFormSchema = z
         url: z.string().trim().url('Enter a valid URL'),
         authType: z.enum(['none', 'bearer', 'oauth']),
         bearerToken: z.string(),
+        allowOAuthCredentialSharing: z.boolean(),
     })
     .superRefine((values, ctx) => {
         if (
@@ -84,11 +88,20 @@ const getMcpAuthTypeLabel = (authType: AiMcpServerAuthType) => {
 };
 
 const getMcpConnectionStatusLabel = (
-    connectionStatus: AiMcpServerConnectionStatus | null,
+    mcpServer: Pick<
+        AiMcpServer,
+        'authType' | 'connectionStatus' | 'credentialScope'
+    >,
 ) => {
-    switch (connectionStatus) {
+    switch (mcpServer.connectionStatus) {
         case 'connected':
-            return 'Connected';
+            if (mcpServer.authType !== 'oauth') {
+                return 'Connected';
+            }
+
+            return mcpServer.credentialScope === 'shared'
+                ? 'Connected shared'
+                : 'Connected as you';
         case 'connecting':
             return 'Connecting';
         case 'error':
@@ -114,6 +127,62 @@ const getMcpConnectionStatusColor = (
             return 'gray';
     }
 };
+
+const getMcpOAuthConnectionSummary = (
+    mcpServer: Pick<
+        AiMcpServer,
+        | 'name'
+        | 'authType'
+        | 'connectionStatus'
+        | 'credentialScope'
+        | 'allowOAuthCredentialSharing'
+    >,
+) => {
+    if (mcpServer.authType !== 'oauth') {
+        return null;
+    }
+
+    switch (mcpServer.connectionStatus) {
+        case 'connected':
+            return mcpServer.credentialScope === 'shared'
+                ? 'Using the shared project connection.'
+                : 'Your account is connected and ready to use.';
+        case 'connecting':
+            return 'Waiting for OAuth to complete.';
+        case 'error':
+            return 'Your connection needs attention before tools can run.';
+        case 'not_connected':
+        default:
+            return mcpServer.allowOAuthCredentialSharing
+                ? `No personal sign-in yet. Sign in to ${mcpServer.name} to use your own account.`
+                : `Sign in to ${mcpServer.name} to use this MCP server.`;
+    }
+};
+
+const getMcpOAuthPrimaryActionLabel = (
+    mcpServer: Pick<
+        AiMcpServer,
+        'name' | 'connectionStatus' | 'credentialScope'
+    >,
+) => {
+    switch (mcpServer.connectionStatus) {
+        case 'connected':
+            return `Sign in to ${mcpServer.name}`;
+        case 'error':
+            return `Sign in to ${mcpServer.name}`;
+        case 'connecting':
+            return 'Connecting...';
+        case 'not_connected':
+        default:
+            return `Sign in to ${mcpServer.name}`;
+    }
+};
+
+const shouldShowMcpOAuthPrimaryAction = (
+    mcpServer: Pick<AiMcpServer, 'connectionStatus' | 'credentialScope'>,
+) =>
+    mcpServer.connectionStatus === 'not_connected' ||
+    mcpServer.credentialScope === 'shared';
 
 const getMcpServerIconColor = (
     connectionStatus: AiMcpServerConnectionStatus | null,
@@ -144,28 +213,25 @@ const CreateMcpServerModal = ({
         values: z.infer<typeof createMcpServerFormSchema>,
     ) => Promise<void> | void;
 }) => {
-    const [isSharedOauthAcknowledged, setIsSharedOauthAcknowledged] =
-        useState(false);
     const form = useForm<z.infer<typeof createMcpServerFormSchema>>({
         initialValues: {
             name: '',
             url: '',
             authType: 'none',
             bearerToken: '',
+            allowOAuthCredentialSharing: false,
         },
         validate: zodResolver(createMcpServerFormSchema),
     });
 
     const handleClose = useCallback(() => {
         form.reset();
-        setIsSharedOauthAcknowledged(false);
         onClose();
     }, [form, onClose]);
 
     const handleSubmit = form.onSubmit(async (values) => {
         await onSubmit(values);
         form.reset();
-        setIsSharedOauthAcknowledged(false);
     });
 
     return (
@@ -180,14 +246,8 @@ const CreateMcpServerModal = ({
                     type="submit"
                     form="create-mcp-server-form"
                     loading={isLoading}
-                    disabled={
-                        form.values.authType === 'oauth' &&
-                        !isSharedOauthAcknowledged
-                    }
                 >
-                    {form.values.authType === 'oauth'
-                        ? 'Create and connect'
-                        : 'Create MCP'}
+                    Create MCP
                 </Button>
             }
         >
@@ -230,38 +290,60 @@ const CreateMcpServerModal = ({
                     </Box>
                     {form.values.authType === 'oauth' && (
                         <Alert
-                            color="orange"
+                            color="blue"
                             variant="light"
-                            icon={<MantineIcon icon={IconAlertTriangle} />}
-                            title="Shared OAuth connection"
+                            icon={<MantineIcon icon={IconInfoCircle} />}
+                            title="Personal OAuth connection"
                         >
                             <Stack gap={4}>
                                 <Text size="sm">
-                                    This connection is shared across this
-                                    project.
+                                    Creating the server only saves the MCP
+                                    configuration.
                                 </Text>
                                 <Text size="sm">
-                                    Anyone who can run an agent attached to this
-                                    MCP can use the connected account.
-                                </Text>
-                                <Text size="sm">
-                                    Actions on the remote system may appear as
-                                    the connected account.
+                                    After creation, users connect their own
+                                    account from the MCP settings card.
                                 </Text>
                             </Stack>
                         </Alert>
                     )}
                     {form.values.authType === 'oauth' && (
                         <Checkbox
-                            checked={isSharedOauthAcknowledged}
-                            onChange={(event) =>
-                                setIsSharedOauthAcknowledged(
-                                    event.currentTarget.checked,
-                                )
-                            }
-                            label="I understand everyone using agents attached to this MCP will act as the connected account."
+                            label="Allow shared project credentials for this MCP"
+                            description="Optional. Managers can connect a shared project account later."
+                            disabled={isLoading}
+                            {...form.getInputProps(
+                                'allowOAuthCredentialSharing',
+                                {
+                                    type: 'checkbox',
+                                },
+                            )}
                         />
                     )}
+                    {form.values.authType === 'oauth' &&
+                        form.values.allowOAuthCredentialSharing && (
+                            <Alert
+                                color="orange"
+                                variant="light"
+                                icon={<MantineIcon icon={IconAlertTriangle} />}
+                                title="Shared OAuth connection"
+                            >
+                                <Stack gap={4}>
+                                    <Text size="sm">
+                                        A manager can connect one shared project
+                                        account for this MCP.
+                                    </Text>
+                                    <Text size="sm">
+                                        Anyone who can run an agent attached to
+                                        this MCP may use that shared account.
+                                    </Text>
+                                    <Text size="sm">
+                                        Actions on the remote system may appear
+                                        as the connected shared account.
+                                    </Text>
+                                </Stack>
+                            </Alert>
+                        )}
                     {form.values.authType === 'bearer' && (
                         <Box>
                             <PasswordInput
@@ -430,6 +512,11 @@ export const AiAgentMcpServersInput = ({
         isLoading: isStartingMcpOAuthConnection,
         variables: startingMcpOAuthConnection,
     } = useStartMcpOAuthConnectionMutation(projectUuid);
+    const {
+        mutateAsync: disconnectMcpOAuthConnection,
+        isLoading: isDisconnectingMcpOAuthConnection,
+        variables: disconnectingMcpOAuthConnection,
+    } = useDisconnectMcpOAuthConnectionMutation(projectUuid);
 
     const selectedMcpServers = useMemo(
         () =>
@@ -453,7 +540,7 @@ export const AiAgentMcpServersInput = ({
                     value: mcpServer.uuid,
                     label:
                         mcpServer.authType === 'oauth'
-                            ? `${mcpServer.name} (${getMcpAuthTypeLabel(mcpServer.authType)}, ${getMcpConnectionStatusLabel(mcpServer.connectionStatus)})`
+                            ? `${mcpServer.name} (${getMcpAuthTypeLabel(mcpServer.authType)}, ${getMcpConnectionStatusLabel(mcpServer)})`
                             : `${mcpServer.name} (${getMcpAuthTypeLabel(mcpServer.authType)})`,
                 })),
         ],
@@ -502,44 +589,31 @@ export const AiAgentMcpServersInput = ({
 
     const handleCreateMcpServer = useCallback(
         async (values: z.infer<typeof createMcpServerFormSchema>) => {
-            const popupWindow =
-                values.authType === 'oauth'
-                    ? window.open('', 'mcp-oauth-popup', 'width=600,height=700')
-                    : null;
-            try {
-                const mcpServer = await createMcpServer({
-                    name: values.name.trim(),
-                    url: values.url.trim(),
-                    authType: values.authType,
-                    credentials:
-                        values.authType === 'bearer'
-                            ? {
-                                  bearerToken: values.bearerToken.trim(),
-                              }
-                            : null,
-                });
+            const mcpServer = await createMcpServer({
+                name: values.name.trim(),
+                url: values.url.trim(),
+                authType: values.authType,
+                allowOAuthCredentialSharing:
+                    values.authType === 'oauth'
+                        ? values.allowOAuthCredentialSharing
+                        : undefined,
+                credentials:
+                    values.authType === 'bearer'
+                        ? {
+                              bearerToken: values.bearerToken.trim(),
+                          }
+                        : null,
+            });
 
-                onChange(Array.from(new Set([...value, mcpServer.uuid])));
-                createMcpServerModalHandlers.close();
-
-                if (mcpServer.authType === 'oauth') {
-                    await startMcpOAuthConnection({
-                        mcpServerUuid: mcpServer.uuid,
-                        popupWindow,
-                    });
-                }
-            } catch (error) {
-                popupWindow?.close();
-                throw error;
-            }
+            onChange(Array.from(new Set([...value, mcpServer.uuid])));
+            setExpandedMcpServers((currentExpandedMcpServers) =>
+                currentExpandedMcpServers.includes(mcpServer.uuid)
+                    ? currentExpandedMcpServers
+                    : [...currentExpandedMcpServers, mcpServer.uuid],
+            );
+            createMcpServerModalHandlers.close();
         },
-        [
-            createMcpServer,
-            createMcpServerModalHandlers,
-            onChange,
-            startMcpOAuthConnection,
-            value,
-        ],
+        [createMcpServer, createMcpServerModalHandlers, onChange, value],
     );
 
     const handleStartMcpOAuthConnection = useCallback(
@@ -547,6 +621,13 @@ export const AiAgentMcpServersInput = ({
             await startMcpOAuthConnection({ mcpServerUuid });
         },
         [startMcpOAuthConnection],
+    );
+
+    const handleDisconnectMcpOAuthConnection = useCallback(
+        async (mcpServerUuid: string) => {
+            await disconnectMcpOAuthConnection({ mcpServerUuid });
+        },
+        [disconnectMcpOAuthConnection],
     );
 
     const handleRemoveMcpServer = useCallback(
@@ -599,6 +680,7 @@ export const AiAgentMcpServersInput = ({
             mcpServer: AiMcpServer,
             connectionStatus: AiMcpServerConnectionStatus | null,
             isConnecting: boolean,
+            isDisconnecting: boolean,
             isExpanded: boolean,
         ) => {
             return (
@@ -637,7 +719,13 @@ export const AiAgentMcpServersInput = ({
                             <Menu.Item
                                 type="button"
                                 leftSection={
-                                    <MantineIcon icon={IconPlugConnected} />
+                                    <MantineIcon
+                                        icon={
+                                            connectionStatus === 'connected'
+                                                ? IconRefresh
+                                                : IconPlugConnected
+                                        }
+                                    />
                                 }
                                 onClick={(event) => {
                                     event.stopPropagation();
@@ -649,12 +737,35 @@ export const AiAgentMcpServersInput = ({
                             >
                                 {isConnecting
                                     ? 'Connecting...'
-                                    : connectionStatus === 'connected' ||
-                                        connectionStatus === 'error'
-                                      ? 'Reconnect'
-                                      : 'Connect account'}
+                                    : getMcpOAuthPrimaryActionLabel({
+                                          name: mcpServer.name,
+                                          connectionStatus,
+                                          credentialScope:
+                                              mcpServer.credentialScope,
+                                      })}
                             </Menu.Item>
                         )}
+                        {mcpServer.authType === 'oauth' &&
+                            mcpServer.hasCredentials &&
+                            mcpServer.credentialScope === 'user' && (
+                                <Menu.Item
+                                    type="button"
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleDisconnectMcpOAuthConnection(
+                                            mcpServer.uuid,
+                                        );
+                                    }}
+                                    disabled={isConnecting || isDisconnecting}
+                                >
+                                    {isDisconnecting
+                                        ? 'Disconnecting...'
+                                        : 'Disconnect your account'}
+                                </Menu.Item>
+                            )}
                         <Menu.Item
                             type="button"
                             leftSection={<MantineIcon icon={IconTrash} />}
@@ -672,6 +783,7 @@ export const AiAgentMcpServersInput = ({
             );
         },
         [
+            handleDisconnectMcpOAuthConnection,
             handleRemoveMcpServer,
             handleSetExpandedMcpServer,
             handleStartMcpOAuthConnection,
@@ -733,6 +845,11 @@ export const AiAgentMcpServersInput = ({
                                     isStartingMcpOAuthConnection &&
                                     startingMcpOAuthConnection?.mcpServerUuid ===
                                         mcpServer.uuid;
+                                const isDisconnecting =
+                                    mcpServer.authType === 'oauth' &&
+                                    isDisconnectingMcpOAuthConnection &&
+                                    disconnectingMcpOAuthConnection?.mcpServerUuid ===
+                                        mcpServer.uuid;
                                 const connectionStatus = isConnecting
                                     ? 'connecting'
                                     : mcpServer.connectionStatus;
@@ -775,6 +892,26 @@ export const AiAgentMcpServersInput = ({
                                                     <Text size="sm" c="dimmed">
                                                         {mcpServer.url}
                                                     </Text>
+                                                    {mcpServer.authType ===
+                                                        'oauth' && (
+                                                        <Text
+                                                            size="sm"
+                                                            c="dimmed"
+                                                        >
+                                                            {getMcpOAuthConnectionSummary(
+                                                                {
+                                                                    name: mcpServer.name,
+                                                                    authType:
+                                                                        mcpServer.authType,
+                                                                    connectionStatus,
+                                                                    credentialScope:
+                                                                        mcpServer.credentialScope,
+                                                                    allowOAuthCredentialSharing:
+                                                                        mcpServer.allowOAuthCredentialSharing,
+                                                                },
+                                                            )}
+                                                        </Text>
+                                                    )}
                                                     {mcpServer.error && (
                                                         <Text
                                                             size="xs"
@@ -805,13 +942,51 @@ export const AiAgentMcpServersInput = ({
                                                     )}
                                                 >
                                                     {getMcpConnectionStatusLabel(
-                                                        connectionStatus,
+                                                        {
+                                                            authType:
+                                                                mcpServer.authType,
+                                                            connectionStatus,
+                                                            credentialScope:
+                                                                mcpServer.credentialScope,
+                                                        },
                                                     )}
                                                 </Badge>
+                                                {mcpServer.authType ===
+                                                    'oauth' &&
+                                                    shouldShowMcpOAuthPrimaryAction(
+                                                        {
+                                                            connectionStatus,
+                                                            credentialScope:
+                                                                mcpServer.credentialScope,
+                                                        },
+                                                    ) && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="compact-xs"
+                                                            onClick={() =>
+                                                                void handleStartMcpOAuthConnection(
+                                                                    mcpServer.uuid,
+                                                                )
+                                                            }
+                                                            loading={
+                                                                isConnecting
+                                                            }
+                                                        >
+                                                            {getMcpOAuthPrimaryActionLabel(
+                                                                {
+                                                                    name: mcpServer.name,
+                                                                    connectionStatus,
+                                                                    credentialScope:
+                                                                        mcpServer.credentialScope,
+                                                                },
+                                                            )}
+                                                        </Button>
+                                                    )}
                                                 {renderMcpServerActionMenu(
                                                     mcpServer,
                                                     connectionStatus,
                                                     isConnecting,
+                                                    isDisconnecting,
                                                     isExpanded,
                                                 )}
                                             </Group>
