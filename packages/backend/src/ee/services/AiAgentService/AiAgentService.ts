@@ -225,6 +225,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
+import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -798,6 +799,22 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        if (threadUuid) {
+            const thread = await this.aiAgentModel.getThread({
+                organizationUuid,
+                agentUuid,
+                threadUuid,
+            });
+
+            if (!thread) {
+                throw new NotFoundError(`Thread not found: ${threadUuid}`);
+            }
+
+            if (!canGeneratePostResponseSuggestions(user.userUuid, thread)) {
+                return { chips: [] };
+            }
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const canRunSql =
