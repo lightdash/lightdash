@@ -127,7 +127,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
                     projectService: repository.getProjectService(),
                     featureFlagService: repository.getFeatureFlagService(),
-                    openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
+                    openAi: new OpenAi(
+                        context.lightdashConfig.ai.copilot.providers.openai,
+                    ), // TODO This should go in client repository as soon as it is available
                 }),
             aiAgentService: ({
                 models,

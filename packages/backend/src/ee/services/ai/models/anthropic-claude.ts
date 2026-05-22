@@ -14,6 +14,7 @@ export const getAnthropicModel = (
 ): AiModel<typeof PROVIDER> => {
     const anthropic = createAnthropic({
         apiKey: config.apiKey,
+        headers: config.customHeaders,
     });
 
     const model = anthropic(preset.modelId);

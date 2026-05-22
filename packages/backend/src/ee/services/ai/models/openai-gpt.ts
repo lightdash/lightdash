@@ -15,6 +15,7 @@ export const getOpenaiGptmodel = (
     const openai = createOpenAI({
         apiKey: config.apiKey,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+        headers: config.customHeaders,
     });
     const { supportsReasoning, modelId } = preset;
 

@@ -16,6 +16,7 @@ import {
     getMaybeBase64EncodedFromEnvironmentVariable,
     getMultiProjectSetupConfig,
     getObjectFromEnvironmentVariable,
+    getStringRecordFromEnvironmentVariable,
     parseConfig,
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
@@ -370,6 +371,97 @@ describe('getObjectFromEnvironmentVariable', () => {
         expect(() =>
             getObjectFromEnvironmentVariable('INVALID_OBJECT'),
         ).toThrowError(ParseError);
+    });
+});
+
+describe('getStringRecordFromEnvironmentVariable', () => {
+    test('returns undefined if env var is not defined', () => {
+        expect(
+            getStringRecordFromEnvironmentVariable('MISSING_ENV_VAR'),
+        ).toEqual(undefined);
+    });
+
+    test('returns string record if env var value is valid', () => {
+        process.env.VALID_STRING_RECORD =
+            '{"x-lightdash-use-case":"analytics-copilot","x-cost-center":"data-platform"}';
+        expect(
+            getStringRecordFromEnvironmentVariable('VALID_STRING_RECORD'),
+        ).toEqual({
+            'x-lightdash-use-case': 'analytics-copilot',
+            'x-cost-center': 'data-platform',
+        });
+    });
+
+    test('throws error if env var is not an object with string values', () => {
+        process.env.INVALID_STRING_RECORD = '{"team":["data"]}';
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).toThrowError(ParseError);
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).not.toThrow(/"team":\["data"\]/);
+    });
+
+    test('throws error if env var is explicit falsy JSON', () => {
+        process.env.INVALID_STRING_RECORD = 'null';
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).toThrowError(ParseError);
+    });
+});
+
+test('Should parse AI provider custom headers from env', () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.AZURE_AI_API_KEY = 'test-azure-key';
+    process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
+    process.env.AZURE_AI_API_VERSION = '2026-01-01';
+    process.env.AZURE_AI_DEPLOYMENT_NAME = 'gpt-5';
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'eu-west-1';
+    process.env.OPENAI_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"openai","x-gateway-route":"responses-api"}';
+    process.env.ANTHROPIC_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"anthropic","x-gateway-route":"messages-api"}';
+    process.env.OPENROUTER_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"openrouter","x-gateway-route":"router-api"}';
+    process.env.AZURE_AI_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"azure-openai","x-gateway-route":"azure-deployment"}';
+    process.env.BEDROCK_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"bedrock","x-gateway-route":"aws-runtime"}';
+
+    expect(parseConfig().ai.copilot.providers).toMatchObject({
+        openai: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'openai',
+                'x-gateway-route': 'responses-api',
+            },
+        },
+        anthropic: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'anthropic',
+                'x-gateway-route': 'messages-api',
+            },
+        },
+        openrouter: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'openrouter',
+                'x-gateway-route': 'router-api',
+            },
+        },
+        azure: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'azure-openai',
+                'x-gateway-route': 'azure-deployment',
+            },
+        },
+        bedrock: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'bedrock',
+                'x-gateway-route': 'aws-runtime',
+            },
+        },
     });
 });
 
