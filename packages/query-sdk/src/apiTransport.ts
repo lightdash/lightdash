@@ -231,6 +231,11 @@ export function createApiTransport(
                         ? { customDimensions: query.customDimensions }
                         : {}),
                 },
+                // Parameters go at the TOP LEVEL of the body — the backend reads
+                // `body.parameters`, not `body.query.parameters`.
+                ...(query.parameters && Object.keys(query.parameters).length > 0
+                    ? { parameters: query.parameters }
+                    : {}),
             };
 
             // Pass label as transport metadata (not in the API body)
