@@ -595,6 +595,19 @@ const PivotTable: FC<PivotTableProps> = ({
         );
     }, [hasCustomWidths, colWidths]);
 
+    // Passthrough columns are registered with TanStack so their values
+    // surface in `getAllCells()` for richText / image row context, but they
+    // must not render as headers or body cells.
+    const columnVisibility = useMemo(() => {
+        const visibility: Record<string, boolean> = {};
+        for (const col of data.retrofitData.pivotColumnInfo) {
+            if (col.columnType === 'passthrough') {
+                visibility[col.fieldId] = false;
+            }
+        }
+        return visibility;
+    }, [data.retrofitData.pivotColumnInfo]);
+
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
         columns: columns,
@@ -602,6 +615,7 @@ const PivotTable: FC<PivotTableProps> = ({
             grouping,
             expanded,
             columnOrder: columnOrder,
+            columnVisibility,
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },

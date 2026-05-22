@@ -215,15 +215,19 @@ function getTablePivotConfiguration(
 
     // Identify hidden dimensions (visible: false in columnProperties).
     // ANY hidden dim is excluded from indexColumn / groupByColumns.
-    // Among hidden dims, those that also appear in sorts participate in SQL
-    // for sort ordering but do not render as visible columns.
-    // Hidden dims that are NOT sorted are simply dropped entirely.
+    // Hidden pivot-column dims are routed three ways:
+    //   - sorted → sortOnlyDimensions (drive column ORDER BY)
+    //   - not sorted → passthroughDimensions (carry values through GROUP BY so
+    //     other fields' richText/image templates can read them via `row.*.raw`)
+    // Hidden row-index dims still drop to sortOnlyColumns or are excluded
+    // entirely from indexColumn.
     const hiddenFieldIds = getHiddenTableFields(chartConfig);
     const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
 
     // Group by columns are the pivot dimensions — exclude hidden ones.
-    // Hidden pivot-column dims are either routed to sortOnlyDimensions (if sorted)
-    // or dropped entirely (if not sorted).
+    // Hidden pivot-column dims are routed to either sortOnlyDimensions (if
+    // sorted) or passthroughDimensions (if not sorted) — never dropped, so
+    // cross-field templates that reference them keep working.
     const allPivotGroupByColumns = pivotColumns
         .map((col: string) => ({
             reference: col,
@@ -245,9 +249,23 @@ function getTablePivotConfiguration(
         )
         .map((col) => ({ reference: col.reference }));
 
+    // Hidden pivot-column dims that are NOT sorted → carried through SQL as
+    // passthrough data so other visible fields' richText / image templates
+    // can reference them via `row.<table>.<field>.raw`. Without this routing
+    // these dims would be dropped entirely and the template reference would
+    // silently resolve to undefined.
+    const passthroughPivotDimensions = allPivotGroupByColumns
+        .filter(
+            (col) =>
+                hiddenFieldIds.includes(col.reference) &&
+                !sortFieldIds.has(col.reference),
+        )
+        .map((col) => ({ reference: col.reference }));
+
     const groupByRefs = new Set([
         ...groupByColumns.map((c) => c.reference),
         ...sortOnlyPivotDimensions.map((c) => c.reference),
+        ...passthroughPivotDimensions.map((c) => c.reference),
     ]);
 
     // All hidden dims that are NOT pivot-column dims (i.e., row-index dims).
@@ -267,6 +285,22 @@ function getTablePivotConfiguration(
             aggregation: VizAggregationOptions.ANY,
         }));
 
+    // Hidden row-index dims that are NOT sorted → carried through SQL via
+    // passthroughDimensions (same mechanism as hidden pivot-column dims).
+    // They survive group_by_query GROUP BY so their per-row value reaches
+    // result rows for cross-field richText / image templates. Don't render
+    // as an index column. Assumes 1-to-1 cardinality with the visible row
+    // dims (the typical case: an `image_url` derived from `status`).
+    const passthroughRowDimensions = metricQuery.dimensions
+        .filter(
+            (d) =>
+                allHiddenDimRefs.has(d) &&
+                !sortFieldIds.has(d) &&
+                // Don't double-route if already a sortOnly row dim
+                !sortOnlyRowDimensions.some((s) => s.reference === d),
+        )
+        .map((d) => ({ reference: d }));
+
     // When computing index columns, treat ALL hidden dims the same as value columns
     // so they are excluded from indexColumn (preventing them from rendering as
     // row-index columns). This covers both sort-only hidden dims and hidden dims
@@ -285,6 +319,7 @@ function getTablePivotConfiguration(
     const allGroupByColumnsForIndex = [
         ...groupByColumns,
         ...sortOnlyPivotDimensions,
+        ...passthroughPivotDimensions,
     ];
 
     // Find columns that are not groupBy or value columns (these become index columns)
@@ -304,6 +339,13 @@ function getTablePivotConfiguration(
         }),
         ...(sortOnlyPivotDimensions.length > 0 && {
             sortOnlyDimensions: sortOnlyPivotDimensions,
+        }),
+        ...((passthroughPivotDimensions.length > 0 ||
+            passthroughRowDimensions.length > 0) && {
+            passthroughDimensions: [
+                ...passthroughPivotDimensions,
+                ...passthroughRowDimensions,
+            ],
         }),
     };
 

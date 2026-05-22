@@ -48,6 +48,17 @@ export type PivotConfiguration = {
      * Mirrors `sortOnlyColumns` (which serves the same purpose for metrics).
      */
     sortOnlyDimensions?: GroupByColumn[];
+    /**
+     * Hidden pivot-column dimensions that are NOT sort targets but still need
+     * their values carried through the SQL pipeline so that other fields'
+     * `richText` / `image:` templates can reference them via
+     * `row.<table>.<field>.raw`. They participate in `group_by_query` SELECT
+     * and GROUP BY (same as sortOnlyDimensions) but do NOT affect
+     * `column_ranking` ORDER BY (they don't drive sort). Without this bucket
+     * the dim would be dropped entirely from the query and `row.*.raw`
+     * references would silently resolve to undefined.
+     */
+    passthroughDimensions?: GroupByColumn[];
 };
 
 type Field =

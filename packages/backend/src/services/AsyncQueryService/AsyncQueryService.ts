@@ -124,6 +124,7 @@ import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
+import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getSchedulerContext } from '../../logging/winston';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -720,6 +721,11 @@ export class AsyncQueryService extends ProjectService {
             groupByColumns: pivotConfiguration.groupByColumns,
             sortBy: pivotConfiguration.sortBy,
             originalColumns: originalColumns || {},
+            ...(pivotConfiguration.passthroughDimensions &&
+                pivotConfiguration.passthroughDimensions.length > 0 && {
+                    passthroughDimensions:
+                        pivotConfiguration.passthroughDimensions,
+                }),
         };
     }
 
@@ -1582,6 +1588,15 @@ export class AsyncQueryService extends ProjectService {
         let pivotTotalRows = 0;
         let unpivotedColumns: ResultColumns = {};
 
+        // Passthrough dims should be 1-to-1 with the visible row/pivot dims —
+        // they ride along through `group_by_query` GROUP BY but are not in
+        // row_ranking, so multiple warehouse rows with the same row_index
+        // can carry conflicting passthrough values. We keep the first one
+        // (deterministic by warehouse row order) and remember which dims
+        // had conflicts for a debug log — useful when devs investigate
+        // "wrong image showing in pivot" reports.
+        const passthroughCardinalityViolations = new Set<string>();
+
         const writeAndTransformRowsIfPivot = pivotConfiguration
             ? async (
                   rows: WarehouseResults['rows'],
@@ -1603,8 +1618,12 @@ export class AsyncQueryService extends ProjectService {
                       fields,
                   );
 
-                  const { indexColumn, valuesColumns, groupByColumns } =
-                      pivotConfiguration;
+                  const {
+                      indexColumn,
+                      valuesColumns,
+                      groupByColumns,
+                      passthroughDimensions,
+                  } = pivotConfiguration;
 
                   if (!groupByColumns || groupByColumns.length === 0) {
                       // When there are no group by columns, we can just derive the value columns from the values columns config
@@ -1655,6 +1674,73 @@ export class AsyncQueryService extends ProjectService {
                               currentTransformedRow = {};
                           }
                           currentRowIndex = row.row_index;
+                      }
+
+                      // Carry passthrough dim values onto the row so that
+                      // cross-field richText / image templates can resolve
+                      // `row.<table>.<field>.raw` even when the field's own
+                      // column is hidden from the rendered pivot. The first
+                      // warehouse row for a row_index wins. Run on EVERY
+                      // warehouse row (not just on row_index change) so we
+                      // can detect cardinality violations: if a later row
+                      // with the same row_index carries a different value
+                      // for the same passthrough dim, the dim isn't
+                      // 1-to-1 with the visible row/pivot dims.
+                      if (passthroughDimensions && currentTransformedRow) {
+                          for (const dim of passthroughDimensions) {
+                              const incoming = row[dim.reference];
+                              const existing =
+                                  currentTransformedRow[dim.reference];
+                              if (incoming === undefined) {
+                                  // Warehouse row missing the field — nothing
+                                  // to merge. Existing value (if any) wins.
+                              } else if (existing === undefined) {
+                                  currentTransformedRow[dim.reference] =
+                                      incoming;
+                              } else if (
+                                  !passthroughCardinalityViolations.has(
+                                      dim.reference,
+                                  )
+                              ) {
+                                  // Compare raw values to handle the
+                                  // `{value: {raw, formatted}}` envelope and
+                                  // bare-value warehouse shapes. Normalise via
+                                  // JSON.stringify so object-typed warehouse
+                                  // values (Dates, JSON columns) are compared
+                                  // by content, not reference — reference
+                                  // equality would treat every row as a
+                                  // violation for those types.
+                                  const pickRaw = (v: unknown) => {
+                                      if (
+                                          v !== null &&
+                                          typeof v === 'object' &&
+                                          'value' in v &&
+                                          v.value !== null &&
+                                          typeof v.value === 'object' &&
+                                          'raw' in v.value
+                                      ) {
+                                          return (v.value as { raw: unknown })
+                                              .raw;
+                                      }
+                                      return v;
+                                  };
+                                  const existingRaw = pickRaw(existing);
+                                  const incomingRaw = pickRaw(incoming);
+                                  const same =
+                                      existingRaw === incomingRaw ||
+                                      (existingRaw !== null &&
+                                          incomingRaw !== null &&
+                                          typeof existingRaw === 'object' &&
+                                          typeof incomingRaw === 'object' &&
+                                          JSON.stringify(existingRaw) ===
+                                              JSON.stringify(incomingRaw));
+                                  if (!same) {
+                                      passthroughCardinalityViolations.add(
+                                          dim.reference,
+                                      );
+                                  }
+                              }
+                          }
                       }
 
                       const pivotValues =
@@ -1768,6 +1854,23 @@ export class AsyncQueryService extends ProjectService {
         if (currentTransformedRow) {
             pivotTotalRows += 1;
             await write?.([currentTransformedRow]);
+        }
+
+        const passthroughCardinalityWarnings = Array.from(
+            passthroughCardinalityViolations,
+        );
+        if (passthroughCardinalityWarnings.length > 0) {
+            // Debug-level so we don't spam prod logs for misconfigured charts.
+            // Surface via Logger.debug for devs investigating user reports of
+            // "wrong image showing"; the dim isn't 1-to-1 with the visible
+            // pivot/row dims so the first warehouse row's value wins
+            // arbitrarily. No user-facing UI consumer yet — see PROD-7873 PR
+            // description for the deferred surface.
+            Logger.debug(
+                `Pivot passthrough dimensions had multiple values per row_index — values rendered in cross-field templates are arbitrary. Fields: ${passthroughCardinalityWarnings.join(
+                    ', ',
+                )}`,
+            );
         }
 
         return {
