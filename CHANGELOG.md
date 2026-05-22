@@ -1,3 +1,12 @@
+## [0.3009.2](https://github.com/lightdash/lightdash/compare/0.3009.1...0.3009.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ai:** disable follow-up suggestions on read-only threads ([#23437](https://github.com/lightdash/lightdash/issues/23437)) ([2045c0f](https://github.com/lightdash/lightdash/commit/2045c0fe4889bcc4f1f43a14827e59526d1a0f42))
+* app screenshots failing ([#23435](https://github.com/lightdash/lightdash/issues/23435)) ([7801bf3](https://github.com/lightdash/lightdash/commit/7801bf35f9548bcf34f46a966c7fc8e73e48d2e3))
+* **pivot:** respect sortOnlyDimensions in column ORDER BY (PROD-5789) ([#23436](https://github.com/lightdash/lightdash/issues/23436)) ([27c3248](https://github.com/lightdash/lightdash/commit/27c32485ec048a4ef5900438765c6d35950c5a37)), closes [#16871](https://github.com/lightdash/lightdash/issues/16871)
+
 ## [0.3009.1](https://github.com/lightdash/lightdash/compare/0.3009.0...0.3009.1) (2026-05-22)
 
 
