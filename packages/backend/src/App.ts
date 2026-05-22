@@ -545,9 +545,9 @@ export default class App {
             // hosted dashboards can render data-app tiles from customer
             // origins (and local dev http origins like localhost:5173).
             // Applied uniformly to session- and embed-minted tokens — the
-            // iframe's own CSP (`connect-src 'none'`, `script-src 'self'`)
-            // is the real protection; frame-ancestors is clickjacking
-            // defense-in-depth.
+            // iframe's own CSP (`connect-src 'self'`, `script-src 'self'`)
+            // plus the sandbox attribute's opaque origin are the real
+            // protection; frame-ancestors is clickjacking defense-in-depth.
             const previewFrameAncestors = [
                 "'self'",
                 'https://*',

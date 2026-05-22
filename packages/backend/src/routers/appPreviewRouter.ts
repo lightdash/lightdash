@@ -42,12 +42,22 @@ const buildCspHeader = (
         `default-src 'none'`,
         `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `style-src 'self' 'unsafe-inline'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `connect-src 'none'`,
+        // Allow same-origin fetch so html-to-image can inline @font-face
+        // sources and <img>/background URLs when capturing screenshots.
+        // The iframe is sandboxed (`allow-scripts allow-modals`) with an
+        // opaque origin, so any fetch it makes is uncredentialed and can't
+        // exfiltrate user data — the postMessage bridge remains the only
+        // path to the authenticated Lightdash API.
+        `connect-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
-        `base-uri 'none'`,
+        // Constrain <base> to same origin instead of blocking it outright —
+        // html-to-image serializes the cloned DOM into an SVG <foreignObject>
+        // whose rendering can trip a base-uri check, and a `'none'` policy
+        // there aborts the whole screenshot.
+        `base-uri 'self'`,
     ];
 
     return directives.join('; ');
@@ -78,9 +88,9 @@ export const createAppPreviewRouter = (
      * `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` — see App.ts. Both session and
      * embed-minted tokens use the same list; the broader allowlist costs
      * little since the iframe is sandboxed (`allow-scripts allow-modals`)
-     * and the `connect-src 'none'` directive blocks the iframe from
-     * exfiltrating data on its own — backend traffic only flows through
-     * the parent-mediated postMessage bridge.
+     * with an opaque origin — any fetch it makes is uncredentialed, so
+     * authenticated backend traffic still only flows through the
+     * parent-mediated postMessage bridge.
      */
     frameAncestors: string[],
     onPreviewView?: (payload: PreviewTokenPayload) => void,
