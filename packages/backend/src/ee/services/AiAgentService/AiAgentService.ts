@@ -7,7 +7,6 @@ import {
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
-    AiAgentMcpServerToolUpdate,
     AiAgentNotFoundError,
     AiAgentSummary,
     AiAgentThread,
@@ -149,7 +148,14 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
-import { AiAgentModel, type AiMcpCredential } from '../../models/AiAgentModel';
+import {
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
+    AiAgentModel,
+    type AiAgentMcpServerToolPermissionSetting,
+    type AiAgentMcpServerToolPermissionSettingUpdate,
+    type AiMcpCredential,
+} from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
@@ -1950,8 +1956,10 @@ export class AiAgentService extends BaseService {
         return this.aiAgentModel.upsertDiscoveredMcpServerTools({
             serverUuid: args.mcpServerUuid,
             tools,
-            defaultEnabledForExistingAttachments:
-                args.defaultEnabledForExistingAttachments,
+            defaultPermissionModeForExistingAttachments:
+                args.defaultEnabledForExistingAttachments
+                    ? AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW
+                    : undefined,
         });
     }
 
@@ -2020,6 +2028,25 @@ export class AiAgentService extends BaseService {
             );
     }
 
+    private static toApiAgentMcpServerTool(
+        tool: AiAgentMcpServerToolPermissionSetting,
+    ) {
+        const { permissionMode, ...apiTool } = tool;
+
+        return {
+            ...apiTool,
+            enabled:
+                permissionMode ===
+                AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+        };
+    }
+
+    private static toAgentMcpServerToolPermissionMode(enabled: boolean) {
+        return enabled
+            ? AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW
+            : AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY;
+    }
+
     public async listAgentMcpServerTools(
         user: SessionUser,
         projectUuid: string,
@@ -2029,10 +2056,12 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageAgent(user, agentUuid, projectUuid);
         await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
 
-        return this.aiAgentModel.listAgentMcpServerTools({
-            agentUuid,
-            serverUuid: mcpServerUuid,
-        });
+        return this.aiAgentModel
+            .listAgentMcpServerTools({
+                agentUuid,
+                serverUuid: mcpServerUuid,
+            })
+            .then((tools) => tools.map(AiAgentService.toApiAgentMcpServerTool));
     }
 
     public async updateAgentMcpServerTools(
@@ -2045,22 +2074,35 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageAgent(user, agentUuid, projectUuid);
         await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
 
-        const toolSettings: AiAgentMcpServerToolUpdate[] = [
-            ...new Map<string, AiAgentMcpServerToolUpdate>(
+        const toolSettings: AiAgentMcpServerToolPermissionSettingUpdate[] = [
+            ...new Map<string, AiAgentMcpServerToolPermissionSettingUpdate>(
                 body.toolSettings.map(
-                    (tool): [string, AiAgentMcpServerToolUpdate] => [
-                        tool.toolName,
+                    (
                         tool,
+                    ): [
+                        string,
+                        AiAgentMcpServerToolPermissionSettingUpdate,
+                    ] => [
+                        tool.toolName,
+                        {
+                            toolName: tool.toolName,
+                            permissionMode:
+                                AiAgentService.toAgentMcpServerToolPermissionMode(
+                                    tool.enabled,
+                                ),
+                        },
                     ],
                 ),
             ).values(),
         ];
 
-        return this.aiAgentModel.upsertAgentMcpServerToolSettings({
-            agentUuid,
-            serverUuid: mcpServerUuid,
-            toolSettings,
-        });
+        return this.aiAgentModel
+            .upsertAgentMcpServerToolSettings({
+                agentUuid,
+                serverUuid: mcpServerUuid,
+                toolSettings,
+            })
+            .then((tools) => tools.map(AiAgentService.toApiAgentMcpServerTool));
     }
 
     public async createMcpServer(
