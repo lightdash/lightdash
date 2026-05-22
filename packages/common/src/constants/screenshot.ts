@@ -65,14 +65,21 @@ export const LOADING_CHART_CLASS = 'loading_chart';
 export const MARKDOWN_TILE_CLASS = 'markdown-tile';
 
 /**
- * Class name for the dashboard grid layout container.
- * This is the screenshot target for dashboard screenshots.
+ * Class name for the dashboard screenshot/PDF target wrapper.
+ * Wraps the dashboard's grid(s) so the backend can measure and screenshot a
+ * single deterministic element. When a multi-tab PDF export is rendered we
+ * stack one <ResponsiveGridLayout> per tab; this wrapper encompasses all of
+ * them so getBoundingClientRect / locator.screenshot capture every tab.
+ *
+ * Note: do NOT use `react-grid-layout` here — that class is also applied by
+ * the third-party grid library to every grid instance, so a multi-grid render
+ * would yield multiple matches and the backend would only see the first one.
  *
  * Usage:
- * - Frontend: Applied to ResponsiveGridLayout in MinimalDashboard
+ * - Frontend: Applied to the wrapper <div> in MinimalDashboardContent
  * - Backend: Screenshot selector in UnfurlService.saveScreenshot()
  */
-export const DASHBOARD_GRID_CLASS = 'react-grid-layout';
+export const DASHBOARD_GRID_CLASS = 'lightdash-dashboard-screenshot-target';
 
 /**
  * ID of the element rendered by the error boundary fallback.

@@ -1572,6 +1572,18 @@ export class UnfurlService extends BaseService {
                         finalSelector = `[data-testid="visualization"]`;
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
                         finalSelector = SCREENSHOT_SELECTORS.DASHBOARD_GRID;
+                        // Rolling-deploy fallback: a new backend may briefly
+                        // serve an old frontend bundle that doesn't render
+                        // the wrapper introduced for multi-tab PDF exports.
+                        // In that case the new selector matches nothing —
+                        // fall back to the legacy `.react-grid-layout` class
+                        // (which the third-party grid library still applies)
+                        // so the screenshot still finds an element. Safe to
+                        // remove once all in-flight bundles are past this
+                        // change.
+                        if ((await page.locator(finalSelector).count()) === 0) {
+                            finalSelector = '.react-grid-layout';
+                        }
                     }
 
                     const fullPage = await page.locator(finalSelector);
