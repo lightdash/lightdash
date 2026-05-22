@@ -238,6 +238,23 @@ describe('AiAgentService MCP support', () => {
                 agent.uuid,
                 mcpServer.uuid,
             );
+        const listPermissionModes = async () =>
+            context
+                .db('ai_agent_mcp_server_tool as settings')
+                .innerJoin('ai_mcp_server_tool as tools', function joinTools() {
+                    this.on(
+                        'settings.ai_mcp_server_tool_uuid',
+                        '=',
+                        'tools.ai_mcp_server_tool_uuid',
+                    );
+                })
+                .select({
+                    toolName: 'tools.tool_name',
+                    permissionMode: 'settings.permission_mode',
+                })
+                .where('settings.ai_agent_uuid', agent.uuid)
+                .andWhere('settings.ai_mcp_server_uuid', mcpServer.uuid)
+                .orderBy('tools.tool_name', 'asc');
 
         expect(
             initialAgentToolSettings.map((tool) => ({
@@ -248,6 +265,12 @@ describe('AiAgentService MCP support', () => {
             {
                 toolName: 'search',
                 enabled: true,
+            },
+        ]);
+        await expect(listPermissionModes()).resolves.toEqual([
+            {
+                toolName: 'search',
+                permissionMode: 'always_allow',
             },
         ]);
         await expect(
@@ -299,6 +322,16 @@ describe('AiAgentService MCP support', () => {
                 enabled: true,
             },
         ]);
+        await expect(listPermissionModes()).resolves.toEqual([
+            {
+                toolName: 'lookup',
+                permissionMode: 'always_deny',
+            },
+            {
+                toolName: 'search',
+                permissionMode: 'always_allow',
+            },
+        ]);
 
         await services.aiAgentService.updateAgentMcpServerTools(
             context.testUser,
@@ -316,6 +349,16 @@ describe('AiAgentService MCP support', () => {
                 serverUuid: mcpServer.uuid,
             }),
         ).resolves.toEqual(['lookup', 'search']);
+        await expect(listPermissionModes()).resolves.toEqual([
+            {
+                toolName: 'lookup',
+                permissionMode: 'always_allow',
+            },
+            {
+                toolName: 'search',
+                permissionMode: 'always_allow',
+            },
+        ]);
 
         availableTools = [
             {
@@ -359,6 +402,12 @@ describe('AiAgentService MCP support', () => {
                 serverUuid: mcpServer.uuid,
             }),
         ).resolves.toEqual(['lookup']);
+        await expect(listPermissionModes()).resolves.toEqual([
+            {
+                toolName: 'lookup',
+                permissionMode: 'always_allow',
+            },
+        ]);
 
         const sensitiveMcpServers =
             await models.aiAgentModel.getAgentMcpServersWithSensitiveData(
