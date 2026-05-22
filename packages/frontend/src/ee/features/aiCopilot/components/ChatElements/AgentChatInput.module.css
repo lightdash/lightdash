@@ -219,7 +219,7 @@
     align-items: center;
     width: 100%;
     border-radius: var(--mantine-radius-lg);
-    padding: 6px var(--mantine-spacing-sm);
+    padding: 4px var(--mantine-spacing-xs);
     transition:
         background-color 150ms ease,
         border-color 150ms ease;
@@ -366,14 +366,19 @@
 
 .minimalEditorContent {
     padding: 0;
-    padding-right: var(--mantine-spacing-sm);
+    padding-right: var(--mantine-spacing-xs);
     font-size: var(--mantine-font-size-sm);
     line-height: 1.5;
     min-height: 24px;
     max-height: 144px;
     overflow-y: auto;
+    scrollbar-width: none;
     flex: 1;
     background: transparent;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 
     :global(.ProseMirror) {
         outline: none;
