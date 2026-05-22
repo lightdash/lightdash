@@ -5270,7 +5270,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(colRankingSelect).not.toContain('"orders_status_priority"');
         });
 
-        test('sortOnlyDimensions influences column ORDER BY in column_ranking', () => {
+        test('sortOnlyDimensions LEADS column ORDER BY in column_ranking when it is the explicit sortBy target', () => {
+            // When a sortOnlyDimension is the explicit sortBy target, it must
+            // appear FIRST in column_ranking's ORDER BY — otherwise the visible
+            // groupBy column (typically 1-to-1 with the sortOnly helper) wins
+            // alphabetically and the sortOnly never gets to drive column order.
             const pivotConfiguration = {
                 indexColumn: [
                     {
@@ -5302,9 +5306,113 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
             const collapsed = replaceWhitespace(result);
 
-            // column_ranking ORDER BY should include orders_status_priority
+            // sortOnly target (orders_status_priority) must lead; orders_status follows as tiebreaker.
             expect(collapsed).toContain(
-                'column_ranking AS (SELECT DISTINCT g."orders_status", DENSE_RANK() OVER (ORDER BY g."orders_status" ASC, g."orders_status_priority" ASC) AS "col_idx"',
+                'column_ranking AS (SELECT DISTINCT g."orders_status", DENSE_RANK() OVER (ORDER BY g."orders_status_priority" ASC, g."orders_status" ASC) AS "col_idx"',
+            );
+        });
+
+        test('sortOnlyDimensions is included in group_by_query and pivot_query column_index (dimension-sort path, PROD-5789 repro)', () => {
+            // Exact mirror of the user's prod payload that produced
+            // alphabetical column order instead of custom_sort_dim order.
+            // Goes through the dimension-sort path (sortBy is a dim, not value).
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'orders_order_date_month',
+                        type: VizIndexType.TIME,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_order_amount',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'orders_total_completed_order_amount',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'orders_status' },
+                    { reference: 'orders_shipping_method' },
+                ],
+                sortOnlyDimensions: [{ reference: 'status_prio_2' }],
+                sortBy: [
+                    {
+                        reference: 'status_prio_2',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                metricsAsRows: true,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // status_prio_2 must appear in group_by_query SELECT and GROUP BY,
+            // and lead the column_ranking ORDER BY (so column_index is computed
+            // by status_prio_2 first, then the visible groupBys as tiebreakers).
+            expect(collapsed).toContain(
+                'group_by_query AS (SELECT "orders_status", "orders_shipping_method", "status_prio_2", "orders_order_date_month"',
+            );
+            expect(collapsed).toContain(
+                'group by "orders_status", "orders_shipping_method", "status_prio_2", "orders_order_date_month"',
+            );
+            expect(collapsed).toContain(
+                'column_ranking AS (SELECT DISTINCT g."orders_status", g."orders_shipping_method", DENSE_RANK() OVER (ORDER BY g."status_prio_2" ASC, g."orders_status" ASC, g."orders_shipping_method" ASC) AS "col_idx"',
+            );
+        });
+
+        test('sortOnlyDimensions LEADS column ORDER BY with multiple visible groupByColumns (PROD-5789 repro)', () => {
+            // Repro of the prod bug: two visible groupByColumns + one hidden
+            // sortOnlyDimension as the sole sortBy target. Without the priority
+            // fix, the hidden dim would land at the end of ORDER BY and never
+            // get to break ties, so columns fall back to alphabetical by the
+            // first visible groupBy.
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'partner_name',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'avg_order_value',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'browser' },
+                    { reference: 'selected_dim' },
+                ],
+                sortBy: [
+                    {
+                        reference: 'custom_sort_dim',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyDimensions: [{ reference: 'custom_sort_dim' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // custom_sort_dim (sortBy target) must lead; browser and selected_dim
+            // are tiebreakers in their natural groupByColumns order.
+            expect(collapsed).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."custom_sort_dim" ASC, g."browser" ASC, g."selected_dim" ASC) AS "col_idx"',
             );
         });
 

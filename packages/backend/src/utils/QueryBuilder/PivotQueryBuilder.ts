@@ -543,10 +543,34 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Create groups order parts following allOrderableDims order (visible groupByColumns
-            // first, then sortOnlyDimensions). Note that groups parts should follow the
-            // groupsByColumns order rather than sortBy order.
-            const groupsOrderByParts = allOrderableDims.map((col) => {
+            // Build groups order parts:
+            //   1. sortOnlyDimensions that appear in sortBy lead (in sortBy order) —
+            //      otherwise the visible groupBy (typically 1-to-1 with the
+            //      sort helper) would dominate alphabetically and the helper
+            //      would never get to break a tie.
+            //   2. groupByColumns follow in their declared order (preserving
+            //      issue #16871's invariant: sortBy order does NOT leak into
+            //      groupByColumns ordering).
+            //   3. remaining sortOnlyDimensions (without sortBy entries) trail.
+            const sortOnlyRefs = new Set(
+                (sortOnlyDimensions || []).map((d) => d.reference),
+            );
+            const leadingDims = sortBy
+                .filter((s) => sortOnlyRefs.has(s.reference))
+                .map((s) =>
+                    allOrderableDims.find((d) => d.reference === s.reference),
+                )
+                .filter(
+                    (d): d is (typeof allOrderableDims)[number] =>
+                        d !== undefined,
+                );
+            const leadingRefs = new Set(leadingDims.map((d) => d.reference));
+            const trailingDims = allOrderableDims.filter(
+                (d) => !leadingRefs.has(d.reference),
+            );
+            const orderedDims = [...leadingDims, ...trailingDims];
+
+            const groupsOrderByParts = orderedDims.map((col) => {
                 const sort = sortBy.find((s) => s.reference === col.reference);
                 const sortExpr = this.resolveSortField(
                     col.reference,
