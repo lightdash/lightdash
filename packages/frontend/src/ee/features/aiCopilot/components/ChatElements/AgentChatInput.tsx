@@ -32,6 +32,7 @@ import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { getAgentSuggestionModes } from './suggestionModes';
 
 const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
@@ -191,16 +192,15 @@ export const AgentChatInput = ({
         FeatureFlags.AiAgentSuggestions,
     );
 
-    const emptyStateMode =
-        !isMinimalMode &&
-        messageCount === 0 &&
-        suggestionsFlag.data?.enabled === true;
-    const postResponseMode =
-        messageCount > 0 &&
-        !loading &&
-        !!threadUuid &&
-        !!latestAssistantMessageUuid &&
-        suggestionsFlag.data?.enabled === true;
+    const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
+        disabled,
+        isMinimalMode,
+        loading,
+        messageCount,
+        latestAssistantMessageUuid,
+        suggestionsEnabled: suggestionsFlag.data?.enabled === true,
+        threadUuid,
+    });
 
     const suggestionsQuery = useAgentSuggestions({
         projectUuid,

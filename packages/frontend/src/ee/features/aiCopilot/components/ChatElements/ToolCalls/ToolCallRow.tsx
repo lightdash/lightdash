@@ -26,6 +26,7 @@ import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import {
     getMcpServerForToolName,
     getMcpToolDisplayMetadata,
+    getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { type ToolCallSummary } from './utils/types';
 
@@ -77,6 +78,9 @@ export const ToolCallRow: FC<Props> = ({
     const mcpDisplayMetadata = builtInToolName
         ? undefined
         : getMcpToolDisplayMetadata(toolName, mcpServer);
+    const mcpToolDisplayName = builtInToolName
+        ? null
+        : getMcpToolDisplayName(toolName);
     const label = builtInToolName
         ? status === 'running'
             ? TOOL_DISPLAY_MESSAGES[builtInToolName]
@@ -167,9 +171,9 @@ export const ToolCallRow: FC<Props> = ({
                 </Text>
             ) : (
                 <Text size="xs" className={styles.label}>
-                    Used MCP {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
+                    Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
                     <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
-                        {toolName}
+                        {mcpToolDisplayName}
                     </ToolCallChip>
                 </Text>
             )}

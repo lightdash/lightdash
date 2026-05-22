@@ -264,11 +264,25 @@ export type AiMcpServerToolTable = Knex.CompositeTableType<
 
 export const AiAgentMcpServerToolTableName = 'ai_agent_mcp_server_tool';
 
+export const AiAgentMcpServerToolPermissionModes = [
+    'always_allow',
+    'ask',
+    'always_deny',
+] as const;
+
+export type DbAiAgentMcpServerToolPermissionMode =
+    (typeof AiAgentMcpServerToolPermissionModes)[number];
+
 export type DbAiAgentMcpServerTool = {
     ai_agent_uuid: string;
     ai_mcp_server_uuid: string;
     ai_mcp_server_tool_uuid: string;
-    enabled: boolean;
+    /**
+     * @deprecated Kept for rolling deploy safety. New code should use
+     * `permission_mode` instead.
+     */
+    enabled?: boolean;
+    permission_mode: DbAiAgentMcpServerToolPermissionMode;
     created_at: Date;
     updated_at: Date;
 };

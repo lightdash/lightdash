@@ -9,6 +9,14 @@ export type DashboardTileStatusContextType = {
     addResultsCacheTime: (cacheMetadata?: CacheMetadata) => void;
     preAggregateStatuses: Record<string, TilePreAggregateStatus>;
     invalidateCache: boolean | undefined;
+    /**
+     * Monotonic counter bumped on every manual/auto refresh (via
+     * `clearCacheAndFetch`). Chart tiles re-fetch through React Query
+     * invalidation, but data-app tiles run their queries inside an iframe that
+     * only re-fires them on reload — they bake this counter into the iframe URL
+     * to force that reload. See `DashboardDataAppTile`.
+     */
+    refreshCounter: number;
     isAutoRefresh: boolean;
     setIsAutoRefresh: (autoRefresh: boolean) => void;
     clearCacheAndFetch: () => void;

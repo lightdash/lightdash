@@ -72,7 +72,10 @@
   * {
     @apply border-border;
   }
-  body {
+  /* Apply to <html> too so the area below <body> (when the iframe is taller
+     than the rendered content) doesn't reveal the iframe's default white
+     canvas as a strip at the bottom. */
+  html, body {
     @apply bg-background text-foreground;
   }
   /* Default bottom gutter so generated apps don't feel cramped at the

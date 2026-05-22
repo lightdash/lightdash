@@ -14,6 +14,7 @@ import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -60,6 +61,19 @@ const DataAppTile: FC<Props> = (props) => {
     const dashboardFiltersForApp = useMemo(
         () => convertDateDashboardFilters(tileDashboardFilters),
         [tileDashboardFilters],
+    );
+
+    // The dashboard refresh button bumps `refreshCounter` and flips
+    // `invalidateCache` (both via `clearCacheAndFetch`). Chart tiles re-fetch
+    // through React Query; this iframe re-fires its mount-time queries only on
+    // reload, so we bake the counter into the URL to force one, and forward
+    // invalidateCache so those re-fired queries bypass the warehouse cache —
+    // matching how a chart refreshes.
+    const invalidateCache = useDashboardTileStatusContext(
+        (c) => c.invalidateCache,
+    );
+    const refreshCounter = useDashboardTileStatusContext(
+        (c) => c.refreshCounter,
     );
 
     const previewOrigin = usePreviewOrigin();
@@ -128,7 +142,7 @@ const DataAppTile: FC<Props> = (props) => {
         token && latestReadyVersion
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${encodeURIComponent(
                   filtersKey,
-              )}#transport=postMessage&projectUuid=${projectUuid}`
+              )}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
     const isForbidden =
@@ -196,6 +210,7 @@ const DataAppTile: FC<Props> = (props) => {
                         expectedPreviewOrigin={previewOrigin}
                         identityKey={`${appUuid}:${latestReadyVersion}`}
                         dashboardFilters={dashboardFiltersForApp}
+                        invalidateCache={invalidateCache}
                     />
                 )}
             </Box>

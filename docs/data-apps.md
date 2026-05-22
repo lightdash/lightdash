@@ -180,12 +180,37 @@ Users can cancel a building version. This atomically marks it as `status='error'
 
 ### Refreshing the preview
 
-A refresh button in the preview header reloads the iframe to re-execute the app's metric queries against the warehouse,
-without kicking off a new code-gen iteration. The motivating use case is "I just pushed a semantic-layer change while
-Claude is still iterating in the sidebar — show me what the queries look like now." Implementation: `AppGenerate` owns
-a `previewRefreshKey` counter that gets baked into the iframe URL as `&r={key}`. Bumping the counter changes the URL,
-which forces the browser to reload the iframe; the served bundle and the JWT are unaffected. The query inspector panel
-is cleared on refresh so the new query run isn't mixed with stale entries from the previous load.
+A refresh button reloads the iframe to re-execute the app's metric queries against the warehouse, without kicking off a
+new code-gen iteration. The motivating use case is "I just pushed a semantic-layer change while Claude is still
+iterating in the sidebar — show me what the queries look like now." Both the builder (`AppGenerate`) and the standalone
+preview page (`AppPreviewTest`) carry one.
+
+Implementation: each page owns a `refreshKey`/`previewRefreshKey` counter baked into the iframe URL as `?r={key}`.
+Bumping the counter changes the URL, which forces the browser to reload the iframe; the served bundle and the JWT are
+unaffected. The query inspector panel is cleared on refresh so the new query run isn't mixed with stale entries from
+the previous load.
+
+Refreshing also **invalidates the warehouse cache**. Alongside the counter, each page latches an `invalidateCache`
+boolean to `true` on the first refresh and forwards it through `AppIframePreview` → `useAppSdkBridge`, which stamps
+`invalidateCache` onto every intercepted metric-query POST — the same flag chart tiles send. The flag starts `false`
+so the initial page load can still serve cached results fast; once you've asked for a refresh, every subsequent query
+runs against the warehouse fresh. (This mirrors the sticky behaviour of the dashboard tile below.)
+
+### Refreshing a data app inside a dashboard
+
+A data app embedded as a `DashboardDataAppTile` refreshes the same way a chart tile does when the dashboard's
+**refresh button** is pressed. The challenge is that the tile's queries run *inside* the sandboxed iframe (via the
+postMessage bridge), so they can't piggyback on the React Query invalidation that re-fetches chart tiles. Two pieces
+bridge that gap, both driven by `clearCacheAndFetch` in `DashboardTileStatusProvider`:
+
+- **Reload the iframe.** `clearCacheAndFetch` bumps a monotonic `refreshCounter` on the tile-status context.
+  `DashboardDataAppTile` bakes it into the iframe URL as `&r={refreshCounter}` (same convention as `AppGenerate`'s
+  `previewRefreshKey`), which forces the browser to reload the iframe so its mount-time metric queries re-fire. A
+  counter — not the sticky `invalidateCache` boolean — is required so repeat refreshes keep changing the URL.
+- **Bypass the warehouse cache.** `clearCacheAndFetch` also flips `invalidateCache` to `true`. The tile forwards it to
+  `AppIframePreview` → `useAppSdkBridge`, which stamps `invalidateCache` onto every intercepted metric-query POST —
+  exactly the same flag chart tiles send on refresh, and the same slot the bridge already uses to stamp
+  `dashboardFilters`. So the app's re-fired queries hit the warehouse fresh instead of serving cached results.
 
 ### Previewing older versions
 
@@ -412,7 +437,7 @@ Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
 - `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'none'` — block all `fetch`/`XHR`/`WebSocket` from the iframe; API calls reach Lightdash only through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request)
+- `connect-src 'self'` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 ---

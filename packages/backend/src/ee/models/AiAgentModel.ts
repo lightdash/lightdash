@@ -9,8 +9,6 @@ import {
     AiAgentEvaluationRunResult,
     AiAgentEvaluationRunSummary,
     AiAgentEvaluationSummary,
-    AiAgentMcpServerTool,
-    AiAgentMcpServerToolUpdate,
     AiAgentMessage,
     AiAgentMessageAssistant,
     AiAgentMessageAssistantArtifact,
@@ -133,6 +131,7 @@ import {
     DbAiAgentIntegration,
     DbAiAgentMcpServer,
     DbAiAgentMcpServerTool,
+    DbAiAgentMcpServerToolPermissionMode,
     DbAiAgentSlackIntegration,
     DbAiMcpServer,
     DbAiMcpServerCredential,
@@ -168,6 +167,21 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
 };
+
+export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW: DbAiAgentMcpServerToolPermissionMode =
+    'always_allow';
+export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY: DbAiAgentMcpServerToolPermissionMode =
+    'always_deny';
+
+export type AiAgentMcpServerToolPermissionSetting = AiMcpServerTool & {
+    agentUuid: string;
+    permissionMode: DbAiAgentMcpServerToolPermissionMode;
+};
+
+export type AiAgentMcpServerToolPermissionSettingUpdate = Pick<
+    AiAgentMcpServerToolPermissionSetting,
+    'toolName' | 'permissionMode'
+>;
 
 export type AiMcpBearerCredentialPayload = {
     type: 'bearer';
@@ -734,15 +748,17 @@ export class AiAgentModel {
         };
     }
 
-    private static toAiAgentMcpServerTool(args: {
+    private static toAiAgentMcpServerToolPermissionSetting(args: {
         agentUuid: string;
         tool: DbAiMcpServerTool;
         setting?: DbAiAgentMcpServerTool;
-    }): AiAgentMcpServerTool {
+    }): AiAgentMcpServerToolPermissionSetting {
         return {
             ...AiAgentModel.toAiMcpServerTool(args.tool),
             agentUuid: args.agentUuid,
-            enabled: args.setting?.enabled ?? false,
+            permissionMode:
+                args.setting?.permission_mode ??
+                AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
         };
     }
 
@@ -767,6 +783,7 @@ export class AiAgentModel {
             ai_mcp_server_uuid: `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
             ai_mcp_server_tool_uuid: `${AiAgentMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
             enabled: `${AiAgentMcpServerToolTableName}.enabled`,
+            permission_mode: `${AiAgentMcpServerToolTableName}.permission_mode`,
             created_at: `${AiAgentMcpServerToolTableName}.created_at`,
             updated_at: `${AiAgentMcpServerToolTableName}.updated_at`,
         } satisfies Record<keyof DbAiAgentMcpServerTool, Knex.Value>;
@@ -946,7 +963,7 @@ export class AiAgentModel {
     async upsertDiscoveredMcpServerTools(args: {
         serverUuid: string;
         tools: AiMcpServerToolInput[];
-        defaultEnabledForExistingAttachments?: boolean;
+        defaultPermissionModeForExistingAttachments?: DbAiAgentMcpServerToolPermissionMode;
         trx?: Knex;
     }): Promise<AiMcpServerTool[]> {
         const trx = args.trx ?? this.database;
@@ -1025,9 +1042,9 @@ export class AiAgentModel {
                                 ai_mcp_server_uuid: row.ai_mcp_server_uuid,
                                 ai_mcp_server_tool_uuid:
                                     tool.ai_mcp_server_tool_uuid,
-                                enabled:
-                                    args.defaultEnabledForExistingAttachments ??
-                                    false,
+                                permission_mode:
+                                    args.defaultPermissionModeForExistingAttachments ??
+                                    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
                                 created_at: trx.fn.now(),
                                 updated_at: trx.fn.now(),
                             })),
@@ -1053,7 +1070,7 @@ export class AiAgentModel {
         agentUuid: string;
         serverUuid: string;
         trx?: Knex;
-    }): Promise<AiAgentMcpServerTool[]> {
+    }): Promise<AiAgentMcpServerToolPermissionSetting[]> {
         const trx = args.trx ?? this.database;
 
         const attachment = await this.getAgentMcpServerAttachment({
@@ -1091,7 +1108,7 @@ export class AiAgentModel {
         );
 
         return toolRows.map((tool) =>
-            AiAgentModel.toAiAgentMcpServerTool({
+            AiAgentModel.toAiAgentMcpServerToolPermissionSetting({
                 agentUuid: args.agentUuid,
                 tool,
                 setting: settingMap.get(tool.ai_mcp_server_tool_uuid),
@@ -1102,9 +1119,9 @@ export class AiAgentModel {
     async upsertAgentMcpServerToolSettings(args: {
         agentUuid: string;
         serverUuid: string;
-        toolSettings: AiAgentMcpServerToolUpdate[];
+        toolSettings: AiAgentMcpServerToolPermissionSettingUpdate[];
         trx?: Knex;
-    }): Promise<AiAgentMcpServerTool[]> {
+    }): Promise<AiAgentMcpServerToolPermissionSetting[]> {
         const trx = args.trx ?? this.database;
         const settingMap = new Map(
             args.toolSettings.map((tool) => [tool.toolName, tool] as const),
@@ -1154,7 +1171,7 @@ export class AiAgentModel {
                     ai_agent_uuid: attachment.ai_agent_uuid,
                     ai_mcp_server_uuid: attachment.ai_mcp_server_uuid,
                     ai_mcp_server_tool_uuid: toolUuidByName.get(tool.toolName)!,
-                    enabled: tool.enabled,
+                    permission_mode: tool.permissionMode,
                     created_at: trx.fn.now(),
                     updated_at: trx.fn.now(),
                 })),
@@ -1165,7 +1182,7 @@ export class AiAgentModel {
                 'ai_mcp_server_tool_uuid',
             ])
             .merge({
-                enabled: trx.raw('excluded.enabled'),
+                permission_mode: trx.raw('excluded.permission_mode'),
                 updated_at: trx.fn.now(),
             });
 
@@ -1179,7 +1196,7 @@ export class AiAgentModel {
     async initializeAgentMcpServerToolSettings(args: {
         agentUuid: string;
         serverUuid: string;
-        enabled: boolean;
+        permissionMode: DbAiAgentMcpServerToolPermissionMode;
         trx?: Knex;
     }): Promise<void> {
         const trx = args.trx ?? this.database;
@@ -1209,7 +1226,7 @@ export class AiAgentModel {
                     ai_agent_uuid: attachment.ai_agent_uuid,
                     ai_mcp_server_uuid: attachment.ai_mcp_server_uuid,
                     ai_mcp_server_tool_uuid: tool.ai_mcp_server_tool_uuid,
-                    enabled: args.enabled,
+                    permission_mode: args.permissionMode,
                     created_at: trx.fn.now(),
                     updated_at: trx.fn.now(),
                 })),
@@ -1257,7 +1274,10 @@ export class AiAgentModel {
                 `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
                 attachment.ai_mcp_server_uuid,
             )
-            .andWhere(`${AiAgentMcpServerToolTableName}.enabled`, true)
+            .andWhere(
+                `${AiAgentMcpServerToolTableName}.permission_mode`,
+                AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+            )
             .orderBy(`${AiMcpServerToolTableName}.tool_name`, 'asc');
 
         return rows.map((row) => row.tool_name);
@@ -2126,7 +2146,8 @@ export class AiAgentModel {
                     this.initializeAgentMcpServerToolSettings({
                         agentUuid,
                         serverUuid,
-                        enabled: true,
+                        permissionMode:
+                            AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
                         trx,
                     }),
                 ),

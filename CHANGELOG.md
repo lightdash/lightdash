@@ -1,3 +1,66 @@
+## [0.3009.4](https://github.com/lightdash/lightdash/compare/0.3009.3...0.3009.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* reduce minimal chat input padding and hide scrollbar ([#23341](https://github.com/lightdash/lightdash/issues/23341)) ([1d52324](https://github.com/lightdash/lightdash/commit/1d5232426bb2972c5b96685080233479b98cd232))
+
+## [0.3009.3](https://github.com/lightdash/lightdash/compare/0.3009.2...0.3009.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* app background color should match body ([#23439](https://github.com/lightdash/lightdash/issues/23439)) ([c79bfb4](https://github.com/lightdash/lightdash/commit/c79bfb4bd3cded7636485fa4fb64ee44c59351ff))
+
+## [0.3009.2](https://github.com/lightdash/lightdash/compare/0.3009.1...0.3009.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ai:** disable follow-up suggestions on read-only threads ([#23437](https://github.com/lightdash/lightdash/issues/23437)) ([2045c0f](https://github.com/lightdash/lightdash/commit/2045c0fe4889bcc4f1f43a14827e59526d1a0f42))
+* app screenshots failing ([#23435](https://github.com/lightdash/lightdash/issues/23435)) ([7801bf3](https://github.com/lightdash/lightdash/commit/7801bf35f9548bcf34f46a966c7fc8e73e48d2e3))
+* **pivot:** respect sortOnlyDimensions in column ORDER BY (PROD-5789) ([#23436](https://github.com/lightdash/lightdash/issues/23436)) ([27c3248](https://github.com/lightdash/lightdash/commit/27c32485ec048a4ef5900438765c6d35950c5a37)), closes [#16871](https://github.com/lightdash/lightdash/issues/16871)
+
+## [0.3009.1](https://github.com/lightdash/lightdash/compare/0.3009.0...0.3009.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** clean MCP tool call labels ([#23434](https://github.com/lightdash/lightdash/issues/23434)) ([1c7b70b](https://github.com/lightdash/lightdash/commit/1c7b70b0af93719c1e3fcf770327045b6bb9be0e))
+
+# [0.3009.0](https://github.com/lightdash/lightdash/compare/0.3008.0...0.3009.0) (2026-05-22)
+
+
+### Features
+
+* render multi-tab dashboard exports in per-tab grids with deterministic screenshot target ([#23432](https://github.com/lightdash/lightdash/issues/23432)) ([7d998f3](https://github.com/lightdash/lightdash/commit/7d998f38fa46315ae0268287a4ae2ded845b857a))
+
+# [0.3008.0](https://github.com/lightdash/lightdash/compare/0.3007.2...0.3008.0) (2026-05-22)
+
+
+### Bug Fixes
+
+* **snowflake:** avoid warehouse resume on session setup ([#23395](https://github.com/lightdash/lightdash/issues/23395)) ([2fdc44f](https://github.com/lightdash/lightdash/commit/2fdc44f8dc99c5fe732edf12501d680704d861ba))
+
+
+### Features
+
+* invalidate cache on standalone data app refresh ([#23431](https://github.com/lightdash/lightdash/issues/23431)) ([023645b](https://github.com/lightdash/lightdash/commit/023645b1cc5b94899169b2208eba3d706a497420))
+
+## [0.3007.2](https://github.com/lightdash/lightdash/compare/0.3007.1...0.3007.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* refresh data app dashboard tiles with the dashboard refresh button ([#23430](https://github.com/lightdash/lightdash/issues/23430)) ([96cb5aa](https://github.com/lightdash/lightdash/commit/96cb5aac53975062fd4f199f6308200bfe35beb6))
+
+## [0.3007.1](https://github.com/lightdash/lightdash/compare/0.3007.0...0.3007.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* replace boolean `enabled` with `permission_mode` enum for MCP server tool settings ([#23427](https://github.com/lightdash/lightdash/issues/23427)) ([2c7e41e](https://github.com/lightdash/lightdash/commit/2c7e41efe5b1767e5603deb57a062a7bcb0c375a))
+
 # [0.3007.0](https://github.com/lightdash/lightdash/compare/0.3006.0...0.3007.0) (2026-05-21)
 
 
