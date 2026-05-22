@@ -57,6 +57,11 @@ type Props = {
      *  Set by `DashboardDataAppTile`; left undefined by `AppGenerate` where
      *  there's no dashboard context. */
     dashboardFilters?: DashboardFilters;
+    /** When true, every metric-query the iframe runs is sent with
+     *  `invalidateCache` so the backend bypasses the warehouse results cache.
+     *  Set by `DashboardDataAppTile` after a dashboard refresh, mirroring what
+     *  chart tiles send; left undefined elsewhere. */
+    invalidateCache?: boolean;
     /** Fired on every iframe `onload` (including the initial about:blank).
      *  Used by `MinimalApp` to gate the screenshot readiness signal. */
     onIframeLoad?: () => void;
@@ -91,6 +96,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onScreenshotAvailabilityChange,
             onInspectorCancelled,
             dashboardFilters,
+            invalidateCache,
             onIframeLoad,
         },
         ref,
@@ -114,6 +120,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 handleInspectorAnnounce,
                 handleScreenshotAnnounce,
                 dashboardFilters,
+                invalidateCache,
             );
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

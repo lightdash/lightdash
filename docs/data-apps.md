@@ -187,6 +187,22 @@ a `previewRefreshKey` counter that gets baked into the iframe URL as `&r={key}`.
 which forces the browser to reload the iframe; the served bundle and the JWT are unaffected. The query inspector panel
 is cleared on refresh so the new query run isn't mixed with stale entries from the previous load.
 
+### Refreshing a data app inside a dashboard
+
+A data app embedded as a `DashboardDataAppTile` refreshes the same way a chart tile does when the dashboard's
+**refresh button** is pressed. The challenge is that the tile's queries run *inside* the sandboxed iframe (via the
+postMessage bridge), so they can't piggyback on the React Query invalidation that re-fetches chart tiles. Two pieces
+bridge that gap, both driven by `clearCacheAndFetch` in `DashboardTileStatusProvider`:
+
+- **Reload the iframe.** `clearCacheAndFetch` bumps a monotonic `refreshCounter` on the tile-status context.
+  `DashboardDataAppTile` bakes it into the iframe URL as `&r={refreshCounter}` (same convention as `AppGenerate`'s
+  `previewRefreshKey`), which forces the browser to reload the iframe so its mount-time metric queries re-fire. A
+  counter — not the sticky `invalidateCache` boolean — is required so repeat refreshes keep changing the URL.
+- **Bypass the warehouse cache.** `clearCacheAndFetch` also flips `invalidateCache` to `true`. The tile forwards it to
+  `AppIframePreview` → `useAppSdkBridge`, which stamps `invalidateCache` onto every intercepted metric-query POST —
+  exactly the same flag chart tiles send on refresh, and the same slot the bridge already uses to stamp
+  `dashboardFilters`. So the app's re-fired queries hit the warehouse fresh instead of serving cached results.
+
 ### Previewing older versions
 
 By default the preview iframe loads the **latest ready** version of the app — it auto-bumps every time a new iteration

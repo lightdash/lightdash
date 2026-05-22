@@ -138,6 +138,13 @@ export function useAppSdkBridge(
      * is not involved — generated apps stay filter-agnostic.
      */
     dashboardFilters?: DashboardFilters,
+    /**
+     * When true, `invalidateCache` is stamped onto every intercepted
+     * metric-query POST so the backend bypasses the warehouse results cache —
+     * mirrors what chart tiles send after the dashboard refresh button is
+     * pressed. Set by `DashboardDataAppTile`; left undefined elsewhere.
+     */
+    invalidateCache?: boolean,
 ) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -205,14 +212,19 @@ export function useAppSdkBridge(
                 return;
             }
 
-            // Stamp dashboard filters onto outgoing metric-query bodies. The
-            // backend drops filters whose fields aren't in the query's
-            // explore, so it's safe to send the full set on every call.
+            // Stamp dashboard filters and the cache-invalidation flag onto
+            // outgoing metric-query bodies. The backend drops filters whose
+            // fields aren't in the query's explore, so it's safe to send the
+            // full set on every call. `invalidateCache` mirrors what charts
+            // send on a dashboard refresh so the app's queries bypass the
+            // warehouse results cache too.
             const effectiveBody =
-                isMetricQueryPost(method, path) && dashboardFilters
+                isMetricQueryPost(method, path) &&
+                (dashboardFilters || invalidateCache)
                     ? {
                           ...(body as Record<string, unknown> | undefined),
-                          dashboardFilters,
+                          ...(dashboardFilters ? { dashboardFilters } : {}),
+                          ...(invalidateCache ? { invalidateCache } : {}),
                       }
                     : body;
 
@@ -394,6 +406,7 @@ export function useAppSdkBridge(
             onInspectorAvailable,
             onScreenshotAvailable,
             dashboardFilters,
+            invalidateCache,
             embedToken,
             embedProjectUuid,
         ],
