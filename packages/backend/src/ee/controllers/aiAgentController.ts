@@ -27,6 +27,7 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
     ApiAiMcpServerToolListResponse,
@@ -269,6 +270,7 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() mcpServerUuid: string,
+        @Body() body?: ApiAiMcpOAuthCredentialRequest,
     ): Promise<ApiStartAiMcpOAuthResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -280,6 +282,7 @@ export class AiAgentController extends BaseController {
                         toSessionUser(req.account),
                         projectUuid,
                         mcpServerUuid,
+                        body,
                     ),
             },
         };
@@ -297,6 +300,7 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() mcpServerUuid: string,
+        @Body() body?: ApiAiMcpOAuthCredentialRequest,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -304,6 +308,7 @@ export class AiAgentController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             mcpServerUuid,
+            body,
         );
         return {
             status: 'ok',

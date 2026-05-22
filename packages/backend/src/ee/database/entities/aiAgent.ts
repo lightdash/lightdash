@@ -161,6 +161,7 @@ export type DbAiMcpServer = {
     url: string;
     icon_url: string | null;
     auth_type: 'none' | 'bearer' | 'oauth';
+    allow_oauth_credential_sharing: boolean;
     connection_status:
         | 'not_connected'
         | 'connecting'

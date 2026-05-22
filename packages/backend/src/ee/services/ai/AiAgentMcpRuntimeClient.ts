@@ -437,7 +437,7 @@ const normalizeMcpError = (
         return new McpAuthorizationRequiredError(
             mcpServer.name,
             mcpServer.uuid,
-            mcpServer.resolvedCredentialScope ?? 'shared',
+            mcpServer.resolvedCredentialScope ?? 'user',
         );
     }
 
@@ -576,6 +576,8 @@ export class AiAgentMcpRuntimeClient {
         connectionStatus: AiMcpServerConnectionStatus;
         error: string | null;
         iconUrl?: string | null;
+        credentialScope?: AiMcpCredentialScope | null;
+        userUuid?: string;
     }) {
         try {
             await this.aiAgentModel.updateMcpServerRuntimeState(args);
@@ -597,32 +599,54 @@ export class AiAgentMcpRuntimeClient {
         ).toString();
     }
 
-    private createSharedMcpOAuthProvider(args: {
+    private createMcpOAuthProvider(args: {
         projectUuid: string;
         mcpServerUuid: string;
+        credentialScope: AiMcpCredentialScope;
+        userUuid?: string;
         actorUserUuid?: string;
         onAuthorizationUrl?: (url: URL) => void | Promise<void>;
         forceReauth?: boolean;
     }) {
         return new PersistentMcpOAuthClientProvider({
-            credentialScope: 'shared',
+            credentialScope: args.credentialScope,
             redirectUrl: this.getMcpOAuthCallbackUrl(
                 args.projectUuid,
                 args.mcpServerUuid,
             ),
             getCredential: () =>
-                this.aiAgentModel.getCredential(args.mcpServerUuid, 'shared'),
+                this.aiAgentModel.getCredential(
+                    args.mcpServerUuid,
+                    args.credentialScope,
+                    {
+                        userUuid: args.userUuid,
+                    },
+                ),
             saveCredential: async (payload) => {
                 await this.aiAgentModel.upsertCredential({
                     serverUuid: args.mcpServerUuid,
-                    scope: 'shared',
+                    scope: args.credentialScope,
                     credentials: payload,
+                    userUuid: args.userUuid,
                     actorUserUuid: args.actorUserUuid ?? null,
                 });
             },
             onAuthorizationUrl: args.onAuthorizationUrl,
             forceReauth: args.forceReauth,
         });
+    }
+
+    private static getRuntimeOAuthCredentialScope(
+        mcpServer: Pick<
+            AiAgentMcpServer,
+            'authType' | 'resolvedCredentialScope'
+        >,
+    ): AiMcpCredentialScope {
+        if (mcpServer.authType !== 'oauth') {
+            return 'shared';
+        }
+
+        return mcpServer.resolvedCredentialScope ?? 'user';
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -654,13 +678,17 @@ export class AiAgentMcpRuntimeClient {
     async startOAuthConnection(args: {
         projectUuid: string;
         mcpServerUuid: string;
+        credentialScope: AiMcpCredentialScope;
+        userUuid?: string;
         serverUrl: string;
         actorUserUuid: string;
     }): Promise<string> {
         let authorizationUrl: URL | undefined;
-        const provider = this.createSharedMcpOAuthProvider({
+        const provider = this.createMcpOAuthProvider({
             projectUuid: args.projectUuid,
             mcpServerUuid: args.mcpServerUuid,
+            credentialScope: args.credentialScope,
+            userUuid: args.userUuid,
             actorUserUuid: args.actorUserUuid,
             forceReauth: true,
             onAuthorizationUrl: (url) => {
@@ -686,9 +714,11 @@ export class AiAgentMcpRuntimeClient {
         code: string;
         credential: AiMcpCredential;
     }): Promise<void> {
-        const provider = this.createSharedMcpOAuthProvider({
+        const provider = this.createMcpOAuthProvider({
             projectUuid: args.projectUuid,
             mcpServerUuid: args.mcpServerUuid,
+            credentialScope: args.credential.credentialScope,
+            userUuid: args.credential.userUuid ?? undefined,
             actorUserUuid:
                 args.credential.updatedByUserUuid ??
                 args.credential.createdByUserUuid ??
@@ -710,7 +740,7 @@ export class AiAgentMcpRuntimeClient {
         } catch (error) {
             await this.aiAgentModel.upsertCredential({
                 serverUuid: args.mcpServerUuid,
-                scope: 'shared',
+                scope: args.credential.credentialScope,
                 credentials: {
                     ...(args.credential
                         .credentials as AiMcpOAuthCredentialPayload),
@@ -718,6 +748,7 @@ export class AiAgentMcpRuntimeClient {
                     lastError:
                         error instanceof Error ? error.message : String(error),
                 },
+                userUuid: args.credential.userUuid,
                 actorUserUuid:
                     args.credential.updatedByUserUuid ??
                     args.credential.createdByUserUuid ??
@@ -731,16 +762,19 @@ export class AiAgentMcpRuntimeClient {
 
     async disconnectOAuthConnection(args: {
         mcpServerUuid: string;
+        credentialScope: AiMcpCredentialScope;
+        userUuid?: string;
         actorUserUuid: string;
     }): Promise<void> {
         await this.aiAgentModel.upsertCredential({
             serverUuid: args.mcpServerUuid,
-            scope: 'shared',
+            scope: args.credentialScope,
             credentials: {
                 type: 'oauth',
-                credentialScope: 'shared',
+                credentialScope: args.credentialScope,
                 connectionStatus: 'not_connected',
             },
+            userUuid: args.userUuid,
             actorUserUuid: args.actorUserUuid,
         });
     }
@@ -754,9 +788,14 @@ export class AiAgentMcpRuntimeClient {
             ...mcpServer,
             oauthProvider:
                 mcpServer.authType === 'oauth'
-                    ? this.createSharedMcpOAuthProvider({
+                    ? this.createMcpOAuthProvider({
                           projectUuid: args.projectUuid,
                           mcpServerUuid: mcpServer.uuid,
+                          credentialScope:
+                              AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                                  mcpServer,
+                              ),
+                          userUuid: args.userUuid,
                           actorUserUuid: args.userUuid,
                       })
                     : undefined,
@@ -765,6 +804,7 @@ export class AiAgentMcpRuntimeClient {
 
     async listTools(args: {
         projectUuid: string;
+        userUuid?: string;
         mcpServer: AiMcpServerWithSensitiveData;
     }): Promise<AiMcpServerToolInput[]> {
         let mcpClient: MCPClient | undefined;
@@ -775,9 +815,14 @@ export class AiAgentMcpRuntimeClient {
                     ...args.mcpServer,
                     oauthProvider:
                         args.mcpServer.authType === 'oauth'
-                            ? this.createSharedMcpOAuthProvider({
+                            ? this.createMcpOAuthProvider({
                                   projectUuid: args.projectUuid,
                                   mcpServerUuid: args.mcpServer.uuid,
+                                  credentialScope:
+                                      AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                                          args.mcpServer,
+                                      ),
+                                  userUuid: args.userUuid,
                               })
                             : undefined,
                 },
@@ -795,6 +840,11 @@ export class AiAgentMcpRuntimeClient {
                 serverUuid: args.mcpServer.uuid,
                 connectionStatus: 'connected',
                 error: null,
+                credentialScope: args.mcpServer.resolvedCredentialScope,
+                userUuid:
+                    args.mcpServer.resolvedCredentialScope === 'user'
+                        ? args.userUuid
+                        : undefined,
             });
 
             return toMcpServerToolInputs(tools);
@@ -812,6 +862,19 @@ export class AiAgentMcpRuntimeClient {
                 serverUuid: args.mcpServer.uuid,
                 connectionStatus: status,
                 error: userFacingErrorMessage,
+                credentialScope:
+                    args.mcpServer.authType === 'oauth'
+                        ? AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                              args.mcpServer,
+                          )
+                        : null,
+                userUuid:
+                    args.mcpServer.authType === 'oauth' &&
+                    AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                        args.mcpServer,
+                    ) === 'user'
+                        ? args.userUuid
+                        : undefined,
             });
 
             throw normalizedError;
@@ -829,6 +892,7 @@ export class AiAgentMcpRuntimeClient {
 
     async resolveTools(args: {
         mcpServers: AiAgentMcpServer[];
+        userUuid: string;
         debugLoggingEnabled: boolean;
     }): Promise<ResolvedMcpTools> {
         const log = (message: string) => {
@@ -877,6 +941,11 @@ export class AiAgentMcpRuntimeClient {
                             mcpClient.serverInfo,
                             mcpServer.url,
                         ),
+                        credentialScope: mcpServer.resolvedCredentialScope,
+                        userUuid:
+                            mcpServer.resolvedCredentialScope === 'user'
+                                ? args.userUuid
+                                : undefined,
                     });
 
                     return {
@@ -901,6 +970,19 @@ export class AiAgentMcpRuntimeClient {
                         serverUuid: mcpServer.uuid,
                         connectionStatus: status,
                         error: userFacingErrorMessage,
+                        credentialScope:
+                            mcpServer.authType === 'oauth'
+                                ? AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                                      mcpServer,
+                                  )
+                                : null,
+                        userUuid:
+                            mcpServer.authType === 'oauth' &&
+                            AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                                mcpServer,
+                            ) === 'user'
+                                ? args.userUuid
+                                : undefined,
                     });
 
                     if (mcpClient) {

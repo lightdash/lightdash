@@ -3,9 +3,9 @@ import {
     getMcpProviderMetadata,
     getMcpServerDisplayName,
     getMcpServerForToolName,
+    getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
     getMcpToolParts,
-    getMcpToolDisplayMetadata,
     sanitizeMcpToolKeyPart,
 } from './mcpToolDisplay';
 
@@ -50,6 +50,7 @@ describe('mcpToolDisplay', () => {
             url: 'https://docs.example.com/mcp',
             iconUrl: 'https://docs.example.com/icon.svg',
             authType: 'oauth',
+            allowOAuthCredentialSharing: true,
             hasCredentials: true,
             credentialScope: 'shared',
             connectionStatus: 'connected',
