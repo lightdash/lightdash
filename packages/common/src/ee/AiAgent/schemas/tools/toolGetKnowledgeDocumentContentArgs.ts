@@ -1,35 +1,30 @@
 import { z } from 'zod';
-import { createToolSchema } from '../toolSchemaBuilder';
+import { defineTool, type ToolInput, type ToolOutput } from './toolDefinition';
 
-const TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION = `Tool: get_knowledge_document_content
+const getToolGetKnowledgeDocumentContentDescription = ({
+    name,
+    listKnowledgeDocumentsName,
+}: {
+    name: string;
+    listKnowledgeDocumentsName: string;
+}) => `Tool: ${name}
 
 Purpose:
-Read the full text content of a single knowledge document by its uuid. Use this after list_knowledge_documents has surfaced a document whose summary looks relevant to the current task.
+Read the full text content of a single knowledge document by its uuid. Use this after ${listKnowledgeDocumentsName} has surfaced a document whose summary looks relevant to the current task.
 
 When to use:
-- A summary from list_knowledge_documents indicates the document contains information you need.
+- A summary from ${listKnowledgeDocumentsName} indicates the document contains information you need.
 - The user explicitly asks you to read a specific document.
 
 Do NOT use:
-- Before calling list_knowledge_documents — you need a uuid first.
+- Before calling ${listKnowledgeDocumentsName} — you need a uuid first.
 - Repeatedly for the same uuid in one turn — the content does not change between calls.
 
 Parameters:
-- documentUuid: The uuid of the document to read, taken from a previous list_knowledge_documents result.
+- documentUuid: The uuid of the document to read, taken from a previous ${listKnowledgeDocumentsName} result.
 `;
 
-export const toolGetKnowledgeDocumentContentArgsSchema = createToolSchema({
-    description: TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
-})
-    .extend({
-        documentUuid: z
-            .string()
-            .uuid()
-            .describe('Uuid of the document to read.'),
-    })
-    .build();
-
-export const toolGetKnowledgeDocumentContentOutputSchema = z.object({
+const toolGetKnowledgeDocumentContentOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
         z.object({
@@ -43,10 +38,35 @@ export const toolGetKnowledgeDocumentContentOutputSchema = z.object({
     ]),
 });
 
-export type ToolGetKnowledgeDocumentContentArgs = z.infer<
-    typeof toolGetKnowledgeDocumentContentArgsSchema
->;
+export const getKnowledgeDocumentContentTool = defineTool({
+    canonicalName: 'getKnowledgeDocumentContent',
+    title: 'Get Knowledge Document Content',
+    contexts: ['agent'] as const,
+    description: {
+        agent: ({ name }) =>
+            getToolGetKnowledgeDocumentContentDescription({
+                listKnowledgeDocumentsName: 'listKnowledgeDocuments',
+                name,
+            }),
+    },
+    buildInputSchemas: {
+        agent: ({ createSchema }) =>
+            createSchema()
+                .extend({
+                    documentUuid: z
+                        .string()
+                        .uuid()
+                        .describe('Uuid of the document to read.'),
+                })
+                .build(),
+    },
+    outputSchema: toolGetKnowledgeDocumentContentOutputSchema,
+});
 
-export type ToolGetKnowledgeDocumentContentOutput = z.infer<
-    typeof toolGetKnowledgeDocumentContentOutputSchema
+export type ToolGetKnowledgeDocumentContentArgs = ToolInput<
+    typeof getKnowledgeDocumentContentTool,
+    'agent'
+>;
+export type ToolGetKnowledgeDocumentContentOutput = ToolOutput<
+    typeof getKnowledgeDocumentContentTool
 >;

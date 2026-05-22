@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { defineTool, type ToolInput, type ToolOutput } from './toolDefinition';
 
-const TOOL_RUN_SQL_DESCRIPTION = `Tool: run_sql
+const getToolRunSqlDescription = ({ name }: { name: string }) => `Tool: ${name}
 
 Purpose:
 Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
@@ -25,7 +26,7 @@ Response shape (MCP CallToolResult):
 
 When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.rows over parsing the CSV. Example:
 
-  const result = await callMcpTool('run_sql', { sql, limit });
+  const result = await callTool('${name}', { sql, limit });
   const rows    = result.structuredContent.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
   const columns = result.structuredContent.columns;  // ['status', 'n', 'total_amount']
 
@@ -35,31 +36,74 @@ Notes:
 - On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 `;
 
-export const toolRunSqlArgsSchema = createToolSchema({
-    description: TOOL_RUN_SQL_DESCRIPTION,
-})
-    .extend({
-        sql: z
-            .string()
-            .describe('The SQL query to execute against the data warehouse.'),
-        limit: z
-            .number()
-            .int()
-            .positive()
-            .max(5000)
-            .default(500)
-            .describe(
-                'Maximum number of rows to return. Defaults to 500, max 5000.',
-            ),
+const buildToolRunSqlArgsSchema = ({ name }: { name: string }) =>
+    createToolSchema({
+        description: getToolRunSqlDescription({ name }),
     })
-    .build();
+        .extend({
+            sql: z
+                .string()
+                .describe(
+                    'The SQL query to execute against the data warehouse.',
+                ),
+            limit: z
+                .number()
+                .int()
+                .positive()
+                .max(5000)
+                .default(500)
+                .describe(
+                    'Maximum number of rows to return. Defaults to 500, max 5000.',
+                ),
+        })
+        .build();
 
-export const toolRunSqlOutputSchema = z.object({
+const toolRunSqlArgsSchema = buildToolRunSqlArgsSchema({ name: 'runSql' });
+const mcpToolRunSqlArgsSchema = buildToolRunSqlArgsSchema({
+    name: 'run_sql',
+});
+
+const toolRunSqlOutputSchema = z.object({
     result: z.string(),
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
     }),
 });
 
-export type ToolRunSqlArgs = z.infer<typeof toolRunSqlArgsSchema>;
-export type ToolRunSqlOutput = z.infer<typeof toolRunSqlOutputSchema>;
+const mcpToolRunSqlOutputSchema = z.object({
+    rows: z
+        .array(z.record(z.unknown()))
+        .describe(
+            'Result rows. Each row is an object keyed by column name. Values are JSON-serializable primitives.',
+        ),
+    columns: z
+        .array(z.string())
+        .describe(
+            'Ordered list of column names matching the keys in each row of `rows`.',
+        ),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+            'Total number of rows returned. May be less than the requested limit.',
+        ),
+});
+
+export const runSqlTool = defineTool({
+    canonicalName: 'runSql',
+    title: 'Run SQL',
+    contexts: ['agent', 'mcp'] as const,
+    buildInputSchemas: {
+        agent: () => toolRunSqlArgsSchema,
+        mcp: () => mcpToolRunSqlArgsSchema,
+    },
+    outputSchema: toolRunSqlOutputSchema,
+    outputSchemas: {
+        mcp: mcpToolRunSqlOutputSchema,
+    },
+});
+
+export type ToolRunSqlArgs = ToolInput<typeof runSqlTool, 'agent'>;
+export type ToolRunSqlOutput = ToolOutput<typeof runSqlTool>;
+export type ToolRunSqlMcpOutput = ToolOutput<typeof runSqlTool, 'mcp'>;

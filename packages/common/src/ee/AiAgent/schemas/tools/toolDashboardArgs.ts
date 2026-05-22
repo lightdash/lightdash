@@ -7,11 +7,9 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import {
-    tableVizConfigSchema,
-    verticalBarMetricVizConfigSchema,
-} from '../visualizations';
+import { tableVizConfigSchema } from '../visualizations/tableViz';
 import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz';
+import { verticalBarMetricVizConfigSchema } from '../visualizations/verticalBarViz';
 import { toolTableVizArgsSchemaTransformed } from './toolTableVizArgs';
 import { toolTimeSeriesArgsSchemaTransformed } from './toolTimeSeriesArgs';
 import { toolVerticalBarArgsSchemaTransformed } from './toolVerticalBarArgs';

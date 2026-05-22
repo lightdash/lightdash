@@ -20,8 +20,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from './requestTypes';
-import { type AgentToolOutput } from './schemas';
-import { ToolNameSchema } from './schemas/visualizations';
+import { ToolNameSchema, type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';

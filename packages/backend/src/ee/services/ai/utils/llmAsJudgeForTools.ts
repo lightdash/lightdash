@@ -1,27 +1,4 @@
-import {
-    isToolName,
-    toolDashboardV2ArgsSchema,
-    toolDescribeWarehouseTableArgsSchema,
-    toolFindChartsArgsSchema,
-    toolFindContentArgsSchema,
-    toolFindDashboardsArgsSchema,
-    toolFindExploresArgsSchemaV3,
-    toolFindFieldsArgsSchema,
-    toolGetDashboardChartsArgsSchema,
-    toolGetKnowledgeDocumentContentArgsSchema,
-    toolImproveContextArgsSchema,
-    toolListKnowledgeDocumentsArgsSchema,
-    toolListWarehouseTablesArgsSchema,
-    toolProposeChangeArgsSchema,
-    toolRunQueryArgsSchema,
-    toolRunSavedChartArgsSchema,
-    toolRunSqlArgsSchema,
-    toolSearchFieldValuesArgsSchema,
-    toolTableVizArgsSchema,
-    toolTimeSeriesArgsSchema,
-    toolVerticalBarArgsSchema,
-    type ToolName,
-} from '@lightdash/common';
+import { isToolName, ToolDefinitions, type ToolName } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
@@ -30,6 +7,8 @@ import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
+
+const agentTools = ToolDefinitions.for('agent');
 
 const toolLoadSkillArgsSchema = z
     .object({
@@ -54,31 +33,32 @@ const toolEditContentArgsSchema = z
     .describe('Edit a dashboard or chart by applying a patch.');
 // Explicit mapping of tool names to their schemas
 const TOOL_SCHEMAS = {
-    findExplores: toolFindExploresArgsSchemaV3,
-    findFields: toolFindFieldsArgsSchema,
+    findExplores: agentTools.findExplores.inputSchema,
+    findFields: agentTools.findFields.inputSchema,
     discoverFields: discoverFieldsInputSchema,
-    searchFieldValues: toolSearchFieldValuesArgsSchema,
-    generateBarVizConfig: toolVerticalBarArgsSchema,
-    generateTableVizConfig: toolTableVizArgsSchema,
-    generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
-    // TODO: agent needs to be v2 for this to work
-    generateDashboard: toolDashboardV2ArgsSchema,
-    findContent: toolFindContentArgsSchema,
-    findDashboards: toolFindDashboardsArgsSchema,
-    findCharts: toolFindChartsArgsSchema,
-    getDashboardCharts: toolGetDashboardChartsArgsSchema,
+    searchFieldValues: agentTools.searchFieldValues.inputSchema,
+    generateBarVizConfig: agentTools.generateBarVizConfig.inputSchema,
+    generateTableVizConfig: agentTools.generateTableVizConfig.inputSchema,
+    generateTimeSeriesVizConfig:
+        agentTools.generateTimeSeriesVizConfig.inputSchema,
+    generateDashboard: agentTools.generateDashboard.inputSchema,
+    findContent: agentTools.findContent.inputSchema,
+    findDashboards: agentTools.findDashboards.inputSchema,
+    findCharts: agentTools.findCharts.inputSchema,
+    getDashboardCharts: agentTools.getDashboardCharts.inputSchema,
     readContent: toolReadContentArgsSchema,
     editContent: toolEditContentArgsSchema,
-    improveContext: toolImproveContextArgsSchema,
+    improveContext: agentTools.improveContext.inputSchema,
     loadSkill: toolLoadSkillArgsSchema,
-    proposeChange: toolProposeChangeArgsSchema,
-    runQuery: toolRunQueryArgsSchema,
-    runSavedChart: toolRunSavedChartArgsSchema,
-    runSql: toolRunSqlArgsSchema,
-    listWarehouseTables: toolListWarehouseTablesArgsSchema,
-    describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
-    listKnowledgeDocuments: toolListKnowledgeDocumentsArgsSchema,
-    getKnowledgeDocumentContent: toolGetKnowledgeDocumentContentArgsSchema,
+    proposeChange: agentTools.proposeChange.inputSchema,
+    runQuery: agentTools.runQuery.inputSchema,
+    runSavedChart: agentTools.runSavedChart.inputSchema,
+    runSql: agentTools.runSql.inputSchema,
+    listWarehouseTables: agentTools.listWarehouseTables.inputSchema,
+    describeWarehouseTable: agentTools.describeWarehouseTable.inputSchema,
+    listKnowledgeDocuments: agentTools.listKnowledgeDocuments.inputSchema,
+    getKnowledgeDocumentContent:
+        agentTools.getKnowledgeDocumentContent.inputSchema,
 } satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {

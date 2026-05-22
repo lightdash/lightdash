@@ -1,7 +1,4 @@
-import {
-    AiAgentDocumentSummary,
-    toolListKnowledgeDocumentsArgsSchema,
-} from '@lightdash/common';
+import { AiAgentDocumentSummary, ToolDefinitions } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -10,6 +7,8 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
 };
+
+const agentTools = ToolDefinitions.for('agent');
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (
     <document uuid={doc.uuid} sizeBytes={doc.contentSizeBytes}>
@@ -22,8 +21,8 @@ export const getListKnowledgeDocuments = ({
     listKnowledgeDocuments,
 }: Dependencies) =>
     tool({
-        description: toolListKnowledgeDocumentsArgsSchema.description,
-        inputSchema: toolListKnowledgeDocumentsArgsSchema,
+        description: agentTools.listKnowledgeDocuments.description,
+        inputSchema: agentTools.listKnowledgeDocuments.inputSchema,
         execute: async () => {
             try {
                 const documents = await listKnowledgeDocuments();

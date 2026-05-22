@@ -10,6 +10,12 @@ import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
 // Query configuration schema - what data to fetch
 const queryConfigSchema = z.object({
@@ -133,7 +139,11 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Tool: runQuery
+const getToolRunQueryDescription = ({
+    name,
+}: {
+    name: string;
+}) => `Tool: ${name}
 
 Purpose:
 Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
@@ -167,7 +177,9 @@ Configuration Tips:
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({
-    description: TOOL_RUN_QUERY_DESCRIPTION,
+    description: getToolRunQueryDescription({
+        name: 'runQuery',
+    }),
 })
     .extend({
         ...visualizationMetadataSchema.shape,
@@ -178,8 +190,6 @@ export const toolRunQueryArgsSchema = createToolSchema({
         filters: filtersSchemaV2.nullable(),
     })
     .build();
-
-export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
 
 export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
     .extend({
@@ -200,13 +210,27 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
         };
     });
 
-export type ToolRunQueryArgsTransformed = z.infer<
-    typeof toolRunQueryArgsSchemaTransformed
->;
-
 export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;
+export const runQueryTool = defineTool({
+    canonicalName: 'runQuery',
+    title: 'Run Query',
+    contexts: ['agent'] as const,
+    buildInputSchemas: {
+        agent: () => toolRunQueryArgsSchema,
+    },
+    outputSchema: toolRunQueryOutputSchema,
+    parseInput: {
+        agent: (raw) => toolRunQueryArgsSchemaTransformed.parse(raw),
+    },
+});
+
+export type ToolRunQueryArgs = ToolInput<typeof runQueryTool, 'agent'>;
+export type ToolRunQueryArgsTransformed = ToolParsedInput<
+    typeof runQueryTool,
+    'agent'
+>;
+export type ToolRunQueryOutput = ToolOutput<typeof runQueryTool>;

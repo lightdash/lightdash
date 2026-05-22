@@ -4,13 +4,21 @@ import {
     customMetricsSchemaTransformed,
 } from '../customMetrics';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
-import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
-import { tableVizConfigSchema } from '../visualizations';
-import { McpToolResources } from './toolNames';
+import { tableVizConfigSchema } from '../visualizations/tableViz';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
-export const TOOL_RUN_METRIC_QUERY_DESCRIPTION = `Tool: ${McpToolResources.runMetricQuery.name}
+const getToolRunMetricQueryDescription = ({
+    name,
+}: {
+    name: string;
+}) => `Tool: ${name}
 
 Purpose:
 Run a metric query and get the results as CSV data. This is useful for data analysis and export.
@@ -22,8 +30,10 @@ Usage Tips:
 - The query respects the same limits and permissions as other visualization tools
 `;
 
-export const toolRunMetricQueryArgsSchema = createToolSchema({
-    description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
+const toolRunMetricQueryArgsSchema = createToolSchema({
+    description: getToolRunMetricQueryDescription({
+        name: 'run_metric_query',
+    }),
 })
     .extend({
         vizConfig: tableVizConfigSchema,
@@ -37,7 +47,7 @@ export const toolRunMetricQueryArgsSchema = createToolSchema({
     })
     .build();
 
-export const toolRunMetricQueryArgsSchemaTransformed =
+const toolRunMetricQueryArgsSchemaTransformed =
     toolRunMetricQueryArgsSchema.transform((data) => ({
         ...data,
         customMetrics: customMetricsSchemaTransformed.parse(
@@ -46,17 +56,41 @@ export const toolRunMetricQueryArgsSchemaTransformed =
         filters: filtersSchemaTransformed.parse(data.filters ?? null),
     }));
 
-export const toolRunMetricQueryOutputSchema = z.object({
-    result: z.string(),
-    metadata: baseOutputMetadataSchema,
+const mcpToolRunMetricQueryOutputSchema = z.object({
+    rows: z
+        .array(z.record(z.unknown()))
+        .describe('Result rows keyed by field id.'),
+    fields: z
+        .record(z.unknown())
+        .describe(
+            'Field metadata keyed by field id for interpreting the returned rows.',
+        ),
+    exploreUrl: z
+        .string()
+        .describe(
+            'Shareable Lightdash URL for opening the query results in Explore.',
+        ),
 });
 
-export type ToolRunMetricQueryArgs = z.infer<
-    typeof toolRunMetricQueryArgsSchema
+export const runMetricQueryTool = defineTool({
+    canonicalName: 'runMetricQuery',
+    title: 'Run Metric Query',
+    contexts: ['mcp'] as const,
+    buildInputSchemas: {
+        mcp: () => toolRunMetricQueryArgsSchema,
+    },
+    outputSchema: mcpToolRunMetricQueryOutputSchema,
+    parseInput: {
+        mcp: (raw) => toolRunMetricQueryArgsSchemaTransformed.parse(raw),
+    },
+});
+
+export type ToolRunMetricQueryArgs = ToolInput<
+    typeof runMetricQueryTool,
+    'mcp'
 >;
-export type ToolRunMetricQueryArgsTransformed = z.infer<
-    typeof toolRunMetricQueryArgsSchemaTransformed
+export type ToolRunMetricQueryArgsTransformed = ToolParsedInput<
+    typeof runMetricQueryTool,
+    'mcp'
 >;
-export type ToolRunMetricQueryOutput = z.infer<
-    typeof toolRunMetricQueryOutputSchema
->;
+export type ToolRunMetricQueryOutput = ToolOutput<typeof runMetricQueryTool>;

@@ -13,11 +13,17 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { verticalBarMetricVizConfigSchema } from '../visualizations';
+import { verticalBarMetricVizConfigSchema } from '../visualizations/verticalBarViz';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
 export const TOOL_VERTICAL_BAR_VIZ_DESCRIPTION = `Use this tool to generate a Bar Chart Visualization.`;
 
-export const toolVerticalBarArgsSchema = createToolSchema({
+const toolVerticalBarArgsSchema = createToolSchema({
     description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
 })
     .extend({
@@ -43,8 +49,6 @@ export const toolVerticalBarArgsSchema = createToolSchema({
     })
     .build();
 
-export type ToolVerticalBarArgs = z.infer<typeof toolVerticalBarArgsSchema>;
-
 export const toolVerticalBarArgsSchemaTransformed = toolVerticalBarArgsSchema
     .extend({
         // backwards compatibility for old viz configs without customMetrics
@@ -66,13 +70,30 @@ export const toolVerticalBarArgsSchemaTransformed = toolVerticalBarArgsSchema
         followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 
-export type ToolVerticalBarArgsTransformed = z.infer<
-    typeof toolVerticalBarArgsSchemaTransformed
->;
-
-export const toolVerticalBarOutputSchema = z.object({
+const toolVerticalBarOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolVerticalBarOutput = z.infer<typeof toolVerticalBarOutputSchema>;
+export const generateBarVizConfigTool = defineTool({
+    canonicalName: 'generateBarVizConfig',
+    title: 'Generate Bar Visualization Config',
+    contexts: ['agent'] as const,
+    buildInputSchemas: {
+        agent: () => toolVerticalBarArgsSchema,
+    },
+    outputSchema: toolVerticalBarOutputSchema,
+    parseInput: {
+        agent: (raw) => toolVerticalBarArgsSchemaTransformed.parse(raw),
+    },
+});
+
+export type ToolVerticalBarArgs = ToolInput<
+    typeof generateBarVizConfigTool,
+    'agent'
+>;
+export type ToolVerticalBarArgsTransformed = ToolParsedInput<
+    typeof generateBarVizConfigTool,
+    'agent'
+>;
+export type ToolVerticalBarOutput = ToolOutput<typeof generateBarVizConfigTool>;

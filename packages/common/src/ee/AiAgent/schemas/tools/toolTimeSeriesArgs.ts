@@ -14,10 +14,16 @@ import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
 export const TOOL_TIME_SERIES_VIZ_DESCRIPTION = `Use this tool to generate a Time Series Chart.`;
 
-export const toolTimeSeriesArgsSchema = createToolSchema({
+const toolTimeSeriesArgsSchema = createToolSchema({
     description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
 })
     .extend({
@@ -42,8 +48,6 @@ export const toolTimeSeriesArgsSchema = createToolSchema({
             ),
     })
     .build();
-
-export type ToolTimeSeriesArgs = z.infer<typeof toolTimeSeriesArgsSchema>;
 
 export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
     .extend({
@@ -71,13 +75,32 @@ export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
         followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 
-export type ToolTimeSeriesArgsTransformed = z.infer<
-    typeof toolTimeSeriesArgsSchemaTransformed
->;
-
-export const toolTimeSeriesOutputSchema = z.object({
+const toolTimeSeriesOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolTimeSeriesOutput = z.infer<typeof toolTimeSeriesOutputSchema>;
+export const generateTimeSeriesVizConfigTool = defineTool({
+    canonicalName: 'generateTimeSeriesVizConfig',
+    title: 'Generate Time Series Visualization Config',
+    contexts: ['agent'] as const,
+    buildInputSchemas: {
+        agent: () => toolTimeSeriesArgsSchema,
+    },
+    outputSchema: toolTimeSeriesOutputSchema,
+    parseInput: {
+        agent: (raw) => toolTimeSeriesArgsSchemaTransformed.parse(raw),
+    },
+});
+
+export type ToolTimeSeriesArgs = ToolInput<
+    typeof generateTimeSeriesVizConfigTool,
+    'agent'
+>;
+export type ToolTimeSeriesArgsTransformed = ToolParsedInput<
+    typeof generateTimeSeriesVizConfigTool,
+    'agent'
+>;
+export type ToolTimeSeriesOutput = ToolOutput<
+    typeof generateTimeSeriesVizConfigTool
+>;

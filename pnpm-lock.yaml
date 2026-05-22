@@ -777,6 +777,9 @@ importers:
       '@casl/ability':
         specifier: 6.8.0
         version: 6.8.0
+      '@mastra/schema-compat':
+        specifier: 0.11.2
+        version: 0.11.2(ai@6.0.71(zod@3.25.55))(zod@3.25.55)
       '@types/lodash':
         specifier: 4.14.202
         version: 4.14.202

@@ -2,9 +2,19 @@ import { z } from 'zod';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import type { ToolSchemaBuilder } from '../toolSchemaBuilder';
+import {
+    defineTool,
+    type ToolInput,
+    type ToolOutput,
+    type ToolParsedInput,
+} from './toolDefinition';
 
-export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = `Tool: search_field_values
+const getToolSearchFieldValuesDescription = ({
+    name,
+}: {
+    name: string;
+}) => `Tool: ${name}
 
 Purpose:
 Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
@@ -16,27 +26,33 @@ Usage Tips:
 - Results are returned as a list of unique field values (limited to 100)
 `;
 
-export const toolSearchFieldValuesArgsSchema = createToolSchema({
-    description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
-})
-    .extend({
-        table: z.string().describe('The table to search in.'),
-        fieldId: getFieldIdSchema({
-            additionalDescription: 'The ID of the field to search values for',
-        }),
-        query: z
-            .string()
-            .describe('Query string to filter field values')
-            .nullable(),
-        filters: filtersSchemaV2
-            .nullable()
-            .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
-            ),
-    })
-    .build();
+const toolSearchFieldValuesArgsFields = {
+    table: z.string().describe('The table to search in.'),
+    fieldId: getFieldIdSchema({
+        additionalDescription: 'The ID of the field to search values for',
+    }),
+    query: z
+        .string()
+        .describe('Query string to filter field values')
+        .nullable(),
+    filters: filtersSchemaV2
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+        ),
+};
 
-export const toolSearchFieldValuesArgsSchemaTransformed =
+const buildToolSearchFieldValuesArgsSchema = ({
+    createSchema,
+}: {
+    createSchema: () => ToolSchemaBuilder<{}>;
+}) => createSchema().extend(toolSearchFieldValuesArgsFields).build();
+
+const toolSearchFieldValuesArgsSchema = z.object(
+    toolSearchFieldValuesArgsFields,
+);
+
+const toolSearchFieldValuesArgsSchemaTransformed =
     toolSearchFieldValuesArgsSchema.transform((data) => ({
         ...data,
         filters: data.filters
@@ -45,17 +61,42 @@ export const toolSearchFieldValuesArgsSchemaTransformed =
         query: data.query ?? '',
     }));
 
-export const toolSearchFieldValuesOutputSchema = z.object({
+const parseSearchFieldValuesInput = (raw: unknown) =>
+    toolSearchFieldValuesArgsSchemaTransformed.parse(raw);
+
+const toolSearchFieldValuesOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolSearchFieldValuesArgs = z.infer<
-    typeof toolSearchFieldValuesArgsSchema
+export const searchFieldValuesTool = defineTool({
+    canonicalName: 'searchFieldValues',
+    title: 'Search Field Values',
+    contexts: ['agent', 'mcp'] as const,
+    description: {
+        agent: ({ name }) => getToolSearchFieldValuesDescription({ name }),
+        mcp: ({ name }) => getToolSearchFieldValuesDescription({ name }),
+    },
+    buildInputSchemas: {
+        agent: () => toolSearchFieldValuesArgsSchema,
+        mcp: ({ createSchema }) =>
+            buildToolSearchFieldValuesArgsSchema({ createSchema }),
+    },
+    outputSchema: toolSearchFieldValuesOutputSchema,
+    parseInput: {
+        agent: parseSearchFieldValuesInput,
+        mcp: parseSearchFieldValuesInput,
+    },
+});
+
+export type ToolSearchFieldValuesArgs = ToolInput<
+    typeof searchFieldValuesTool,
+    'agent'
 >;
-export type ToolSearchFieldValuesArgsTransformed = z.infer<
-    typeof toolSearchFieldValuesArgsSchemaTransformed
+export type ToolSearchFieldValuesArgsTransformed = ToolParsedInput<
+    typeof searchFieldValuesTool,
+    'agent'
 >;
-export type ToolSearchFieldValuesOutput = z.infer<
-    typeof toolSearchFieldValuesOutputSchema
+export type ToolSearchFieldValuesOutput = ToolOutput<
+    typeof searchFieldValuesTool
 >;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import { defineTool, type ToolInput, type ToolOutput } from './toolDefinition';
 
 const TOOL_RUN_SAVED_CHART_DESCRIPTION = `
 Run an existing saved chart by its UUID and return the rows it produces.
@@ -17,25 +17,35 @@ user is asking about. The chart's saved metric query, filters, sorts, and
 custom metrics are applied automatically.
 `;
 
-export const toolRunSavedChartArgsSchema = createToolSchema({
-    description: TOOL_RUN_SAVED_CHART_DESCRIPTION,
-})
-    .extend({
-        chartUuid: z
-            .string()
-            .describe(
-                'UUID of the saved chart to execute. Use the chartUuid from the prompt context or from a prior findContent / findCharts result.',
-            ),
-    })
-    .build();
-
-export type ToolRunSavedChartArgs = z.infer<typeof toolRunSavedChartArgsSchema>;
-
-export const toolRunSavedChartOutputSchema = z.object({
+const toolRunSavedChartOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolRunSavedChartOutput = z.infer<
-    typeof toolRunSavedChartOutputSchema
+export const runSavedChartTool = defineTool({
+    canonicalName: 'runSavedChart',
+    title: 'Run Saved Chart',
+    contexts: ['agent'] as const,
+    description: {
+        agent: TOOL_RUN_SAVED_CHART_DESCRIPTION,
+    },
+    buildInputSchemas: {
+        agent: ({ createSchema }) =>
+            createSchema()
+                .extend({
+                    chartUuid: z
+                        .string()
+                        .describe(
+                            'UUID of the saved chart to execute. Use the chartUuid from the prompt context or from a prior findContent / findCharts result.',
+                        ),
+                })
+                .build(),
+    },
+    outputSchema: toolRunSavedChartOutputSchema,
+});
+
+export type ToolRunSavedChartArgs = ToolInput<
+    typeof runSavedChartTool,
+    'agent'
 >;
+export type ToolRunSavedChartOutput = ToolOutput<typeof runSavedChartTool>;
