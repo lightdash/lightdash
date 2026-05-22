@@ -23,6 +23,7 @@ import {
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     NotFoundError,
+    ParameterError,
     Project,
     PromotionAction,
     PromotionChanges,
@@ -381,7 +382,7 @@ export class CoderService extends BaseService {
             (tile): DashboardTileAsCode => {
                 if (isAnyChartTile(tile)) {
                     if (!tile.properties.chartSlug) {
-                        throw new Error(
+                        throw new ParameterError(
                             `Chart tile ${tile.uuid} is missing chartSlug`,
                         );
                     }
@@ -465,7 +466,7 @@ export class CoderService extends BaseService {
     ): Promise<DashboardTileWithSlug[]> {
         for (const tile of tiles) {
             if (isAnyChartTile(tile) && !tile.properties.chartSlug) {
-                throw new Error('Chart tile is missing chartSlug');
+                throw new ParameterError('Chart tile is missing chartSlug');
             }
         }
 
@@ -518,7 +519,7 @@ export class CoderService extends BaseService {
             if (isAnyChartTile(tile)) {
                 const { chartSlug } = tile.properties;
                 if (!chartSlug) {
-                    throw new Error('Chart tile is missing chartSlug');
+                    throw new ParameterError('Chart tile is missing chartSlug');
                 }
                 const chartInfo = chartSlugToInfo.get(chartSlug);
                 const isSqlChart =
