@@ -1178,7 +1178,7 @@ export class DashboardModel {
                                 ...base,
                                 type: DashboardTileTypes.MARKDOWN,
                                 properties: {
-                                    ...commonProperties,
+                                    title: title ?? '',
                                     content: content || '',
                                     hideFrame: hide_frame ?? false,
                                 },
@@ -2219,7 +2219,7 @@ export class DashboardModel {
                                 ...base,
                                 type: DashboardTileTypes.MARKDOWN,
                                 properties: {
-                                    ...commonProperties,
+                                    title: title ?? '',
                                     content: content || '',
                                     hideFrame: hide_frame ?? false,
                                 },
