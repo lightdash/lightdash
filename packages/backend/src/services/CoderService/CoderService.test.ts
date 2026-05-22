@@ -9,6 +9,307 @@ import {
 import { CoderService } from './CoderService';
 
 describe('CoderService', () => {
+    describe('dashboard chartSlug requirements', () => {
+        it('should import a chart tile when chartSlug is present', async () => {
+            const service = new CoderService({
+                lightdashConfig: {} as AnyType,
+                analytics: {} as AnyType,
+                projectModel: {} as AnyType,
+                savedChartModel: {
+                    find: jest.fn().mockResolvedValue([
+                        {
+                            slug: 'orders-chart',
+                            uuid: 'saved-chart-uuid',
+                        },
+                    ]),
+                } as AnyType,
+                savedSqlModel: {
+                    find: jest.fn().mockResolvedValue([]),
+                } as AnyType,
+                dashboardModel: {} as AnyType,
+                spaceModel: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                promoteService: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+            });
+
+            await expect(
+                service.convertTileWithSlugsToUuids('project-1', [
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            title: 'Chart',
+                            hideTitle: false,
+                            chartSlug: 'orders-chart',
+                            chartName: 'Orders',
+                        },
+                    } as AnyType,
+                ]),
+            ).resolves.toMatchObject([
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        chartSlug: 'orders-chart',
+                        savedChartUuid: 'saved-chart-uuid',
+                    },
+                },
+            ]);
+        });
+
+        it('should throw when exporting a dashboard with a chart tile missing chartSlug', () => {
+            const dashboard = {
+                uuid: 'dashboard-1',
+                name: 'Dashboard',
+                description: undefined,
+                updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+                spaceUuid: 'space-1',
+                slug: 'dashboard',
+                tiles: [
+                    {
+                        uuid: 'tile-1',
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            title: 'Chart',
+                            hideTitle: false,
+                            chartSlug: undefined,
+                            chartName: 'Orders',
+                        },
+                    },
+                ],
+                filters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                tabs: [],
+            } as AnyType;
+
+            expect(() =>
+                (CoderService as AnyType).transformDashboard(
+                    dashboard,
+                    [{ uuid: 'space-1', name: 'Space', path: 'space' }],
+                    new Map(),
+                ),
+            ).toThrow('Chart tile tile-1 is missing chartSlug');
+        });
+
+        it('should throw when importing a chart tile missing chartSlug', async () => {
+            const service = new CoderService({
+                lightdashConfig: {} as AnyType,
+                analytics: {} as AnyType,
+                projectModel: {} as AnyType,
+                savedChartModel: { find: jest.fn() } as AnyType,
+                savedSqlModel: { find: jest.fn() } as AnyType,
+                dashboardModel: {} as AnyType,
+                spaceModel: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                promoteService: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+            });
+
+            await expect(
+                service.convertTileWithSlugsToUuids('project-1', [
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            title: 'Chart',
+                            hideTitle: false,
+                            chartSlug: undefined,
+                            chartName: 'Orders',
+                        },
+                    } as AnyType,
+                ]),
+            ).rejects.toThrow('Chart tile is missing chartSlug');
+        });
+
+        it('should throw when importing a chart tile with null chartSlug', async () => {
+            const service = new CoderService({
+                lightdashConfig: {} as AnyType,
+                analytics: {} as AnyType,
+                projectModel: {} as AnyType,
+                savedChartModel: { find: jest.fn() } as AnyType,
+                savedSqlModel: { find: jest.fn() } as AnyType,
+                dashboardModel: {} as AnyType,
+                spaceModel: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                promoteService: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+            });
+
+            await expect(
+                service.convertTileWithSlugsToUuids('project-1', [
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            title: 'Chart',
+                            hideTitle: false,
+                            chartSlug: null,
+                            chartName: null,
+                        },
+                    } as AnyType,
+                ]),
+            ).rejects.toThrow('Chart tile is missing chartSlug');
+        });
+
+        it('should import a sql chart tile when chartSlug is present', async () => {
+            const service = new CoderService({
+                lightdashConfig: {} as AnyType,
+                analytics: {} as AnyType,
+                projectModel: {} as AnyType,
+                savedChartModel: {
+                    find: jest.fn().mockResolvedValue([]),
+                } as AnyType,
+                savedSqlModel: {
+                    find: jest.fn().mockResolvedValue([
+                        {
+                            slug: 'orders-sql-chart',
+                            saved_sql_uuid: 'saved-sql-uuid',
+                        },
+                    ]),
+                } as AnyType,
+                dashboardModel: {} as AnyType,
+                spaceModel: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                promoteService: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+            });
+
+            await expect(
+                service.convertTileWithSlugsToUuids('project-1', [
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.SQL_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            title: 'SQL chart',
+                            hideTitle: false,
+                            chartSlug: 'orders-sql-chart',
+                            chartName: 'Orders SQL',
+                        },
+                    } as AnyType,
+                ]),
+            ).resolves.toMatchObject([
+                {
+                    type: DashboardTileTypes.SQL_CHART,
+                    properties: {
+                        chartSlug: 'orders-sql-chart',
+                        savedSqlUuid: 'saved-sql-uuid',
+                    },
+                },
+            ]);
+        });
+
+        it('should import non-chart tiles without querying chart models', async () => {
+            const savedChartFind = jest.fn();
+            const savedSqlFind = jest.fn();
+            const service = new CoderService({
+                lightdashConfig: {} as AnyType,
+                analytics: {} as AnyType,
+                projectModel: {} as AnyType,
+                savedChartModel: {
+                    find: savedChartFind,
+                } as AnyType,
+                savedSqlModel: {
+                    find: savedSqlFind,
+                } as AnyType,
+                dashboardModel: {} as AnyType,
+                spaceModel: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                promoteService: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+            });
+
+            const result = await service.convertTileWithSlugsToUuids(
+                'project-1',
+                [
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.MARKDOWN,
+                        x: 0,
+                        y: 0,
+                        h: 4,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            title: 'Note',
+                            content: 'Hello',
+                        },
+                    },
+                    {
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        type: DashboardTileTypes.HEADING,
+                        x: 4,
+                        y: 0,
+                        h: 2,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            text: 'Section',
+                        },
+                    },
+                ] as AnyType,
+            );
+
+            expect(savedChartFind).not.toHaveBeenCalled();
+            expect(savedSqlFind).not.toHaveBeenCalled();
+            expect(result).toMatchObject([
+                {
+                    type: DashboardTileTypes.MARKDOWN,
+                    properties: {
+                        title: 'Note',
+                        content: 'Hello',
+                    },
+                },
+                {
+                    type: DashboardTileTypes.HEADING,
+                    properties: {
+                        text: 'Section',
+                    },
+                },
+            ]);
+            expect(result[0].uuid).toBeDefined();
+            expect(result[1].uuid).toBeDefined();
+        });
+    });
+
     describe('getFiltersWithTileSlugs', () => {
         it('should convert tile UUIDs to slugs in filters', () => {
             const mockDashboard: DashboardDAO = {

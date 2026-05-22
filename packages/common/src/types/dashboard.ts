@@ -81,7 +81,7 @@ export type DashboardSqlChartTileProperties = {
 export type DashboardHeadingTileProperties = {
     type: DashboardTileTypes.HEADING;
     properties: {
-        title: undefined;
+        title?: undefined;
         text: string;
         showDivider?: boolean;
     };

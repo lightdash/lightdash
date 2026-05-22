@@ -2202,7 +2202,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         showDivider: { dataType: 'boolean' },
                         text: { dataType: 'string', required: true },
-                        title: { dataType: 'undefined', required: true },
+                        title: { dataType: 'undefined' },
                     },
                     required: true,
                 },
@@ -11825,11 +11825,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -12333,13 +12333,13 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'double',
                                                     required: true,
                                                 },
+                                                name: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
-                                                    required: true,
-                                                },
-                                                name: {
-                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                             },
@@ -12381,11 +12381,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -12400,15 +12400,15 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
+                                                            enums: ['success'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
                                                             enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
                                                             enums: ['rejected'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -12427,11 +12427,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -12446,11 +12446,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -12465,11 +12465,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -12484,11 +12484,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -23822,16 +23822,11 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__': {
+    DashboardTileAsCodeBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                type: { ref: 'DashboardTileTypes', required: true },
-                x: { dataType: 'double', required: true },
-                y: { dataType: 'double', required: true },
-                h: { dataType: 'double', required: true },
-                w: { dataType: 'double', required: true },
                 tabUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -23841,20 +23836,33 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                w: { dataType: 'double', required: true },
+                h: { dataType: 'double', required: true },
+                y: { dataType: 'double', required: true },
+                x: { dataType: 'double', required: true },
+                type: { ref: 'DashboardTileTypes', required: true },
+                tileSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                uuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardTile.properties-or-uuid_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_':
+    'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_':
         {
             dataType: 'refAlias',
             type: {
@@ -23882,10 +23890,67 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    chartSlug: {
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardChartTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'intersection',
+                            subSchemas: [
+                                {
+                                    ref: 'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_',
+                                },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        chartSlug: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                            ],
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.SAVED_CHART',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    title: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    chartName: { dataType: 'string', required: true },
+                    hideTitle: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -23894,59 +23959,26 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardTileAsCode: {
+    DashboardSqlChartTileAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Omit_DashboardTile.properties-or-uuid_' },
+                { ref: 'DashboardTileAsCodeBase' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         properties: {
-                            dataType: 'union',
+                            dataType: 'intersection',
                             subSchemas: [
                                 {
-                                    ref: 'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_',
+                                    ref: 'Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_',
                                 },
                                 {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
-                                        hideFrame: { dataType: 'boolean' },
-                                        content: {
+                                        chartSlug: {
                                             dataType: 'string',
-                                            required: true,
-                                        },
-                                        title: {
-                                            dataType: 'string',
-                                            required: true,
-                                        },
-                                    },
-                                },
-                                {
-                                    dataType: 'nestedObjectLiteral',
-                                    nestedProperties: {
-                                        url: {
-                                            dataType: 'string',
-                                            required: true,
-                                        },
-                                        hideTitle: { dataType: 'boolean' },
-                                        title: {
-                                            dataType: 'string',
-                                            required: true,
-                                        },
-                                    },
-                                },
-                                {
-                                    dataType: 'nestedObjectLiteral',
-                                    nestedProperties: {
-                                        showDivider: { dataType: 'boolean' },
-                                        text: {
-                                            dataType: 'string',
-                                            required: true,
-                                        },
-                                        title: {
-                                            dataType: 'undefined',
                                             required: true,
                                         },
                                     },
@@ -23954,24 +23986,151 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
-                        tileSlug: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        uuid: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'undefined' },
-                            ],
+                        type: {
+                            ref: 'DashboardTileTypes.SQL_CHART',
                             required: true,
                         },
                     },
                 },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardMarkdownTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                hideFrame: { dataType: 'boolean' },
+                                content: { dataType: 'string', required: true },
+                                title: { dataType: 'string', required: true },
+                            },
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.MARKDOWN',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardLoomTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                url: { dataType: 'string', required: true },
+                                hideTitle: { dataType: 'boolean' },
+                                title: { dataType: 'string', required: true },
+                            },
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.LOOM',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardHeadingTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                showDivider: { dataType: 'boolean' },
+                                text: { dataType: 'string', required: true },
+                                title: { dataType: 'undefined' },
+                            },
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.HEADING',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardDataAppTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                appDeletedAt: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                },
+                                appUuid: { dataType: 'string', required: true },
+                                hideTitle: { dataType: 'boolean' },
+                                title: { dataType: 'string', required: true },
+                            },
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.DATA_APP',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DashboardChartTileAsCode' },
+                { ref: 'DashboardSqlChartTileAsCode' },
+                { ref: 'DashboardMarkdownTileAsCode' },
+                { ref: 'DashboardLoomTileAsCode' },
+                { ref: 'DashboardHeadingTileAsCode' },
+                { ref: 'DashboardDataAppTileAsCode' },
             ],
             validators: {},
         },

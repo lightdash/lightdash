@@ -24,6 +24,8 @@
     "fix-format": "oxfmt ./src",
     "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
+    "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts",
+    "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "test": "TZ=UTC LANG=en_US.UTF-8 jest",
     "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
     "release": "pnpm publish --no-git-checks --access public"

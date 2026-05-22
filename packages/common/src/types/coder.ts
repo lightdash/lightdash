@@ -4,11 +4,14 @@ import type {
     Dashboard,
     DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
+    DashboardDataAppTileProperties,
     DashboardFilterRule,
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
+    DashboardSqlChartTileProperties,
     DashboardTile,
+    DashboardTileTypes,
     FilterRule,
     MetricQuery,
     PromotionChanges,
@@ -144,18 +147,60 @@ export type ApiSqlChartAsCodeListResponse = {
     };
 };
 
-export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
-    uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
+type DashboardTileAsCodeBase = {
+    uuid: DashboardTile['uuid'] | undefined;
     tileSlug: string | undefined;
-    properties:
-        | Pick<
-              DashboardChartTileProperties['properties'],
-              'title' | 'hideTitle' | 'chartSlug' | 'chartName'
-          >
-        | DashboardMarkdownTileProperties['properties']
-        | DashboardLoomTileProperties['properties']
-        | DashboardHeadingTileProperties['properties'];
+    type: DashboardTileTypes;
+    x: DashboardTile['x'];
+    y: DashboardTile['y'];
+    h: DashboardTile['h'];
+    w: DashboardTile['w'];
+    tabUuid: DashboardTile['tabUuid'];
 };
+
+export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.SAVED_CHART;
+    properties: Pick<
+        DashboardChartTileProperties['properties'],
+        'title' | 'hideTitle' | 'chartName'
+    > & { chartSlug: string };
+};
+
+export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.SQL_CHART;
+    properties: Pick<
+        DashboardSqlChartTileProperties['properties'],
+        'title' | 'hideTitle' | 'chartName'
+    > & { chartSlug: string };
+};
+
+export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.MARKDOWN;
+    properties: DashboardMarkdownTileProperties['properties'];
+};
+
+export type DashboardLoomTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.LOOM;
+    properties: DashboardLoomTileProperties['properties'];
+};
+
+export type DashboardHeadingTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.HEADING;
+    properties: DashboardHeadingTileProperties['properties'];
+};
+
+export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.DATA_APP;
+    properties: DashboardDataAppTileProperties['properties'];
+};
+
+export type DashboardTileAsCode =
+    | DashboardChartTileAsCode
+    | DashboardSqlChartTileAsCode
+    | DashboardMarkdownTileAsCode
+    | DashboardLoomTileAsCode
+    | DashboardHeadingTileAsCode
+    | DashboardDataAppTileAsCode;
 
 export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;
