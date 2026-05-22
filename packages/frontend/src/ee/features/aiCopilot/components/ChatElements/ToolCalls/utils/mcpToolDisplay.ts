@@ -36,6 +36,8 @@ export const getMcpToolParts = (toolName: string) => {
     };
 };
 
+const splitMcpKey = (key: string) => key.split('_').filter(Boolean);
+
 export const sanitizeMcpToolKeyPart = (value: string) => {
     const sanitized = value
         .replace(/[^a-zA-Z0-9_]+/g, '_')
@@ -76,6 +78,29 @@ export const getMcpProviderMetadata = (
 
 export const getMcpServerDisplayName = (toolName: string) =>
     getMcpProviderMetadata(toolName).label;
+
+export const getMcpToolDisplayName = (toolName: string) => {
+    const parts = getMcpToolParts(toolName);
+    if (!parts?.toolKey) {
+        return toolName;
+    }
+
+    const serverTokens = splitMcpKey(parts.serverKey).filter(
+        (token) => token !== 'mcp',
+    );
+    const toolTokens = splitMcpKey(parts.toolKey);
+    const hasRepeatedServerPrefix =
+        serverTokens.length > 0 &&
+        serverTokens.every((token, index) => toolTokens[index] === token);
+    const displayTokens = hasRepeatedServerPrefix
+        ? toolTokens.slice(serverTokens.length)
+        : toolTokens;
+    const displayKey = displayTokens.length
+        ? displayTokens.join('_')
+        : parts.toolKey;
+
+    return friendlyName(displayKey) || parts.toolKey;
+};
 
 export const getMcpServerForToolName = (
     toolName: string,
