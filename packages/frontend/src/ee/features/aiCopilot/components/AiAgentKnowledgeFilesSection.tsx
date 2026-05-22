@@ -1,5 +1,7 @@
 import {
+    AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_SUPPORTED_FILE_EXTENSIONS,
     type AiAgentDocumentSummary,
 } from '@lightdash/common';
 import {
@@ -26,7 +28,7 @@ import {
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -34,35 +36,32 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { formatFileSize } from '../../../../utils/formatters';
 import {
     useAiAgentDocuments,
-    useCreateAiAgentDocument,
     useDeleteAiAgentDocument,
+    useUploadAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
 import styles from './AiAgentKnowledgeFilesSection.module.css';
+import { BookLoader } from './BookLoader';
 
-const ACCEPT_ATTR =
-    '.md,.markdown,.txt,text/markdown,text/plain,text/x-markdown';
-const ALLOWED_EXTENSIONS = ['.md', '.markdown', '.txt'];
-
-const normalizeMimeType = (file: File): string => {
-    const lower = (file.type || '').toLowerCase();
-    if (lower === 'text/x-markdown' || lower === 'text/markdown') {
-        return 'text/markdown';
-    }
-    if (lower === 'text/plain') return 'text/plain';
-    const name = file.name.toLowerCase();
-    if (name.endsWith('.md') || name.endsWith('.markdown')) {
-        return 'text/markdown';
-    }
-    return 'text/plain';
-};
+const ACCEPT_ATTR = `${AI_AGENT_DOCUMENT_SUPPORTED_FILE_EXTENSIONS.join(
+    ',',
+)},text/markdown,text/plain,text/x-markdown,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/pdf`;
+const SUPPORTED_FILE_COPY =
+    'Supports .md, .markdown, .txt, .csv, .docx, .doc, and .pdf.';
+const LIMIT_COPY = `Max ${formatFileSize(
+    AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
+)} file. Extracted text max ${formatFileSize(
+    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+)}.`;
 
 const stripExtension = (filename: string): string =>
     filename.replace(/\.[^.]+$/, '');
 
 const hasAllowedExtension = (filename: string): boolean => {
     const name = filename.toLowerCase();
-    return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+    return AI_AGENT_DOCUMENT_SUPPORTED_FILE_EXTENSIONS.some((ext) =>
+        name.endsWith(ext),
+    );
 };
 
 type PendingUpload = {
@@ -81,7 +80,7 @@ export const AiAgentKnowledgeFilesSection = ({
     projectUuid,
 }: Props) => {
     const { data: documents, isLoading } = useAiAgentDocuments();
-    const createDocument = useCreateAiAgentDocument();
+    const uploadDocument = useUploadAiAgentDocument();
     const deleteDocument = useDeleteAiAgentDocument();
     const { showToastError } = useToaster();
 
@@ -127,24 +126,27 @@ export const AiAgentKnowledgeFilesSection = ({
         [accessibleDocuments, effectiveSelectedId, selectedPending],
     );
 
+    const resetFileInputRef = useRef<() => void>(null);
+
     const handleFiles = useCallback(
         async (files: File[] | null) => {
+            resetFileInputRef.current?.();
             if (!files || files.length === 0) return;
 
             const queued: Array<{ file: File; pending: PendingUpload }> = [];
             for (const file of files) {
                 if (
                     !hasAllowedExtension(file.name) ||
-                    file.size > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES
+                    file.size > AI_AGENT_DOCUMENT_MAX_FILE_BYTES
                 ) {
                     showToastError({
                         title: `Skipped ${file.name}`,
                         subtitle:
-                            file.size > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES
+                            file.size > AI_AGENT_DOCUMENT_MAX_FILE_BYTES
                                 ? `Exceeds ${formatFileSize(
-                                      AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+                                      AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
                                   )} limit.`
-                                : 'Only .md and .txt files are supported.',
+                                : SUPPORTED_FILE_COPY,
                     });
                     continue;
                 }
@@ -176,13 +178,9 @@ export const AiAgentKnowledgeFilesSection = ({
             for (const { file, pending } of queued) {
                 try {
                     // eslint-disable-next-line no-await-in-loop
-                    const content = await file.text();
-                    // eslint-disable-next-line no-await-in-loop
-                    const created = await createDocument.mutateAsync({
+                    const created = await uploadDocument.mutateAsync({
+                        file,
                         name: stripExtension(file.name),
-                        originalFilename: file.name,
-                        mimeType: normalizeMimeType(file),
-                        content,
                         agentAccess: [agentUuid],
                         projectUuid,
                     });
@@ -198,7 +196,7 @@ export const AiAgentKnowledgeFilesSection = ({
                 }
             }
         },
-        [agentUuid, createDocument, projectUuid, showToastError],
+        [agentUuid, projectUuid, showToastError, uploadDocument],
     );
 
     const isEmpty =
@@ -218,12 +216,16 @@ export const AiAgentKnowledgeFilesSection = ({
                         answering. A short summary is generated for each file so
                         the agent knows when to use it.
                     </Text>
+                    <Text c="dimmed" size="xs">
+                        {SUPPORTED_FILE_COPY} {LIMIT_COPY}
+                    </Text>
                 </Box>
                 {!isEmpty && (
                     <FileButton
                         onChange={handleFiles}
                         accept={ACCEPT_ATTR}
                         multiple
+                        resetRef={resetFileInputRef}
                     >
                         {(props) => (
                             <Button
@@ -261,23 +263,31 @@ export const AiAgentKnowledgeFilesSection = ({
                             titleProps={{ order: 5 }}
                             title="No knowledge document yet"
                         >
-                            <FileButton
-                                onChange={handleFiles}
-                                accept={ACCEPT_ATTR}
-                                multiple
-                            >
-                                {(props) => (
-                                    <Button
-                                        {...props}
-                                        size="xs"
-                                        leftSection={
-                                            <MantineIcon icon={IconUpload} />
-                                        }
-                                    >
-                                        Upload
-                                    </Button>
-                                )}
-                            </FileButton>
+                            <Stack gap="xs" align="center">
+                                <Text size="xs" c="dimmed" ta="center">
+                                    {SUPPORTED_FILE_COPY} {LIMIT_COPY}
+                                </Text>
+                                <FileButton
+                                    onChange={handleFiles}
+                                    accept={ACCEPT_ATTR}
+                                    multiple
+                                    resetRef={resetFileInputRef}
+                                >
+                                    {(props) => (
+                                        <Button
+                                            {...props}
+                                            size="xs"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconUpload}
+                                                />
+                                            }
+                                        >
+                                            Upload
+                                        </Button>
+                                    )}
+                                </FileButton>
+                            </Stack>
                         </EmptyState>
                     </Center>
                 ) : (
@@ -304,9 +314,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 NAME
                                             </Text>
                                         </Table.Th>
-                                        <Table.Th w={100} ta="right" px="lg">
+                                        <Table.Th w={200} ta="right" px="lg">
                                             <Text size="xs" c="dimmed" fw={600}>
-                                                SIZE
+                                                TEXT SIZE
                                             </Text>
                                         </Table.Th>
                                     </Table.Tr>
@@ -328,6 +338,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     </Text>
                                                 </Skeleton>
                                             ),
+                                            sizeLabel: `File ${formatFileSize(
+                                                pending.sizeBytes,
+                                            )}`,
                                         })),
                                         ...accessibleDocuments.map((doc) => ({
                                             id: doc.uuid,
@@ -342,6 +355,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     {doc.summary.description}
                                                 </Text>
                                             ),
+                                            sizeLabel: `${formatFileSize(
+                                                doc.contentSizeBytes,
+                                            )}`,
                                         })),
                                     ].map((row) => {
                                         const isSelected =
@@ -398,9 +414,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 </Table.Td>
                                                 <Table.Td ta="right" pr="md">
                                                     <Text size="sm" c="dimmed">
-                                                        {formatFileSize(
-                                                            row.sizeBytes,
-                                                        )}
+                                                        {row.sizeLabel}
                                                     </Text>
                                                 </Table.Td>
                                             </Table.Tr>
@@ -433,12 +447,14 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     : selectedDocument!.name}
                                             </Text>
                                             <Text size="xs" c="dimmed">
-                                                {formatFileSize(
-                                                    selectedPending
-                                                        ? selectedPending.sizeBytes
-                                                        : selectedDocument!
+                                                {selectedPending
+                                                    ? `File ${formatFileSize(
+                                                          selectedPending.sizeBytes,
+                                                      )}`
+                                                    : `Extracted text ${formatFileSize(
+                                                          selectedDocument!
                                                               .contentSizeBytes,
-                                                )}
+                                                      )}`}
                                             </Text>
                                         </Stack>
                                         {selectedDocument && (
@@ -488,14 +504,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                     </Group>
 
                                     {selectedPending ? (
-                                        <Skeleton visible radius="sm">
-                                            <Text size="sm">
-                                                Generating a short summary so
-                                                the agent knows when to
-                                                reference this document. This
-                                                usually takes a few seconds.
-                                            </Text>
-                                        </Skeleton>
+                                        <Center flex={1} py="md">
+                                            <BookLoader aria-label="Generating summary" />
+                                        </Center>
                                     ) : (
                                         <>
                                             <ScrollArea

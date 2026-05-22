@@ -18,3 +18,340 @@
         animation: none;
     }
 }
+
+.book {
+    --book-cover: var(--mantine-color-ldGray-2);
+    --book-cover-edge: var(--mantine-color-ldGray-4);
+    --book-page: var(--mantine-color-ldGray-0);
+    --book-page-back: var(--mantine-color-ldGray-1);
+    --book-page-lines: var(--mantine-color-dimmed);
+
+    font-size: 7px;
+    background-color: var(--book-cover);
+    border-radius: 0.25em;
+    box-shadow:
+        0 0.25em 0.5em hsla(0, 0%, 0%, 0.25),
+        0 0 0 0.25em var(--book-cover-edge) inset;
+    padding: 0.25em;
+    perspective: 37.5em;
+    position: relative;
+    width: 8em;
+    height: 6em;
+    transform: translate3d(0, 0, 0);
+    transform-style: preserve-3d;
+    animation: book-cover 5s ease-in-out infinite;
+}
+
+.bookShadow,
+.bookPg {
+    position: absolute;
+    left: 0.25em;
+    width: calc(50% - 0.25em);
+    animation: 5s ease-in-out infinite;
+}
+
+.bookShadow {
+    animation-name: book-shadow;
+    background-image: linear-gradient(
+        -45deg,
+        hsla(0, 0%, 0%, 0) 50%,
+        hsla(0, 0%, 0%, 0.3) 50%
+    );
+    filter: blur(0.25em);
+    top: calc(100% - 0.25em);
+    height: 3.75em;
+    transform: scaleY(0);
+    transform-origin: 100% 0%;
+}
+
+.bookPg {
+    animation-name: book-pg1;
+    background-color: var(--book-page);
+    background-image: linear-gradient(
+        90deg,
+        transparent 87.5%,
+        var(--book-page-back)
+    );
+    height: calc(100% - 0.5em);
+    transform-origin: 100% 50%;
+}
+
+.bookPg2,
+.bookPg3,
+.bookPg4 {
+    background-image:
+        repeating-linear-gradient(
+            var(--book-page-lines) 0 0.125em,
+            transparent 0.125em 0.5em
+        ),
+        linear-gradient(90deg, transparent 87.5%, var(--book-page-back));
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size:
+        2.5em 4.125em,
+        100% 100%;
+}
+
+.bookPg2 {
+    animation-name: book-pg2;
+}
+.bookPg3 {
+    animation-name: book-pg3;
+}
+.bookPg4 {
+    animation-name: book-pg4;
+}
+.bookPg5 {
+    animation-name: book-pg5;
+}
+
+@keyframes book-cover {
+    from,
+    5%,
+    45%,
+    55%,
+    95%,
+    to {
+        animation-timing-function: ease-out;
+        background-color: var(--book-cover);
+    }
+    10%,
+    40%,
+    60%,
+    90% {
+        animation-timing-function: ease-in;
+        background-color: var(--book-cover-edge);
+    }
+}
+
+@keyframes book-shadow {
+    from,
+    10.01%,
+    20.01%,
+    30.01%,
+    40.01% {
+        animation-timing-function: ease-in;
+        transform: translate3d(0, 0, 1px) scaleY(0) rotateY(0);
+    }
+    5%,
+    15%,
+    25%,
+    35%,
+    45%,
+    55%,
+    65%,
+    75%,
+    85%,
+    95% {
+        animation-timing-function: ease-out;
+        transform: translate3d(0, 0, 1px) scaleY(0.2) rotateY(90deg);
+    }
+    10%,
+    20%,
+    30%,
+    40%,
+    50%,
+    to {
+        animation-timing-function: ease-out;
+        transform: translate3d(0, 0, 1px) scaleY(0) rotateY(180deg);
+    }
+    50.01%,
+    60.01%,
+    70.01%,
+    80.01%,
+    90.01% {
+        animation-timing-function: ease-in;
+        transform: translate3d(0, 0, 1px) scaleY(0) rotateY(180deg);
+    }
+    60%,
+    70%,
+    80%,
+    90%,
+    to {
+        animation-timing-function: ease-out;
+        transform: translate3d(0, 0, 1px) scaleY(0) rotateY(0);
+    }
+}
+
+@keyframes book-pg1 {
+    from,
+    to {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.4deg);
+    }
+    10%,
+    15% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(180deg);
+    }
+    20%,
+    80% {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(180deg);
+    }
+    85%,
+    90% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(180deg);
+    }
+}
+
+@keyframes book-pg2 {
+    from,
+    to {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(0.3deg);
+    }
+    5%,
+    10% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.3deg);
+    }
+    20%,
+    25% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.9deg);
+    }
+    30%,
+    70% {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(179.9deg);
+    }
+    75%,
+    80% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.9deg);
+    }
+    90%,
+    95% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.3deg);
+    }
+}
+
+@keyframes book-pg3 {
+    from,
+    10%,
+    90%,
+    to {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(0.2deg);
+    }
+    15%,
+    20% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.2deg);
+    }
+    30%,
+    35% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.8deg);
+    }
+    40%,
+    60% {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(179.8deg);
+    }
+    65%,
+    70% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.8deg);
+    }
+    80%,
+    85% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.2deg);
+    }
+}
+
+@keyframes book-pg4 {
+    from,
+    20%,
+    80%,
+    to {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(0.1deg);
+    }
+    25%,
+    30% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.1deg);
+    }
+    40%,
+    45% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.7deg);
+    }
+    50% {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(179.7deg);
+    }
+    55%,
+    60% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.7deg);
+    }
+    70%,
+    75% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0.1deg);
+    }
+}
+
+@keyframes book-pg5 {
+    from,
+    30%,
+    70%,
+    to {
+        animation-timing-function: ease-in;
+        background-color: var(--book-page-back);
+        transform: translate3d(0, 0, 1px) rotateY(0);
+    }
+    35%,
+    40% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0deg);
+    }
+    50% {
+        animation-timing-function: ease-in-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(179.6deg);
+    }
+    60%,
+    65% {
+        animation-timing-function: ease-out;
+        background-color: var(--book-page);
+        transform: translate3d(0, 0, 1px) rotateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .book,
+    .bookShadow,
+    .bookPg {
+        animation: none;
+    }
+}

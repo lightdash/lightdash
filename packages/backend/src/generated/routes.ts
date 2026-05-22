@@ -38700,6 +38700,78 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentDocumentController_uploadDocument: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        filename: {
+            in: 'query',
+            name: 'filename',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'query', name: 'name', dataType: 'string' },
+        projectUuid: {
+            in: 'query',
+            name: 'projectUuid',
+            dataType: 'string',
+        },
+        agentAccess: {
+            in: 'query',
+            name: 'agentAccess',
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/aiAgents/documents/upload',
+        ...fetchMiddlewares<RequestHandler>(AiAgentDocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentDocumentController.prototype.uploadDocument,
+        ),
+
+        async function AiAgentDocumentController_uploadDocument(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentDocumentController_uploadDocument,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentDocumentController>(
+                        AiAgentDocumentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'uploadDocument',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAiAgentDocumentController_deleteDocument: Record<
         string,
         TsoaRoute.ParameterSchema

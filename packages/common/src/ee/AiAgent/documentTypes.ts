@@ -1,5 +1,15 @@
-export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 20 * 1024;
+export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 100 * 1024;
+export const AI_AGENT_DOCUMENT_MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
+export const AI_AGENT_DOCUMENT_SUPPORTED_FILE_EXTENSIONS = [
+    '.md',
+    '.markdown',
+    '.txt',
+    '.csv',
+    '.docx',
+    '.doc',
+    '.pdf',
+] as const;
 
 export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
 

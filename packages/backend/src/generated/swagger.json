@@ -35944,6 +35944,70 @@
                 }
             }
         },
+        "/api/v1/aiAgents/documents/upload": {
+            "post": {
+                "operationId": "uploadAiAgentDocument",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upload a knowledge document. Send raw file bytes as the body with\nContent-Type and Content-Length headers. Pass filename, optional name,\nprojectUuid, and comma-separated agentAccess as query parameters.",
+                "summary": "Upload AI agent knowledge document",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "filename",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentAccess",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/documents/{documentUuid}": {
             "delete": {
                 "operationId": "deleteAiAgentDocument",

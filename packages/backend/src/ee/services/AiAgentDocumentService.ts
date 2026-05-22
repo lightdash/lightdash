@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgentDocument,
     AiAgentDocumentSummary,
@@ -12,6 +13,7 @@ import {
     PayloadTooLargeError,
     type SessionUser,
 } from '@lightdash/common';
+import { Readable } from 'node:stream';
 import { v4 as uuidv4 } from 'uuid';
 import {
     AiAgentDocumentCreatedEvent,
@@ -24,15 +26,12 @@ import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import { generateDocumentSummary } from './ai/agents/documentSummaryGenerator';
 import { getModel } from './ai/models';
+import {
+    extractAiAgentDocumentText,
+    normalizeAiAgentDocumentMimeType,
+    normalizeExtractedDocumentText,
+} from './aiAgentDocumentExtractor';
 import type { AiAgentService } from './AiAgentService/AiAgentService';
-
-const ALLOWED_MIME_TYPES = new Set([
-    'text/markdown',
-    'text/x-markdown',
-    'text/plain',
-]);
-
-const ALLOWED_EXTENSIONS = ['.md', '.markdown', '.txt'];
 
 const assertOrganizationUuid = (user: SessionUser): string => {
     if (!user.organizationUuid) {
@@ -41,22 +40,8 @@ const assertOrganizationUuid = (user: SessionUser): string => {
     return user.organizationUuid;
 };
 
-const normalizeMimeType = (mimeType: string, filename: string): string => {
-    const lower = mimeType.toLowerCase();
-    if (ALLOWED_MIME_TYPES.has(lower)) {
-        return lower === 'text/x-markdown' ? 'text/markdown' : lower;
-    }
-    const filenameLower = filename.toLowerCase();
-    if (filenameLower.endsWith('.md') || filenameLower.endsWith('.markdown')) {
-        return 'text/markdown';
-    }
-    if (filenameLower.endsWith('.txt')) {
-        return 'text/plain';
-    }
-    throw new ParameterError(
-        `Unsupported file type. Allowed extensions: ${ALLOWED_EXTENSIONS.join(', ')}.`,
-    );
-};
+const stripExtension = (filename: string): string =>
+    filename.replace(/\.[^.]+$/, '');
 
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
@@ -211,9 +196,48 @@ export class AiAgentDocumentService extends BaseService {
         return document;
     }
 
-    async createDocument(
+    private static async readUploadBody(input: {
+        body: Readable;
+        contentLength: number;
+    }): Promise<Buffer> {
+        if (input.contentLength > AI_AGENT_DOCUMENT_MAX_FILE_BYTES) {
+            throw new PayloadTooLargeError(
+                `File exceeds the ${AI_AGENT_DOCUMENT_MAX_FILE_BYTES} byte limit.`,
+                {
+                    contentSizeBytes: input.contentLength,
+                    maxBytes: AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
+                },
+            );
+        }
+
+        const chunks: Buffer[] = [];
+        let total = 0;
+        // eslint-disable-next-line no-restricted-syntax
+        for await (const chunk of input.body) {
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            total += buffer.length;
+            if (total > AI_AGENT_DOCUMENT_MAX_FILE_BYTES) {
+                throw new PayloadTooLargeError(
+                    `File exceeds the ${AI_AGENT_DOCUMENT_MAX_FILE_BYTES} byte limit.`,
+                    {
+                        contentSizeBytes: total,
+                        maxBytes: AI_AGENT_DOCUMENT_MAX_FILE_BYTES,
+                    },
+                );
+            }
+            chunks.push(buffer);
+        }
+
+        const rawBody = Buffer.concat(chunks);
+        if (rawBody.length === 0) {
+            throw new ParameterError('Upload body is empty');
+        }
+        return rawBody;
+    }
+
+    private async createDocumentWithContent(
         user: SessionUser,
-        body: ApiCreateAiAgentDocument,
+        body: ApiCreateAiAgentDocument & { storageExtension?: string },
     ): Promise<AiAgentDocument> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -223,10 +247,15 @@ export class AiAgentDocumentService extends BaseService {
             body.projectUuid ?? null,
         );
 
-        const contentBytes = Buffer.byteLength(body.content, 'utf8');
+        const content = normalizeExtractedDocumentText(body.content);
+        if (content.length === 0) {
+            throw new ParameterError('Document content cannot be empty.');
+        }
+
+        const contentBytes = Buffer.byteLength(content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(
-                `Content exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit.`,
+                `Extracted text exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit.`,
                 {
                     contentSizeBytes: contentBytes,
                     maxBytes: AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
@@ -249,10 +278,12 @@ export class AiAgentDocumentService extends BaseService {
             );
         }
 
-        const mimeType = normalizeMimeType(
+        const documentType = normalizeAiAgentDocumentMimeType(
             body.mimeType,
             body.originalFilename,
         );
+        const storageExtension =
+            body.storageExtension ?? documentType.storageExtension;
 
         const projectExplores = await this.getProjectExploresForSummarization(
             user,
@@ -264,21 +295,19 @@ export class AiAgentDocumentService extends BaseService {
         });
         const summary = await generateDocumentSummary(modelOptions, {
             name: body.name,
-            content: body.content,
+            content,
             projectExplores,
         });
 
-        const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
-            mimeType === 'text/markdown' ? 'md' : 'txt'
-        }`;
+        const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${storageExtension}`;
 
         const document = await this.aiAgentDocumentModel.create({
             organizationUuid,
             projectUuid: body.projectUuid ?? null,
             name: body.name,
             originalFilename: body.originalFilename,
-            mimeType,
-            content: body.content,
+            mimeType: documentType.mimeType,
+            content,
             summary,
             storageKey,
             agentUuids: body.agentAccess ?? [],
@@ -299,6 +328,56 @@ export class AiAgentDocumentService extends BaseService {
         });
 
         return document;
+    }
+
+    async createDocument(
+        user: SessionUser,
+        body: ApiCreateAiAgentDocument,
+    ): Promise<AiAgentDocument> {
+        return this.createDocumentWithContent(user, body);
+    }
+
+    async uploadDocument(
+        user: SessionUser,
+        input: {
+            originalFilename: string;
+            name?: string;
+            mimeType: string;
+            body: Readable;
+            contentLength: number;
+            projectUuid?: string | null;
+            agentAccess?: string[];
+        },
+    ): Promise<AiAgentDocument> {
+        const rawBody = await AiAgentDocumentService.readUploadBody({
+            body: input.body,
+            contentLength: input.contentLength,
+        });
+        let extracted: Awaited<ReturnType<typeof extractAiAgentDocumentText>>;
+        try {
+            extracted = await extractAiAgentDocumentText({
+                buffer: rawBody,
+                filename: input.originalFilename,
+                mimeType: input.mimeType,
+            });
+        } catch (e) {
+            if (e instanceof ParameterError) {
+                throw e;
+            }
+            throw new ParameterError(
+                'Could not read text from this document. Check that it is not password-protected or image-only.',
+            );
+        }
+
+        return this.createDocumentWithContent(user, {
+            name: input.name?.trim() || stripExtension(input.originalFilename),
+            originalFilename: input.originalFilename,
+            mimeType: extracted.mimeType,
+            content: extracted.content,
+            projectUuid: input.projectUuid,
+            agentAccess: input.agentAccess,
+            storageExtension: extracted.storageExtension,
+        });
     }
 
     async deleteDocument(

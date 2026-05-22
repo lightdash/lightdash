@@ -1,7 +1,6 @@
 import type {
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
-    ApiCreateAiAgentDocument,
     ApiError,
     ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -24,13 +23,31 @@ const listDocuments = async () =>
         body: undefined,
     });
 
-const createDocument = async (body: ApiCreateAiAgentDocument) =>
-    lightdashApi<ApiAiAgentDocumentResponse['results']>({
-        version: 'v1',
-        url: `/aiAgents/documents`,
-        method: 'POST',
-        body: JSON.stringify(body),
+const uploadDocument = async (args: {
+    file: File;
+    name: string;
+    projectUuid: string;
+    agentAccess: string[];
+}) => {
+    const search = new URLSearchParams({
+        filename: args.file.name,
+        name: args.name,
+        projectUuid: args.projectUuid,
     });
+    if (args.agentAccess.length > 0) {
+        search.set('agentAccess', args.agentAccess.join(','));
+    }
+
+    return lightdashApi<ApiAiAgentDocumentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/documents/upload?${search.toString()}`,
+        method: 'POST',
+        body: args.file,
+        headers: {
+            'Content-Type': args.file.type || 'application/octet-stream',
+        },
+    });
+};
 
 const deleteDocument = async (documentUuid: string) =>
     lightdashApi<ApiSuccessEmpty['results']>({
@@ -52,15 +69,20 @@ export const useAiAgentDocuments = (
         ...options,
     });
 
-export const useCreateAiAgentDocument = () => {
+export const useUploadAiAgentDocument = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiAiAgentDocumentResponse['results'],
         ApiError,
-        ApiCreateAiAgentDocument
+        {
+            file: File;
+            name: string;
+            projectUuid: string;
+            agentAccess: string[];
+        }
     >({
-        mutationFn: createDocument,
+        mutationFn: uploadDocument,
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_DOCUMENTS_KEY],
