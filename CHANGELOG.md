@@ -1,3 +1,10 @@
+## [0.3011.1](https://github.com/lightdash/lightdash/compare/0.3011.0...0.3011.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **pivot:** carry hidden dims through SQL as passthrough so richText/image row references keep resolving (PROD-7873) ([#23452](https://github.com/lightdash/lightdash/issues/23452)) ([5eaf613](https://github.com/lightdash/lightdash/commit/5eaf6130a863b81b9ed015b1c1d394bbef94fa88))
+
 # [0.3011.0](https://github.com/lightdash/lightdash/compare/0.3010.0...0.3011.0) (2026-05-22)
 
 
