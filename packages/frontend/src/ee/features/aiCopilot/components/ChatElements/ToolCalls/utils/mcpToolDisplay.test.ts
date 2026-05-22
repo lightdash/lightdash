@@ -3,6 +3,7 @@ import {
     getMcpProviderMetadata,
     getMcpServerDisplayName,
     getMcpServerForToolName,
+    getMcpToolDisplayName,
     getMcpToolParts,
     getMcpToolDisplayMetadata,
     sanitizeMcpToolKeyPart,
@@ -30,6 +31,15 @@ describe('mcpToolDisplay', () => {
 
     it('uses the same server name sanitization as backend MCP tool names', () => {
         expect(sanitizeMcpToolKeyPart('Acme Docs MCP')).toBe('acme_docs_mcp');
+    });
+
+    it('renders readable MCP tool names without repeated server prefixes', () => {
+        expect(getMcpToolDisplayName('mcp_github__create_issue')).toBe(
+            'Create issue',
+        );
+        expect(getMcpToolDisplayName('mcp_notion_mcp__notion_search')).toBe(
+            'Search',
+        );
     });
 
     it('matches tool calls to attached MCP servers and uses the stored icon URL', () => {

@@ -33,6 +33,7 @@ import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import {
     getMcpServerForToolName,
     getMcpToolDisplayMetadata,
+    getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
 import { getToolIcon } from './utils/toolIcons';
@@ -243,6 +244,9 @@ const LatestRow: FC<{
     const mcpDisplayMetadata = builtInToolName
         ? undefined
         : getMcpToolDisplayMetadata(group.toolName, mcpServer);
+    const mcpToolDisplayName = builtInToolName
+        ? null
+        : getMcpToolDisplayName(group.toolName);
     const label = builtInToolName
         ? isLive
             ? TOOL_DISPLAY_MESSAGES[builtInToolName]
@@ -299,13 +303,13 @@ const LatestRow: FC<{
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
                     <Text size="xs" className={styles.latestLabel}>
-                        Using MCP {mcpDisplayMetadata?.label ?? 'MCP'}:
+                        Using {mcpDisplayMetadata?.label ?? 'MCP'}:
                     </Text>
                     <ToolCallChip
                         maxWidth={260}
                         className={styles.latestMcpToolChip}
                     >
-                        {group.toolName}
+                        {mcpToolDisplayName}
                     </ToolCallChip>
                 </Group>
             )}
