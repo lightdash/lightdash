@@ -476,37 +476,32 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags?: Record<string, string>;
         },
     ) {
-        const sqlStatements: string[] = [];
-
         if (this.connectionOptions.warehouse) {
             // eslint-disable-next-line no-console
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
-            sqlStatements.push(
+            await this.executeStatements(
+                connection,
                 `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
             );
         }
 
+        const sessionParams: string[] = [];
+
         const startOfWeek = this.getStartOfWeek();
         if (isWeekDay(startOfWeek)) {
             const snowflakeStartOfWeekIndex = startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
-            sqlStatements.push(
-                `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
-            );
+            sessionParams.push(`WEEK_START = ${snowflakeStartOfWeekIndex}`);
         }
 
         if (options?.tags) {
-            sqlStatements.push(
-                `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
-                    options?.tags,
-                )}';`,
-            );
+            sessionParams.push(`QUERY_TAG = '${JSON.stringify(options.tags)}'`);
         }
 
         const timezoneQuery = options?.timezone || 'UTC';
         console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
-        sqlStatements.push(`ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`);
+        sessionParams.push(`TIMEZONE = '${timezoneQuery}'`);
 
         /**
          * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
@@ -515,23 +510,18 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         console.debug(
             'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
         );
-        sqlStatements.push(
-            `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
-        );
+        sessionParams.push(`QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`);
 
         // Default timeout to 300 seconds if not specified
         const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
         console.debug(
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
-        sqlStatements.push(
-            `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds};`,
-        );
+        sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
 
         await this.executeStatements(
             connection,
-            sqlStatements.join('\n'),
-            sqlStatements.length,
+            `ALTER SESSION SET ${sessionParams.join(', ')};`,
         );
     }
 
