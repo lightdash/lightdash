@@ -170,6 +170,10 @@ type AppPreviewProps = {
      *  bundle, but the new query string defeats any caching and flushes
      *  whatever in-iframe state was running. */
     refreshKey: number;
+    /** When true, the iframe's metric queries are sent with `invalidateCache`
+     *  so the warehouse results cache is bypassed. Latched on by the preview
+     *  refresh button so a manual refresh always re-runs against the warehouse. */
+    invalidateCache?: boolean;
     onQueryEvent?: (event: QueryEvent) => void;
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
@@ -185,6 +189,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             appUuid,
             version,
             refreshKey,
+            invalidateCache,
             onQueryEvent,
             inspectorEnabled,
             onElementSelected,
@@ -233,6 +238,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
                 identityKey={appUuid}
+                invalidateCache={invalidateCache}
                 onQueryEvent={onQueryEvent}
                 inspectorEnabled={inspectorEnabled}
                 onElementSelected={onElementSelected}
@@ -916,8 +922,13 @@ const AppGenerate: FC = () => {
     // semantic-layer change and wants to see it reflected without waiting
     // on the in-progress code-gen iteration.
     const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+    // Latched on by the first manual refresh: a refresh means "show me fresh
+    // data", so from then on the preview's queries bypass the warehouse cache.
+    // Starts false so the initial load can still serve cached results fast.
+    const [invalidatePreviewCache, setInvalidatePreviewCache] = useState(false);
     const handleRefreshPreview = useCallback(() => {
         setPreviewRefreshKey((k) => k + 1);
+        setInvalidatePreviewCache(true);
         if (persistLogs) {
             interruptInFlightQueries();
         } else {
@@ -2530,6 +2541,7 @@ const AppGenerate: FC = () => {
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}
                                     refreshKey={previewRefreshKey}
+                                    invalidateCache={invalidatePreviewCache}
                                     onQueryEvent={handleQueryEvent}
                                     inspectorEnabled={inspectorEnabled}
                                     onElementSelected={handleElementSelected}

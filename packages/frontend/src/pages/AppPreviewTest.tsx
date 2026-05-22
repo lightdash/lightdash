@@ -6,10 +6,12 @@ import {
     IconDatabase,
     IconDots,
     IconPencil,
+    IconRefresh,
     IconSend,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
@@ -89,6 +91,18 @@ export default function AppPreviewTest() {
     // the user opens the panel are still captured.
     const { queries, handleQueryEvent, clearQueries } = useTrackedAppQueries();
 
+    // Manual refresh: bumping the counter changes the iframe URL, forcing a
+    // reload so the app's metric queries re-fire. `invalidateCache` latches on
+    // with the first refresh so those re-fired queries bypass the warehouse
+    // results cache — the initial load still serves cached results fast.
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [invalidateCache, setInvalidateCache] = useState(false);
+    const handleRefresh = useCallback(() => {
+        setRefreshKey((k) => k + 1);
+        setInvalidateCache(true);
+        clearQueries();
+    }, [clearQueries]);
+
     // Close menu when the iframe receives focus (i.e. user clicked on it)
     const handleBlur = useCallback(() => {
         if (menuOpened) {
@@ -155,7 +169,7 @@ export default function AppPreviewTest() {
     }
 
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {
@@ -198,7 +212,7 @@ export default function AppPreviewTest() {
                             size="lg"
                             radius="xl"
                         >
-                            <IconDots size={18} />
+                            <MantineIcon icon={IconDots} size={18} />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
@@ -214,6 +228,12 @@ export default function AppPreviewTest() {
                                 Continue building
                             </Menu.Item>
                         )}
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconRefresh} />}
+                            onClick={handleRefresh}
+                        >
+                            Refresh
+                        </Menu.Item>
                         {canEditApp &&
                             scheduledDeliveriesFlag.data?.enabled && (
                                 <Menu.Item
@@ -236,6 +256,7 @@ export default function AppPreviewTest() {
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
                 identityKey={`${appUuid}:${version}`}
+                invalidateCache={invalidateCache}
                 onQueryEvent={handleQueryEvent}
             />
             {!queriesPanelHidden && (
