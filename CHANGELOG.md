@@ -1,3 +1,10 @@
+# [0.3009.0](https://github.com/lightdash/lightdash/compare/0.3008.0...0.3009.0) (2026-05-22)
+
+
+### Features
+
+* render multi-tab dashboard exports in per-tab grids with deterministic screenshot target ([#23432](https://github.com/lightdash/lightdash/issues/23432)) ([7d998f3](https://github.com/lightdash/lightdash/commit/7d998f38fa46315ae0268287a4ae2ded845b857a))
+
 # [0.3008.0](https://github.com/lightdash/lightdash/compare/0.3007.2...0.3008.0) (2026-05-22)
 
 
