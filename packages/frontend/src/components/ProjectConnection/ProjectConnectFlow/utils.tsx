@@ -7,7 +7,7 @@ import Athena from './Assets/athena.svg';
 import BigQuery from './Assets/bigquery.svg';
 import ClickHouse from './Assets/clickhouse.svg';
 import Databricks from './Assets/databricks.svg';
-import MotherDuck from './Assets/motherduck.svg';
+import DuckDB from './Assets/duckdb.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
@@ -68,10 +68,10 @@ export const WarehouseTypeLabels: WarehouseLabel[] = [
         image: Athena,
     },
     {
-        label: 'MotherDuck / DuckLake',
+        label: 'DuckDB',
         key: WarehouseTypes.DUCKDB,
         iconType: 'image',
-        image: MotherDuck,
+        image: DuckDB,
     },
     {
         label: 'Other',
