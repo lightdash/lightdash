@@ -1413,11 +1413,13 @@ const AppGenerate: FC = () => {
     };
 
     const handleTemplateSelect = (template: DataAppTemplate) => {
-        // Picking any template drops the user straight into the textarea.
-        // The template still propagates through to the build (it informs
-        // backend-side build instructions and the AI clarifier's questions),
-        // but we no longer ask hand-rolled questions per template — the AI
-        // clarifier produces those dynamically on submit.
+        // Fires when the user hits "Let's go!" in the picker — by that point
+        // both the template highlight and theme choice are settled inside
+        // AppTemplatePicker. Advances to the textarea; the template still
+        // propagates through to the build (it informs backend-side build
+        // instructions and the AI clarifier's questions), but we no longer
+        // ask hand-rolled questions per template — the AI clarifier produces
+        // those dynamically on submit.
         setSelectedTemplate(template);
         setWizardStage('confirm');
         promptEditorRef.current?.clear();
