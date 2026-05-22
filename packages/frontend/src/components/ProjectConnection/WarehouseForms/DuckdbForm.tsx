@@ -383,14 +383,12 @@ const DuckdbForm: FC<{
                 onChange={(value) => {
                     if (value === connectionType) return;
                     if (value === DuckdbConnectionType.DUCKLAKE) {
-                        form.setValues({
-                            ...form.values,
-                            warehouse: { ...DuckdbDucklakeDefaultValues },
+                        form.setFieldValue('warehouse', {
+                            ...DuckdbDucklakeDefaultValues,
                         });
                     } else {
-                        form.setValues({
-                            ...form.values,
-                            warehouse: { ...DuckdbMotherduckDefaultValues },
+                        form.setFieldValue('warehouse', {
+                            ...DuckdbMotherduckDefaultValues,
                         });
                     }
                 }}
