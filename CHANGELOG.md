@@ -1,3 +1,10 @@
+## [0.3009.1](https://github.com/lightdash/lightdash/compare/0.3009.0...0.3009.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** clean MCP tool call labels ([#23434](https://github.com/lightdash/lightdash/issues/23434)) ([1c7b70b](https://github.com/lightdash/lightdash/commit/1c7b70b0af93719c1e3fcf770327045b6bb9be0e))
+
 # [0.3009.0](https://github.com/lightdash/lightdash/compare/0.3008.0...0.3009.0) (2026-05-22)
 
 
