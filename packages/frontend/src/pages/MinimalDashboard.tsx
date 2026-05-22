@@ -6,6 +6,7 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    DASHBOARD_GRID_CLASS,
     DashboardTileTypes,
     isDashboardScheduler,
     isTileInSelectedTabs,
@@ -47,9 +48,16 @@ type TabWithUrls = DashboardTab & {
     selfUrl: string;
 };
 
+type TabGroup = {
+    key: string;
+    tiles: Dashboard['tiles'];
+    layouts: { lg: Layout[]; md: Layout[] };
+};
+
 type MinimalDashboardContentProps = {
     filteredAndSortedDashboardTiles: Dashboard['tiles'];
     layouts: { lg: Layout[]; md: Layout[] };
+    tabGroups: TabGroup[] | null;
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     isTabEmpty: boolean;
     canNavigateBetweenTabs: boolean;
@@ -57,9 +65,81 @@ type MinimalDashboardContentProps = {
     activeTab: DashboardTab | null;
 };
 
+const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
+    switch (tile.type) {
+        case DashboardTileTypes.SAVED_CHART:
+            return (
+                <ChartTile
+                    key={tile.uuid}
+                    minimal
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.MARKDOWN:
+            return (
+                <MarkdownTile
+                    key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.LOOM:
+            return (
+                <LoomTile
+                    key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.SQL_CHART:
+            return (
+                <SqlChartTile
+                    key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.HEADING:
+            return (
+                <HeadingTile
+                    key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.DATA_APP:
+            return (
+                <DataAppTile
+                    key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        default:
+            return assertUnreachable(
+                tile,
+                `Dashboard tile type is not recognised`,
+            );
+    }
+};
+
 const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     filteredAndSortedDashboardTiles,
     layouts,
+    tabGroups,
     gridProps,
     isTabEmpty,
     canNavigateBetweenTabs,
@@ -132,67 +212,38 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                     mt="40px"
                 />
             ) : (
-                <ResponsiveGridLayout {...gridProps} layouts={layouts}>
-                    {filteredAndSortedDashboardTiles.map((tile) => (
-                        <div key={tile.uuid}>
-                            {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                                <ChartTile
-                                    key={tile.uuid}
-                                    minimal
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.MARKDOWN ? (
-                                <MarkdownTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.LOOM ? (
-                                <LoomTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.SQL_CHART ? (
-                                <SqlChartTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.HEADING ? (
-                                <HeadingTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.DATA_APP ? (
-                                <DataAppTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : (
-                                assertUnreachable(
-                                    tile,
-                                    `Dashboard tile type is not recognised`,
-                                )
-                            )}
-                        </div>
-                    ))}
-                </ResponsiveGridLayout>
+                // Wrapper is the deterministic screenshot/PDF target used by
+                // UnfurlService — it must encompass all grids so multi-tab
+                // exports are captured fully.
+                <div className={DASHBOARD_GRID_CLASS}>
+                    {tabGroups ? (
+                        // Multi-tab export: one grid per tab so each tab
+                        // keeps its own y=0 origin and react-grid-layout's
+                        // vertical compact cannot flow tiles from one tab
+                        // into another tab's empty cells.
+                        tabGroups.map((group) => (
+                            <ResponsiveGridLayout
+                                key={group.key}
+                                {...gridProps}
+                                layouts={group.layouts}
+                            >
+                                {group.tiles.map((tile) => (
+                                    <div key={tile.uuid}>
+                                        {renderDashboardTile(tile)}
+                                    </div>
+                                ))}
+                            </ResponsiveGridLayout>
+                        ))
+                    ) : (
+                        <ResponsiveGridLayout {...gridProps} layouts={layouts}>
+                            {filteredAndSortedDashboardTiles.map((tile) => (
+                                <div key={tile.uuid}>
+                                    {renderDashboardTile(tile)}
+                                </div>
+                            ))}
+                        </ResponsiveGridLayout>
+                    )}
+                </div>
             )}
 
             <ScreenshotProgressIndicator
@@ -364,6 +415,78 @@ const MinimalDashboard: FC = () => {
         };
     }, [filteredAndSortedDashboardTiles, gridProps.cols]);
 
+    // Multi-tab export: group tiles per tab so each tab renders in its own
+    // <ResponsiveGridLayout>. Tabs share the same y=0 origin, so a single grid
+    // lets react-grid-layout's vertical compact reflow tiles across tab
+    // boundaries (PROD-2505-style overlap).
+    //
+    // Orphan tiles (no tabUuid) are merged into the first tab's group so they
+    // share its grid coordinate space — matching how the regular dashboard
+    // view renders them on the first tab (PROD-2505 fix). If they had their
+    // own grid, orphans that were positioned to share a row with first-tab
+    // tiles (e.g. left/right halves at y=0) would get split into two stacked
+    // rows in the export. If no tabs have tiles, orphans get their own group.
+    const tabGroups = useMemo<TabGroup[] | null>(() => {
+        if (!schedulerTabsSelected) return null;
+
+        const tilesByTab = new Map<string, Dashboard['tiles']>();
+        const orphanTiles: Dashboard['tiles'] = [];
+        for (const tile of filteredAndSortedDashboardTiles) {
+            if (!tile.tabUuid) {
+                orphanTiles.push(tile);
+                continue;
+            }
+            const bucket = tilesByTab.get(tile.tabUuid) ?? [];
+            bucket.push(tile);
+            tilesByTab.set(tile.tabUuid, bucket);
+        }
+
+        const buildLayouts = (tiles: Dashboard['tiles']) => ({
+            lg: tiles.map((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
+            ),
+            md: tiles.map((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.md),
+            ),
+        });
+
+        const groups: TabGroup[] = [];
+        let orphansAssigned = false;
+        for (const tab of sortedTabs) {
+            const tabTiles = tilesByTab.get(tab.uuid);
+            if (!tabTiles || tabTiles.length === 0) continue;
+
+            const tiles =
+                !orphansAssigned && orphanTiles.length > 0
+                    ? [...orphanTiles, ...tabTiles]
+                    : tabTiles;
+            if (!orphansAssigned && orphanTiles.length > 0) {
+                orphansAssigned = true;
+            }
+            groups.push({
+                key: tab.uuid,
+                tiles,
+                layouts: buildLayouts(tiles),
+            });
+        }
+
+        // No selected tab has tiles — fall back to orphan-only group so they
+        // still render.
+        if (!orphansAssigned && orphanTiles.length > 0) {
+            groups.push({
+                key: 'orphan-tiles',
+                tiles: orphanTiles,
+                layouts: buildLayouts(orphanTiles),
+            });
+        }
+        return groups;
+    }, [
+        schedulerTabsSelected,
+        filteredAndSortedDashboardTiles,
+        sortedTabs,
+        gridProps.cols,
+    ]);
+
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <span>{dashboardError.error.message}</span>;
         if (schedulerError) return <span>{schedulerError.error.message}</span>;
@@ -401,6 +524,7 @@ const MinimalDashboard: FC = () => {
                     filteredAndSortedDashboardTiles
                 }
                 layouts={layouts}
+                tabGroups={tabGroups}
                 gridProps={gridProps}
                 isTabEmpty={!!isTabEmpty}
                 canNavigateBetweenTabs={canNavigateBetweenTabs}
