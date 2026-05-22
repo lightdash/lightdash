@@ -1,3 +1,10 @@
+## [0.3007.1](https://github.com/lightdash/lightdash/compare/0.3007.0...0.3007.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* replace boolean `enabled` with `permission_mode` enum for MCP server tool settings ([#23427](https://github.com/lightdash/lightdash/issues/23427)) ([2c7e41e](https://github.com/lightdash/lightdash/commit/2c7e41efe5b1767e5603deb57a062a7bcb0c375a))
+
 # [0.3007.0](https://github.com/lightdash/lightdash/compare/0.3006.0...0.3007.0) (2026-05-21)
 
 
