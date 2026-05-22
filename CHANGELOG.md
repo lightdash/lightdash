@@ -1,3 +1,15 @@
+# [0.3008.0](https://github.com/lightdash/lightdash/compare/0.3007.2...0.3008.0) (2026-05-22)
+
+
+### Bug Fixes
+
+* **snowflake:** avoid warehouse resume on session setup ([#23395](https://github.com/lightdash/lightdash/issues/23395)) ([2fdc44f](https://github.com/lightdash/lightdash/commit/2fdc44f8dc99c5fe732edf12501d680704d861ba))
+
+
+### Features
+
+* invalidate cache on standalone data app refresh ([#23431](https://github.com/lightdash/lightdash/issues/23431)) ([023645b](https://github.com/lightdash/lightdash/commit/023645b1cc5b94899169b2208eba3d706a497420))
+
 ## [0.3007.2](https://github.com/lightdash/lightdash/compare/0.3007.1...0.3007.2) (2026-05-22)
 
 
