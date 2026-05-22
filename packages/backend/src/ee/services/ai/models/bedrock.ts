@@ -34,11 +34,13 @@ export const getBedrockProvider = (
         ? createAmazonBedrock({
               apiKey: config.apiKey,
               region: config.region,
+              headers: config.customHeaders,
           })
         : createAmazonBedrock({
               region: config.region,
               accessKeyId: config.accessKeyId,
               secretAccessKey: config.secretAccessKey,
+              headers: config.customHeaders,
               ...(config.sessionToken
                   ? { sessionToken: config.sessionToken }
                   : {}),
