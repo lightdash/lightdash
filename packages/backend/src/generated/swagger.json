@@ -11839,6 +11839,9 @@
                     "hasCredentials": {
                         "type": "boolean"
                     },
+                    "allowOAuthCredentialSharing": {
+                        "type": "boolean"
+                    },
                     "authType": {
                         "$ref": "#/components/schemas/AiMcpServerAuthType"
                     },
@@ -11867,6 +11870,7 @@
                     "connectionStatus",
                     "credentialScope",
                     "hasCredentials",
+                    "allowOAuthCredentialSharing",
                     "authType",
                     "iconUrl",
                     "url",
@@ -11927,6 +11931,9 @@
                     },
                     "credentialScope": {
                         "$ref": "#/components/schemas/AiMcpCredentialScope"
+                    },
+                    "allowOAuthCredentialSharing": {
+                        "type": "boolean"
                     },
                     "authType": {
                         "$ref": "#/components/schemas/AiMcpServerAuthType"
@@ -12032,6 +12039,14 @@
             },
             "ApiStartAiMcpOAuthResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__authorizationUrl-string__"
+            },
+            "ApiAiMcpOAuthCredentialRequest": {
+                "properties": {
+                    "credentialScope": {
+                        "$ref": "#/components/schemas/AiMcpCredentialScope"
+                    }
+                },
+                "type": "object"
             },
             "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
@@ -13294,8 +13309,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13353,8 +13368,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -36424,7 +36439,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiMcpOAuthCredentialRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/oauth/disconnect": {
@@ -36470,7 +36495,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiMcpOAuthCredentialRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}": {

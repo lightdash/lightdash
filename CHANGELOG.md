@@ -1,3 +1,10 @@
+## [0.3009.5](https://github.com/lightdash/lightdash/compare/0.3009.4...0.3009.5) (2026-05-22)
+
+
+### Bug Fixes
+
+* wait for user to select theme and template ([#23440](https://github.com/lightdash/lightdash/issues/23440)) ([964622b](https://github.com/lightdash/lightdash/commit/964622b4d77fab0122f2bf8d30b930962f2e77d8))
+
 ## [0.3009.4](https://github.com/lightdash/lightdash/compare/0.3009.3...0.3009.4) (2026-05-22)
 
 

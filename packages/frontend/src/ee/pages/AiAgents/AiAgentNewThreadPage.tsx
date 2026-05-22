@@ -15,6 +15,7 @@ import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
+import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
@@ -216,6 +217,13 @@ const AiAgentNewThreadPage: FC = () => {
                             </Group>
                         )}
                     </Stack>
+
+                    {projectUuid && agentUuid && (
+                        <AiAgentNewThreadMcpConnections
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                        />
+                    )}
 
                     {verifiedQuestions && (
                         <SuggestedQuestions

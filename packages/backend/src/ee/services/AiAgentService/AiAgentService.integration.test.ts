@@ -1,10 +1,19 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    defineUserAbility,
+    OrganizationMemberRole,
+    SEED_ORG_1_EDITOR,
+    SEED_ORG_1_EDITOR_EMAIL,
+    SEED_ORG_1_VIEWER,
+    SEED_ORG_1_VIEWER_EMAIL,
+    SEED_PROJECT,
+    type SessionUser,
+} from '@lightdash/common';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
     getModels,
@@ -12,6 +21,53 @@ import {
     getTestContext,
     type IntegrationTestContext,
 } from '../../../vitest.setup.integration';
+
+type RuntimeClientSpies = {
+    startOAuthConnection: (...args: unknown[]) => Promise<string>;
+    disconnectOAuthConnection: (...args: unknown[]) => Promise<void>;
+    completeOAuthConnection: (...args: unknown[]) => Promise<void>;
+};
+
+type DiscoverMcpServerToolsSpyTarget = {
+    discoverMcpServerTools: (...args: unknown[]) => Promise<unknown[]>;
+};
+
+const getProjectUser = (
+    context: IntegrationTestContext,
+    args: {
+        userUuid: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: OrganizationMemberRole;
+    },
+): SessionUser => ({
+    userUuid: args.userUuid,
+    email: args.email,
+    firstName: args.firstName,
+    lastName: args.lastName,
+    organizationUuid: context.testUser.organizationUuid,
+    organizationName: context.testUser.organizationName,
+    organizationCreatedAt: context.testUser.organizationCreatedAt,
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    timezone: null,
+    isSetupComplete: true,
+    userId: context.testUser.userId,
+    role: args.role,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ability: defineUserAbility(
+        {
+            organizationUuid: context.testUser.organizationUuid!,
+            userUuid: args.userUuid,
+            role: args.role,
+        },
+        [],
+    ),
+    abilityRules: [],
+});
 
 describe('AiAgentService MCP support', () => {
     let context: IntegrationTestContext;
@@ -439,5 +495,451 @@ describe('AiAgentService MCP support', () => {
             );
 
         expect(updatedAgentMcpServers).toEqual([]);
+    });
+
+    it('creates OAuth MCP servers without credentials and disables sharing by default', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `OAuth MCP ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+            },
+        );
+
+        expect(mcpServer.allowOAuthCredentialSharing).toBe(false);
+        expect(mcpServer.hasCredentials).toBe(false);
+        expect(mcpServer.credentialScope).toBeNull();
+
+        await expect(
+            models.aiAgentModel.getCredential(mcpServer.uuid, 'user', {
+                userUuid: context.testUser.userUuid,
+            }),
+        ).resolves.toBeUndefined();
+
+        await expect(
+            models.aiAgentModel.getCredential(mcpServer.uuid, 'shared'),
+        ).resolves.toBeUndefined();
+    });
+
+    it('does not let non-managers enable shared OAuth credentials during server creation', async () => {
+        const services = getServices(context.app);
+        const editorUser = getProjectUser(context, {
+            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+            email: SEED_ORG_1_EDITOR_EMAIL.email,
+            firstName: SEED_ORG_1_EDITOR.first_name,
+            lastName: SEED_ORG_1_EDITOR.last_name,
+            role: OrganizationMemberRole.EDITOR,
+        });
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        await expect(
+            services.aiAgentService.createMcpServer(
+                editorUser,
+                SEED_PROJECT.project_uuid,
+                {
+                    name: `Unauthorized Shared OAuth ${suffix}`,
+                    url: mcpServerUrl,
+                    authType: 'oauth',
+                    allowOAuthCredentialSharing: true,
+                },
+            ),
+        ).rejects.toThrow();
+    });
+
+    it('does not fallback to shared OAuth credentials when sharing is disabled', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `User Only OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+            },
+        );
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'shared',
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: context.testUser.userUuid,
+        });
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'user',
+            userUuid: context.testUser.userUuid,
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'user',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: context.testUser.userUuid,
+        });
+
+        await expect(
+            models.aiAgentModel.resolveCredential(
+                mcpServer.uuid,
+                SEED_ORG_1_EDITOR.user_uuid,
+            ),
+        ).resolves.toBeUndefined();
+
+        await expect(
+            models.aiAgentModel.resolveCredential(
+                mcpServer.uuid,
+                context.testUser.userUuid,
+            ),
+        ).resolves.toMatchObject({
+            credentialScope: 'user',
+            userUuid: context.testUser.userUuid,
+        });
+    });
+
+    it('falls back to shared OAuth credentials only when sharing is enabled', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Shared OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                allowOAuthCredentialSharing: true,
+            },
+        );
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'shared',
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: context.testUser.userUuid,
+        });
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'user',
+            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'user',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+        });
+
+        await expect(
+            models.aiAgentModel.resolveCredential(
+                mcpServer.uuid,
+                SEED_ORG_1_EDITOR.user_uuid,
+            ),
+        ).resolves.toMatchObject({
+            credentialScope: 'user',
+            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+        });
+
+        await expect(
+            models.aiAgentModel.resolveCredential(
+                mcpServer.uuid,
+                SEED_ORG_1_VIEWER.user_uuid,
+            ),
+        ).resolves.toMatchObject({
+            credentialScope: 'shared',
+            userUuid: null,
+        });
+    });
+
+    it('prefers user-scoped OAuth credentials over shared credentials in server status', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Status OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                allowOAuthCredentialSharing: true,
+            },
+        );
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'shared',
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: context.testUser.userUuid,
+        });
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'user',
+            userUuid: SEED_ORG_1_VIEWER.user_uuid,
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'user',
+                connectionStatus: 'connected',
+            },
+            actorUserUuid: SEED_ORG_1_VIEWER.user_uuid,
+        });
+
+        await expect(
+            models.aiAgentModel.getMcpServer(mcpServer.uuid, {
+                userUuid: SEED_ORG_1_VIEWER.user_uuid,
+            }),
+        ).resolves.toMatchObject({
+            credentialScope: 'user',
+            connectedByUserUuid: SEED_ORG_1_VIEWER.user_uuid,
+        });
+
+        await expect(
+            models.aiAgentModel.getMcpServer(mcpServer.uuid, {
+                userUuid: SEED_ORG_1_EDITOR.user_uuid,
+            }),
+        ).resolves.toMatchObject({
+            credentialScope: 'shared',
+            connectedByUserUuid: context.testUser.userUuid,
+        });
+    });
+
+    it('lets non-managers connect and disconnect their own OAuth credential when sharing is enabled', async () => {
+        const services = getServices(context.app);
+        const viewerUser = getProjectUser(context, {
+            userUuid: SEED_ORG_1_VIEWER.user_uuid,
+            email: SEED_ORG_1_VIEWER_EMAIL.email,
+            firstName: SEED_ORG_1_VIEWER.first_name,
+            lastName: SEED_ORG_1_VIEWER.last_name,
+            role: OrganizationMemberRole.VIEWER,
+        });
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Viewer OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                allowOAuthCredentialSharing: true,
+            },
+        );
+
+        expect(mcpServer.allowOAuthCredentialSharing).toBe(true);
+        expect(mcpServer.credentialScope).toBeNull();
+
+        const runtimeClient = Reflect.get(
+            services.aiAgentService,
+            'aiAgentMcpRuntimeClient',
+        ) as RuntimeClientSpies;
+        const startOAuthConnectionSpy = vi
+            .spyOn(runtimeClient, 'startOAuthConnection')
+            .mockResolvedValue('https://example.com/oauth');
+        const disconnectOAuthConnectionSpy = vi
+            .spyOn(runtimeClient, 'disconnectOAuthConnection')
+            .mockResolvedValue(undefined);
+
+        await expect(
+            services.aiAgentService.startMcpOAuthConnection(
+                viewerUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+            ),
+        ).resolves.toBe('https://example.com/oauth');
+
+        expect(startOAuthConnectionSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mcpServerUuid: mcpServer.uuid,
+                credentialScope: 'user',
+                userUuid: viewerUser.userUuid,
+            }),
+        );
+
+        await expect(
+            services.aiAgentService.disconnectMcpOAuthConnection(
+                viewerUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(disconnectOAuthConnectionSpy).toHaveBeenCalledWith({
+            mcpServerUuid: mcpServer.uuid,
+            credentialScope: 'user',
+            userUuid: viewerUser.userUuid,
+            actorUserUuid: viewerUser.userUuid,
+        });
+
+        startOAuthConnectionSpy.mockRestore();
+        disconnectOAuthConnectionSpy.mockRestore();
+    });
+
+    it('keeps shared OAuth connect manager-only and requires explicit shared scope', async () => {
+        const services = getServices(context.app);
+        const editorUser = getProjectUser(context, {
+            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+            email: SEED_ORG_1_EDITOR_EMAIL.email,
+            firstName: SEED_ORG_1_EDITOR.first_name,
+            lastName: SEED_ORG_1_EDITOR.last_name,
+            role: OrganizationMemberRole.EDITOR,
+        });
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Explicit Shared OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                allowOAuthCredentialSharing: true,
+            },
+        );
+
+        const runtimeClient = Reflect.get(
+            services.aiAgentService,
+            'aiAgentMcpRuntimeClient',
+        ) as RuntimeClientSpies;
+        const startOAuthConnectionSpy = vi
+            .spyOn(runtimeClient, 'startOAuthConnection')
+            .mockResolvedValue('https://example.com/oauth');
+
+        await expect(
+            services.aiAgentService.startMcpOAuthConnection(
+                editorUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+                {
+                    credentialScope: 'shared',
+                },
+            ),
+        ).rejects.toThrow();
+
+        await expect(
+            services.aiAgentService.startMcpOAuthConnection(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+                {
+                    credentialScope: 'shared',
+                },
+            ),
+        ).resolves.toBe('https://example.com/oauth');
+
+        expect(startOAuthConnectionSpy).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                mcpServerUuid: mcpServer.uuid,
+                credentialScope: 'shared',
+                userUuid: undefined,
+            }),
+        );
+
+        startOAuthConnectionSpy.mockRestore();
+    });
+
+    it('persists callback errors and resolves callback credentials on the user row', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Callback OAuth ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+            },
+        );
+
+        await models.aiAgentModel.upsertCredential({
+            serverUuid: mcpServer.uuid,
+            scope: 'user',
+            userUuid: context.testUser.userUuid,
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'user',
+                connectionStatus: 'connecting',
+                state: 'user-oauth-state',
+            },
+            actorUserUuid: context.testUser.userUuid,
+        });
+
+        await expect(
+            services.aiAgentService.completeMcpOAuthConnection({
+                projectUuid: SEED_PROJECT.project_uuid,
+                mcpServerUuid: mcpServer.uuid,
+                state: 'user-oauth-state',
+            }),
+        ).rejects.toThrow('OAuth callback is missing code or state');
+
+        await expect(
+            models.aiAgentModel.getCredential(mcpServer.uuid, 'user', {
+                userUuid: context.testUser.userUuid,
+            }),
+        ).resolves.toMatchObject({
+            credentials: expect.objectContaining({
+                type: 'oauth',
+                connectionStatus: 'error',
+                lastError: 'OAuth callback is missing code or state',
+            }),
+        });
+
+        const runtimeClient = Reflect.get(
+            services.aiAgentService,
+            'aiAgentMcpRuntimeClient',
+        ) as RuntimeClientSpies;
+        const completeOAuthConnectionSpy = vi
+            .spyOn(runtimeClient, 'completeOAuthConnection')
+            .mockResolvedValue(undefined);
+        const discoverMcpServerToolsSpy = vi
+            .spyOn(
+                services.aiAgentService as unknown as DiscoverMcpServerToolsSpyTarget,
+                'discoverMcpServerTools',
+            )
+            .mockResolvedValue([]);
+
+        await services.aiAgentService.completeMcpOAuthConnection({
+            projectUuid: SEED_PROJECT.project_uuid,
+            mcpServerUuid: mcpServer.uuid,
+            code: 'oauth-code',
+            state: 'user-oauth-state',
+        });
+
+        expect(completeOAuthConnectionSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mcpServerUuid: mcpServer.uuid,
+                credential: expect.objectContaining({
+                    credentialScope: 'user',
+                    userUuid: context.testUser.userUuid,
+                }),
+            }),
+        );
+
+        completeOAuthConnectionSpy.mockRestore();
+        discoverMcpServerToolsSpy.mockRestore();
     });
 });

@@ -14,6 +14,7 @@ import {
     AiAgentUserPreferences,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
+    AiMcpCredentialScope,
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
@@ -26,6 +27,7 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
     ApiCreateAiMcpServer,
@@ -1899,6 +1901,47 @@ export class AiAgentService extends BaseService {
         return organizationUuid;
     }
 
+    /**
+     * Personal OAuth credentials are different from MCP server management:
+     * any project member who can view the project may connect/disconnect
+     * their own account, but shared credentials stay manager-only.
+     */
+    private async assertCanUsePersonalMcpCredentials(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return organizationUuid;
+    }
+
     private async getProjectMcpServerOrThrow(
         projectUuid: string,
         mcpServerUuid: string,
@@ -1947,22 +1990,28 @@ export class AiAgentService extends BaseService {
         projectUuid: string;
         mcpServerUuid: string;
         actorUserUuid?: string;
+        credential?: AiMcpCredential;
         defaultEnabledForExistingAttachments?: boolean;
     }) {
         const server = await this.getProjectMcpServerOrThrow(
             args.projectUuid,
             args.mcpServerUuid,
         );
-        const credential = await this.aiAgentModel.getCredential(
-            args.mcpServerUuid,
-            'shared',
-            {
-                userUuid: args.actorUserUuid,
-            },
-        );
+        const credential =
+            args.credential ??
+            (args.actorUserUuid
+                ? await this.aiAgentModel.resolveCredential(
+                      args.mcpServerUuid,
+                      args.actorUserUuid,
+                  )
+                : await this.aiAgentModel.getCredential(
+                      args.mcpServerUuid,
+                      'shared',
+                  ));
 
         const tools = await this.aiAgentMcpRuntimeClient.listTools({
             projectUuid: args.projectUuid,
+            userUuid: args.actorUserUuid,
             mcpServer: {
                 ...server,
                 resolvedCredential: credential?.credentials ?? null,
@@ -1982,7 +2031,7 @@ export class AiAgentService extends BaseService {
 
     public async listMcpServers(user: SessionUser, projectUuid: string) {
         await this.assertCanManageMcpServers(user, projectUuid);
-        return this.aiAgentModel.listMcpServers(projectUuid);
+        return this.aiAgentModel.listMcpServers(projectUuid, user.userUuid);
     }
 
     public async listMcpServerTools(
@@ -2143,15 +2192,10 @@ export class AiAgentService extends BaseService {
             })
         ).toString();
 
-        const credentialScope =
-            body.credentialScope ??
-            (body.authType === 'none' ? undefined : ('shared' as const));
-
-        if (credentialScope === 'user') {
-            throw new NotImplementedError(
-                'User-scoped MCP credentials are not implemented yet',
-            );
-        }
+        // Only createMcpServer callers can set this flag, and this endpoint is
+        // already gated by assertCanManageMcpServers above.
+        const allowOAuthCredentialSharing =
+            body.allowOAuthCredentialSharing ?? false;
 
         switch (body.authType) {
             case 'none':
@@ -2160,9 +2204,14 @@ export class AiAgentService extends BaseService {
                         'Credentials are not allowed for auth type "none"',
                     );
                 }
-                if (credentialScope !== undefined) {
+                if (body.credentialScope !== undefined) {
                     throw new ParameterError(
                         'Credential scope is not allowed for auth type "none"',
+                    );
+                }
+                if (allowOAuthCredentialSharing) {
+                    throw new ParameterError(
+                        'OAuth credential sharing is only allowed for auth type "oauth"',
                     );
                 }
                 break;
@@ -2172,11 +2221,26 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
+                if (body.credentialScope && body.credentialScope !== 'shared') {
+                    throw new ParameterError(
+                        'Bearer MCP servers only support shared credentials',
+                    );
+                }
+                if (allowOAuthCredentialSharing) {
+                    throw new ParameterError(
+                        'OAuth credential sharing is only allowed for auth type "oauth"',
+                    );
+                }
                 break;
             case 'oauth':
                 if (body.credentials?.bearerToken) {
                     throw new ParameterError(
                         'Bearer credentials are not allowed for auth type "oauth"',
+                    );
+                }
+                if (body.credentialScope !== undefined) {
+                    throw new ParameterError(
+                        'Credential scope is set during OAuth connection, not MCP server creation',
                     );
                 }
                 break;
@@ -2226,7 +2290,7 @@ export class AiAgentService extends BaseService {
             url: normalizedUrl,
             iconUrl: mcpConnectionMetadata?.iconUrl ?? null,
             authType: body.authType,
-            credentialScope: credentialScope ?? 'shared',
+            allowOAuthCredentialSharing,
             credentials,
             actorUserUuid: user.userUuid,
         });
@@ -2251,9 +2315,8 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         mcpServerUuid: string,
+        body?: ApiAiMcpOAuthCredentialRequest,
     ): Promise<string> {
-        await this.assertCanManageMcpServers(user, projectUuid);
-
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
             mcpServerUuid,
@@ -2263,9 +2326,25 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('MCP server is not configured for OAuth');
         }
 
+        const credentialScope: AiMcpCredentialScope =
+            body?.credentialScope ?? 'user';
+
+        if (credentialScope === 'shared') {
+            if (!server.allowOAuthCredentialSharing) {
+                throw new ParameterError(
+                    'This MCP server does not allow shared OAuth credentials',
+                );
+            }
+            await this.assertCanManageMcpServers(user, projectUuid);
+        } else {
+            await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
+        }
+
         return this.aiAgentMcpRuntimeClient.startOAuthConnection({
             projectUuid,
             mcpServerUuid,
+            credentialScope,
+            userUuid: credentialScope === 'user' ? user.userUuid : undefined,
             actorUserUuid: user.userUuid,
             serverUrl: server.url,
         });
@@ -2286,32 +2365,25 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('MCP server is not configured for OAuth');
         }
 
+        const credential = args.state
+            ? await this.aiAgentModel.getOauthCredentialByState({
+                  serverUuid: args.mcpServerUuid,
+                  state: args.state,
+              })
+            : undefined;
+
         if (!args.code || !args.state) {
             const errorMessage = 'OAuth callback is missing code or state';
-            await this.persistSharedMcpOAuthConnectionError(
-                args.mcpServerUuid,
-                errorMessage,
-            );
-            throw new ParameterError(errorMessage);
-        }
-
-        const credential = await this.aiAgentModel.getCredential(
-            args.mcpServerUuid,
-            'shared',
-        );
-
-        if (credential?.credentials.type !== 'oauth') {
-            throw new ParameterError('Shared OAuth credential was not found');
-        }
-
-        if (credential.credentials.state !== args.state) {
-            const errorMessage = 'Invalid OAuth state';
-            await this.persistSharedMcpOAuthConnectionError(
+            await this.persistMcpOAuthConnectionError(
                 args.mcpServerUuid,
                 errorMessage,
                 credential,
             );
             throw new ParameterError(errorMessage);
+        }
+
+        if (credential?.credentials.type !== 'oauth') {
+            throw new ParameterError('Invalid OAuth state');
         }
 
         await this.aiAgentMcpRuntimeClient.completeOAuthConnection({
@@ -2325,6 +2397,12 @@ export class AiAgentService extends BaseService {
         await this.discoverMcpServerTools({
             projectUuid: args.projectUuid,
             mcpServerUuid: args.mcpServerUuid,
+            actorUserUuid:
+                credential.userUuid ??
+                credential.updatedByUserUuid ??
+                credential.createdByUserUuid ??
+                undefined,
+            credential,
             defaultEnabledForExistingAttachments: true,
         }).catch((error) => {
             Logger.error(
@@ -2334,7 +2412,7 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    private async persistSharedMcpOAuthConnectionError(
+    private async persistMcpOAuthConnectionError(
         mcpServerUuid: string,
         errorMessage: string,
         credential?: AiMcpCredential,
@@ -2349,12 +2427,13 @@ export class AiAgentService extends BaseService {
 
         await this.aiAgentModel.upsertCredential({
             serverUuid: mcpServerUuid,
-            scope: 'shared',
+            scope: existingCredential.credentialScope,
             credentials: {
                 ...existingCredential.credentials,
                 connectionStatus: 'error',
                 lastError: errorMessage,
             },
+            userUuid: existingCredential.userUuid,
             actorUserUuid:
                 existingCredential.updatedByUserUuid ??
                 existingCredential.createdByUserUuid ??
@@ -2366,9 +2445,8 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         mcpServerUuid: string,
+        body?: ApiAiMcpOAuthCredentialRequest,
     ): Promise<void> {
-        await this.assertCanManageMcpServers(user, projectUuid);
-
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
             mcpServerUuid,
@@ -2378,8 +2456,24 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('MCP server is not configured for OAuth');
         }
 
+        const credentialScope: AiMcpCredentialScope =
+            body?.credentialScope ?? 'user';
+
+        if (credentialScope === 'shared') {
+            if (!server.allowOAuthCredentialSharing) {
+                throw new ParameterError(
+                    'This MCP server does not allow shared OAuth credentials',
+                );
+            }
+            await this.assertCanManageMcpServers(user, projectUuid);
+        } else {
+            await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
+        }
+
         await this.aiAgentMcpRuntimeClient.disconnectOAuthConnection({
             mcpServerUuid,
+            credentialScope,
+            userUuid: credentialScope === 'user' ? user.userUuid : undefined,
             actorUserUuid: user.userUuid,
         });
     }
@@ -5191,6 +5285,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const mcpToolSetup: AgentMcpToolSetup =
             await this.aiAgentMcpRuntimeClient.resolveTools({
                 mcpServers,
+                userUuid: user.userUuid,
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });

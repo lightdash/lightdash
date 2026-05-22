@@ -24,6 +24,7 @@ const getMcpServer = (
     url: 'https://docs.example.com/mcp',
     iconUrl: null,
     authType: 'none',
+    allowOAuthCredentialSharing: false,
     hasCredentials: false,
     credentialScope: null,
     connectionStatus: 'connected',
@@ -96,6 +97,7 @@ describe('resolveMcpTools', () => {
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [healthyServer, brokenServer],
+            userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
 
@@ -117,11 +119,15 @@ describe('resolveMcpTools', () => {
             connectionStatus: 'connected',
             error: null,
             iconUrl: 'https://docs.example.com/docs-icon.svg',
+            credentialScope: null,
+            userUuid: undefined,
         });
         expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
             serverUuid: 'broken-server',
             connectionStatus: 'error',
             error: 'We could not connect to the MCP server. Check that it is available and try again.',
+            credentialScope: null,
+            userUuid: undefined,
         });
 
         await result.closeMcpClients();
@@ -150,6 +156,7 @@ describe('resolveMcpTools', () => {
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [mcpServer],
+            userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
 
@@ -158,6 +165,8 @@ describe('resolveMcpTools', () => {
             connectionStatus: 'connected',
             error: null,
             iconUrl: null,
+            credentialScope: null,
+            userUuid: undefined,
         });
 
         await result.closeMcpClients();
@@ -187,6 +196,7 @@ describe('resolveMcpTools', () => {
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [server],
+            userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
 
@@ -216,6 +226,7 @@ describe('resolveMcpTools', () => {
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
 
@@ -232,6 +243,8 @@ describe('resolveMcpTools', () => {
             serverUuid: 'oauth-server',
             connectionStatus: 'not_connected',
             error: 'MCP server "OAuth MCP" requires authorization before this agent can use it.',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
         });
     });
 
@@ -253,6 +266,7 @@ describe('resolveMcpTools', () => {
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
             debugLoggingEnabled: false,
         });
 
@@ -269,6 +283,8 @@ describe('resolveMcpTools', () => {
             serverUuid: 'oauth-server-first-time',
             connectionStatus: 'not_connected',
             error: 'MCP server "OAuth MCP" requires authorization before this agent can use it.',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
         });
     });
 });
@@ -296,7 +312,7 @@ describe('createHttpMcpClient', () => {
             new McpAuthorizationRequiredError(
                 'OAuth MCP',
                 'oauth-server',
-                'shared',
+                'user',
             ),
         );
     });

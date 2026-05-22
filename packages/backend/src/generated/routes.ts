@@ -10256,6 +10256,10 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasCredentials: { dataType: 'boolean', required: true },
+                allowOAuthCredentialSharing: {
+                    dataType: 'boolean',
+                    required: true,
+                },
                 authType: { ref: 'AiMcpServerAuthType', required: true },
                 iconUrl: {
                     dataType: 'union',
@@ -10333,6 +10337,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 credentialScope: { ref: 'AiMcpCredentialScope' },
+                allowOAuthCredentialSharing: { dataType: 'boolean' },
                 authType: { ref: 'AiMcpServerAuthType', required: true },
                 url: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -10434,6 +10439,17 @@ const models: TsoaRoute.Models = {
     ApiStartAiMcpOAuthResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess__authorizationUrl-string__', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiMcpOAuthCredentialRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                credentialScope: { ref: 'AiMcpCredentialScope' },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
@@ -11706,11 +11722,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -11768,11 +11784,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -39251,6 +39267,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        body: {
+            in: 'body',
+            name: 'body',
+            ref: 'ApiAiMcpOAuthCredentialRequest',
+        },
     };
     app.post(
         '/api/v1/projects/:projectUuid/aiAgents/mcpServers/:mcpServerUuid/oauth/start',
@@ -39315,6 +39336,11 @@ export function RegisterRoutes(app: Router) {
             name: 'mcpServerUuid',
             required: true,
             dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            ref: 'ApiAiMcpOAuthCredentialRequest',
         },
     };
     app.post(

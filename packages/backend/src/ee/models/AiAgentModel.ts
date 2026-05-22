@@ -679,6 +679,8 @@ export class AiAgentModel {
             url: row.url,
             iconUrl: row.icon_url,
             authType: row.auth_type,
+            allowOAuthCredentialSharing:
+                row.allow_oauth_credential_sharing ?? false,
             ...credentialStatus,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -691,16 +693,6 @@ export class AiAgentModel {
         return JSON.parse(
             this.encryptionUtil.decrypt(encryptedCredentials),
         ) as AiMcpCredentialPayload;
-    }
-
-    private static createEmptyOauthCredentialPayload(
-        credentialScope: AiMcpCredentialScope,
-    ): AiMcpOAuthCredentialPayload {
-        return {
-            type: 'oauth',
-            credentialScope,
-            connectionStatus: 'not_connected',
-        };
     }
 
     private toAiMcpCredential(row: DbAiMcpServerCredential): AiMcpCredential {
@@ -789,6 +781,22 @@ export class AiAgentModel {
         } satisfies Record<keyof DbAiAgentMcpServerTool, Knex.Value>;
     }
 
+    private static getMcpServerSelect(trx: Knex | Knex.Transaction) {
+        return {
+            ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+            project_uuid: `${AiMcpServerTableName}.project_uuid`,
+            name: `${AiMcpServerTableName}.name`,
+            url: `${AiMcpServerTableName}.url`,
+            icon_url: `${AiMcpServerTableName}.icon_url`,
+            auth_type: `${AiMcpServerTableName}.auth_type`,
+            allow_oauth_credential_sharing: `${AiMcpServerTableName}.allow_oauth_credential_sharing`,
+            connection_status: `${AiMcpServerTableName}.connection_status`,
+            error: `${AiMcpServerTableName}.error`,
+            created_at: `${AiMcpServerTableName}.created_at`,
+            updated_at: `${AiMcpServerTableName}.updated_at`,
+        } satisfies Record<keyof DbAiMcpServer, Knex.Value>;
+    }
+
     private static getAgentMcpServerAttachmentSelect(
         trx: Knex | Knex.Transaction,
     ) {
@@ -823,7 +831,6 @@ export class AiAgentModel {
 
     private static serializeMcpCredentialPayload(
         authType: ApiCreateAiMcpServer['authType'],
-        credentialScope: AiMcpCredentialScope,
         credentials: ApiCreateAiMcpServer['credentials'],
     ): AiMcpCredentialPayload | null {
         switch (authType) {
@@ -841,9 +848,7 @@ export class AiAgentModel {
                     bearerToken: credentials.bearerToken,
                 };
             case 'oauth':
-                return AiAgentModel.createEmptyOauthCredentialPayload(
-                    credentialScope,
-                );
+                return null;
             default:
                 return assertUnreachable(
                     authType,
@@ -852,47 +857,30 @@ export class AiAgentModel {
         }
     }
 
-    async listMcpServers(projectUuid: string): Promise<AiMcpServer[]> {
+    async listMcpServers(
+        projectUuid: string,
+        userUuid?: string,
+    ): Promise<AiMcpServer[]> {
         const rows = await this.database(AiMcpServerTableName)
-            .select<DbAiMcpServer[]>({
-                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-                project_uuid: `${AiMcpServerTableName}.project_uuid`,
-                name: `${AiMcpServerTableName}.name`,
-                url: `${AiMcpServerTableName}.url`,
-                icon_url: `${AiMcpServerTableName}.icon_url`,
-                auth_type: `${AiMcpServerTableName}.auth_type`,
-                connection_status: `${AiMcpServerTableName}.connection_status`,
-                error: `${AiMcpServerTableName}.error`,
-                created_at: `${AiMcpServerTableName}.created_at`,
-                updated_at: `${AiMcpServerTableName}.updated_at`,
-            })
+            .select<DbAiMcpServer[]>(
+                AiAgentModel.getMcpServerSelect(this.database),
+            )
             .where('project_uuid', projectUuid)
             .orderBy('created_at', 'asc');
 
-        const credentials = await this.database(AiMcpServerCredentialTableName)
-            .select<DbAiMcpServerCredential[]>({
-                ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
-                ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
-                credential_scope: `${AiMcpServerCredentialTableName}.credential_scope`,
-                user_uuid: `${AiMcpServerCredentialTableName}.user_uuid`,
-                encrypted_credentials: `${AiMcpServerCredentialTableName}.encrypted_credentials`,
-                created_by_user_uuid: `${AiMcpServerCredentialTableName}.created_by_user_uuid`,
-                updated_by_user_uuid: `${AiMcpServerCredentialTableName}.updated_by_user_uuid`,
-                created_at: `${AiMcpServerCredentialTableName}.created_at`,
-                updated_at: `${AiMcpServerCredentialTableName}.updated_at`,
-            })
-            .whereIn(
-                'ai_mcp_server_uuid',
-                rows.map((row) => row.ai_mcp_server_uuid),
-            )
-            .andWhere('credential_scope', 'shared');
-
-        const credentialMap = new Map(
-            credentials.map((row) => {
-                const credential = this.toAiMcpCredential(row);
-                return [credential.mcpServerUuid, credential];
-            }),
+        const credentials = await Promise.all(
+            rows.map(
+                async (row) =>
+                    [
+                        row.ai_mcp_server_uuid,
+                        await this.getMcpServerStatusCredential(row, {
+                            userUuid,
+                        }),
+                    ] as const,
+            ),
         );
+
+        const credentialMap = new Map(credentials);
 
         return rows.map((row) =>
             AiAgentModel.toAiMcpServer(
@@ -904,21 +892,13 @@ export class AiAgentModel {
 
     async getMcpServer(
         serverUuid: string,
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            userUuid,
+            trx = this.database,
+        }: { userUuid?: string; trx?: Knex } = {},
     ): Promise<AiMcpServer | undefined> {
         const row = await trx(AiMcpServerTableName)
-            .select<DbAiMcpServer>({
-                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-                project_uuid: `${AiMcpServerTableName}.project_uuid`,
-                name: `${AiMcpServerTableName}.name`,
-                url: `${AiMcpServerTableName}.url`,
-                icon_url: `${AiMcpServerTableName}.icon_url`,
-                auth_type: `${AiMcpServerTableName}.auth_type`,
-                connection_status: `${AiMcpServerTableName}.connection_status`,
-                error: `${AiMcpServerTableName}.error`,
-                created_at: `${AiMcpServerTableName}.created_at`,
-                updated_at: `${AiMcpServerTableName}.updated_at`,
-            })
+            .select<DbAiMcpServer>(AiAgentModel.getMcpServerSelect(trx))
             .where('ai_mcp_server_uuid', serverUuid)
             .first();
 
@@ -926,7 +906,8 @@ export class AiAgentModel {
             return undefined;
         }
 
-        const credential = await this.getCredential(serverUuid, 'shared', {
+        const credential = await this.getMcpServerStatusCredential(row, {
+            userUuid,
             trx,
         });
 
@@ -1383,21 +1364,144 @@ export class AiAgentModel {
             .delete();
     }
 
-    async resolveCredential(
-        serverUuid: string,
+    async getOauthCredentialByState(args: {
+        serverUuid: string;
+        state: string;
+        trx?: Knex;
+    }): Promise<AiMcpCredential | undefined> {
+        const trx = args.trx ?? this.database;
+        const rows = await trx(AiMcpServerCredentialTableName)
+            .select<DbAiMcpServerCredential[]>({
+                ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
+                ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
+                credential_scope: `${AiMcpServerCredentialTableName}.credential_scope`,
+                user_uuid: `${AiMcpServerCredentialTableName}.user_uuid`,
+                encrypted_credentials: `${AiMcpServerCredentialTableName}.encrypted_credentials`,
+                created_by_user_uuid: `${AiMcpServerCredentialTableName}.created_by_user_uuid`,
+                updated_by_user_uuid: `${AiMcpServerCredentialTableName}.updated_by_user_uuid`,
+                created_at: `${AiMcpServerCredentialTableName}.created_at`,
+                updated_at: `${AiMcpServerCredentialTableName}.updated_at`,
+            })
+            .where('ai_mcp_server_uuid', args.serverUuid);
+
+        return rows
+            .map((row) => this.toAiMcpCredential(row))
+            .find(
+                (credential) =>
+                    credential.credentials.type === 'oauth' &&
+                    credential.credentials.state === args.state,
+            );
+    }
+
+    private async getMcpServerStatusCredential(
+        row: DbAiMcpServer,
+        {
+            userUuid,
+            trx = this.database,
+        }: { userUuid?: string; trx?: Knex } = {},
+    ): Promise<AiMcpCredential | undefined> {
+        if (row.auth_type === 'none') {
+            return undefined;
+        }
+
+        if (row.auth_type === 'bearer') {
+            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
+                trx,
+            });
+        }
+
+        if (!userUuid) {
+            if (!row.allow_oauth_credential_sharing) {
+                return undefined;
+            }
+
+            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
+                trx,
+            });
+        }
+
+        return this.resolveCredentialForServer(
+            {
+                ai_mcp_server_uuid: row.ai_mcp_server_uuid,
+                auth_type: row.auth_type,
+                allow_oauth_credential_sharing:
+                    row.allow_oauth_credential_sharing,
+            },
+            userUuid,
+            {
+                trx,
+            },
+        );
+    }
+
+    private async resolveCredentialForServer(
+        row: Pick<
+            DbAiMcpServer,
+            | 'ai_mcp_server_uuid'
+            | 'auth_type'
+            | 'allow_oauth_credential_sharing'
+        >,
         userUuid: string,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<AiMcpCredential | undefined> {
-        const userCredential = await this.getCredential(serverUuid, 'user', {
-            userUuid,
-            trx,
-        });
+        if (row.auth_type === 'none') {
+            return undefined;
+        }
+
+        if (row.auth_type === 'bearer') {
+            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
+                trx,
+            });
+        }
+
+        const userCredential = await this.getCredential(
+            row.ai_mcp_server_uuid,
+            'user',
+            {
+                userUuid,
+                trx,
+            },
+        );
 
         if (userCredential) {
             return userCredential;
         }
 
-        return this.getCredential(serverUuid, 'shared', { trx });
+        if (!row.allow_oauth_credential_sharing) {
+            return undefined;
+        }
+
+        return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
+            trx,
+        });
+    }
+
+    async resolveCredential(
+        serverUuid: string,
+        userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpCredential | undefined> {
+        const row = await trx(AiMcpServerTableName)
+            .select<
+                Pick<
+                    DbAiMcpServer,
+                    | 'ai_mcp_server_uuid'
+                    | 'auth_type'
+                    | 'allow_oauth_credential_sharing'
+                >
+            >({
+                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+                auth_type: `${AiMcpServerTableName}.auth_type`,
+                allow_oauth_credential_sharing: `${AiMcpServerTableName}.allow_oauth_credential_sharing`,
+            })
+            .where('ai_mcp_server_uuid', serverUuid)
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+
+        return this.resolveCredentialForServer(row, userUuid, { trx });
     }
 
     async createMcpServer(args: {
@@ -1406,7 +1510,7 @@ export class AiAgentModel {
         url: string;
         iconUrl?: string | null;
         authType: ApiCreateAiMcpServer['authType'];
-        credentialScope: AiMcpCredentialScope;
+        allowOAuthCredentialSharing: boolean;
         credentials: ApiCreateAiMcpServer['credentials'];
         actorUserUuid?: string | null;
     }): Promise<AiMcpServer> {
@@ -1418,6 +1522,8 @@ export class AiAgentModel {
                     url: args.url,
                     icon_url: args.iconUrl ?? null,
                     auth_type: args.authType,
+                    allow_oauth_credential_sharing:
+                        args.allowOAuthCredentialSharing,
                     connection_status:
                         args.authType === 'oauth' ? null : 'connected',
                     error: null,
@@ -1427,7 +1533,6 @@ export class AiAgentModel {
             const credentialPayload =
                 AiAgentModel.serializeMcpCredentialPayload(
                     args.authType,
-                    args.credentialScope,
                     args.credentials,
                 );
 
@@ -1436,7 +1541,7 @@ export class AiAgentModel {
                     ? null
                     : await this.upsertCredential({
                           serverUuid: row.ai_mcp_server_uuid,
-                          scope: args.credentialScope,
+                          scope: 'shared',
                           credentials: credentialPayload,
                           actorUserUuid: args.actorUserUuid ?? null,
                           trx,
@@ -1451,6 +1556,8 @@ export class AiAgentModel {
         connectionStatus: AiMcpServerConnectionStatus;
         error: string | null;
         iconUrl?: string | null;
+        credentialScope?: AiMcpCredentialScope | null;
+        userUuid?: string | null;
         actorUserUuid?: string | null;
         trx?: Knex;
     }): Promise<void> {
@@ -1476,28 +1583,33 @@ export class AiAgentModel {
                     });
             }
 
-            const credential = await this.getCredential(
-                args.serverUuid,
-                'shared',
-                {
-                    trx,
-                },
-            );
+            const credential =
+                args.credentialScope === 'user' && args.userUuid
+                    ? await this.getCredential(args.serverUuid, 'user', {
+                          userUuid: args.userUuid,
+                          trx,
+                      })
+                    : await this.getCredential(
+                          args.serverUuid,
+                          args.credentialScope ?? 'shared',
+                          {
+                              trx,
+                          },
+                      );
 
             if (credential?.credentials.type !== 'oauth') {
-                throw new NotFoundError(
-                    'Shared OAuth credential was not found',
-                );
+                return;
             }
 
             await this.upsertCredential({
                 serverUuid: args.serverUuid,
-                scope: 'shared',
+                scope: credential.credentialScope,
                 credentials: {
                     ...credential.credentials,
                     connectionStatus: args.connectionStatus,
                     lastError: args.error ?? undefined,
                 },
+                userUuid: credential.userUuid,
                 actorUserUuid:
                     args.actorUserUuid ??
                     credential.updatedByUserUuid ??
@@ -1981,45 +2093,21 @@ export class AiAgentModel {
                 `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
                 `${AiMcpServerTableName}.ai_mcp_server_uuid`,
             )
-            .select<DbAiMcpServer[]>({
-                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-                project_uuid: `${AiMcpServerTableName}.project_uuid`,
-                name: `${AiMcpServerTableName}.name`,
-                url: `${AiMcpServerTableName}.url`,
-                icon_url: `${AiMcpServerTableName}.icon_url`,
-                auth_type: `${AiMcpServerTableName}.auth_type`,
-                connection_status: `${AiMcpServerTableName}.connection_status`,
-                error: `${AiMcpServerTableName}.error`,
-                created_at: `${AiMcpServerTableName}.created_at`,
-                updated_at: `${AiMcpServerTableName}.updated_at`,
-            })
+            .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
             .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
             .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
 
-        const credentials = await trx(AiMcpServerCredentialTableName)
-            .select<DbAiMcpServerCredential[]>({
-                ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
-                ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
-                credential_scope: `${AiMcpServerCredentialTableName}.credential_scope`,
-                user_uuid: `${AiMcpServerCredentialTableName}.user_uuid`,
-                encrypted_credentials: `${AiMcpServerCredentialTableName}.encrypted_credentials`,
-                created_by_user_uuid: `${AiMcpServerCredentialTableName}.created_by_user_uuid`,
-                updated_by_user_uuid: `${AiMcpServerCredentialTableName}.updated_by_user_uuid`,
-                created_at: `${AiMcpServerCredentialTableName}.created_at`,
-                updated_at: `${AiMcpServerCredentialTableName}.updated_at`,
-            })
-            .whereIn(
-                'ai_mcp_server_uuid',
-                rows.map((row) => row.ai_mcp_server_uuid),
-            )
-            .andWhere('credential_scope', 'shared');
-
-        const credentialMap = new Map(
-            credentials.map((row) => {
-                const credential = this.toAiMcpCredential(row);
-                return [credential.mcpServerUuid, credential];
-            }),
+        const credentials = await Promise.all(
+            rows.map(
+                async (row) =>
+                    [
+                        row.ai_mcp_server_uuid,
+                        await this.getMcpServerStatusCredential(row, { trx }),
+                    ] as const,
+            ),
         );
+
+        const credentialMap = new Map(credentials);
 
         return rows.map((row) =>
             AiAgentModel.toAiMcpServer(
@@ -2040,24 +2128,13 @@ export class AiAgentModel {
                 `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
                 `${AiMcpServerTableName}.ai_mcp_server_uuid`,
             )
-            .select<DbAiMcpServer[]>({
-                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-                project_uuid: `${AiMcpServerTableName}.project_uuid`,
-                name: `${AiMcpServerTableName}.name`,
-                url: `${AiMcpServerTableName}.url`,
-                icon_url: `${AiMcpServerTableName}.icon_url`,
-                auth_type: `${AiMcpServerTableName}.auth_type`,
-                connection_status: `${AiMcpServerTableName}.connection_status`,
-                error: `${AiMcpServerTableName}.error`,
-                created_at: `${AiMcpServerTableName}.created_at`,
-                updated_at: `${AiMcpServerTableName}.updated_at`,
-            })
+            .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
             .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
             .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
 
         const resolvedCredentials = await Promise.all(
             rows.map((row) =>
-                this.resolveCredential(row.ai_mcp_server_uuid, userUuid, {
+                this.resolveCredentialForServer(row, userUuid, {
                     trx,
                 }),
             ),
@@ -2087,18 +2164,7 @@ export class AiAgentModel {
         }
 
         const rows = await trx(AiMcpServerTableName)
-            .select<DbAiMcpServer[]>({
-                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
-                project_uuid: `${AiMcpServerTableName}.project_uuid`,
-                name: `${AiMcpServerTableName}.name`,
-                url: `${AiMcpServerTableName}.url`,
-                icon_url: `${AiMcpServerTableName}.icon_url`,
-                auth_type: `${AiMcpServerTableName}.auth_type`,
-                connection_status: `${AiMcpServerTableName}.connection_status`,
-                error: `${AiMcpServerTableName}.error`,
-                created_at: `${AiMcpServerTableName}.created_at`,
-                updated_at: `${AiMcpServerTableName}.updated_at`,
-            })
+            .select<DbAiMcpServer[]>(AiAgentModel.getMcpServerSelect(trx))
             .where('project_uuid', projectUuid)
             .whereIn('ai_mcp_server_uuid', uniqueMcpServerUuids);
 
@@ -2157,26 +2223,21 @@ export class AiAgentModel {
         const rowMap = new Map(
             rows.map((row) => [row.ai_mcp_server_uuid, row]),
         );
-        const credentials = await trx(AiMcpServerCredentialTableName)
-            .select<DbAiMcpServerCredential[]>({
-                ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
-                ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
-                credential_scope: `${AiMcpServerCredentialTableName}.credential_scope`,
-                user_uuid: `${AiMcpServerCredentialTableName}.user_uuid`,
-                encrypted_credentials: `${AiMcpServerCredentialTableName}.encrypted_credentials`,
-                created_by_user_uuid: `${AiMcpServerCredentialTableName}.created_by_user_uuid`,
-                updated_by_user_uuid: `${AiMcpServerCredentialTableName}.updated_by_user_uuid`,
-                created_at: `${AiMcpServerCredentialTableName}.created_at`,
-                updated_at: `${AiMcpServerCredentialTableName}.updated_at`,
-            })
-            .whereIn('ai_mcp_server_uuid', uniqueMcpServerUuids)
-            .andWhere('credential_scope', 'shared');
-        const credentialMap = new Map(
-            credentials.map((row) => {
-                const credential = this.toAiMcpCredential(row);
-                return [credential.mcpServerUuid, credential];
-            }),
+        const credentials = await Promise.all(
+            uniqueMcpServerUuids.map(
+                async (mcpServerUuid) =>
+                    [
+                        mcpServerUuid,
+                        await this.getMcpServerStatusCredential(
+                            rowMap.get(mcpServerUuid)!,
+                            {
+                                trx,
+                            },
+                        ),
+                    ] as const,
+            ),
         );
+        const credentialMap = new Map(credentials);
 
         return uniqueMcpServerUuids.map((mcpServerUuid) =>
             AiAgentModel.toAiMcpServer(
