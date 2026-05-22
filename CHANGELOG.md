@@ -1,3 +1,10 @@
+## [0.3007.2](https://github.com/lightdash/lightdash/compare/0.3007.1...0.3007.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* refresh data app dashboard tiles with the dashboard refresh button ([#23430](https://github.com/lightdash/lightdash/issues/23430)) ([96cb5aa](https://github.com/lightdash/lightdash/commit/96cb5aac53975062fd4f199f6308200bfe35beb6))
+
 ## [0.3007.1](https://github.com/lightdash/lightdash/compare/0.3007.0...0.3007.1) (2026-05-22)
 
 
