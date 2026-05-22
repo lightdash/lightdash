@@ -5480,4 +5480,109 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('column_ranking AS (');
         });
     });
+
+    describe('passthroughDimensions — hidden non-sort pivot dims carried for cross-field templating (PROD-7873)', () => {
+        // Fixture: orders_status is the visible pivot column; orders_image_url
+        // is a hidden helper dim that is NOT a sort target. Other fields
+        // (e.g. a richText on orders_status) reference it via
+        // `row.orders.orders_image_url.raw`. We need its values to survive
+        // the SQL pipeline so that template variable resolves at render time.
+
+        test('passthroughDimensions appears in group_by_query SELECT and GROUP BY but NOT in column_ranking ORDER BY', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: undefined,
+                passthroughDimensions: [{ reference: 'orders_image_url' }],
+                // No sortBy — this is the "hidden, not sorted" case.
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // group_by_query SELECT includes the passthrough dim alongside
+            // the visible groupBy column and the index column.
+            expect(collapsed).toContain(
+                'group_by_query AS (SELECT "orders_status", "orders_image_url", "customer_id"',
+            );
+            expect(collapsed).toContain(
+                'group by "orders_status", "orders_image_url", "customer_id"',
+            );
+
+            // No column_ranking is emitted at all when there's no sortBy
+            // (defensive: passthrough does not synthesize a sort).
+            expect(collapsed).not.toContain('column_ranking');
+
+            // pivot_query SELECT carries the passthrough dim through so its
+            // value lands on each output row.
+            expect(collapsed).toContain('g."orders_image_url"');
+        });
+
+        test('passthroughDimensions does NOT spread as a pivot column header (no extra DISTINCT SELECT slot)', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'customer_id',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+                passthroughDimensions: [{ reference: 'orders_image_url' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // Metric sort path: column_ranking is emitted, but its DISTINCT
+            // SELECT must contain ONLY the visible groupBy (orders_status) —
+            // passthrough must NOT inflate the pivot header cardinality.
+            const colRankingStart = collapsed.indexOf(
+                'column_ranking AS (SELECT DISTINCT',
+            );
+            expect(colRankingStart).toBeGreaterThanOrEqual(0);
+            const colRankingEnd = collapsed.indexOf(
+                ', DENSE_RANK()',
+                colRankingStart,
+            );
+            const colRankingSelect = collapsed.slice(
+                colRankingStart,
+                colRankingEnd,
+            );
+            expect(colRankingSelect).toContain('"orders_status"');
+            expect(colRankingSelect).not.toContain('"orders_image_url"');
+        });
+    });
 });

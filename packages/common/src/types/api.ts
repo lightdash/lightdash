@@ -741,6 +741,11 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
         originalColumns: ResultColumns;
+        // Hidden pivot-column dims that are carried through the SQL pipeline
+        // for cross-field richText/image templates (`row.<table>.<field>.raw`)
+        // but are not rendered as pivot column headers. Their raw values are
+        // attached to each result row under their fieldId.
+        passthroughDimensions?: GroupByColumn[];
     } | null;
 };
 

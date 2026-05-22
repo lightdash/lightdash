@@ -1898,3 +1898,129 @@ describe('convertSqlPivotedRowsToPivotData metric ordering (#19838 / #19919)', (
         ]);
     });
 });
+
+describe('passthrough dimensions (PROD-7873)', () => {
+    // Two paths produce the same passthrough behavior:
+    //   1. DECLARED — backend ran the query with `passthroughDimensions` in
+    //      pivotConfiguration and surfaces it via `pivotDetails.passthroughDimensions`.
+    //   2. INFERRED — user just hid a dim without re-running the query;
+    //      pivotDetails is stale but the row data still carries the value,
+    //      and we synthesize the passthrough from `hiddenDimensionFieldIds`.
+    //
+    // The two must produce identical shape (pivotColumnInfo + allCombinedData),
+    // otherwise users see a flicker on the first render after hide vs. after refetch.
+
+    const baseInputRow = {
+        orders_order_date_year: {
+            value: {
+                raw: '2025-01-01T00:00:00Z',
+                formatted: '2025',
+            },
+        },
+        // Passthrough dim's value sits on each row under its natural field id.
+        orders_status_image_url: {
+            value: {
+                raw: 'https://placehold.co/60?text=A',
+                formatted: 'https://placehold.co/60?text=A',
+            },
+        },
+        payments_total_revenue_any_bank_transfer: {
+            value: { raw: 100, formatted: '100' },
+        },
+    };
+
+    it('declared and inferred paths produce identical pivotColumnInfo + allCombinedData', () => {
+        const sharedArgs = {
+            rows: [baseInputRow],
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId: string) => fieldId,
+            groupedSubtotals: undefined,
+        };
+
+        // Path 1: backend declared the passthrough explicitly in pivotDetails.
+        const declared = convertSqlPivotedRowsToPivotData({
+            ...sharedArgs,
+            pivotDetails: {
+                ...SQL_PIVOT_DETAILS,
+                passthroughDimensions: [
+                    { reference: 'orders_status_image_url' },
+                ],
+            },
+        });
+
+        // Path 2: pivotDetails is stale (no passthroughDimensions yet) but
+        // `hiddenDimensionFieldIds` carries the same intent and the row data
+        // is still present — the inferred path picks it up.
+        const inferred = convertSqlPivotedRowsToPivotData({
+            ...sharedArgs,
+            pivotDetails: {
+                ...SQL_PIVOT_DETAILS,
+                // no passthroughDimensions here
+            },
+            pivotConfig: {
+                ...sharedArgs.pivotConfig,
+                hiddenDimensionFieldIds: ['orders_status_image_url'],
+            },
+        });
+
+        expect(declared.retrofitData.pivotColumnInfo).toEqual(
+            inferred.retrofitData.pivotColumnInfo,
+        );
+        expect(declared.retrofitData.allCombinedData).toEqual(
+            inferred.retrofitData.allCombinedData,
+        );
+
+        // Both paths must register the passthrough column with the right marker.
+        const passthroughEntries = declared.retrofitData.pivotColumnInfo.filter(
+            (c) => c.columnType === 'passthrough',
+        );
+        expect(passthroughEntries).toEqual([
+            {
+                fieldId: 'orders_status_image_url',
+                baseId: 'orders_status_image_url',
+                underlyingId: undefined,
+                columnType: 'passthrough',
+            },
+        ]);
+    });
+
+    it('inferred path skips a hidden field that is already an indexColumn', () => {
+        // If `orders_order_date_year` is hidden but still listed in
+        // pivotDetails.indexColumn (cached-results-after-hide path), it must
+        // NOT be inferred as a passthrough — it's already in TanStack's
+        // column model via the index columns. Double-registering would
+        // create duplicate cells in `getAllCells()`.
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: [baseInputRow],
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                // Hidden, but it's an index column — guard must skip it.
+                hiddenDimensionFieldIds: ['orders_order_date_year'],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId: string) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        const passthroughEntries = result.retrofitData.pivotColumnInfo.filter(
+            (c) => c.columnType === 'passthrough',
+        );
+        expect(passthroughEntries).toEqual([]);
+    });
+});

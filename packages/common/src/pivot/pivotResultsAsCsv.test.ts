@@ -292,4 +292,88 @@ describe('pivotResultsAsCsv', () => {
             expect(allValues).toContain('Docs');
         });
     });
+
+    describe('passthrough dimension filtering (PROD-7873)', () => {
+        // SQL-pivot path: when a hidden dim is carried through SQL as
+        // `passthroughDimensions` so its values can be referenced by
+        // cross-field richText / image templates, those values must NOT
+        // leak into CSV / XLSX exports — the "hide" semantic includes
+        // exports.
+        it('omits passthrough dim values from CSV output even when present on rows', () => {
+            const rows: ResultRow[] = [
+                {
+                    page: { value: { raw: '/home', formatted: '/home' } },
+                    site_image_url: {
+                        value: {
+                            raw: 'https://placehold.co/60?text=Blog',
+                            formatted: 'https://placehold.co/60?text=Blog',
+                        },
+                    },
+                    views_sum: { value: { raw: 6, formatted: '6.0' } },
+                },
+                {
+                    page: { value: { raw: '/about', formatted: '/about' } },
+                    site_image_url: {
+                        value: {
+                            raw: 'https://placehold.co/60?text=Docs',
+                            formatted: 'https://placehold.co/60?text=Docs',
+                        },
+                    },
+                    views_sum: { value: { raw: 12, formatted: '12.0' } },
+                },
+            ];
+
+            const result = pivotResultsAsCsv({
+                pivotConfig: {
+                    pivotDimensions: [],
+                    metricsAsRows: false,
+                    hiddenDimensionFieldIds: ['site_image_url'],
+                },
+                rows,
+                itemMap: buildItemsMap(),
+                metricQuery: {
+                    exploreName: 'test',
+                    ...METRIC_QUERY_2DIM_2METRIC,
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    customDimensions: [],
+                    metricOverrides: {},
+                    dimensionOverrides: {},
+                },
+                customLabels: undefined,
+                onlyRaw: false,
+                maxColumnLimit: 60,
+                pivotDetails: {
+                    totalColumnCount: 1,
+                    valuesColumns: [
+                        {
+                            aggregation: 'any' as never,
+                            pivotValues: [],
+                            referenceField: 'views',
+                            pivotColumnName: 'views_sum',
+                        },
+                    ],
+                    indexColumn: [
+                        { type: 'category' as never, reference: 'page' },
+                    ],
+                    groupByColumns: [],
+                    sortBy: undefined,
+                    originalColumns: {},
+                    passthroughDimensions: [{ reference: 'site_image_url' }],
+                },
+            });
+
+            const allValues = result.flat();
+            // Passthrough field id must not appear in the CSV
+            expect(allValues).not.toContain('site_image_url');
+            // Passthrough values (the placeholder URLs) must not leak
+            expect(allValues.some((v) => v.includes('placehold.co'))).toBe(
+                false,
+            );
+            // The visible index dim and metric must still appear
+            expect(allValues).toContain('/home');
+            expect(allValues).toContain('6.0');
+        });
+    });
 });

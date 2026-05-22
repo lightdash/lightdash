@@ -254,6 +254,19 @@ const getColSpanByKey = (
         }, 0);
 };
 
+/**
+ * Rebuilds `data.retrofitData.{allCombinedData,pivotColumnInfo}` from
+ * indexValues + dataValues + rowTotals so the TanStack table renderer has
+ * a flat row shape per output row.
+ *
+ * INVARIANT: `allCombinedData.length === indexValues.length`. The
+ * `convertSqlPivotedRowsToPivotData` caller emits one row per input warehouse
+ * row (1-to-1), and a separate post-processing step in that caller attaches
+ * passthrough dimension values onto each output row positionally by index.
+ * If this function ever starts coalescing/dropping rows, the positional
+ * merge will silently associate passthrough values with the wrong rows.
+ * The caller has a dev-mode warn that catches this during testing.
+ */
 const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
@@ -1462,6 +1475,64 @@ export const convertSqlPivotedRowsToPivotData = ({
         hasIndex,
     });
 
+    // Passthrough dims — hidden non-sort pivot dims whose raw values are
+    // carried on each row so cross-field richText / image templates can
+    // resolve `row.<table>.<field>.raw` even though the dim has no rendered
+    // column. Backend AsyncQueryService writes these values onto each row
+    // under the field's natural reference.
+    //
+    // Two sources:
+    //   1. `pivotDetails.passthroughDimensions` — set by the backend when the
+    //      query was built with the field already in `passthroughDimensions`.
+    //   2. `hiddenDimensionFieldIds` ∩ row keys — handles the "user just hid
+    //      a previously-visible dim and the cached results haven't refetched
+    //      yet" case: the row data still carries the value from when the dim
+    //      was visible, so we can opt it into passthrough on the fly. This
+    //      makes the image stay rendered immediately on hide without
+    //      requiring a re-run of the query.
+    //
+    // Note: we don't add them to allCombinedData / pivotColumnInfo here —
+    // combinedRetrofit (below) rebuilds both, so additions here would be
+    // discarded. The merge happens post-combinedRetrofit.
+    const declaredPassthroughs = pivotDetails.passthroughDimensions ?? [];
+    const declaredPassthroughRefs = new Set(
+        declaredPassthroughs.map((d) => d.reference),
+    );
+    const groupByRefs = new Set(
+        (pivotDetails.groupByColumns ?? []).map((c) => c.reference),
+    );
+    // Use the RAW `pivotDetails.indexColumn` (pre-filter), not the local
+    // `indexColumns` array which already has hidden refs removed via
+    // `isDimVisibleInPivot`. We're trying to detect "this field is
+    // structurally an indexColumn in the cached pivot shape", and the
+    // filtered list would always say "not present" for hidden fields.
+    const indexColumnRefs = new Set<string>();
+    if (pivotDetails.indexColumn) {
+        if (Array.isArray(pivotDetails.indexColumn)) {
+            for (const col of pivotDetails.indexColumn) {
+                indexColumnRefs.add(col.reference);
+            }
+        } else {
+            indexColumnRefs.add(pivotDetails.indexColumn.reference);
+        }
+    }
+    const firstRow = rows[0];
+    const inferredPassthroughs: typeof declaredPassthroughs = firstRow
+        ? hiddenDimensionFieldIds
+              .filter(
+                  (fieldId) =>
+                      !declaredPassthroughRefs.has(fieldId) &&
+                      !groupByRefs.has(fieldId) &&
+                      !indexColumnRefs.has(fieldId) &&
+                      firstRow[fieldId] !== undefined,
+              )
+              .map((fieldId) => ({ reference: fieldId }))
+        : [];
+    const passthroughDimensions = [
+        ...declaredPassthroughs,
+        ...inferredPassthroughs,
+    ];
+
     // Build retrofit data for backwards compatibility
     const allCombinedData = rows
         .map((row) => {
@@ -1631,7 +1702,69 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
+    const retrofitted = combinedRetrofit(
+        pivotData,
+        getField,
+        getFieldLabel,
+        parameters,
+    );
+
+    // combinedRetrofit rebuilds retrofitData.{allCombinedData,pivotColumnInfo}
+    // from indexValues + dataValues + rowTotals, so any passthrough additions
+    // we made earlier are gone. Re-attach them here:
+    //   - Append passthrough entries to pivotColumnInfo so PivotTable
+    //     registers a TanStack column (hidden via columnVisibility).
+    //   - Merge passthrough values from the corresponding input row onto
+    //     each output row (1-to-1 by index — convertSqlPivotedRowsToPivotData
+    //     emits one output row per input row).
+    //
+    // INVARIANT: combinedRetrofit.retrofitData.allCombinedData.length must
+    // equal rows.length — the positional merge below depends on this. If
+    // anyone adds row coalescing inside combinedRetrofit (or upstream changes
+    // how SQL-pivoted rows fan out), passthrough values would silently shift
+    // to the wrong row. The dev-mode warn below catches that during testing
+    // without crashing prod for users.
+    if (passthroughDimensions.length > 0) {
+        if (
+            process.env.NODE_ENV !== 'production' &&
+            retrofitted.retrofitData.allCombinedData.length !== rows.length
+        ) {
+            // eslint-disable-next-line no-console
+            console.warn(
+                `[pivot] passthrough positional merge invariant violated: ` +
+                    `allCombinedData.length=${retrofitted.retrofitData.allCombinedData.length} ` +
+                    `!= rows.length=${rows.length}. Passthrough values may be ` +
+                    `attached to the wrong rows. Investigate combinedRetrofit ` +
+                    `for row coalescing.`,
+            );
+        }
+        retrofitted.retrofitData.pivotColumnInfo = [
+            ...retrofitted.retrofitData.pivotColumnInfo,
+            ...passthroughDimensions.map((dim) => ({
+                fieldId: dim.reference,
+                baseId: dim.reference,
+                underlyingId: undefined,
+                columnType: 'passthrough' as const,
+            })),
+        ];
+        retrofitted.retrofitData.allCombinedData =
+            retrofitted.retrofitData.allCombinedData.map(
+                (combinedRow, rowIndex) => {
+                    const inputRow = rows[rowIndex];
+                    if (!inputRow) return combinedRow;
+                    const enriched: ResultRow = { ...combinedRow };
+                    for (const dim of passthroughDimensions) {
+                        const value = inputRow[dim.reference];
+                        if (value !== undefined) {
+                            enriched[dim.reference] = value;
+                        }
+                    }
+                    return enriched;
+                },
+            );
+    }
+
+    return retrofitted;
 };
 
 export type PivotResultsDataCell = {
@@ -1794,9 +1927,16 @@ export const pivotResultsAsData = ({
         [[]],
     );
 
-    const fieldIds = Object.values(
-        pivotedResults.retrofitData.pivotColumnInfo,
-    ).map((field) => field.fieldId);
+    // Passthrough columns are registered in pivotColumnInfo so the pivot
+    // table can render cross-field richText / image templates that read
+    // `row.<table>.<field>.raw`. They must NOT appear in CSV / XLSX
+    // exports — the user explicitly hid the column from the visualization,
+    // and the "hide" semantic includes exports. Filtered here so every
+    // downstream consumer of pivotResultsAsData (CSV, XLSX, etc.) inherits
+    // the exclusion.
+    const fieldIds = Object.values(pivotedResults.retrofitData.pivotColumnInfo)
+        .filter((field) => field.columnType !== 'passthrough')
+        .map((field) => field.fieldId);
 
     const hasIndex = pivotedResults.indexValues.length > 0;
     const dataRows = pivotedResults.retrofitData.allCombinedData.map((row) => {
