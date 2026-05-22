@@ -1,3 +1,10 @@
+# [0.3011.0](https://github.com/lightdash/lightdash/compare/0.3010.0...0.3011.0) (2026-05-22)
+
+
+### Features
+
+* **query-sdk:** add parameter support to QueryBuilder and apiTransport (PROD-7768) ([#23449](https://github.com/lightdash/lightdash/issues/23449)) ([401b922](https://github.com/lightdash/lightdash/commit/401b9228081abec5c297750a16a2cc21eb4a7e89))
+
 # [0.3010.0](https://github.com/lightdash/lightdash/compare/0.3009.5...0.3010.0) (2026-05-22)
 
 
