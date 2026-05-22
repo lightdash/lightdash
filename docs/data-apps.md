@@ -437,7 +437,7 @@ Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
 - `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'none'` — block all `fetch`/`XHR`/`WebSocket` from the iframe; API calls reach Lightdash only through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request)
+- `connect-src 'self'` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 ---
