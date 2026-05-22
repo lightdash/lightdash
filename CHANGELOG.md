@@ -1,3 +1,10 @@
+## [0.3009.4](https://github.com/lightdash/lightdash/compare/0.3009.3...0.3009.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* reduce minimal chat input padding and hide scrollbar ([#23341](https://github.com/lightdash/lightdash/issues/23341)) ([1d52324](https://github.com/lightdash/lightdash/commit/1d5232426bb2972c5b96685080233479b98cd232))
+
 ## [0.3009.3](https://github.com/lightdash/lightdash/compare/0.3009.2...0.3009.3) (2026-05-22)
 
 
