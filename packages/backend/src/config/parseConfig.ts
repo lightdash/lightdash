@@ -1434,6 +1434,7 @@ export type AuthGoogleConfig = {
      * See PROD-7783.
      */
     includeBigqueryScope: boolean;
+    enableBigqueryDriveScope: boolean;
 };
 
 type AuthOktaConfig = {
@@ -1863,6 +1864,8 @@ export const parseConfig = (): LightdashConfig => {
                 enableGCloudADC: process.env.AUTH_ENABLE_GCLOUD_ADC === 'true',
                 includeBigqueryScope:
                     process.env.AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE === 'true',
+                enableBigqueryDriveScope:
+                    process.env.AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,

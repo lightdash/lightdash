@@ -428,10 +428,14 @@ apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
     (req, res, next) => {
-        const { includeBigqueryScope } = lightdashConfig.auth.google;
+        const { includeBigqueryScope, enableBigqueryDriveScope } =
+            lightdashConfig.auth.google;
         const scope = ['profile', 'email'];
         if (includeBigqueryScope) {
             scope.push('https://www.googleapis.com/auth/bigquery');
+            if (enableBigqueryDriveScope) {
+                scope.push('https://www.googleapis.com/auth/drive.readonly');
+            }
         }
         passport.authenticate('google', {
             scope,
@@ -465,17 +469,24 @@ apiV1Router.get(
     }),
 );
 
-apiV1Router.get(
-    '/login/bigquery',
-    storeOIDCRedirect,
+apiV1Router.get('/login/bigquery', storeOIDCRedirect, (req, res, next) => {
+    const { enableBigqueryDriveScope } = lightdashConfig.auth.google;
+    const scope = [
+        'profile',
+        'email',
+        'https://www.googleapis.com/auth/bigquery',
+    ];
+    if (enableBigqueryDriveScope) {
+        scope.push('https://www.googleapis.com/auth/drive.readonly');
+    }
     passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
+        scope,
         accessType: 'offline',
         prompt: 'consent',
         session: false,
         includeGrantedScopes: true,
-    }),
-);
+    })(req, res, next);
+});
 
 // path to start the OAuth flow
 apiV1Router.get(

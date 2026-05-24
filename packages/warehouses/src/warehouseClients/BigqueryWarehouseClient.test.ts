@@ -45,6 +45,65 @@ describe('BigqueryWarehouseClient', () => {
     });
 });
 
+describe('BigqueryWarehouseClient drive scope', () => {
+    const getBigQueryConstructorOptions = async (
+        driveScopeSetting?: 'false' | 'true',
+    ) => {
+        const { env } = process;
+        let options: Record<string, unknown> = {};
+        process.env = {
+            ...env,
+            ...(driveScopeSetting
+                ? { AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE: driveScopeSetting }
+                : {}),
+        };
+
+        try {
+            jest.resetModules();
+            jest.doMock('@google-cloud/bigquery', () => ({
+                BigQuery: jest.fn((opts) => {
+                    options = opts ?? {};
+                    return { createQueryJob: jest.fn() };
+                }),
+                Dataset: jest.fn(),
+            }));
+            const { BigqueryWarehouseClient: Client } =
+                await import('./BigqueryWarehouseClient');
+            void new Client(credentials);
+            return options;
+        } finally {
+            process.env = env;
+            jest.dontMock('@google-cloud/bigquery');
+        }
+    };
+
+    it.each<
+        [
+            driveScopeSetting: 'false' | 'true' | undefined,
+            expectedScopes: string[] | undefined,
+        ]
+    >([
+        [undefined, undefined],
+        ['false', undefined],
+        [
+            'true',
+            [
+                'https://www.googleapis.com/auth/bigquery',
+                'https://www.googleapis.com/auth/drive.readonly',
+            ],
+        ],
+    ])('drive scope %s', async (driveScopeSetting, expectedScopes) => {
+        const bigQueryConstructorOptions =
+            await getBigQueryConstructorOptions(driveScopeSetting);
+
+        if (expectedScopes) {
+            expect(bigQueryConstructorOptions.scopes).toEqual(expectedScopes);
+        } else {
+            expect(bigQueryConstructorOptions).not.toHaveProperty('scopes');
+        }
+    });
+});
+
 describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
     let warnSpy: jest.SpyInstance;
 
