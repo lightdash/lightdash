@@ -2101,7 +2101,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "lastVersionChartKind": {
                                 "allOf": [
@@ -2234,7 +2235,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "hideTitle": {
                                 "type": "boolean"
@@ -2600,10 +2602,12 @@
                     },
                     "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "uuid": {
                         "type": "string"
@@ -13274,6 +13278,7 @@
                     "generateBarVizConfig",
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
+                    "generateUuids",
                     "findExplores",
                     "findFields",
                     "discoverFields",
@@ -13309,8 +13314,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13368,8 +13373,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13393,6 +13398,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -25064,22 +25082,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -25158,69 +25176,88 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_": {
+            "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
                 "properties": {
                     "description": {
-                        "type": "string"
-                    },
-                    "name": {
                         "type": "string"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
-                "required": ["name", "slug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__": {
+            "Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_": {
+                "$ref": "#/components/schemas/Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardTabAsCode": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    "hidden": {
+                        "type": "boolean"
                     },
-                    "x": {
+                    "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
                     },
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["hidden", "order", "name", "uuid"],
+                "type": "object"
+            },
+            "DashboardTileAsCodeBase": {
+                "properties": {
                     "tabUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1,
+                        "maximum": 36
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0,
+                        "maximum": 35
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "tileSlug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["type", "x", "y", "h", "w"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "required": ["w", "h", "y", "x", "type"],
+                "type": "object"
             },
-            "Omit_DashboardTile.properties-or-uuid_": {
-                "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
                 "properties": {
                     "title": {
                         "type": "string"
@@ -25231,80 +25268,238 @@
                     },
                     "hideTitle": {
                         "type": "boolean"
-                    },
-                    "chartSlug": {
-                        "type": "string"
                     }
                 },
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "DashboardTileAsCode": {
+            "DashboardChartTileAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_DashboardTile.properties-or-uuid_"
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
                     },
                     {
                         "properties": {
                             "properties": {
-                                "anyOf": [
+                                "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_"
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
                                     },
                                     {
                                         "properties": {
-                                            "hideFrame": {
-                                                "type": "boolean"
-                                            },
-                                            "content": {
-                                                "type": "string"
-                                            },
-                                            "title": {
-                                                "type": "string"
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
                                             }
                                         },
-                                        "required": ["content", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "url": {
-                                                "type": "string"
-                                            },
-                                            "hideTitle": {
-                                                "type": "boolean"
-                                            },
-                                            "title": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["url", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "showDivider": {
-                                                "type": "boolean"
-                                            },
-                                            "text": {
-                                                "type": "string"
-                                            },
-                                            "title": {}
-                                        },
-                                        "required": ["text"],
+                                        "required": ["chartSlug"],
                                         "type": "object"
                                     }
                                 ]
                             },
-                            "tileSlug": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
                             }
                         },
-                        "required": ["properties"],
+                        "required": ["properties", "type"],
                         "type": "object"
+                    }
+                ]
+            },
+            "Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["chartName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardSqlChartTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "required": ["chartSlug"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardMarkdownTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "hideFrame": {
+                                        "type": "boolean"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardLoomTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "url": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["url", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardHeadingTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "showDivider": {
+                                        "type": "boolean"
+                                    },
+                                    "text": {
+                                        "type": "string"
+                                    },
+                                    "title": {}
+                                },
+                                "required": ["text"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.HEADING"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardDataAppTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "appDeletedAt": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "appUuid": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["appUuid", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.DATA_APP"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardTileAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardDataAppTileAsCode"
                     }
                 ]
             },
@@ -25370,7 +25565,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_"
+                        "$ref": "#/components/schemas/Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_"
                     },
                     {
                         "properties": {
@@ -25434,29 +25629,50 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                            },
+                            "tabs": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTabAsCode"
+                                },
+                                "type": "array"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "minLength": 1
                             }
                         },
-                        "required": ["spaceSlug", "version", "tiles"],
+                        "required": [
+                            "spaceSlug",
+                            "version",
+                            "tiles",
+                            "tabs",
+                            "slug",
+                            "name"
+                        ],
                         "type": "object"
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -25867,13 +26083,15 @@
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -25918,7 +26136,7 @@
                     },
                     "tabs": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
                         },
                         "type": "array"
                     },
@@ -26986,6 +27204,11 @@
                     "isDefault": {
                         "type": "boolean"
                     },
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Free-text override appended to the agent's effective skill at build\ntime, alongside any uploaded `instruction` markdown files. Empty\nstring is normalised to `null` server-side."
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -27006,6 +27229,7 @@
                     "updatedAt",
                     "createdAt",
                     "isDefault",
+                    "extraInstructions",
                     "description",
                     "name",
                     "organizationUuid",
@@ -27064,6 +27288,10 @@
             },
             "UpdateOrganizationDesignRequest": {
                 "properties": {
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -34143,7 +34371,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3011.1",
+        "version": "0.3013.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

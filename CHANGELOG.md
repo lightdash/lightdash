@@ -1,3 +1,39 @@
+# [0.3013.0](https://github.com/lightdash/lightdash/compare/0.3012.3...0.3013.0) (2026-05-25)
+
+
+### Features
+
+* add an "extra instructions" field to themes ([#23455](https://github.com/lightdash/lightdash/issues/23455)) ([64b6524](https://github.com/lightdash/lightdash/commit/64b652413e10a591ad08d670aeb015ca890acf2c))
+
+## [0.3012.3](https://github.com/lightdash/lightdash/compare/0.3012.2...0.3012.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* **sql-runner:** preserve user ORDER BY → LIMIT adjacency (PROD-7880) ([#23460](https://github.com/lightdash/lightdash/issues/23460)) ([3c7d2b7](https://github.com/lightdash/lightdash/commit/3c7d2b7f247ec417fdc1e326e74cc1695c65af9f))
+
+## [0.3012.2](https://github.com/lightdash/lightdash/compare/0.3012.1...0.3012.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** use proper UUIDs and add `hidden` field in dashboard reference examples ([#23464](https://github.com/lightdash/lightdash/issues/23464)) ([ca046e9](https://github.com/lightdash/lightdash/commit/ca046e9fa4a5543220fd8aad0a72da9d90f15c94))
+* **skills:** add `hidden` field to dashboard tab examples and docs ([#23463](https://github.com/lightdash/lightdash/issues/23463)) ([5d44d9b](https://github.com/lightdash/lightdash/commit/5d44d9baa411b533b4666f629ca68d8cbef089a5))
+
+## [0.3012.1](https://github.com/lightdash/lightdash/compare/0.3012.0...0.3012.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** bring back loadSkill tool ([#23459](https://github.com/lightdash/lightdash/issues/23459)) ([6453800](https://github.com/lightdash/lightdash/commit/64538003aee4188dd552aa00b0f81c4715d4b005))
+
+# [0.3012.0](https://github.com/lightdash/lightdash/compare/0.3011.1...0.3012.0) (2026-05-25)
+
+
+### Features
+
+* auto-trigger OAuth connection after MCP server creation ([#23454](https://github.com/lightdash/lightdash/issues/23454)) ([e53029f](https://github.com/lightdash/lightdash/commit/e53029f4eda9ef1540fd7e4c67e32e20a5f66bca))
+
 ## [0.3011.1](https://github.com/lightdash/lightdash/compare/0.3011.0...0.3011.1) (2026-05-22)
 
 

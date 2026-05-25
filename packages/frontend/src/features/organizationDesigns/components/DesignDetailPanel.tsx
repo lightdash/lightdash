@@ -118,6 +118,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
         initialValues: {
             name: design.name,
             description: design.description ?? '',
+            extraInstructions: design.extraInstructions ?? '',
         },
     });
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
@@ -126,9 +127,11 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
 
     const trimmedName = form.values.name.trim();
     const trimmedDescription = form.values.description.trim();
+    const trimmedExtraInstructions = form.values.extraInstructions.trim();
     const hasUnsavedChanges =
         trimmedName !== design.name ||
-        trimmedDescription !== (design.description ?? '');
+        trimmedDescription !== (design.description ?? '') ||
+        trimmedExtraInstructions !== (design.extraInstructions ?? '');
     const canSave = hasUnsavedChanges && trimmedName.length > 0;
 
     const updateMutate = updateDesign.mutate;
@@ -143,11 +146,19 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 data: {
                     name: trimmedName,
                     description: trimmedDescription || null,
+                    extraInstructions: trimmedExtraInstructions || null,
                 },
             });
         }, AUTOSAVE_DELAY_MS);
         return () => clearTimeout(timer);
-    }, [canSave, designUuid, trimmedName, trimmedDescription, updateMutate]);
+    }, [
+        canSave,
+        designUuid,
+        trimmedName,
+        trimmedDescription,
+        trimmedExtraInstructions,
+        updateMutate,
+    ]);
 
     // Latest values held in a ref so the unmount cleanup can flush the most
     // recent edits even if the debounce hasn't fired yet.
@@ -155,12 +166,14 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
         design,
         trimmedName,
         trimmedDescription,
+        trimmedExtraInstructions,
         mutate: updateMutate,
     });
     latestRef.current = {
         design,
         trimmedName,
         trimmedDescription,
+        trimmedExtraInstructions,
         mutate: updateMutate,
     };
 
@@ -172,13 +185,23 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 design: d,
                 trimmedName: n,
                 trimmedDescription: dsc,
+                trimmedExtraInstructions: ex,
                 mutate,
             } = latestRef.current;
             if (!n) return;
-            if (n === d.name && dsc === (d.description ?? '')) return;
+            if (
+                n === d.name &&
+                dsc === (d.description ?? '') &&
+                ex === (d.extraInstructions ?? '')
+            )
+                return;
             mutate({
                 designUuid: d.designUuid,
-                data: { name: n, description: dsc || null },
+                data: {
+                    name: n,
+                    description: dsc || null,
+                    extraInstructions: ex || null,
+                },
             });
         };
     }, []);
@@ -233,7 +256,16 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     label="Description"
                     minRows={3}
                     autosize
+                    description="For users selecting a theme"
                     {...form.getInputProps('description')}
+                />
+                <Textarea
+                    label="Extra instructions"
+                    description="These will be passed to the agent alongside any markdown files. These can be any instructions you want included."
+                    placeholder="e.g. Use sentence case for all headings. Prefer dense layouts over generous whitespace."
+                    minRows={4}
+                    autosize
+                    {...form.getInputProps('extraInstructions')}
                 />
 
                 <Divider />

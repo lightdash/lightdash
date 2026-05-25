@@ -105,17 +105,21 @@ Tabs help organize complex dashboards without overwhelming users:
 ```yaml
 tabs:
   - name: "Overview"      # Start with high-level view
+    hidden: false
     order: 0
-    uuid: "overview"
+    uuid: "1b1f4a7b-7e2d-4e91-8fd7-0d2bb54cb0c1"
   - name: "Trends"        # Time-based analysis
+    hidden: false
     order: 1
-    uuid: "trends"
+    uuid: "2c2f5b8c-8f3e-4fa2-90e8-1e3cc65dc1d2"
   - name: "Breakdown"     # Dimensional analysis
+    hidden: false
     order: 2
-    uuid: "breakdown"
+    uuid: "3d3f6c9d-904f-40b3-a1f9-2f4dd76ed2e3"
   - name: "Details"       # Detailed data tables
+    hidden: true          # Optional: editors can keep draft tabs out of view mode
     order: 3
-    uuid: "details"
+    uuid: "4e4f7dae-a150-41c4-b20a-3f5ee87fe3f4"
 ```
 
 **When to use tabs:**
@@ -123,6 +127,7 @@ tabs:
 - Content naturally groups into themes
 - Different audiences need different views
 - Analysis flows from summary to detail
+- Some tabs are draft/internal only: set `hidden: true` so editors keep them without exposing them in view mode
 
 **Tab naming tips:**
 - Keep names short (1-2 words)

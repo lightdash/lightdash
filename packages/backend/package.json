@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.3011.1",
+    "version": "0.3013.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -156,7 +156,7 @@
         "pg-connection-string": "2.7.0",
         "playwright": "1.56.1",
         "prom-client": "15.1.2",
-        "qs": "6.14.2",
+        "qs": "6.15.2",
         "redoc-express": "1.0.0",
         "scim-patch": "0.8.3",
         "scim2-parse-filter": "0.2.10",

@@ -11,8 +11,8 @@ minimumReleaseAgeExclude:
   - nunjucks@3.2.4
   # Renovate security update: next@16.2.6
   - next@16.2.6
-  # Renovate security update: qs@6.14.2
-  - qs@6.14.2
+  # Renovate security update: qs@6.14.2 || 6.15.2
+  - qs@6.14.2 || 6.15.2
   # Renovate security update: postcss@8.5.10
   - postcss@8.5.10
   # Renovate security update: i18next-http-backend@3.0.5

@@ -1,6 +1,5 @@
 import type { AiMcpServer } from '@lightdash/common';
 import {
-    Alert,
     ActionIcon,
     Box,
     Button,
@@ -44,6 +43,20 @@ type Props = {
 const shouldBlockTools = (mcpServer: AiMcpServer) =>
     mcpServer.authType === 'oauth' &&
     mcpServer.connectionStatus !== 'connected';
+
+const getConnectionRequiredCopy = (mcpServer: AiMcpServer) => {
+    if (mcpServer.connectionStatus === 'error') {
+        return {
+            message: 'Reconnect to load and configure tools.',
+            actionLabel: 'Reconnect',
+        };
+    }
+
+    return {
+        message: 'Connect your account to load tools.',
+        actionLabel: 'Connect account',
+    };
+};
 
 const ToolDescriptionModal = ({
     opened,
@@ -205,11 +218,21 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
         toolsQuery.isLoading,
     ]);
 
-    if (!agentUuid || !isPersistedAttachment) {
+    if (!agentUuid) {
         return (
             <Box py="sm">
                 <Text size="sm" c="dimmed">
-                    Save this agent before configuring MCP tools.
+                    Create this agent before configuring MCP tools.
+                </Text>
+            </Box>
+        );
+    }
+
+    if (!isPersistedAttachment) {
+        return (
+            <Box py="sm">
+                <Text size="sm" c="dimmed">
+                    Saving MCP settings...
                 </Text>
             </Box>
         );
@@ -220,42 +243,34 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
     }
 
     if (isConnectionRequired) {
+        if (mcpServer.connectionStatus === 'connecting') {
+            return null;
+        }
+
+        const connectionRequiredCopy = getConnectionRequiredCopy(mcpServer);
+
         return (
             <Box py="sm">
-                <Alert
-                    color="blue"
-                    variant="light"
-                    icon={<MantineIcon icon={IconInfoCircle} />}
-                    title="Connect your account"
-                >
-                    <Stack gap="sm">
-                        <Text size="sm">
-                            This OAuth MCP needs a personal connection before
-                            tool discovery can run.
-                        </Text>
-                        <Group>
-                            <Button
-                                size="compact-sm"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconPlugConnected}
-                                        size="sm"
-                                    />
-                                }
-                                loading={isStartingMcpOAuthConnection}
-                                onClick={() =>
-                                    void startMcpOAuthConnection({
-                                        mcpServerUuid: mcpServer.uuid,
-                                    })
-                                }
-                            >
-                                {mcpServer.connectionStatus === 'error'
-                                    ? 'Reconnect'
-                                    : 'Connect your account'}
-                            </Button>
-                        </Group>
-                    </Stack>
-                </Alert>
+                <Group justify="space-between" align="center" gap="sm">
+                    <Text size="sm" c="dimmed">
+                        {connectionRequiredCopy.message}
+                    </Text>
+                    <Button
+                        size="compact-xs"
+                        variant="default"
+                        leftSection={
+                            <MantineIcon icon={IconPlugConnected} size="sm" />
+                        }
+                        loading={isStartingMcpOAuthConnection}
+                        onClick={() =>
+                            void startMcpOAuthConnection({
+                                mcpServerUuid: mcpServer.uuid,
+                            })
+                        }
+                    >
+                        {connectionRequiredCopy.actionLabel}
+                    </Button>
+                </Group>
             </Box>
         );
     }
