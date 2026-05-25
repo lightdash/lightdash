@@ -4,9 +4,7 @@
             "description": "This AnyType is an alias for any\nThe goal is to make it easier to identify any type in the codebase\nwithout having to eslint-disable all the time\nThese are only used on legacy `any` types, don't use it for new types.\nThis is added on a separate file to avoid circular dependencies."
         },
         "ContentAsCodeType.DASHBOARD": {
-            "enum": [
-                "dashboard"
-            ],
+            "enum": ["dashboard"],
             "type": "string"
         },
         "ContentVerificationInfo": {
@@ -27,18 +25,11 @@
                             "type": "string"
                         }
                     },
-                    "required": [
-                        "lastName",
-                        "firstName",
-                        "userUuid"
-                    ],
+                    "required": ["lastName", "firstName", "userUuid"],
                     "type": "object"
                 }
             },
-            "required": [
-                "verifiedAt",
-                "verifiedBy"
-            ],
+            "required": ["verifiedAt", "verifiedBy"],
             "type": "object"
         },
         "DashboardChartTileAsCode": {
@@ -59,9 +50,7 @@
                                             "type": "string"
                                         }
                                     },
-                                    "required": [
-                                        "chartSlug"
-                                    ],
+                                    "required": ["chartSlug"],
                                     "type": "object"
                                 }
                             ]
@@ -70,10 +59,7 @@
                             "$ref": "#/$defs/DashboardTileTypes.SAVED_CHART"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -122,9 +108,7 @@
                     "type": "array"
                 }
             },
-            "required": [
-                "isDateZoomDisabled"
-            ],
+            "required": ["isDateZoomDisabled"],
             "type": "object"
         },
         "DashboardDataAppTileAsCode": {
@@ -137,10 +121,7 @@
                         "properties": {
                             "properties": {
                                 "appDeletedAt": {
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "appUuid": {
                                     "type": "string"
@@ -152,20 +133,14 @@
                                     "type": "string"
                                 }
                             },
-                            "required": [
-                                "appUuid",
-                                "title"
-                            ],
+                            "required": ["appUuid", "title"],
                             "type": "object"
                         },
                         "type": {
                             "$ref": "#/$defs/DashboardTileTypes.DATA_APP"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -185,10 +160,7 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "tableName",
-                "fieldId"
-            ],
+            "required": ["tableName", "fieldId"],
             "type": "object"
         },
         "DashboardFilterRule": {
@@ -236,19 +208,14 @@
                                 },
                                 "title": {}
                             },
-                            "required": [
-                                "text"
-                            ],
+                            "required": ["text"],
                             "type": "object"
                         },
                         "type": {
                             "$ref": "#/$defs/DashboardTileTypes.HEADING"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -272,20 +239,14 @@
                                     "type": "string"
                                 }
                             },
-                            "required": [
-                                "url",
-                                "title"
-                            ],
+                            "required": ["url", "title"],
                             "type": "object"
                         },
                         "type": {
                             "$ref": "#/$defs/DashboardTileTypes.LOOM"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -309,20 +270,14 @@
                                     "type": "string"
                                 }
                             },
-                            "required": [
-                                "content",
-                                "title"
-                            ],
+                            "required": ["content", "title"],
                             "type": "object"
                         },
                         "type": {
                             "$ref": "#/$defs/DashboardTileTypes.MARKDOWN"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -339,10 +294,7 @@
                     "$ref": "#/$defs/ParameterValue"
                 }
             },
-            "required": [
-                "value",
-                "parameterName"
-            ],
+            "required": ["value", "parameterName"],
             "type": "object"
         },
         "DashboardSqlChartTileAsCode": {
@@ -363,9 +315,7 @@
                                             "type": "string"
                                         }
                                     },
-                                    "required": [
-                                        "chartSlug"
-                                    ],
+                                    "required": ["chartSlug"],
                                     "type": "object"
                                 }
                             ]
@@ -374,10 +324,7 @@
                             "$ref": "#/$defs/DashboardTileTypes.SQL_CHART"
                         }
                     },
-                    "required": [
-                        "properties",
-                        "type"
-                    ],
+                    "required": ["properties", "type"],
                     "type": "object"
                 }
             ]
@@ -398,12 +345,7 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "hidden",
-                "order",
-                "name",
-                "uuid"
-            ],
+            "required": ["hidden", "order", "name", "uuid"],
             "type": "object"
         },
         "DashboardTileAsCode": {
@@ -435,10 +377,7 @@
                     "type": "number"
                 },
                 "tabUuid": {
-                    "type": [
-                        "string",
-                        "null"
-                    ]
+                    "type": ["string", "null"]
                 },
                 "tileSlug": {
                     "type": "string"
@@ -462,13 +401,7 @@
                     "type": "number"
                 }
             },
-            "required": [
-                "w",
-                "h",
-                "y",
-                "x",
-                "type"
-            ],
+            "required": ["w", "h", "y", "x", "type"],
             "type": "object"
         },
         "DashboardTileTarget": {
@@ -477,9 +410,7 @@
                     "$ref": "#/$defs/DashboardFieldTarget"
                 },
                 {
-                    "enum": [
-                        false
-                    ],
+                    "enum": [false],
                     "type": "boolean"
                 }
             ]
@@ -496,39 +427,27 @@
             "type": "string"
         },
         "DashboardTileTypes.DATA_APP": {
-            "enum": [
-                "data_app"
-            ],
+            "enum": ["data_app"],
             "type": "string"
         },
         "DashboardTileTypes.HEADING": {
-            "enum": [
-                "heading"
-            ],
+            "enum": ["heading"],
             "type": "string"
         },
         "DashboardTileTypes.LOOM": {
-            "enum": [
-                "loom"
-            ],
+            "enum": ["loom"],
             "type": "string"
         },
         "DashboardTileTypes.MARKDOWN": {
-            "enum": [
-                "markdown"
-            ],
+            "enum": ["markdown"],
             "type": "string"
         },
         "DashboardTileTypes.SAVED_CHART": {
-            "enum": [
-                "saved_chart"
-            ],
+            "enum": ["saved_chart"],
             "type": "string"
         },
         "DashboardTileTypes.SQL_CHART": {
-            "enum": [
-                "sql_chart"
-            ],
+            "enum": ["sql_chart"],
             "type": "string"
         },
         "DateGranularity": {
@@ -545,13 +464,7 @@
             "type": "string"
         },
         "DimensionType": {
-            "enum": [
-                "string",
-                "number",
-                "timestamp",
-                "date",
-                "boolean"
-            ],
+            "enum": ["string", "number", "timestamp", "date", "boolean"],
             "type": "string"
         },
         "FilterOperator": {
@@ -618,11 +531,7 @@
                     "type": "array"
                 }
             },
-            "required": [
-                "operator",
-                "id",
-                "target"
-            ],
+            "required": ["operator", "id", "target"],
             "type": "object"
         },
         "Omit_DashboardFilterRule.id_": {
@@ -657,10 +566,7 @@
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
                 "chartName": {
-                    "type": [
-                        "string",
-                        "null"
-                    ]
+                    "type": ["string", "null"]
                 },
                 "hideTitle": {
                     "type": "boolean"
@@ -719,10 +625,7 @@
                     "type": "array"
                 }
             },
-            "required": [
-                "target",
-                "operator"
-            ],
+            "required": ["target", "operator"],
             "type": "object"
         },
         "Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
@@ -738,9 +641,7 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "chartName"
-            ],
+            "required": ["chartName"],
             "type": "object"
         },
         "Record_string.DashboardParameterValue_": {
@@ -855,14 +756,7 @@
             "type": "number"
         }
     },
-    "required": [
-        "name",
-        "slug",
-        "tabs",
-        "spaceSlug",
-        "version",
-        "tiles"
-    ],
+    "required": ["name", "slug", "tabs", "spaceSlug", "version", "tiles"],
     "title": "Lightdash Dashboard as Code",
     "type": "object"
 }
