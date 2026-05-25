@@ -21,6 +21,7 @@ import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentCon
 import { getImproveContext } from '../tools/improveContext';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
@@ -259,6 +260,13 @@ const getAgentTools = (
         getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
     });
 
+    const loadSkill =
+        args.availableSkills.length > 0
+            ? getLoadSkill({
+                  loadSkill: dependencies.loadSkill,
+              })
+            : null;
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
@@ -283,6 +291,7 @@ const getAgentTools = (
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
+        ...(loadSkill ? { loadSkill } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
