@@ -1,3 +1,10 @@
+# [0.3016.0](https://github.com/lightdash/lightdash/compare/0.3015.1...0.3016.0) (2026-05-25)
+
+
+### Features
+
+* **pivot:** group repeated row values without requiring subtotals (PROD-5901) ([#23474](https://github.com/lightdash/lightdash/issues/23474)) ([f684aa7](https://github.com/lightdash/lightdash/commit/f684aa74119c36e0284434e5778d4b300c98c420))
+
 ## [0.3015.1](https://github.com/lightdash/lightdash/compare/0.3015.0...0.3015.1) (2026-05-25)
 
 
