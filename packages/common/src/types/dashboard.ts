@@ -63,7 +63,7 @@ export type DashboardChartTileProperties = {
         belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
-        chartSlug?: string;
+        chartSlug?: string | null;
     };
 };
 
@@ -74,7 +74,7 @@ export type DashboardSqlChartTileProperties = {
         savedSqlUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
-        chartSlug?: string;
+        chartSlug?: string | null;
     };
 };
 
@@ -184,7 +184,13 @@ export const isDashboardDataAppTileType = (
 
 export type DashboardTab = {
     uuid: string;
+    /**
+     * @minLength 1
+     */
     name: string;
+    /**
+     * @minimum 0
+     */
     order: number;
     hidden: boolean;
 };

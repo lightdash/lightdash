@@ -527,7 +527,10 @@ const run = (): void => {
 
     if (checkMode) {
         const currentContent = fs.readFileSync(outputPath, 'utf8');
-        if (currentContent !== nextContent) {
+        const normalizedCurrentContent = toStableJson(
+            JSON.parse(currentContent) as JsonObject,
+        );
+        if (normalizedCurrentContent !== nextContent) {
             console.error(
                 'chart-as-code schema is out of date. Run `pnpm generate:chart-as-code-schema`.',
             );

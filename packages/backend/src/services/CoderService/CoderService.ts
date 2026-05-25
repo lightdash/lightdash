@@ -13,6 +13,7 @@ import {
     DashboardAsCodeInternalization,
     DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardMarkdownTileAsCode,
     DashboardSqlChartTileAsCode,
     DashboardTile,
     DashboardTileAsCode,
@@ -261,6 +262,9 @@ export class CoderService extends BaseService {
     ) => {
         const tile = dashboard.tiles.find((t) => t.uuid === uuid);
         if (tile && isAnyChartTile(tile)) {
+            if (tile.properties.chartSlug == null) {
+                return undefined;
+            }
             const hasMultipleTilesWithSameChartSlug =
                 dashboard.tiles.filter(
                     (t) =>
@@ -381,12 +385,6 @@ export class CoderService extends BaseService {
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
                 if (isAnyChartTile(tile)) {
-                    if (!tile.properties.chartSlug) {
-                        throw new ParameterError(
-                            `Chart tile ${tile.uuid} is missing chartSlug`,
-                        );
-                    }
-
                     if (tile.type === DashboardTileTypes.SAVED_CHART) {
                         const chartTile: DashboardChartTileAsCode = {
                             ...tile,
@@ -399,7 +397,7 @@ export class CoderService extends BaseService {
                             properties: {
                                 title: tile.properties.title,
                                 hideTitle: tile.properties.hideTitle,
-                                chartSlug: tile.properties.chartSlug,
+                                chartSlug: tile.properties.chartSlug ?? null,
                                 chartName:
                                     tile.properties.chartName ?? undefined,
                             },
@@ -418,14 +416,29 @@ export class CoderService extends BaseService {
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
-                            chartSlug: tile.properties.chartSlug,
+                            chartSlug: tile.properties.chartSlug ?? null,
                             chartName: tile.properties.chartName,
                         },
                     };
                     return sqlTile;
                 }
 
-                // Markdown and loom are returned as they are
+                if (tile.type === DashboardTileTypes.MARKDOWN) {
+                    const markdownTile: DashboardMarkdownTileAsCode = {
+                        ...tile,
+                        type: DashboardTileTypes.MARKDOWN,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        properties: {
+                            title: tile.properties.title,
+                            content: tile.properties.content,
+                            hideFrame: tile.properties.hideFrame,
+                        },
+                    };
+                    return markdownTile;
+                }
+
+                // Other non-chart tiles already match the as-code shape
                 return {
                     ...tile,
                     tileSlug: undefined,
@@ -464,26 +477,55 @@ export class CoderService extends BaseService {
         projectUuid: string,
         tiles: DashboardTileAsCode[],
     ): Promise<DashboardTileWithSlug[]> {
-        for (const tile of tiles) {
-            if (isAnyChartTile(tile) && !tile.properties.chartSlug) {
-                throw new ParameterError('Chart tile is missing chartSlug');
-            }
-        }
-
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
-            if (!isAnyChartTile(tile)) {
+            if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
             }
 
             return [...acc, tile.properties.chartSlug];
         }, []);
 
-        // Skip database queries if there are no chart tiles
-        if (chartSlugs.length === 0) {
-            return tiles.map((tile) => ({
+        const withResolvedTileUuid = (
+            tile: DashboardTileAsCode,
+            chartInfo?: { uuid: string; isSql: boolean },
+        ): DashboardTileWithSlug => {
+            if (!isAnyChartTile(tile)) {
+                return {
+                    ...tile,
+                    uuid: tile.uuid ?? uuidv4(),
+                } as DashboardTileWithSlug;
+            }
+
+            const isSqlChart =
+                chartInfo?.isSql ?? tile.type === DashboardTileTypes.SQL_CHART;
+
+            if (isSqlChart) {
+                return {
+                    ...tile,
+                    uuid: tile.uuid ?? uuidv4(),
+                    type: DashboardTileTypes.SQL_CHART,
+                    properties: {
+                        ...tile.properties,
+                        chartSlug: tile.properties.chartSlug ?? null,
+                        savedSqlUuid: chartInfo?.uuid ?? null,
+                    },
+                } as DashboardTileWithSlug;
+            }
+
+            return {
                 ...tile,
                 uuid: tile.uuid ?? uuidv4(),
-            })) as DashboardTileWithSlug[];
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: {
+                    ...tile.properties,
+                    chartSlug: tile.properties.chartSlug ?? null,
+                    savedChartUuid: chartInfo?.uuid ?? null,
+                },
+            } as DashboardTileWithSlug;
+        };
+
+        if (chartSlugs.length === 0) {
+            return tiles.map((tile) => withResolvedTileUuid(tile));
         }
 
         // Query both regular charts and SQL charts in parallel
@@ -518,39 +560,14 @@ export class CoderService extends BaseService {
         return tiles.map((tile) => {
             if (isAnyChartTile(tile)) {
                 const { chartSlug } = tile.properties;
-                if (!chartSlug) {
-                    throw new ParameterError('Chart tile is missing chartSlug');
+                if (chartSlug == null) {
+                    return withResolvedTileUuid(tile);
                 }
                 const chartInfo = chartSlugToInfo.get(chartSlug);
-                const isSqlChart =
-                    chartInfo?.isSql ??
-                    tile.type === DashboardTileTypes.SQL_CHART;
-
-                // Use the correct property name based on chart type
-                if (isSqlChart) {
-                    return {
-                        ...tile,
-                        uuid: uuidv4(),
-                        type: DashboardTileTypes.SQL_CHART,
-                        properties: {
-                            ...tile.properties,
-                            savedSqlUuid: chartInfo?.uuid ?? null,
-                        },
-                    } as DashboardTileWithSlug;
-                }
-
-                return {
-                    ...tile,
-                    uuid: uuidv4(),
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        ...tile.properties,
-                        savedChartUuid: chartInfo?.uuid ?? null,
-                    },
-                } as DashboardTileWithSlug;
+                return withResolvedTileUuid(tile, chartInfo);
             }
 
-            return tile as DashboardTileWithSlug;
+            return withResolvedTileUuid(tile);
         });
     }
 

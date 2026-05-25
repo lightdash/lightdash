@@ -209,7 +209,124 @@ const sortKeysDeep = (value: JsonValue): JsonValue => {
     return Object.fromEntries(sortedEntries);
 };
 
-const overlayCompatibilityRules = (schema: JsonObject): JsonObject => {
+const resolveDefRef = (
+    ref: string,
+    defs: Record<string, JsonObject>,
+    depth = 0,
+): JsonObject => {
+    if (depth > 10) {
+        throw new Error(`Max $defs $ref resolution depth exceeded at: ${ref}`);
+    }
+    if (!ref.startsWith(DEFS_REF_PREFIX)) {
+        throw new Error(`Unsupported $defs $ref format: ${ref}`);
+    }
+
+    const schemaName = ref.slice(DEFS_REF_PREFIX.length);
+    const schema = defs[schemaName];
+    if (!schema) {
+        throw new Error(`Missing $defs schema: ${schemaName}`);
+    }
+
+    if (typeof schema.$ref === 'string') {
+        return resolveDefRef(schema.$ref, defs, depth + 1);
+    }
+
+    return schema;
+};
+
+const flattenObjectSchema = (
+    schema: JsonObject,
+    defs: Record<string, JsonObject>,
+): JsonObject => {
+    const resolvedSchema =
+        typeof schema.$ref === 'string'
+            ? resolveDefRef(schema.$ref, defs)
+            : schema;
+
+    if (!Array.isArray(resolvedSchema.allOf)) {
+        return resolvedSchema;
+    }
+
+    return resolvedSchema.allOf.reduce<JsonObject>((acc, part) => {
+        const partObject =
+            part && typeof part === 'object' && !Array.isArray(part)
+                ? (part as JsonObject)
+                : {};
+        const resolvedPart =
+            typeof partObject.$ref === 'string'
+                ? resolveDefRef(partObject.$ref, defs)
+                : partObject;
+        return mergeObjectSchemas(acc, flattenObjectSchema(resolvedPart, defs));
+    }, {});
+};
+
+const applyDashboardTileCompatibilityRules = (
+    defs: Record<string, JsonObject>,
+): Record<string, JsonObject> => {
+    const nextDefs = { ...defs };
+    const tileUnion = nextDefs.DashboardTileAsCode;
+    if (!tileUnion || !Array.isArray(tileUnion.anyOf)) {
+        return nextDefs;
+    }
+
+    tileUnion.anyOf.forEach((member) => {
+        const memberObject =
+            member && typeof member === 'object' && !Array.isArray(member)
+                ? (member as JsonObject)
+                : {};
+        if (typeof memberObject.$ref !== 'string') {
+            return;
+        }
+
+        const schemaName = memberObject.$ref.slice(DEFS_REF_PREFIX.length);
+        const variant = nextDefs[schemaName];
+        if (!variant) {
+            return;
+        }
+
+        const flattenedVariant = flattenObjectSchema(variant, nextDefs);
+        const variantProperties = toObject(flattenedVariant.properties);
+
+        const tilePropertiesSchema = flattenObjectSchema(
+            toObject(variantProperties.properties),
+            nextDefs,
+        );
+        tilePropertiesSchema.additionalProperties = false;
+        variantProperties.properties = tilePropertiesSchema;
+
+        nextDefs[schemaName] = {
+            ...flattenedVariant,
+            additionalProperties: false,
+            properties: variantProperties,
+        };
+    });
+
+    return nextDefs;
+};
+
+const applyDashboardTabCompatibilityRules = (
+    defs: Record<string, JsonObject>,
+): Record<string, JsonObject> => {
+    const nextDefs = { ...defs };
+    ['DashboardTab', 'DashboardTabAsCode'].forEach((schemaName) => {
+        const dashboardTab = nextDefs[schemaName];
+        if (!dashboardTab) {
+            return;
+        }
+
+        nextDefs[schemaName] = {
+            ...dashboardTab,
+            additionalProperties: false,
+        };
+    });
+
+    return nextDefs;
+};
+
+const overlayCompatibilityRules = (
+    schema: JsonObject,
+    defs: Record<string, JsonObject>,
+): { schema: JsonObject; defs: Record<string, JsonObject> } => {
     const root = { ...schema };
     const rootProperties = toObject(root.properties);
 
@@ -222,7 +339,12 @@ const overlayCompatibilityRules = (schema: JsonObject): JsonObject => {
 
     root.properties = rootProperties;
     root.additionalProperties = false;
-    return root;
+
+    const defsWithStrictTiles = applyDashboardTileCompatibilityRules(defs);
+    const defsWithCompatibility =
+        applyDashboardTabCompatibilityRules(defsWithStrictTiles);
+
+    return { schema: root, defs: defsWithCompatibility };
 };
 
 export const buildDashboardAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
@@ -273,7 +395,8 @@ export const buildDashboardAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         }, {});
 
     const convertedRoot = convertOpenApiToDraft07(rootSchema) as JsonObject;
-    const rootWithCompatibility = overlayCompatibilityRules(convertedRoot);
+    const { schema: rootWithCompatibility, defs: defsWithCompatibility } =
+        overlayCompatibilityRules(convertedRoot, defs);
 
     return {
         $schema: 'http://json-schema.org/draft-07/schema#',
@@ -282,7 +405,7 @@ export const buildDashboardAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         description:
             'Schema for defining Lightdash dashboards in YAML format for version control',
         ...rootWithCompatibility,
-        $defs: defs,
+        $defs: defsWithCompatibility,
     };
 };
 
@@ -304,7 +427,10 @@ const run = (): void => {
 
     if (checkMode) {
         const currentContent = fs.readFileSync(outputPath, 'utf8');
-        if (currentContent !== nextContent) {
+        const normalizedCurrentContent = toStableJson(
+            JSON.parse(currentContent) as JsonObject,
+        );
+        if (normalizedCurrentContent !== nextContent) {
             console.error(
                 'dashboard-as-code schema is out of date. Run `pnpm generate:dashboard-as-code-schema`.',
             );

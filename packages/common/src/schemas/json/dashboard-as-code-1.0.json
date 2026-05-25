@@ -33,36 +33,65 @@
             "type": "object"
         },
         "DashboardChartTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
-                        "properties": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/$defs/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
-                                },
-                                {
-                                    "properties": {
-                                        "chartSlug": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["chartSlug"],
-                                    "type": "object"
-                                }
-                            ]
+                        "chartName": {
+                            "type": ["string", "null"]
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.SAVED_CHART"
+                        "chartSlug": {
+                            "type": ["string", "null"]
+                        },
+                        "hideTitle": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
                         }
                     },
-                    "required": ["properties", "type"],
+                    "required": ["chartSlug"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.SAVED_CHART"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
         "DashboardConfig": {
             "properties": {
@@ -112,38 +141,64 @@
             "type": "object"
         },
         "DashboardDataAppTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
                     "properties": {
-                        "properties": {
-                            "properties": {
-                                "appDeletedAt": {
-                                    "type": ["string", "null"]
-                                },
-                                "appUuid": {
-                                    "type": "string"
-                                },
-                                "hideTitle": {
-                                    "type": "boolean"
-                                },
-                                "title": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["appUuid", "title"],
-                            "type": "object"
+                        "appDeletedAt": {
+                            "type": ["string", "null"]
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.DATA_APP"
+                        "appUuid": {
+                            "type": "string"
+                        },
+                        "hideTitle": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
                         }
                     },
-                    "required": ["properties", "type"],
+                    "required": ["appUuid", "title"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.DATA_APP"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
         "DashboardFieldTarget": {
             "properties": {
@@ -192,95 +247,173 @@
             ]
         },
         "DashboardHeadingTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
                     "properties": {
-                        "properties": {
-                            "properties": {
-                                "showDivider": {
-                                    "type": "boolean"
-                                },
-                                "text": {
-                                    "type": "string"
-                                },
-                                "title": {}
-                            },
-                            "required": ["text"],
-                            "type": "object"
+                        "showDivider": {
+                            "type": "boolean"
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.HEADING"
-                        }
+                        "text": {
+                            "type": "string"
+                        },
+                        "title": {}
                     },
-                    "required": ["properties", "type"],
+                    "required": ["text"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.HEADING"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
         "DashboardLoomTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
                     "properties": {
-                        "properties": {
-                            "properties": {
-                                "hideTitle": {
-                                    "type": "boolean"
-                                },
-                                "title": {
-                                    "type": "string"
-                                },
-                                "url": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["url", "title"],
-                            "type": "object"
+                        "hideTitle": {
+                            "type": "boolean"
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.LOOM"
+                        "title": {
+                            "type": "string"
+                        },
+                        "url": {
+                            "type": "string"
                         }
                     },
-                    "required": ["properties", "type"],
+                    "required": ["url", "title"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.LOOM"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
         "DashboardMarkdownTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
                     "properties": {
-                        "properties": {
-                            "properties": {
-                                "content": {
-                                    "type": "string"
-                                },
-                                "hideFrame": {
-                                    "type": "boolean"
-                                },
-                                "title": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["content", "title"],
-                            "type": "object"
+                        "content": {
+                            "type": "string"
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.MARKDOWN"
+                        "hideFrame": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
                         }
                     },
-                    "required": ["properties", "type"],
+                    "required": ["content", "title"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.MARKDOWN"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
         "DashboardParameters": {
             "$ref": "#/$defs/Record_string.DashboardParameterValue_"
@@ -298,47 +431,79 @@
             "type": "object"
         },
         "DashboardSqlChartTileAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DashboardTileAsCodeBase"
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
                 },
-                {
+                "properties": {
+                    "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
-                        "properties": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/$defs/Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
-                                },
-                                {
-                                    "properties": {
-                                        "chartSlug": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["chartSlug"],
-                                    "type": "object"
-                                }
-                            ]
+                        "chartName": {
+                            "type": "string"
                         },
-                        "type": {
-                            "$ref": "#/$defs/DashboardTileTypes.SQL_CHART"
+                        "chartSlug": {
+                            "type": ["string", "null"]
+                        },
+                        "hideTitle": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
                         }
                     },
-                    "required": ["properties", "type"],
+                    "required": ["chartName", "chartSlug"],
                     "type": "object"
+                },
+                "tabUuid": {
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.SQL_CHART"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
                 }
-            ]
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
         },
-        "DashboardTab": {
+        "DashboardTabAsCode": {
+            "additionalProperties": false,
             "properties": {
                 "hidden": {
                     "type": "boolean"
                 },
                 "name": {
+                    "minLength": 1,
                     "type": "string"
                 },
                 "order": {
                     "format": "double",
+                    "minimum": 0,
                     "type": "number"
                 },
                 "uuid": {
@@ -374,6 +539,7 @@
             "properties": {
                 "h": {
                     "format": "double",
+                    "minimum": 1,
                     "type": "number"
                 },
                 "tabUuid": {
@@ -390,14 +556,19 @@
                 },
                 "w": {
                     "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
                     "type": "number"
                 },
                 "x": {
                     "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
                     "type": "number"
                 },
                 "y": {
                     "format": "double",
+                    "minimum": 0,
                     "type": "number"
                 }
             },
@@ -703,12 +874,14 @@
             "type": "object"
         },
         "name": {
+            "minLength": 1,
             "type": "string"
         },
         "parameters": {
             "$ref": "#/$defs/DashboardParameters"
         },
         "slug": {
+            "pattern": "^[a-z0-9-]+$",
             "type": "string"
         },
         "spaceSlug": {
@@ -716,7 +889,7 @@
         },
         "tabs": {
             "items": {
-                "$ref": "#/$defs/DashboardTab"
+                "$ref": "#/$defs/DashboardTabAsCode"
             },
             "type": "array"
         },
@@ -756,7 +929,7 @@
             "type": "number"
         }
     },
-    "required": ["name", "slug", "tabs", "spaceSlug", "version", "tiles"],
+    "required": ["spaceSlug", "version", "tiles", "tabs", "slug", "name"],
     "title": "Lightdash Dashboard as Code",
     "type": "object"
 }

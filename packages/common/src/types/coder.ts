@@ -10,6 +10,7 @@ import type {
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardSqlChartTileProperties,
+    DashboardTab,
     DashboardTile,
     DashboardTileTypes,
     FilterRule,
@@ -151,9 +152,23 @@ type DashboardTileAsCodeBase = {
     uuid: DashboardTile['uuid'] | undefined;
     tileSlug: string | undefined;
     type: DashboardTileTypes;
+    /**
+     * @minimum 0
+     * @maximum 35
+     */
     x: DashboardTile['x'];
+    /**
+     * @minimum 0
+     */
     y: DashboardTile['y'];
+    /**
+     * @minimum 1
+     */
     h: DashboardTile['h'];
+    /**
+     * @minimum 1
+     * @maximum 36
+     */
     w: DashboardTile['w'];
     tabUuid: DashboardTile['tabUuid'];
 };
@@ -163,7 +178,7 @@ export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
     properties: Pick<
         DashboardChartTileProperties['properties'],
         'title' | 'hideTitle' | 'chartName'
-    > & { chartSlug: string };
+    > & { chartSlug: string | null };
 };
 
 export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
@@ -171,7 +186,7 @@ export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
     properties: Pick<
         DashboardSqlChartTileProperties['properties'],
         'title' | 'hideTitle' | 'chartName'
-    > & { chartSlug: string };
+    > & { chartSlug: string | null };
 };
 
 export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
@@ -206,10 +221,35 @@ export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;
 };
 
-export type DashboardAsCode = Pick<
-    Dashboard,
-    'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
+export type DashboardTabAsCode = {
+    uuid: DashboardTab['uuid'];
+    /**
+     * @minLength 1
+     */
+    name: string;
+    /**
+     * @minimum 0
+     */
+    order: number;
+    hidden: DashboardTab['hidden'];
+};
+
+export type DashboardAsCode = Omit<
+    Pick<
+        Dashboard,
+        'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
+    >,
+    'name' | 'slug' | 'tabs'
 > & {
+    /**
+     * @minLength 1
+     */
+    name: string;
+    /**
+     * @pattern ^[a-z0-9-]+$
+     */
+    slug: string;
+    tabs: DashboardTabAsCode[];
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     tiles: DashboardTileAsCode[];
