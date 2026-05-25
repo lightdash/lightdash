@@ -1474,6 +1474,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <AskAiAgentMenuItem
                                     projectUuid={projectUuid}
                                     chartUuid={savedChartUuid ?? undefined}
+                                    dashboardUuid={dashboardUuid}
                                     clickedFrom="dashboard_chart_tile"
                                 />
 
