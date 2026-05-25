@@ -139,6 +139,30 @@ export const AiAgentFormSetup = ({
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
 
+    const handlePersistedMcpServerChange = useCallback(
+        (value: string[]) => {
+            const dirtyFields = Object.keys(form.values).reduce<
+                Record<string, boolean>
+            >((acc, field) => {
+                if (
+                    field !== 'mcpServerUuids' &&
+                    form.isDirty(field as keyof typeof form.values)
+                ) {
+                    acc[field] = true;
+                }
+
+                return acc;
+            }, {});
+
+            form.resetDirty({
+                ...form.values,
+                mcpServerUuids: value,
+            });
+            form.setDirty(dirtyFields);
+        },
+        [form],
+    );
+
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
             includeMembers: 5,
@@ -410,6 +434,7 @@ export const AiAgentFormSetup = ({
                     <AiAgentMcpServersInput
                         agentUuid={agentUuid}
                         isSavingAgent={isSavingAgent}
+                        onPersistedChange={handlePersistedMcpServerChange}
                         persistedMcpServerUuids={persistedMcpServerUuids}
                         projectUuid={projectUuid}
                         value={form.values.mcpServerUuids}
