@@ -27,6 +27,7 @@ packages/e2e/lightdash
 /packages/backend/src/database/logs
 /packages/cli/logs
 /packages/warehouses/logs
+*.log
 
 # development
 lightdash_dev.yml
