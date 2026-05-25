@@ -426,6 +426,12 @@ export type TableChart = {
     showSubtotals?: boolean;
     /** Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true. */
     showSubtotalsExpanded?: boolean;
+    /**
+     * Visually deduplicate repeated row-index dimension values across consecutive
+     * rows without showing aggregate subtotal rows. When `showSubtotals` is true,
+     * grouping is implicitly active and this flag is ignored. Defaults to false.
+     */
+    showRowGrouping?: boolean;
     /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
     /** Conditional formatting rules */

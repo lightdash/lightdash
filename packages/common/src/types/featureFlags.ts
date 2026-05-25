@@ -190,6 +190,14 @@ export enum FeatureFlags {
     HidePivotDimensions = 'hide-pivot-dimensions',
 
     /**
+     * Enable the "Group repeated row values" toggle on pivot tables — visual
+     * dedup of row-header dim values without rendering aggregate subtotal
+     * rows. Off by default while we validate the rendering across customer
+     * data shapes before GA.
+     */
+    PivotRowGrouping = 'pivot-row-grouping',
+
+    /**
      * Enable AI thread context compaction for streamed web-app conversations.
      */
     AiContextCompaction = 'ai-context-compaction',
