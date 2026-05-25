@@ -391,11 +391,19 @@ export class OrganizationDesignService extends BaseService {
     async updateDesign(
         account: Account,
         designUuid: string,
-        body: { name?: string; description?: string | null },
+        body: {
+            name?: string;
+            description?: string | null;
+            extraInstructions?: string | null;
+        },
     ): Promise<ApiOrganizationDesign> {
         const { organizationUuid } = this.assertCanManage(account);
         await this.loadOwned(organizationUuid, designUuid);
-        const update: { name?: string; description?: string | null } = {};
+        const update: {
+            name?: string;
+            description?: string | null;
+            extraInstructions?: string | null;
+        } = {};
         if (body.name !== undefined) {
             const trimmed = body.name.trim();
             if (!trimmed) {
@@ -408,6 +416,15 @@ export class OrganizationDesignService extends BaseService {
                 body.description === null
                     ? null
                     : body.description.trim() || null;
+        }
+        if (body.extraInstructions !== undefined) {
+            // Normalise empty string to null so "no extra instructions" has
+            // one canonical representation in the DB and downstream
+            // skill-assembly check (`if (extraInstructions)`).
+            update.extraInstructions =
+                body.extraInstructions === null
+                    ? null
+                    : body.extraInstructions.trim() || null;
         }
         return this.organizationDesignModel.update(
             organizationUuid,

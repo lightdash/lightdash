@@ -30,6 +30,12 @@ export type ApiOrganizationDesign = {
     organizationUuid: string;
     name: string;
     description: string | null;
+    /**
+     * Free-text override appended to the agent's effective skill at build
+     * time, alongside any uploaded `instruction` markdown files. Empty
+     * string is normalised to `null` server-side.
+     */
+    extraInstructions: string | null;
     isDefault: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -45,6 +51,7 @@ export type CreateOrganizationDesignRequest = {
 export type UpdateOrganizationDesignRequest = {
     name?: string;
     description?: string | null;
+    extraInstructions?: string | null;
 };
 
 export type ApiOrganizationDesignResponse = ApiSuccess<ApiOrganizationDesign>;
