@@ -24,6 +24,10 @@ import {
     getDatabricksOidcEndpointsFromHost,
     getDatabricksStrategyName,
 } from '../controllers/authentication/strategies/databricksStrategy';
+import {
+    createGenericOidcStrategyForConfig,
+    isGenericOidcPassportStrategyAvailableToUse,
+} from '../controllers/authentication/strategies/oidcStrategy';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -213,6 +217,67 @@ const resolveAzureAdStrategyName = async (
     return undefined;
 };
 
+// Cache dynamic generic-OIDC strategies (keyed `oidc:<orgUuid>`), mirroring the
+// Azure AD cache. Building the strategy is async (OIDC issuer discovery), so
+// registration is async too. Evicted after the same TTL so rotated secrets are
+// eventually picked up.
+const genericOidcStrategyCache = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout> }
+>();
+
+const registerGenericOidcStrategyForOrg = async (
+    organizationUuid: string,
+    config: import('@lightdash/common').GenericOidcSsoConfig,
+): Promise<string> => {
+    const strategyName = `oidc:${organizationUuid}`;
+    const existing = genericOidcStrategyCache.get(strategyName);
+    // Always re-register so config changes (e.g. rotated secret) take effect.
+    passport.use(
+        strategyName,
+        await createGenericOidcStrategyForConfig(config),
+    );
+    if (existing) {
+        clearTimeout(existing.timer);
+    }
+    const timer = setTimeout(() => {
+        genericOidcStrategyCache.delete(strategyName);
+        passport.unuse(strategyName);
+    }, AZURE_AD_STRATEGY_TTL_MS);
+    genericOidcStrategyCache.set(strategyName, { timer });
+    return strategyName;
+};
+
+/**
+ * Resolves the generic-OIDC strategy name for this request, registering the
+ * per-org strategy dynamically. Returns undefined when neither a per-org DB
+ * config matching the email domain nor an env-based fallback is available.
+ */
+const resolveGenericOidcStrategyName = async (
+    req: express.Request,
+): Promise<string | undefined> => {
+    const ssoService = req.services.getOrganizationSsoService();
+    const email = getLoginHint(req);
+
+    if (email) {
+        const method = await ssoService.findEnabledMethodForEmail(
+            email,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+        if (method) {
+            return registerGenericOidcStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    }
+    // Fall back to the env-based strategy registered at startup, if available.
+    if (isGenericOidcPassportStrategyAvailableToUse) {
+        return 'oidc';
+    }
+    return undefined;
+};
+
 const authenticateDatabricks = (
     getAuthenticateOptions?: (
         req: express.Request,
@@ -396,22 +461,76 @@ apiV1Router.get(
 apiV1Router.get(
     lightdashConfig.auth.oidc.loginPath,
     storeOIDCRedirect,
-    passport.authenticate(
-        'oidc',
-        lightdashConfig.auth.oidc.scopes
-            ? {
-                  scope: lightdashConfig.auth.oidc.scopes,
-              }
-            : {},
-    ),
+    async (req, res, next) => {
+        try {
+            const strategyName = await resolveGenericOidcStrategyName(req);
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OIDC SSO is not configured',
+                });
+                return;
+            }
+            req.session.oauth = req.session.oauth || {};
+            req.session.oauth.oidcStrategyName = strategyName;
+            // Per-org strategies bake the scope into the client params; the
+            // env-based 'oidc' strategy still takes its scope here.
+            const authenticateOptions: passport.AuthenticateOptions =
+                strategyName === 'oidc' && lightdashConfig.auth.oidc.scopes
+                    ? { scope: lightdashConfig.auth.oidc.scopes }
+                    : {};
+            passport.authenticate(strategyName, authenticateOptions)(
+                req,
+                res,
+                next,
+            );
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
-apiV1Router.get(lightdashConfig.auth.oidc.callbackPath, (req, res, next) =>
-    passport.authenticate('oidc', {
-        failureRedirect: getOidcRedirectURL(false)(req),
-        successRedirect: getOidcRedirectURL(true)(req),
-        failureFlash: true,
-    })(req, res, next),
+apiV1Router.get(
+    lightdashConfig.auth.oidc.callbackPath,
+    async (req, res, next) => {
+        try {
+            const sessionStrategyName = req.session.oauth?.oidcStrategyName;
+            const strategyName =
+                sessionStrategyName ??
+                (await resolveGenericOidcStrategyName(req));
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OIDC SSO is not configured',
+                });
+                return;
+            }
+            // Re-register the per-org strategy if it was evicted (e.g. a server
+            // restart between login and callback).
+            if (
+                strategyName.startsWith('oidc:') &&
+                !genericOidcStrategyCache.has(strategyName)
+            ) {
+                const orgUuid = strategyName.slice('oidc:'.length);
+                const config = await req.services
+                    .getOrganizationSsoService()
+                    .getConfigForOrganization(
+                        orgUuid,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    );
+                if (config) {
+                    await registerGenericOidcStrategyForOrg(orgUuid, config);
+                }
+            }
+            passport.authenticate(strategyName, {
+                failureRedirect: getOidcRedirectURL(false)(req),
+                successRedirect: getOidcRedirectURL(true)(req),
+                failureFlash: true,
+            })(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
 apiV1Router.get(

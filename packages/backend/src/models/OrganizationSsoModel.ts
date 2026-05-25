@@ -1,5 +1,6 @@
 import {
     AzureAdSsoConfig,
+    GenericOidcSsoConfig,
     OktaSsoConfig,
     OrganizationSsoMethodFlags,
     OrganizationSsoProvider,
@@ -17,6 +18,7 @@ type OrganizationSsoModelArguments = {
 type ProviderConfigTypeMap = {
     [OrganizationSsoProvider.AZUREAD]: AzureAdSsoConfig;
     [OrganizationSsoProvider.OKTA]: OktaSsoConfig;
+    [OrganizationSsoProvider.GENERIC_OIDC]: GenericOidcSsoConfig;
 };
 
 export type OrganizationSsoMethod<P extends OrganizationSsoProvider> = {

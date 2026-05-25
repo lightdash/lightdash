@@ -722,6 +722,79 @@ describe('UserService', () => {
         });
     });
 
+    describe('getLoginOptions per-org generic OIDC discovery', () => {
+        // Per-org OIDC config lives in the DB; the instance has no OIDC env
+        // config. Proves the generic discovery path maps provider 'oidc' to the
+        // GENERIC_OIDC login option independently of env config.
+        const oidcMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.GENERIC_OIDC as unknown as never,
+            config: {
+                clientId: 'cid',
+                clientSecret: 'sec',
+                metadataDocumentEndpoint:
+                    'https://idp.acme.com/.well-known/openid-configuration',
+                scopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                oidc: {
+                    ...lightdashConfigMock.auth.oidc,
+                    loginPath: '/login/oidc',
+                },
+            },
+        };
+
+        test('per-org OIDC match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oidcMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'oidc'],
+            });
+        });
+
+        test('brand-new user matching per-org OIDC → forceRedirect to /login/oidc', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oidcMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/oidc?login_hint=newbie%40acme.com',
+                showOptions: ['oidc'],
+            });
+        });
+    });
+
     describe('loginWithOpenId', () => {
         test('should throw error if provider not allowed', async () => {
             await expect(
