@@ -57,6 +57,7 @@ describe('aiAgentDocumentExtractor', () => {
                     buffer: Buffer.from('  revenue means net sales  '),
                     filename: 'glossary.txt',
                     mimeType: 'text/plain',
+                    timeoutMs: 30_000,
                 }),
             ).resolves.toEqual({
                 content: 'revenue means net sales',
@@ -71,6 +72,7 @@ describe('aiAgentDocumentExtractor', () => {
                     buffer: Buffer.from('\uFEFFmetric,definition\nGMV,total'),
                     filename: 'metrics.csv',
                     mimeType: 'text/csv',
+                    timeoutMs: 30_000,
                 }),
             ).resolves.toEqual({
                 content: 'metric,definition\nGMV,total',
@@ -85,6 +87,7 @@ describe('aiAgentDocumentExtractor', () => {
                     buffer: Buffer.from('   '),
                     filename: 'empty.txt',
                     mimeType: 'text/plain',
+                    timeoutMs: 30_000,
                 }),
             ).rejects.toThrow(ParameterError);
         });

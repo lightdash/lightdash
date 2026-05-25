@@ -244,6 +244,9 @@ export const lightdashConfigMock: LightdashConfig = {
             verifiedAnswerSimilarityThreshold: 0.6,
             defaultEmbeddingModelProvider: 'openai',
         },
+        aiAgentDocument: {
+            extractionTimeoutMs: 30_000,
+        },
     },
     embedding: {
         enabled: false,

@@ -289,6 +289,7 @@ export class AiAgentDocumentService extends BaseService {
             user,
             body,
         );
+
         const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: false,
             useFastModel: true,
@@ -353,21 +354,13 @@ export class AiAgentDocumentService extends BaseService {
             body: input.body,
             contentLength: input.contentLength,
         });
-        let extracted: Awaited<ReturnType<typeof extractAiAgentDocumentText>>;
-        try {
-            extracted = await extractAiAgentDocumentText({
-                buffer: rawBody,
-                filename: input.originalFilename,
-                mimeType: input.mimeType,
-            });
-        } catch (e) {
-            if (e instanceof ParameterError) {
-                throw e;
-            }
-            throw new ParameterError(
-                'Could not read text from this document. Check that it is not password-protected or image-only.',
-            );
-        }
+        const extracted = await extractAiAgentDocumentText({
+            buffer: rawBody,
+            filename: input.originalFilename,
+            mimeType: input.mimeType,
+            timeoutMs:
+                this.lightdashConfig.ai.aiAgentDocument.extractionTimeoutMs,
+        });
 
         return this.createDocumentWithContent(user, {
             name: input.name?.trim() || stripExtension(input.originalFilename),
