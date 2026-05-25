@@ -1,4 +1,5 @@
-import { type FC } from 'react';
+import { isDimension } from '@lightdash/common';
+import { useMemo, type FC } from 'react';
 import {
     selectSavedChart,
     selectUnsavedColorPaletteUuid,
@@ -10,6 +11,7 @@ import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppea
 import useHealth from '../../../hooks/health/useHealth';
 import Callout from '../../common/Callout';
 import { PalettePicker } from '../../common/PalettePicker/PalettePicker';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from './Config';
 
 export const ColorPaletteSection: FC = () => {
@@ -18,10 +20,27 @@ export const ColorPaletteSection: FC = () => {
     const value = useExplorerSelector(selectUnsavedColorPaletteUuid);
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
+    const { pivotDimensions, itemsMap } = useVisualizationContext();
 
     const overrideActive =
         !!health?.appearance.overrideColorPalette &&
         health.appearance.overrideColorPalette.length > 0;
+
+    const pivotDimsWithFixedColors = useMemo(() => {
+        if (!pivotDimensions?.length || !itemsMap) return [];
+        return pivotDimensions.flatMap((fieldId) => {
+            const item = itemsMap[fieldId];
+            if (
+                item &&
+                isDimension(item) &&
+                item.colors &&
+                Object.keys(item.colors).length > 0
+            ) {
+                return [item];
+            }
+            return [];
+        });
+    }, [pivotDimensions, itemsMap]);
 
     const inheritedSourceName =
         savedChart?.resolvedColorPalette.source.type === 'chart' ||
@@ -39,6 +58,15 @@ export const ColorPaletteSection: FC = () => {
                         A color palette override is set in your instance
                         configuration. Chart-level selection is disabled while
                         the override is active.
+                    </Callout>
+                )}
+                {!overrideActive && pivotDimsWithFixedColors.length > 0 && (
+                    <Callout variant="info">
+                        {pivotDimsWithFixedColors.length === 1
+                            ? `"${pivotDimsWithFixedColors[0].label}" has fixed colors defined in the data model.`
+                            : `${pivotDimsWithFixedColors.length} pivoted dimensions have fixed colors defined in the data model.`}{' '}
+                        Those values will keep their assigned colors regardless
+                        of the palette selected here.
                     </Callout>
                 )}
                 <PalettePicker
