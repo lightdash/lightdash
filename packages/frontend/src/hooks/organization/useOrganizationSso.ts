@@ -1,8 +1,10 @@
 import {
     type ApiError,
     type AzureAdSsoConfigSummary,
+    type GenericOidcSsoConfigSummary,
     type OktaSsoConfigSummary,
     type UpsertAzureAdSsoConfig,
+    type UpsertGenericOidcSsoConfig,
     type UpsertOktaSsoConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -148,6 +150,79 @@ export const useDeleteOktaSsoConfig = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to remove Okta SSO settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const OIDC_QUERY_KEY = ['organization_sso', 'oidc'];
+
+const getGenericOidcSsoConfig = async () =>
+    lightdashApi<GenericOidcSsoConfigSummary | null>({
+        url: '/org/sso/oidc',
+        method: 'GET',
+        body: undefined,
+    });
+
+const upsertGenericOidcSsoConfig = async (data: UpsertGenericOidcSsoConfig) =>
+    lightdashApi<GenericOidcSsoConfigSummary>({
+        url: '/org/sso/oidc',
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+const deleteGenericOidcSsoConfig = async () =>
+    lightdashApi<undefined>({
+        url: '/org/sso/oidc',
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useGenericOidcSsoConfig = () =>
+    useQuery<GenericOidcSsoConfigSummary | null, ApiError>({
+        queryKey: OIDC_QUERY_KEY,
+        queryFn: getGenericOidcSsoConfig,
+    });
+
+export const useUpsertGenericOidcSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<
+        GenericOidcSsoConfigSummary,
+        ApiError,
+        UpsertGenericOidcSsoConfig
+    >(upsertGenericOidcSsoConfig, {
+        mutationKey: ['organization_sso', 'oidc', 'upsert'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(OIDC_QUERY_KEY);
+            showToastSuccess({
+                title: 'OIDC SSO settings saved',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to save OIDC SSO settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useDeleteGenericOidcSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<undefined, ApiError>(deleteGenericOidcSsoConfig, {
+        mutationKey: ['organization_sso', 'oidc', 'delete'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(OIDC_QUERY_KEY);
+            showToastSuccess({
+                title: 'OIDC SSO settings removed',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to remove OIDC SSO settings',
                 apiError: error,
             });
         },

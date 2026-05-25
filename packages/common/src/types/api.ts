@@ -151,6 +151,7 @@ import {
 } from './organizationMemberProfile';
 import {
     type AzureAdSsoConfigSummary,
+    type GenericOidcSsoConfigSummary,
     type OktaSsoConfigSummary,
 } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
@@ -936,6 +937,7 @@ type ApiResults =
     | AllowedEmailDomains
     | AzureAdSsoConfigSummary
     | OktaSsoConfigSummary
+    | GenericOidcSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

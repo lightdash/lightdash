@@ -4,6 +4,8 @@ import {
     AzureAdSsoConfigSummary,
     FeatureFlags,
     ForbiddenError,
+    GenericOidcSsoConfig,
+    GenericOidcSsoConfigSummary,
     NotFoundError,
     OktaSsoConfig,
     OktaSsoConfigSummary,
@@ -12,6 +14,7 @@ import {
     ParameterError,
     UnexpectedServerError,
     UpsertAzureAdSsoConfig,
+    UpsertGenericOidcSsoConfig,
     UpsertOktaSsoConfig,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -54,6 +57,19 @@ const toOktaSummary = (
     authorizationServerId: method.config.authorizationServerId,
     extraScopes: method.config.extraScopes,
     hasClientSecret: !!method.config.oauth2ClientSecret,
+    enabled: method.enabled,
+    overrideEmailDomains: method.overrideEmailDomains,
+    emailDomains: method.emailDomains,
+    allowPassword: method.allowPassword,
+});
+
+const toGenericOidcSummary = (
+    method: OrganizationSsoMethod<OrganizationSsoProvider.GENERIC_OIDC>,
+): GenericOidcSsoConfigSummary => ({
+    clientId: method.config.clientId,
+    metadataDocumentEndpoint: method.config.metadataDocumentEndpoint,
+    scopes: method.config.scopes,
+    hasClientSecret: !!method.config.clientSecret,
     enabled: method.enabled,
     overrideEmailDomains: method.overrideEmailDomains,
     emailDomains: method.emailDomains,
@@ -353,6 +369,96 @@ export class OrganizationSsoService extends BaseService {
         await this.organizationSsoModel.delete(
             organizationUuid,
             OrganizationSsoProvider.OKTA,
+        );
+    }
+
+    async getGenericOidcConfig(
+        account: RegisteredAccount,
+    ): Promise<GenericOidcSsoConfigSummary | null> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const method = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+        return method ? toGenericOidcSummary(method) : null;
+    }
+
+    async upsertGenericOidcConfig(
+        account: RegisteredAccount,
+        data: UpsertGenericOidcSsoConfig,
+    ): Promise<GenericOidcSsoConfigSummary> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+
+        if (!data.clientId?.trim() || !data.metadataDocumentEndpoint?.trim()) {
+            throw new ParameterError(
+                'clientId and metadataDocumentEndpoint are required',
+            );
+        }
+
+        if (data.emailDomains && data.emailDomains.length > 0) {
+            OrganizationSsoService.validateEmailDomains(data.emailDomains);
+        }
+
+        const existing = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+
+        const clientSecret =
+            data.clientSecret?.trim() || existing?.config.clientSecret;
+        if (!clientSecret) {
+            throw new ParameterError('clientSecret is required');
+        }
+
+        const config: GenericOidcSsoConfig = {
+            clientId: data.clientId.trim(),
+            clientSecret,
+            metadataDocumentEndpoint: data.metadataDocumentEndpoint.trim(),
+            scopes: data.scopes?.trim() || null,
+        };
+
+        const flags: Partial<OrganizationSsoMethodFlags> = {
+            enabled: data.enabled,
+            overrideEmailDomains: data.overrideEmailDomains,
+            emailDomains: data.emailDomains,
+            allowPassword: data.allowPassword,
+        };
+
+        await this.organizationSsoModel.upsert(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
+            config,
+            flags,
+            account.user.userUuid,
+        );
+
+        const refreshed = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+        if (!refreshed) {
+            throw new UnexpectedServerError(
+                'Failed to read back upserted SSO configuration',
+            );
+        }
+        return toGenericOidcSummary(refreshed);
+    }
+
+    async deleteGenericOidcConfig(account: RegisteredAccount): Promise<void> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const existing = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+        if (!existing) {
+            throw new NotFoundError('No OIDC SSO configuration found');
+        }
+        await this.organizationSsoModel.delete(
+            organizationUuid,
+            OrganizationSsoProvider.GENERIC_OIDC,
         );
     }
 

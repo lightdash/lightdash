@@ -156,9 +156,11 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                 />
             ) : null;
         case OpenIdIdentityIssuerType.GENERIC_OIDC:
-            return health.data?.auth.oidc.enabled ? (
+            return health.data?.auth.oidc.enabled || forceShow ? (
                 <ThirdPartySignInButtonBase
-                    loginPath={health.data.auth.oidc.loginPath}
+                    loginPath={
+                        health.data?.auth.oidc.loginPath ?? '/login/oidc'
+                    }
                     redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}

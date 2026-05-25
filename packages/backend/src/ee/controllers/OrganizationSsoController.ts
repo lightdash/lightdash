@@ -1,12 +1,15 @@
 import {
     ApiAzureAdSsoConfigResponse,
     ApiErrorPayload,
+    ApiGenericOidcSsoConfigResponse,
     ApiOktaSsoConfigResponse,
     ApiSuccessEmpty,
     ApiUpsertAzureAdSsoConfigResponse,
+    ApiUpsertGenericOidcSsoConfigResponse,
     ApiUpsertOktaSsoConfigResponse,
     assertRegisteredAccount,
     UpsertAzureAdSsoConfig,
+    UpsertGenericOidcSsoConfig,
     UpsertOktaSsoConfig,
 } from '@lightdash/common';
 import {
@@ -161,6 +164,72 @@ export class OrganizationSsoController extends BaseController {
         await this.services
             .getOrganizationSsoService()
             .deleteOktaConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Returns the current organization's generic OIDC SSO configuration
+     * (sensitive fields are not included).
+     * @summary Get generic OIDC SSO configuration
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/oidc')
+    @OperationId('GetGenericOidcSsoConfig')
+    async getGenericOidcConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiGenericOidcSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .getGenericOidcConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Creates or updates the current organization's generic OIDC SSO
+     * configuration. Omit `clientSecret` to preserve the previously stored
+     * secret on updates.
+     * @summary Upsert generic OIDC SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/oidc')
+    @OperationId('UpsertGenericOidcSsoConfig')
+    async upsertGenericOidcConfig(
+        @Request() req: express.Request,
+        @Body() body: UpsertGenericOidcSsoConfig,
+    ): Promise<ApiUpsertGenericOidcSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .upsertGenericOidcConfig(req.account, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Removes the current organization's generic OIDC SSO configuration.
+     * @summary Delete generic OIDC SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Delete('/oidc')
+    @OperationId('DeleteGenericOidcSsoConfig')
+    async deleteGenericOidcConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getOrganizationSsoService()
+            .deleteGenericOidcConfig(req.account);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }

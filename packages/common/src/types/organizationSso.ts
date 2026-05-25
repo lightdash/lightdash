@@ -1,6 +1,7 @@
 export enum OrganizationSsoProvider {
     AZUREAD = 'azuread',
     OKTA = 'okta',
+    GENERIC_OIDC = 'oidc',
 }
 
 export const isOrganizationSsoProvider = (
@@ -108,4 +109,41 @@ export type ApiOktaSsoConfigResponse = {
 export type ApiUpsertOktaSsoConfigResponse = {
     status: 'ok';
     results: OktaSsoConfigSummary;
+};
+
+export type GenericOidcSsoConfig = {
+    clientId: string;
+    clientSecret: string;
+    /** OIDC discovery document URL (`.well-known/openid-configuration`). */
+    metadataDocumentEndpoint: string;
+    /** Optional extra scopes (space-separated) appended to the auth request. */
+    scopes: string | null;
+};
+
+export type GenericOidcSsoConfigSummary = Pick<
+    GenericOidcSsoConfig,
+    'clientId' | 'metadataDocumentEndpoint' | 'scopes'
+> &
+    OrganizationSsoMethodFlags & {
+        hasClientSecret: boolean;
+    };
+
+export type UpsertGenericOidcSsoConfig = {
+    clientId: string;
+    /**
+     * When omitted on update, the stored secret is preserved. Required on create.
+     */
+    clientSecret?: string;
+    metadataDocumentEndpoint: string;
+    scopes?: string | null;
+} & Partial<OrganizationSsoMethodFlags>;
+
+export type ApiGenericOidcSsoConfigResponse = {
+    status: 'ok';
+    results: GenericOidcSsoConfigSummary | null;
+};
+
+export type ApiUpsertGenericOidcSsoConfigResponse = {
+    status: 'ok';
+    results: GenericOidcSsoConfigSummary;
 };

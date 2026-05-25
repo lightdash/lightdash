@@ -63,6 +63,7 @@ import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWareho
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
+import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/GenericOidcSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
@@ -495,6 +496,7 @@ const Settings: FC = () => {
                         </Stack>
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
+                        <GenericOidcSsoPanel />
                     </Stack>
                 ),
             });
