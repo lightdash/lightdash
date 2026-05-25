@@ -53,7 +53,7 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                 return {
                     result: toolErrorHandler(
                         error,
-                        `Error editing ${type} "${slug}"`,
+                        `Error editing ${type} "${slug}". Patch was not applied.`,
                     ),
                     metadata: {
                         status: 'error' as const,
