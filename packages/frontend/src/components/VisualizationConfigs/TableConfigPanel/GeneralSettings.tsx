@@ -3,6 +3,7 @@ import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useIsHidePivotDimsEnabled } from '../../../hooks/useIsHidePivotDimsEnabled';
+import { useIsPivotRowGroupingEnabled } from '../../../hooks/useIsPivotRowGroupingEnabled';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -28,6 +29,7 @@ const GeneralSettings: FC = () => {
     const { showToastError } = useToaster();
 
     const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
+    const isPivotRowGroupingEnabled = useIsPivotRowGroupingEnabled();
     const { dimensions } = resultsData?.metricQuery || {
         dimensions: [] as string[],
     };
@@ -158,12 +160,14 @@ const GeneralSettings: FC = () => {
         setShowRowCalculation,
         setShowSubtotals,
         setShowSubtotalsExpanded,
+        setShowRowGrouping,
         setShowTableNames,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
         showSubtotals,
         showSubtotalsExpanded,
+        showRowGrouping,
         showTableNames,
         rowLimit,
         setRowLimit,
@@ -338,6 +342,44 @@ const GeneralSettings: FC = () => {
                         !canUseSubtotals || metricsAsRows || !showSubtotals
                     }
                 />
+                {isPivotRowGroupingEnabled && (
+                    <Tooltip
+                        disabled={canUseSubtotals && !showSubtotals}
+                        label={
+                            showSubtotals
+                                ? 'Row grouping is always on when subtotals are enabled.'
+                                : metricsAsRows
+                                  ? 'Row grouping cannot be used with metrics as rows'
+                                  : `Row grouping can only be used on tables with at least two ${
+                                        isPivotTableEnabled ? 'un-pivoted' : ''
+                                    } dimensions`
+                        }
+                        w={300}
+                        multiline
+                        withinPortal
+                        position="top-start"
+                    >
+                        <Box>
+                            <Checkbox
+                                label="Group repeated row values"
+                                checked={
+                                    showSubtotals ||
+                                    (canUseSubtotals &&
+                                        !metricsAsRows &&
+                                        (showRowGrouping ?? false))
+                                }
+                                onChange={() => {
+                                    setShowRowGrouping(!showRowGrouping);
+                                }}
+                                disabled={
+                                    !canUseSubtotals ||
+                                    metricsAsRows ||
+                                    showSubtotals
+                                }
+                            />
+                        </Box>
+                    </Tooltip>
+                )}
             </Config.Section>
         </Stack>
     );
