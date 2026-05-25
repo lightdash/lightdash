@@ -15,7 +15,7 @@ filters:         # Dashboard-level filters
 name: "Sales Dashboard"
 slug: sales-dashboard
 spaceSlug: sales
-tabs: []         # Optional tabs for organization
+tabs: []         # Optional tabs for organization; tabs support hidden: true/false
 tiles: []        # Chart and content tiles
 verified: true   # Optional: true/false to verify/unverify on upload, omit to leave unchanged. Admins only.
 version: 1
@@ -178,12 +178,15 @@ Organize tiles into multiple views:
 ```yaml
 tabs:
   - name: "Overview"
+    hidden: false
     order: 0
     uuid: "b3f1a2c4-d5e6-4f78-9abc-def012345678"
   - name: "Details"
+    hidden: false
     order: 1
     uuid: "c4d2b3e5-f6a7-4089-bcde-f12345678901"
   - name: "Trends"
+    hidden: false
     order: 2
     uuid: "d5e3c4f6-a7b8-4190-cdef-234567890123"
 
@@ -445,12 +448,15 @@ slug: executive-sales-dashboard
 spaceSlug: leadership
 tabs:
   - name: "Overview"
+    hidden: false
     order: 0
     uuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
   - name: "By Region"
+    hidden: false
     order: 1
     uuid: "f7a5e6b8-c9d0-4312-ef01-456789012345"
   - name: "By Product"
+    hidden: false
     order: 2
     uuid: "a8b6f7c9-d0e1-4423-f012-567890123456"
 
