@@ -1,3 +1,10 @@
+## [0.3017.1](https://github.com/lightdash/lightdash/compare/0.3017.0...0.3017.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **turbo:** set frontend build outputs to build/ ([#23481](https://github.com/lightdash/lightdash/issues/23481)) ([75344ea](https://github.com/lightdash/lightdash/commit/75344eadc68efcb07f4d3dd67e389f2a5f170629))
+
 # [0.3017.0](https://github.com/lightdash/lightdash/compare/0.3016.0...0.3017.0) (2026-05-25)
 
 
