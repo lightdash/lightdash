@@ -516,8 +516,10 @@ const readLooseCodeFiles = async (
                         );
                     }
                 } catch (e) {
-                    GlobalState.debug(
-                        `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                    GlobalState.log(
+                        styles.warning(
+                            `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                        ),
                     );
                 }
             }),
