@@ -1,3 +1,10 @@
+# [0.3012.0](https://github.com/lightdash/lightdash/compare/0.3011.1...0.3012.0) (2026-05-25)
+
+
+### Features
+
+* auto-trigger OAuth connection after MCP server creation ([#23454](https://github.com/lightdash/lightdash/issues/23454)) ([e53029f](https://github.com/lightdash/lightdash/commit/e53029f4eda9ef1540fd7e4c67e32e20a5f66bca))
+
 ## [0.3011.1](https://github.com/lightdash/lightdash/compare/0.3011.0...0.3011.1) (2026-05-22)
 
 
