@@ -1,3 +1,10 @@
+# [0.3013.0](https://github.com/lightdash/lightdash/compare/0.3012.3...0.3013.0) (2026-05-25)
+
+
+### Features
+
+* add an "extra instructions" field to themes ([#23455](https://github.com/lightdash/lightdash/issues/23455)) ([64b6524](https://github.com/lightdash/lightdash/commit/64b652413e10a591ad08d670aeb015ca890acf2c))
+
 ## [0.3012.3](https://github.com/lightdash/lightdash/compare/0.3012.2...0.3012.3) (2026-05-25)
 
 
