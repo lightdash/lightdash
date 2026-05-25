@@ -1,3 +1,10 @@
+## [0.3012.3](https://github.com/lightdash/lightdash/compare/0.3012.2...0.3012.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* **sql-runner:** preserve user ORDER BY → LIMIT adjacency (PROD-7880) ([#23460](https://github.com/lightdash/lightdash/issues/23460)) ([3c7d2b7](https://github.com/lightdash/lightdash/commit/3c7d2b7f247ec417fdc1e326e74cc1695c65af9f))
+
 ## [0.3012.2](https://github.com/lightdash/lightdash/compare/0.3012.1...0.3012.2) (2026-05-25)
 
 
