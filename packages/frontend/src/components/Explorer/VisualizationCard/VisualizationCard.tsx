@@ -104,29 +104,24 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const stagedColorPaletteUuid = useExplorerSelector(
         selectUnsavedColorPaletteUuid,
     );
-    const isPaletteStagedDirty =
-        savedChart !== undefined &&
-        stagedColorPaletteUuid !== savedChart.colorPaletteUuid;
     const resolverChartUuid =
-        isPaletteStagedDirty && stagedColorPaletteUuid === null
-            ? undefined
-            : savedChart?.uuid;
+        stagedColorPaletteUuid === null ? undefined : savedChart?.uuid;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
         chartUuid: resolverChartUuid,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
     });
 
     const { data: palettes } = useColorPalettes({
-        enabled: isPaletteStagedDirty && stagedColorPaletteUuid !== null,
+        enabled: stagedColorPaletteUuid !== null,
     });
     const stagedPalette = useMemo(() => {
-        if (!isPaletteStagedDirty || stagedColorPaletteUuid === null) {
+        if (stagedColorPaletteUuid === null) {
             return undefined;
         }
         return palettes?.find(
             (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
         );
-    }, [isPaletteStagedDirty, stagedColorPaletteUuid, palettes]);
+    }, [stagedColorPaletteUuid, palettes]);
 
     const colorPalette = useMemo(() => {
         if (stagedPalette) {
