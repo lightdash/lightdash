@@ -1,7 +1,14 @@
-import { type ToolFindContentArgsTransformed } from '@lightdash/common';
+import {
+    type findContentTool,
+    type ToolInputTransformed,
+} from '@lightdash/common';
 import { rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
+
+type ToolFindContentArgsTransformed = ToolInputTransformed<
+    typeof findContentTool
+>;
 
 type ContentSearchToolCallDescriptionProps = {
     searchType: 'content' | 'dashboards' | 'charts';

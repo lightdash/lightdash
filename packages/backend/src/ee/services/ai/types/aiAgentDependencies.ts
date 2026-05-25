@@ -17,12 +17,13 @@ import {
     Explore,
     ExploreCompiler,
     Filters,
+    findContentTool,
+    findFieldsTool,
     ItemsMap,
     KnexPaginateArgs,
     SavedChart,
     SlackPrompt,
-    ToolFindContentArgs,
-    ToolFindFieldsArgs,
+    ToolInput,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
@@ -34,6 +35,9 @@ import {
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import { AiAgentSkill } from '../skills/types';
+
+type ToolFindContentArgs = ToolInput<typeof findContentTool>;
+type ToolFindFieldsArgs = ToolInput<typeof findFieldsTool>;
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;

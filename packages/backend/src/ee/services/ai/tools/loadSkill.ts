@@ -1,33 +1,8 @@
+import { loadSkillTool } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-
-const toolLoadSkillArgsSchema = z
-    .object({
-        name: z
-            .string()
-            .min(1)
-            .describe('Exact name of the built-in skill to load.'),
-        resourceName: z
-            .string()
-            .min(1)
-            .nullable()
-            .describe(
-                'Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.',
-            ),
-    })
-    .describe(
-        "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
-    );
-
-const toolLoadSkillOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-    }),
-});
 
 const formatResourceList = (
     resources: Array<{ name: string; description: string }>,
@@ -40,9 +15,7 @@ const formatResourceList = (
 
 export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
     tool({
-        description: toolLoadSkillArgsSchema.description,
-        inputSchema: toolLoadSkillArgsSchema,
-        outputSchema: toolLoadSkillOutputSchema,
+        ...loadSkillTool.for('agent'),
         execute: async ({ name, resourceName }) => {
             try {
                 const skill = await loadSkill(name);

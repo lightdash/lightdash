@@ -1,11 +1,14 @@
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
+import type { ToolInput } from './schemas/defineTool';
+import type { runQueryTool } from './schemas/tools';
 import type {
-    ToolRunQueryArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
-} from './schemas/tools';
+} from './schemas/viz';
+
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
 
 export enum AiResultType {
     TIME_SERIES_RESULT = 'time_series_chart',

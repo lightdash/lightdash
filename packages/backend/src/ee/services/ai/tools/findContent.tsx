@@ -2,11 +2,10 @@ import {
     AllChartsSearchResult,
     ContentVerificationInfo,
     DashboardSearchResult,
+    findContentTool,
     isDashboardSearchResult,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
-    toolFindContentArgsSchema,
-    toolFindContentOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
@@ -185,9 +184,7 @@ export const getFindContent = ({
     trackCoverage,
 }: Dependencies) =>
     tool({
-        description: toolFindContentArgsSchema.description,
-        inputSchema: toolFindContentArgsSchema,
-        outputSchema: toolFindContentOutputSchema,
+        ...findContentTool.for('agent'),
         execute: async (args) => {
             try {
                 const searchQueryResults = await Promise.all(

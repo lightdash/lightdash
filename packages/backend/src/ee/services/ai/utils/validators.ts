@@ -31,20 +31,22 @@ import {
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    runQueryTool,
     stringFilterSchema,
     SupportedDbtAdapter,
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
-    ToolRunQueryArgsTransformed,
+    ToolInputTransformed,
     ToolSortField,
     TransformedCustomMetric,
     WeekDay,
-    WindowFunctionType,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 /**
  * Validate that all selected fields exist in the explore, custom metrics or table calculations
  * @param explore

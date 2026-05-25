@@ -7,7 +7,7 @@ import { getValidAiQueryLimit } from '../../validators';
 import { filterAggregationCustomMetrics } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
-import type { ToolVerticalBarArgsTransformed } from '../tools';
+import type { ToolVerticalBarArgsTransformed } from '../viz';
 
 export const verticalBarMetricVizConfigSchema = z.object({
     exploreName: z

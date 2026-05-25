@@ -1,7 +1,4 @@
-import {
-    toolImproveContextArgsSchema,
-    toolImproveContextOutputSchema,
-} from '@lightdash/common';
+import { improveContextTool } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -9,9 +6,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 export const getImproveContext = () =>
     tool({
-        description: toolImproveContextArgsSchema.description,
-        inputSchema: toolImproveContextArgsSchema,
-        outputSchema: toolImproveContextOutputSchema,
+        ...improveContextTool.for('agent'),
         execute: async (toolArgs) => {
             try {
                 Logger.debug(`[AI Agent] Attempting to improve context:

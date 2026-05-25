@@ -1,16 +1,19 @@
 import { type EChartsOption } from 'echarts';
 import { type SortField } from '../../../../types/metricQuery';
-import {
-    type ToolRunQueryArgsTransformed,
-    type ToolTableVizArgsTransformed,
-    type ToolTimeSeriesArgsTransformed,
-    type ToolVerticalBarArgsTransformed,
+import type {
+    runQueryTool,
+    ToolInputTransformed,
+    ToolTableVizArgsTransformed,
+    ToolTimeSeriesArgsTransformed,
+    ToolVerticalBarArgsTransformed,
 } from '../../schemas';
 import { AiResultType } from '../../types';
 import { getVerticalBarChartEchartsConfig } from './generateBarVizConfigTool/getVerticalBarChartEchartsConfig';
 import { getTimeSeriesChartEchartsConfig } from './generateTimeSeriesVizConfigTool/getTimeSeriesChartEchartsConfig';
 import { getRunQueryEchartsConfig } from './runQueryTool/getRunQueryEchartsConfig';
 import { type GetPivotedResultsFn, type QueryResults } from './types';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Union type for all AI tool args that can generate echarts

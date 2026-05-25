@@ -1,6 +1,7 @@
 import {
-    type ToolDashboardArgsTransformed,
-    type ToolDashboardV2ArgsTransformed,
+    type dashboardV1Tool,
+    type generateDashboardTool,
+    type ToolInput,
 } from '@lightdash/common';
 import { Group, rem, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -9,7 +10,7 @@ import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { ToolCallChip } from '../ToolCallChip';
 
 type DashboardToolCallDescriptionProps = Pick<
-    ToolDashboardV2ArgsTransformed | ToolDashboardArgsTransformed,
+    ToolInput<typeof generateDashboardTool> | ToolInput<typeof dashboardV1Tool>,
     'title' | 'description'
 >;
 

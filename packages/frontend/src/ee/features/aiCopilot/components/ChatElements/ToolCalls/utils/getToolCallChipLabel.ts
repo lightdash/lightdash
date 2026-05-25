@@ -1,23 +1,37 @@
-import type {
-    ToolDashboardArgs,
-    ToolDescribeWarehouseTableArgs,
-    ToolFindChartsArgs,
-    ToolFindContentArgs,
-    ToolFindDashboardsArgs,
-    ToolFindExploresArgsV1,
-    ToolFindExploresArgsV2,
-    ToolFindExploresArgsV3,
-    ToolFindFieldsArgs,
-    ToolGetDashboardChartsArgs,
-    ToolListWarehouseTablesArgs,
-    ToolName,
-    ToolRunQueryArgs,
-    ToolSearchFieldValuesArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
+import {
+    type dashboardV1Tool,
+    type describeWarehouseTableTool,
+    type findChartsTool,
+    type findContentTool,
+    type findDashboardsTool,
+    type findFieldsTool,
+    type getDashboardChartsTool,
+    type listWarehouseTablesTool,
+    type loadSkillTool,
+    type runQueryTool,
+    type searchFieldValuesTool,
+    type ToolFindExploresArgs,
+    type ToolInput,
+    type ToolName,
+    type ToolTableVizArgs,
+    type ToolTimeSeriesArgs,
+    type ToolVerticalBarArgs,
 } from '@lightdash/common';
 import { type ToolCallSummary } from './types';
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
+type ToolDescribeWarehouseTableArgs = ToolInput<
+    typeof describeWarehouseTableTool
+>;
+type ToolFindChartsArgs = ToolInput<typeof findChartsTool>;
+type ToolFindContentArgs = ToolInput<typeof findContentTool>;
+type ToolFindDashboardsArgs = ToolInput<typeof findDashboardsTool>;
+type ToolFindFieldsArgs = ToolInput<typeof findFieldsTool>;
+type ToolGetDashboardChartsArgs = ToolInput<typeof getDashboardChartsTool>;
+type ToolListWarehouseTablesArgs = ToolInput<typeof listWarehouseTablesTool>;
+type ToolLoadSkillArgs = ToolInput<typeof loadSkillTool>;
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
+type ToolSearchFieldValuesArgs = ToolInput<typeof searchFieldValuesTool>;
 
 type ContentEditorToolArgs = {
     slug?: string;
@@ -55,15 +69,9 @@ export const getToolCallChipLabel = (
             return args.title ?? null;
         }
         case 'findExplores': {
-            const args = toolArgs as
-                | ToolFindExploresArgsV3
-                | ToolFindExploresArgsV2
-                | ToolFindExploresArgsV1;
-            if ('searchQuery' in args && args.searchQuery)
-                return args.searchQuery;
-            if ('exploreName' in args && args.exploreName)
-                return args.exploreName;
-            return null;
+            const args = toolArgs as ToolFindExploresArgs;
+            if ('searchQuery' in args) return args.searchQuery || null;
+            return args.exploreName;
         }
         case 'findFields': {
             const args = toolArgs as ToolFindFieldsArgs;
@@ -109,10 +117,7 @@ export const getToolCallChipLabel = (
         case 'proposeChange':
             return null;
         case 'loadSkill': {
-            const args = toolArgs as {
-                name?: string;
-                resourceName?: string;
-            };
+            const args = toolArgs as ToolLoadSkillArgs;
             if (args.resourceName && args.name) {
                 return `${args.resourceName} from ${args.name}`;
             }

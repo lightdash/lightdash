@@ -4,7 +4,9 @@ import {
     FunnelChartDataInput,
     type FunnelChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 export const getFunnelChartConfig = ({
     queryTool,

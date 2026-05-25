@@ -2,11 +2,10 @@ import {
     CatalogField,
     convertToAiHints,
     Explore,
+    findFieldsTool,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    toolFindFieldsArgsSchema,
-    toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -114,9 +113,7 @@ export const getFindFields = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolFindFieldsArgsSchema.description,
-        inputSchema: toolFindFieldsArgsSchema,
-        outputSchema: toolFindFieldsOutputSchema,
+        ...findFieldsTool.for('agent'),
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries

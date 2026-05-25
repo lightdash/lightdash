@@ -2,10 +2,12 @@ import { type EChartsOption } from 'echarts';
 import { type ItemsMap } from '../../../../../../types/field';
 import { type SortField } from '../../../../../../types/metricQuery';
 import { getCartesianAxisFormatterConfig } from '../../../../../../visualizations/helpers/getCartesianAxisFormatterConfig';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 import { type GetPivotedResultsFn } from '../../types';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Generates bar chart echarts config for server-side rendering

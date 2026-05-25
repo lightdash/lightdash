@@ -1,5 +1,5 @@
 import { type EChartsOption } from 'echarts';
-import { type ToolRunQueryArgsTransformed } from '../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../schemas';
 import { type GetPivotedResultsFn, type QueryResults } from '../types';
 import { getBarChartEchartsConfig } from './viz/bar';
 import { getFunnelChartEchartsConfig } from './viz/funnel';
@@ -7,6 +7,8 @@ import { getHorizontalBarChartEchartsConfig } from './viz/horizontalBar';
 import { getLineChartEchartsConfig } from './viz/line';
 import { getPieChartEchartsConfig } from './viz/pie';
 import { getScatterChartEchartsConfig } from './viz/scatter';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Generates echarts options from ToolRunQueryArgs

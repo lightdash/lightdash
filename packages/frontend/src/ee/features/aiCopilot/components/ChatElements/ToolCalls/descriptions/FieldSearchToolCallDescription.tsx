@@ -1,7 +1,14 @@
-import { type ToolFindFieldsArgsTransformed } from '@lightdash/common';
+import {
+    type findFieldsTool,
+    type ToolInputTransformed,
+} from '@lightdash/common';
 import { rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
+
+type ToolFindFieldsArgsTransformed = ToolInputTransformed<
+    typeof findFieldsTool
+>;
 
 type FieldSearchToolCallDescriptionProps = {
     searchQueries: NonNullable<ToolFindFieldsArgsTransformed>['fieldSearchQueries'];

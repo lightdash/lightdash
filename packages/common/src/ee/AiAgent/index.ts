@@ -5,12 +5,14 @@ import type {
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
+    dashboardV1Tool,
     ItemsMap,
     KnexPaginatedData,
-    ToolDashboardArgs,
+    proposeChangeTool,
+    runQueryTool,
+    ToolInput,
     ToolName,
-    ToolProposeChangeOutput,
-    ToolRunQueryArgs,
+    ToolOutput,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -23,6 +25,10 @@ import {
 import { type AgentToolOutput } from './schemas';
 import { ToolNameSchema } from './schemas/visualizations';
 import { type AiMetricQuery, type AiResultType } from './types';
+
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
+type ToolProposeChangeOutput = ToolOutput<typeof proposeChangeTool>;
 
 export * from './adminTypes';
 export * from './aiEvalAssessment';

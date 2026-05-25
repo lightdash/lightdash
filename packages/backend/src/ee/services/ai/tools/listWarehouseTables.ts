@@ -1,4 +1,4 @@
-import { toolListWarehouseTablesArgsSchema } from '@lightdash/common';
+import { listWarehouseTablesTool } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListWarehouseTablesFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -9,8 +9,7 @@ type Dependencies = {
 
 export const getListWarehouseTables = ({ listWarehouseTables }: Dependencies) =>
     tool({
-        description: toolListWarehouseTablesArgsSchema.description,
-        inputSchema: toolListWarehouseTablesArgsSchema,
+        ...listWarehouseTablesTool.for('agent'),
         execute: async ({ schema, search, limit }) => {
             try {
                 const all = await listWarehouseTables();

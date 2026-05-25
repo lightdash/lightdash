@@ -39,12 +39,14 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    dashboardV1Tool,
     Explore,
     ExploreCompiler,
     FeatureFlags,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    generateDashboardTool,
     getItemId,
     isExploreError,
     isSlackPrompt,
@@ -61,13 +63,8 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     ReadinessScore,
-    ShareUrl,
     SlackPrompt,
     TimeoutError,
-    ToolDashboardArgs,
-    toolDashboardArgsSchema,
-    ToolDashboardV2Args,
-    toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     validateAgentSuggestion,
@@ -76,6 +73,7 @@ import {
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolInput,
     type TransformedCustomMetric,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -225,7 +223,6 @@ import {
     getMarkdownBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
-    getTextBlocks,
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -236,6 +233,9 @@ import {
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
+type ToolDashboardV2Args = ToolInput<typeof generateDashboardTool>;
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -3210,16 +3210,16 @@ export class AiAgentService extends BaseService {
 
         // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
         // Try to parse with v2 schema first, then fall back to v1
-        const dashboardConfigV2Parsed = toolDashboardV2ArgsSchema.safeParse(
-            artifact.dashboardConfig,
-        );
+        const dashboardConfigV2Parsed =
+            generateDashboardTool.inputSchema.safeParse(
+                artifact.dashboardConfig,
+            );
         let dashboardConfig: ToolDashboardArgs | ToolDashboardV2Args;
         if (dashboardConfigV2Parsed.success) {
             dashboardConfig = dashboardConfigV2Parsed.data;
         } else {
-            const dashboardConfigV1Parsed = toolDashboardArgsSchema.safeParse(
-                artifact.dashboardConfig,
-            );
+            const dashboardConfigV1Parsed =
+                dashboardV1Tool.inputSchema.safeParse(artifact.dashboardConfig);
             if (!dashboardConfigV1Parsed.success) {
                 throw new ParameterError('Invalid dashboard config');
             }

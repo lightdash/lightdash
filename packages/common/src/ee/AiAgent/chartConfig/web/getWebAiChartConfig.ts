@@ -1,11 +1,12 @@
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import {
-    type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
+import type {
+    runQueryTool,
+    ToolInput,
+    ToolTableVizArgs,
+    ToolTimeSeriesArgs,
+    ToolVerticalBarArgs,
 } from '../../schemas';
 import { AiResultType } from '../../types';
 import { parseVizConfig } from '../../utils';
@@ -13,6 +14,8 @@ import { getVerticalBarChartConfig } from './generateBarVizConfigTool/getVertica
 import { getTableChartConfig } from './generateTableVizConfigTool/getTableChartConfig';
 import { getTimeSeriesChartConfig } from './generateTimeSeriesVizConfigTool/getTimeSeriesChartConfig';
 import { getRunQueryChartConfig } from './runQueryTool/getRunQueryChartConfig';
+
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
 
 export const getWebAiChartConfig = ({
     vizConfig,

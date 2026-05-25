@@ -1,10 +1,11 @@
 import {
-    type AiAgentToolName,
+    isToolProposeChangeResult,
     type AiAgentMessageAssistant,
     type AiAgentToolCall,
+    type AiAgentToolName,
     type AiMcpServer,
-    isToolProposeChangeResult,
-    type ToolProposeChangeArgs,
+    type proposeChangeTool,
+    type ToolInput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -80,6 +81,8 @@ import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
+
+type ToolProposeChangeArgs = ToolInput<typeof proposeChangeTool>;
 
 type ToolGroup = {
     kind: 'toolGroup';

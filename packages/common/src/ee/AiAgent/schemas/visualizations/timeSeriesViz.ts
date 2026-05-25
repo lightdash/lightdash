@@ -7,7 +7,7 @@ import { getValidAiQueryLimit } from '../../validators';
 import { filterAggregationCustomMetrics } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
-import type { ToolTimeSeriesArgsTransformed } from '../tools';
+import type { ToolTimeSeriesArgsTransformed } from '../viz';
 
 export const timeSeriesMetricVizConfigSchema = z.object({
     exploreName: z

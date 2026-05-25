@@ -5,9 +5,11 @@ import {
     ChartType,
     type CartesianChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { formatPivotValueLabel } from '../../shared/formatPivotValueLabel';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 export const getScatterChartConfig = ({
     queryTool,

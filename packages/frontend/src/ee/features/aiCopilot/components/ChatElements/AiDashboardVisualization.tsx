@@ -1,7 +1,8 @@
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
-    type ToolDashboardArgs,
+    type dashboardV1Tool,
+    type ToolInput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -22,6 +23,8 @@ import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
 import styles from './AiDashboardVisualization.module.css';
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
 
 type Props = {
     artifactData: AiArtifact;

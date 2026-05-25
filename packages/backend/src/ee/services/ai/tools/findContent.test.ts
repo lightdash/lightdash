@@ -1,13 +1,17 @@
 import {
     ChartKind,
+    findContentTool,
+    getDashboardChartsTool,
     type ContentVerificationInfo,
     type DashboardSearchResult,
-    type ToolFindContentOutput,
-    type ToolGetDashboardChartsOutput,
+    type ToolOutput,
 } from '@lightdash/common';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
 import { getFindContent } from './findContent';
 import { getGetDashboardCharts } from './getDashboardCharts';
+
+type ToolFindContentOutput = ToolOutput<typeof findContentTool>;
+type ToolGetDashboardChartsOutput = ToolOutput<typeof getDashboardChartsTool>;
 
 const makeVerification = (
     firstName = 'Sarah',

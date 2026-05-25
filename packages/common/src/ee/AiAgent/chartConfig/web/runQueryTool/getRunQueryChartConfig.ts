@@ -1,7 +1,7 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { ChartType, type ChartConfig } from '../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { type AiAgentChartTypeOption } from '../types';
 import { getBarChartConfig } from './viz/bar';
@@ -10,6 +10,8 @@ import { getHorizontalBarChartConfig } from './viz/horizontalBar';
 import { getLineChartConfig } from './viz/line';
 import { getPieChartConfig } from './viz/pie';
 import { getScatterChartConfig } from './viz/scatter';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Converts runQuery tool result to echarts config

@@ -1,6 +1,7 @@
-import type {
-    AiAgentToolResult,
-    ToolProposeChangeArgs,
+import {
+    type AiAgentToolResult,
+    type proposeChangeTool,
+    type ToolInput,
 } from '@lightdash/common';
 import {
     Badge,
@@ -15,6 +16,8 @@ import { useChange } from '../../../../../../../features/changesets/hooks/useCha
 import { useRevertChangeMutation } from '../../../../hooks/useProjectAiAgents';
 import { ToolCallPaper } from '../ToolCallPaper';
 import { ChangeRenderer } from './ChangeRenderer';
+
+type ToolProposeChangeArgs = ToolInput<typeof proposeChangeTool>;
 
 interface Props extends Pick<
     ToolProposeChangeArgs,

@@ -8,7 +8,8 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
     type EChartsSeries,
-    type ToolRunQueryArgs,
+    type runQueryTool,
+    type ToolInput,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
@@ -53,6 +54,8 @@ import {
     shouldDisplayMetricsAndDimensions,
     shouldDisplayVisualizationFilters,
 } from './AiVisualizationRenderer.utils';
+
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
 
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;

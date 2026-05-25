@@ -1,6 +1,6 @@
 import {
     AiAgentDocumentSummary,
-    toolListKnowledgeDocumentsArgsSchema,
+    listKnowledgeDocumentsTool,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
@@ -22,8 +22,7 @@ export const getListKnowledgeDocuments = ({
     listKnowledgeDocuments,
 }: Dependencies) =>
     tool({
-        description: toolListKnowledgeDocumentsArgsSchema.description,
-        inputSchema: toolListKnowledgeDocumentsArgsSchema,
+        ...listKnowledgeDocumentsTool.for('agent'),
         execute: async () => {
             try {
                 const documents = await listKnowledgeDocuments();

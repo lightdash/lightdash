@@ -1,7 +1,7 @@
 import {
+    improveContextTool,
     isAiAgentToolName,
-    toolImproveContextArgsSchema,
-    toolRunQueryOutputSchema,
+    runQueryTool,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import {
@@ -313,10 +313,9 @@ export function useAiAgentThreadStreamMutation() {
                                         break;
                                     }
 
-                                    const output =
-                                        toolRunQueryOutputSchema.safeParse(
-                                            part.output,
-                                        );
+                                    const output = runQueryTool
+                                        .for('agent')
+                                        .outputSchema.safeParse(part.output);
 
                                     if (
                                         output.success &&
@@ -353,7 +352,7 @@ export function useAiAgentThreadStreamMutation() {
                                     // Special handling for improveContext - validate to access suggestedInstruction
                                     if (toolName === 'improveContext') {
                                         const improveContextArgs =
-                                            toolImproveContextArgsSchema.safeParse(
+                                            improveContextTool.inputSchema.safeParse(
                                                 part.input,
                                             );
 

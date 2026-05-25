@@ -1,12 +1,12 @@
-import type {
-    AiAgentToolResult,
-    ToolFindExploresOutput,
-    ToolFindFieldsOutput,
-} from '@lightdash/common';
 import {
-    toolFindExploresOutputSchema,
-    toolFindFieldsOutputSchema,
+    findExploresTool,
+    findFieldsTool,
+    type AiAgentToolResult,
+    type ToolOutput,
 } from '@lightdash/common';
+
+type ToolFindFieldsOutput = ToolOutput<typeof findFieldsTool>;
+type ToolFindExploresOutput = ToolOutput<typeof findExploresTool>;
 
 export const parseToolResultMetadata = (
     toolResult: AiAgentToolResult | undefined,
@@ -17,12 +17,16 @@ export const parseToolResultMetadata = (
     }
 
     if (toolName === 'findFields') {
-        const result = toolFindFieldsOutputSchema.safeParse(toolResult);
+        const result = findFieldsTool
+            .for('agent')
+            .outputSchema.safeParse(toolResult);
         return result.success ? result.data : null;
     }
 
     if (toolName === 'findExplores') {
-        const result = toolFindExploresOutputSchema.safeParse(toolResult);
+        const result = findExploresTool
+            .for('agent')
+            .outputSchema.safeParse(toolResult);
         return result.success ? result.data : null;
     }
 

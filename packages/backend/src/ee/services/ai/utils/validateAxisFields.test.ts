@@ -1,9 +1,11 @@
 import {
+    runQueryTool,
     type TableCalcsSchema,
-    type ToolRunQueryArgsTransformed,
+    type ToolInputTransformed,
 } from '@lightdash/common';
-import { mockOrdersExplore } from './validationExplore.mock';
 import { validateAxisFields } from './validators';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 describe('validateAxisFields', () => {
     describe('Edge Cases', () => {

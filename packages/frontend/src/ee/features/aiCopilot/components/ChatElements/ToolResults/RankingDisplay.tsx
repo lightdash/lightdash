@@ -1,11 +1,15 @@
 import {
     findExploresRankingMetadataSchema,
     findFieldsRankingMetadataSchema,
-    type ToolFindExploresOutput,
-    type ToolFindFieldsOutput,
+    type findExploresTool,
+    type findFieldsTool,
+    type ToolOutput,
 } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine-8/core';
 import { RankingTable, TableCellText } from './RankingTable';
+
+type ToolFindFieldsOutput = ToolOutput<typeof findFieldsTool>;
+type ToolFindExploresOutput = ToolOutput<typeof findExploresTool>;
 
 type FieldResult = {
     label: string;

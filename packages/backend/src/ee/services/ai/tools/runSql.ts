@@ -1,8 +1,4 @@
-import {
-    isSlackPrompt,
-    toolRunSqlArgsSchema,
-    type AnyType,
-} from '@lightdash/common';
+import { isSlackPrompt, runSqlTool, type AnyType } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
@@ -81,8 +77,7 @@ export const getRunSql = ({
     let sqlApprovalTimedOut = false;
 
     return tool({
-        description: toolRunSqlArgsSchema.description,
-        inputSchema: toolRunSqlArgsSchema,
+        ...runSqlTool.for('agent'),
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {

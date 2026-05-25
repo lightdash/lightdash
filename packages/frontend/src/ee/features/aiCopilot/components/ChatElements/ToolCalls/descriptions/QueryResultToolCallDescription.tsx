@@ -1,8 +1,10 @@
-import { type ToolRunQueryArgs } from '@lightdash/common';
+import { type runQueryTool, type ToolInput } from '@lightdash/common';
 import { Group, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
+
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
 
 type QueryResultToolCallDescriptionProps = Pick<
     ToolRunQueryArgs,

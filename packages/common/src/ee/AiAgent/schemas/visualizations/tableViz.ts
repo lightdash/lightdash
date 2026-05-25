@@ -6,7 +6,7 @@ import { getValidAiQueryLimit } from '../../validators';
 import { filterAggregationCustomMetrics } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
-import type { ToolTableVizArgsTransformed } from '../tools';
+import type { ToolTableVizArgsTransformed } from '../viz';
 
 export const tableVizConfigSchema = z
     .object({

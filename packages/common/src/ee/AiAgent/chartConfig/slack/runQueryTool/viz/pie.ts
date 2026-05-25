@@ -4,8 +4,10 @@ import {
     getPieLabelLineStyle,
 } from '../../../../../../visualizations/helpers/styles/pieChartStyles';
 import { getTooltipStyle } from '../../../../../../visualizations/helpers/styles/tooltipStyles';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Generates pie chart echarts config for server-side rendering

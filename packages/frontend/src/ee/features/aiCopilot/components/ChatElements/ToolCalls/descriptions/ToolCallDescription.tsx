@@ -6,23 +6,22 @@ import type {
 import {
     assertUnreachable,
     type AiAgentToolResult,
-    type ToolDashboardArgs,
-    type ToolDescribeWarehouseTableArgs,
-    type ToolFindChartsArgs,
-    type ToolFindContentArgs,
-    type ToolFindDashboardsArgs,
-    type ToolFindExploresArgsV1,
-    type ToolFindExploresArgsV2,
-    type ToolFindExploresArgsV3,
-    type ToolFindFieldsArgs,
-    type ToolGetDashboardChartsArgs,
-    type ToolGetKnowledgeDocumentContentArgs,
-    type ToolGetKnowledgeDocumentContentOutput,
-    type ToolListWarehouseTablesArgs,
+    type dashboardV1Tool,
+    type describeWarehouseTableTool,
+    type findChartsTool,
+    type findContentTool,
+    type findDashboardsTool,
+    type findFieldsTool,
+    type getDashboardChartsTool,
+    type getKnowledgeDocumentContentTool,
+    type listWarehouseTablesTool,
+    type runQueryTool,
+    type runSqlTool,
+    type searchFieldValuesTool,
+    type ToolFindExploresArgs,
+    type ToolInput,
     type ToolName,
-    type ToolRunQueryArgs,
-    type ToolRunSqlArgs,
-    type ToolSearchFieldValuesArgs,
+    type ToolOutput,
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
@@ -39,6 +38,26 @@ import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCal
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
+type ToolDescribeWarehouseTableArgs = ToolInput<
+    typeof describeWarehouseTableTool
+>;
+type ToolFindChartsArgs = ToolInput<typeof findChartsTool>;
+type ToolFindContentArgs = ToolInput<typeof findContentTool>;
+type ToolFindDashboardsArgs = ToolInput<typeof findDashboardsTool>;
+type ToolFindFieldsArgs = ToolInput<typeof findFieldsTool>;
+type ToolGetDashboardChartsArgs = ToolInput<typeof getDashboardChartsTool>;
+type ToolGetKnowledgeDocumentContentArgs = ToolInput<
+    typeof getKnowledgeDocumentContentTool
+>;
+type ToolGetKnowledgeDocumentContentOutput = ToolOutput<
+    typeof getKnowledgeDocumentContentTool
+>;
+type ToolListWarehouseTablesArgs = ToolInput<typeof listWarehouseTablesTool>;
+type ToolRunQueryArgs = ToolInput<typeof runQueryTool>;
+type ToolRunSqlArgs = ToolInput<typeof runSqlTool>;
+type ToolSearchFieldValuesArgs = ToolInput<typeof searchFieldValuesTool>;
 
 type ContentEditorToolArgs = {
     slug?: string;
@@ -58,10 +77,8 @@ export const ToolCallDescription: FC<{
     }
     switch (toolName) {
         case 'findExplores':
-            const toolArgsFindExplores = toolCall.toolArgs as
-                | ToolFindExploresArgsV3
-                | ToolFindExploresArgsV2
-                | ToolFindExploresArgsV1;
+            const toolArgsFindExplores =
+                toolCall.toolArgs as ToolFindExploresArgs;
             return (
                 <ExploreToolCallDescription
                     exploreName={

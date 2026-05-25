@@ -1,7 +1,8 @@
 import {
     type AiArtifact,
     type Dashboard,
-    type ToolDashboardArgs,
+    type dashboardV1Tool,
+    type ToolInput,
 } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine-8/core';
 import {
@@ -13,6 +14,8 @@ import { Fragment, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
 
 type Props = {
     artifactData: AiArtifact;

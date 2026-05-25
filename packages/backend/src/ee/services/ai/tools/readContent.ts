@@ -1,29 +1,8 @@
+import { readContentTool } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-
-const toolReadContentArgsSchema = z
-    .object({
-        slug: z
-            .string()
-            .min(1)
-            .describe('Slug of the dashboard or chart to read.'),
-        type: z
-            .enum(['dashboard', 'chart'])
-            .describe('Type of Lightdash content to read.'),
-    })
-    .describe(
-        'Read a dashboard or chart as JSON using its slug. Call this before editing.',
-    );
-
-const toolReadContentOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-    }),
-});
 
 type Dependencies = {
     readContent: ReadContentFn;
@@ -31,9 +10,7 @@ type Dependencies = {
 
 export const getReadContent = ({ readContent }: Dependencies) =>
     tool({
-        description: toolReadContentArgsSchema.description,
-        inputSchema: toolReadContentArgsSchema,
-        outputSchema: toolReadContentOutputSchema,
+        ...readContentTool.for('agent'),
         execute: async ({ slug, type }) => {
             try {
                 const result = await readContent({ slug, type });

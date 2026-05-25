@@ -5,8 +5,10 @@ import {
     ChartType,
     type CartesianChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 export const getBarChartConfig = ({
     queryTool,

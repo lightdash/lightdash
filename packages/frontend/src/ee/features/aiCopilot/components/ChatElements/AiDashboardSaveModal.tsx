@@ -2,7 +2,8 @@ import { subject } from '@casl/ability';
 import {
     type AiArtifact,
     type Dashboard,
-    type ToolDashboardArgs,
+    type dashboardV1Tool,
+    type ToolInput,
 } from '@lightdash/common';
 import {
     Button,
@@ -40,6 +41,8 @@ enum ModalStep {
     SelectDestination = 'selectDestination',
     Saving = 'saving',
 }
+
+type ToolDashboardArgs = ToolInput<typeof dashboardV1Tool>;
 
 interface FormValues {
     dashboardName: string;

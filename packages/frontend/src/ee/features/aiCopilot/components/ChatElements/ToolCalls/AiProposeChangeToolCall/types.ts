@@ -1,7 +1,10 @@
-import type {
-    ToolProposeChangeArgs,
-    ToolProposeChangeReplaceStringOp,
+import {
+    type proposeChangeTool,
+    type ToolInput,
+    type ToolProposeChangeReplaceStringOp,
 } from '@lightdash/common';
+
+type ToolProposeChangeArgs = ToolInput<typeof proposeChangeTool>;
 
 export type TableChange = Extract<
     ToolProposeChangeArgs['change'],

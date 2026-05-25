@@ -1,22 +1,26 @@
 import {
+    describeWarehouseTableTool,
+    editContentTool,
+    findChartsTool,
+    findContentTool,
+    findDashboardsTool,
+    findExploresTool,
+    findFieldsTool,
+    generateDashboardTool,
+    generateUuidsTool,
+    getDashboardChartsTool,
+    getKnowledgeDocumentContentTool,
+    improveContextTool,
     isToolName,
-    toolDashboardV2ArgsSchema,
-    toolDescribeWarehouseTableArgsSchema,
-    toolFindChartsArgsSchema,
-    toolFindContentArgsSchema,
-    toolFindDashboardsArgsSchema,
-    toolFindExploresArgsSchemaV3,
-    toolFindFieldsArgsSchema,
-    toolGetDashboardChartsArgsSchema,
-    toolGetKnowledgeDocumentContentArgsSchema,
-    toolImproveContextArgsSchema,
-    toolListKnowledgeDocumentsArgsSchema,
-    toolListWarehouseTablesArgsSchema,
-    toolProposeChangeArgsSchema,
-    toolRunQueryArgsSchema,
-    toolRunSavedChartArgsSchema,
-    toolRunSqlArgsSchema,
-    toolSearchFieldValuesArgsSchema,
+    listKnowledgeDocumentsTool,
+    listWarehouseTablesTool,
+    loadSkillTool,
+    proposeChangeTool,
+    readContentTool,
+    runQueryTool,
+    runSavedChartTool,
+    runSqlTool,
+    searchFieldValuesTool,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
     toolVerticalBarArgsSchema,
@@ -28,104 +32,143 @@ import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
-import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
+import {
+    DISCOVER_FIELDS_DESCRIPTION,
+    discoverFieldsInputSchema,
+} from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
-import { toolGenerateUuidsArgsSchema } from '../tools/generateUuids';
 
-const toolLoadSkillArgsSchema = z
-    .object({
-        name: z.string(),
-        resourceName: z.string().optional(),
-    })
-    .describe('Load a built-in skill by name.');
+// Descriptions for the v1 viz tools (removed in #17991 but still present in
+// the ToolName union for historical tool-call records). Copied verbatim from
+// the pre-deletion schemas (commit 8b11440387^) so the judge sees the same
+// text the agent saw when those calls were originally made.
+const TOOL_VERTICAL_BAR_VIZ_DESCRIPTION =
+    'Use this tool to generate a Bar Chart Visualization.';
+const TOOL_TABLE_VIZ_DESCRIPTION =
+    'Use this tool to query data to display in a table or summarized if limit is set to 1.';
+const TOOL_TIME_SERIES_VIZ_DESCRIPTION =
+    'Use this tool to generate a Time Series Chart.';
 
-const toolReadContentArgsSchema = z
-    .object({
-        slug: z.string(),
-        type: z.enum(['dashboard', 'chart']),
-    })
-    .describe('Read a dashboard or chart by slug.');
+type EvalToolInfo = {
+    schema: z.ZodSchema;
+    description: string;
+};
 
-const toolEditContentArgsSchema = z
-    .object({
-        slug: z.string(),
-        type: z.enum(['dashboard', 'chart']),
-        patch: z.unknown(),
-    })
-    .describe('Edit a dashboard or chart by applying a patch.');
+// Explicit mapping of tool names to their schema + description. Descriptions
+// are REQUIRED (typesafe via `satisfies Record<ToolName, EvalToolInfo>`) so
+// the judge's `[Available Tools]` block never renders `undefined`.
+const TOOLS = {
+    findExplores: {
+        schema: findExploresTool.inputSchema,
+        description: findExploresTool.description,
+    },
+    findFields: {
+        schema: findFieldsTool.inputSchema,
+        description: findFieldsTool.description,
+    },
+    discoverFields: {
+        schema: discoverFieldsInputSchema,
+        description: DISCOVER_FIELDS_DESCRIPTION,
+    },
+    searchFieldValues: {
+        schema: searchFieldValuesTool.inputSchema,
+        description: searchFieldValuesTool.description,
+    },
+    generateBarVizConfig: {
+        schema: toolVerticalBarArgsSchema,
+        description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
+    },
+    generateTableVizConfig: {
+        schema: toolTableVizArgsSchema,
+        description: TOOL_TABLE_VIZ_DESCRIPTION,
+    },
+    generateTimeSeriesVizConfig: {
+        schema: toolTimeSeriesArgsSchema,
+        description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
+    },
+    generateDashboard: {
+        schema: generateDashboardTool.inputSchema,
+        description: generateDashboardTool.description,
+    },
+    findContent: {
+        schema: findContentTool.inputSchema,
+        description: findContentTool.description,
+    },
+    findDashboards: {
+        schema: findDashboardsTool.inputSchema,
+        description: findDashboardsTool.description,
+    },
+    findCharts: {
+        schema: findChartsTool.inputSchema,
+        description: findChartsTool.description,
+    },
+    getDashboardCharts: {
+        schema: getDashboardChartsTool.inputSchema,
+        description: getDashboardChartsTool.description,
+    },
+    readContent: {
+        schema: readContentTool.inputSchema,
+        description: readContentTool.description,
+    },
+    editContent: {
+        schema: editContentTool.inputSchema,
+        description: editContentTool.description,
+    },
+    improveContext: {
+        schema: improveContextTool.inputSchema,
+        description: improveContextTool.description,
+    },
+    loadSkill: {
+        schema: loadSkillTool.inputSchema,
+        description: loadSkillTool.description,
+    },
+    generateUuids: {
+        schema: generateUuidsTool.inputSchema,
+        description: generateUuidsTool.description,
+    },
+    proposeChange: {
+        schema: proposeChangeTool.inputSchema,
+        description: proposeChangeTool.description,
+    },
+    runQuery: {
+        schema: runQueryTool.inputSchema,
+        description: runQueryTool.description,
+    },
+    runSavedChart: {
+        schema: runSavedChartTool.inputSchema,
+        description: runSavedChartTool.description,
+    },
+    runSql: {
+        schema: runSqlTool.inputSchema,
+        description: runSqlTool.description,
+    },
+    listWarehouseTables: {
+        schema: listWarehouseTablesTool.inputSchema,
+        description: listWarehouseTablesTool.description,
+    },
+    describeWarehouseTable: {
+        schema: describeWarehouseTableTool.inputSchema,
+        description: describeWarehouseTableTool.description,
+    },
+    listKnowledgeDocuments: {
+        schema: listKnowledgeDocumentsTool.inputSchema,
+        description: listKnowledgeDocumentsTool.description,
+    },
+    getKnowledgeDocumentContent: {
+        schema: getKnowledgeDocumentContentTool.inputSchema,
+        description: getKnowledgeDocumentContentTool.description,
+    },
+} satisfies Record<ToolName, EvalToolInfo>;
 
-const TOOL_NAME_TO_DB_TOOL_NAME = {
-    findExplores: 'find_explores',
-    findFields: 'find_fields',
-    discoverFields: 'discover_fields',
-    searchFieldValues: 'search_field_values',
-    findContent: 'find_content',
-    findDashboards: 'find_dashboards',
-    findCharts: 'find_charts',
-    getDashboardCharts: 'get_dashboard_charts',
-    readContent: 'read_content',
-    editContent: 'edit_content',
-    generateTableVizConfig: 'table',
-    generateTimeSeriesVizConfig: 'time_series_chart',
-    generateBarVizConfig: 'vertical_bar_chart',
-    loadSkill: 'load_skill',
-    generateUuids: 'generate_uuids',
-    runQuery: 'query_result',
-    runSavedChart: 'run_saved_chart',
-    runSql: 'run_sql',
-    listWarehouseTables: 'list_warehouse_tables',
-    describeWarehouseTable: 'describe_warehouse_table',
-    listKnowledgeDocuments: 'list_knowledge_documents',
-    getKnowledgeDocumentContent: 'get_knowledge_document_content',
-    generateDashboard: 'generate_dashboard',
-    improveContext: 'improve_context',
-    proposeChange: 'propose_change',
-} satisfies Record<ToolName, string>;
-
-// Explicit mapping of tool names to their schemas
-const TOOL_SCHEMAS = {
-    findExplores: toolFindExploresArgsSchemaV3,
-    findFields: toolFindFieldsArgsSchema,
-    discoverFields: discoverFieldsInputSchema,
-    searchFieldValues: toolSearchFieldValuesArgsSchema,
-    generateBarVizConfig: toolVerticalBarArgsSchema,
-    generateTableVizConfig: toolTableVizArgsSchema,
-    generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
-    // TODO: agent needs to be v2 for this to work
-    generateDashboard: toolDashboardV2ArgsSchema,
-    findContent: toolFindContentArgsSchema,
-    findDashboards: toolFindDashboardsArgsSchema,
-    findCharts: toolFindChartsArgsSchema,
-    getDashboardCharts: toolGetDashboardChartsArgsSchema,
-    readContent: toolReadContentArgsSchema,
-    editContent: toolEditContentArgsSchema,
-    improveContext: toolImproveContextArgsSchema,
-    loadSkill: toolLoadSkillArgsSchema,
-    generateUuids: toolGenerateUuidsArgsSchema,
-    proposeChange: toolProposeChangeArgsSchema,
-    runQuery: toolRunQueryArgsSchema,
-    runSavedChart: toolRunSavedChartArgsSchema,
-    runSql: toolRunSqlArgsSchema,
-    listWarehouseTables: toolListWarehouseTablesArgsSchema,
-    describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
-    listKnowledgeDocuments: toolListKnowledgeDocumentsArgsSchema,
-    getKnowledgeDocumentContent: toolGetKnowledgeDocumentContentArgsSchema,
-} satisfies Record<ToolName, z.ZodSchema>;
-
-const getToolInfo = (toolName: string) => {
+const getToolInfo = (toolName: string): EvalToolInfo => {
     if (!isToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
-    return TOOL_SCHEMAS[toolName];
+    return TOOLS[toolName];
 };
 
-const availableTools = Object.entries(TOOL_SCHEMAS).map(([name, schema]) => ({
-    name,
-    description: schema.description,
-}));
-
-const availableToolsDescription = availableTools
-    .map((tool) => `- ${tool.name}: ${tool.description}`)
+const availableToolsDescription = Object.entries(TOOLS)
+    .map(([name, info]) => `- ${name}: ${info.description}`)
     .join('\n');
 
 const toolEvaluationSchema = z.object({
@@ -231,7 +274,7 @@ export const scoreToolCall = async (
     let expectedArgsResult: ExpectedArgsResult | null = null;
 
     if (hasArgs) {
-        const valid = toolInfo.safeParse(toolCall.tool_args);
+        const valid = toolInfo.schema.safeParse(toolCall.tool_args);
         if (!valid.success) {
             validationError = `Tool ${toolCall.tool_name}: ${valid.error.message}`;
         }

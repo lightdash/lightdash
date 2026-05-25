@@ -5,7 +5,7 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
-    toolRunQueryArgsSchemaTransformed,
+    runQueryTool,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
@@ -84,7 +84,7 @@ export const parseVizConfig = (
 
     // Parse runQuery tool
     const toolRunQueryArgsParsed =
-        toolRunQueryArgsSchemaTransformed.safeParse(vizConfigUnknown);
+        runQueryTool.inputSchemaTransformed.safeParse(vizConfigUnknown);
     if (toolRunQueryArgsParsed.success) {
         const vizTool = toolRunQueryArgsParsed.data;
 

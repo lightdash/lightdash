@@ -1,6 +1,8 @@
 import { type EChartsOption } from 'echarts';
-import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import type { runQueryTool, ToolInputTransformed } from '../../../../schemas';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
+
+type ToolRunQueryArgsTransformed = ToolInputTransformed<typeof runQueryTool>;
 
 /**
  * Generates funnel chart echarts config for server-side rendering

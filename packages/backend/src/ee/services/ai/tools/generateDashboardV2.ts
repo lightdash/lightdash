@@ -1,8 +1,6 @@
 import {
-    toolDashboardV2ArgsSchema,
-    toolDashboardV2ArgsSchemaTransformed,
-    toolDashboardV2OutputSchema,
-    type ToolDashboardV2ArgsTransformed,
+    generateDashboardTool,
+    type ToolInputTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,6 +12,10 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
+type ToolDashboardV2ArgsTransformed = ToolInputTransformed<
+    typeof generateDashboardTool
+>;
+
 type Dependencies = {
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
@@ -24,14 +26,14 @@ export const getGenerateDashboardV2 = ({
     createOrUpdateArtifact,
 }: Dependencies) =>
     tool({
-        description: toolDashboardV2ArgsSchema.description,
-        inputSchema: toolDashboardV2ArgsSchema,
-        outputSchema: toolDashboardV2OutputSchema,
+        ...generateDashboardTool.for('agent'),
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);
                 const transformedToolArgs =
-                    toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
+                    generateDashboardTool.inputSchemaTransformed.parse(
+                        toolArgs,
+                    );
 
                 const errors: string[] = [];
                 const failedVisualizations: string[] = [];
