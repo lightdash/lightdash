@@ -1,14 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Image,
-    ScrollArea,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
+import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
     IconAppWindow,
     IconApps,
@@ -56,10 +48,6 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
-import {
-    MICROSOFT_LOGO,
-    OKTA_LOGO,
-} from '../components/common/ThirdPartySignInButton/ssoProviderLogos';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -74,8 +62,8 @@ import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
-import OrganizationSsoPanel from '../components/UserSettings/OrganizationSsoPanel';
-import OktaSsoPanel from '../components/UserSettings/OrganizationSsoPanel/OktaSsoPanel';
+import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
+import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -496,53 +484,17 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/sso',
                 element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Stack gap="xs">
-                                <Group gap="xs">
-                                    <Image
-                                        src={MICROSOFT_LOGO}
-                                        w={20}
-                                        h={20}
-                                        alt="Microsoft logo"
-                                    />
-                                    <Title order={4}>
-                                        Azure Active Directory
-                                    </Title>
-                                </Group>
-                                <Text c="ldGray.6" fz="xs">
-                                    Enable Azure AD single sign-on for users in
-                                    this organization. Users whose email matches
-                                    the discovery whitelist will see a "Sign in
-                                    with Microsoft" button on the login page;
-                                    instance-level SSO providers are suppressed
-                                    for matched users.
-                                </Text>
-                            </Stack>
-                            <OrganizationSsoPanel />
-                        </SettingsGridCard>
-                        <SettingsGridCard>
-                            <Stack gap="xs">
-                                <Group gap="xs">
-                                    <Image
-                                        src={OKTA_LOGO}
-                                        w={20}
-                                        h={20}
-                                        alt="Okta logo"
-                                    />
-                                    <Title order={4}>Okta</Title>
-                                </Group>
-                                <Text c="ldGray.6" fz="xs">
-                                    Enable Okta single sign-on for users in this
-                                    organization. Users whose email matches the
-                                    discovery whitelist will see a "Sign in with
-                                    Okta" button on the login page;
-                                    instance-level SSO providers are suppressed
-                                    for matched users.
-                                </Text>
-                            </Stack>
-                            <OktaSsoPanel />
-                        </SettingsGridCard>
+                    <Stack gap="md">
+                        <Stack gap="xs">
+                            <Title order={5}>Single Sign-On</Title>
+                            <Text c="ldGray.6" fz="xs">
+                                Configure SSO providers for your organization.
+                                Users are routed to the matching provider based
+                                on their email domain.
+                            </Text>
+                        </Stack>
+                        <AzureAdSsoPanel />
+                        <OktaSsoPanel />
                     </Stack>
                 ),
             });
