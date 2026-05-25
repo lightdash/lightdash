@@ -12,6 +12,7 @@ declare module 'express-session' {
                 projectUuid?: string | undefined;
             };
             azureAdStrategyName?: string | undefined;
+            oktaOrganizationUuid?: string | undefined;
         };
         slack: {
             teamId?: string | undefined;

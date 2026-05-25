@@ -149,7 +149,10 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
-import { type AzureAdSsoConfigSummary } from './organizationSso';
+import {
+    type AzureAdSsoConfigSummary,
+    type OktaSsoConfigSummary,
+} from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -932,6 +935,7 @@ type ApiResults =
     | ApiDownloadCsv
     | AllowedEmailDomains
     | AzureAdSsoConfigSummary
+    | OktaSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

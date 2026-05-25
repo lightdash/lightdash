@@ -16,45 +16,53 @@ import { IconShieldCheck, IconTrash } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useAllowedEmailDomains } from '../../../hooks/organization/useAllowedDomains';
 import {
-    useAzureAdSsoConfig,
-    useDeleteAzureAdSsoConfig,
-    useUpsertAzureAdSsoConfig,
+    useDeleteOktaSsoConfig,
+    useOktaSsoConfig,
+    useUpsertOktaSsoConfig,
 } from '../../../hooks/organization/useOrganizationSso';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
 type FormValues = {
+    oauth2Issuer: string;
+    oktaDomain: string;
     oauth2ClientId: string;
     oauth2ClientSecret: string;
-    oauth2TenantId: string;
+    authorizationServerId: string;
+    extraScopes: string;
     enabled: boolean;
     overrideEmailDomains: boolean;
     emailDomains: string[];
     allowPassword: boolean;
 };
 
-const OrganizationSsoPanel: FC = () => {
-    const { data: existing, isLoading } = useAzureAdSsoConfig();
+const OktaSsoPanel: FC = () => {
+    const { data: existing, isLoading } = useOktaSsoConfig();
     const { data: allowedEmailDomains } = useAllowedEmailDomains();
-    const upsert = useUpsertAzureAdSsoConfig();
-    const deleteConfig = useDeleteAzureAdSsoConfig();
+    const upsert = useUpsertOktaSsoConfig();
+    const deleteConfig = useDeleteOktaSsoConfig();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
     const form = useForm<FormValues>({
         initialValues: {
+            oauth2Issuer: '',
+            oktaDomain: '',
             oauth2ClientId: '',
             oauth2ClientSecret: '',
-            oauth2TenantId: '',
+            authorizationServerId: '',
+            extraScopes: '',
             enabled: true,
             overrideEmailDomains: false,
             emailDomains: [],
             allowPassword: true,
         },
         validate: {
+            oauth2Issuer: (value) =>
+                value.trim().length === 0 ? 'Issuer is required' : null,
+            oktaDomain: (value) =>
+                value.trim().length === 0 ? 'Okta domain is required' : null,
             oauth2ClientId: (value) =>
                 value.trim().length === 0 ? 'Client ID is required' : null,
-            oauth2TenantId: (value) =>
-                value.trim().length === 0 ? 'Tenant ID is required' : null,
             oauth2ClientSecret: (value) =>
                 !existing && value.trim().length === 0
                     ? 'Client secret is required'
@@ -68,9 +76,12 @@ const OrganizationSsoPanel: FC = () => {
 
     useEffect(() => {
         form.setValues({
+            oauth2Issuer: existing?.oauth2Issuer ?? '',
+            oktaDomain: existing?.oktaDomain ?? '',
             oauth2ClientId: existing?.oauth2ClientId ?? '',
             oauth2ClientSecret: '',
-            oauth2TenantId: existing?.oauth2TenantId ?? '',
+            authorizationServerId: existing?.authorizationServerId ?? '',
+            extraScopes: existing?.extraScopes ?? '',
             enabled: existing?.enabled ?? true,
             overrideEmailDomains: existing?.overrideEmailDomains ?? false,
             emailDomains: existing?.emailDomains ?? [],
@@ -79,8 +90,11 @@ const OrganizationSsoPanel: FC = () => {
         form.resetDirty();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+        existing?.oauth2Issuer,
+        existing?.oktaDomain,
         existing?.oauth2ClientId,
-        existing?.oauth2TenantId,
+        existing?.authorizationServerId,
+        existing?.extraScopes,
         existing?.enabled,
         existing?.overrideEmailDomains,
         existing?.emailDomains,
@@ -91,8 +105,11 @@ const OrganizationSsoPanel: FC = () => {
 
     const handleSubmit = form.onSubmit((values) => {
         upsert.mutate({
+            oauth2Issuer: values.oauth2Issuer.trim(),
+            oktaDomain: values.oktaDomain.trim(),
             oauth2ClientId: values.oauth2ClientId.trim(),
-            oauth2TenantId: values.oauth2TenantId.trim(),
+            authorizationServerId: values.authorizationServerId.trim() || null,
+            extraScopes: values.extraScopes.trim() || null,
             enabled: values.enabled,
             overrideEmailDomains: values.overrideEmailDomains,
             emailDomains: values.emailDomains.map((d) =>
@@ -122,29 +139,52 @@ const OrganizationSsoPanel: FC = () => {
                         Application credentials
                     </Title>
                     <TextInput
-                        label="Application (client) ID"
-                        placeholder="00000000-0000-0000-0000-000000000000"
-                        description="From the Azure AD application's overview page."
+                        label="Okta domain"
+                        placeholder="your-org.okta.com"
+                        description="Your Okta organization domain (without https://)."
                         required
-                        {...form.getInputProps('oauth2ClientId')}
+                        {...form.getInputProps('oktaDomain')}
                     />
                     <TextInput
-                        label="Directory (tenant) ID"
-                        placeholder="00000000-0000-0000-0000-000000000000"
-                        description="From the Azure AD application's overview page."
+                        label="Issuer URL"
+                        placeholder="https://your-org.okta.com"
+                        description="The OAuth issuer URL from your Okta application."
                         required
-                        {...form.getInputProps('oauth2TenantId')}
+                        {...form.getInputProps('oauth2Issuer')}
+                    />
+                    <TextInput
+                        label="Client ID"
+                        placeholder="0oa1b2c3d4e5f6g7h8i9"
+                        description="From the Okta application's General settings."
+                        required
+                        {...form.getInputProps('oauth2ClientId')}
                     />
                     <PasswordInput
                         label="Client secret"
                         placeholder={
                             existing
                                 ? 'Leave blank to keep the existing secret'
-                                : 'Azure AD client secret value'
+                                : 'Okta client secret value'
                         }
-                        description="The secret value from Azure AD (not the secret ID)."
+                        description="The client secret from the Okta application."
                         required={!existing}
                         {...form.getInputProps('oauth2ClientSecret')}
+                    />
+
+                    <Title order={6} mt="md">
+                        Advanced
+                    </Title>
+                    <TextInput
+                        label="Authorization server ID"
+                        placeholder="Optional — for custom authorization servers"
+                        description="Set this only if you use a custom Okta authorization server (API Access Management)."
+                        {...form.getInputProps('authorizationServerId')}
+                    />
+                    <TextInput
+                        label="Extra scopes"
+                        placeholder="Optional — space-separated, e.g. groups"
+                        description="Additional OAuth scopes requested alongside openid, profile and email."
+                        {...form.getInputProps('extraScopes')}
                     />
 
                     <Title order={6} mt="md">
@@ -164,8 +204,8 @@ const OrganizationSsoPanel: FC = () => {
                     {form.values.overrideEmailDomains ? (
                         <TagsInput
                             label="Email domains for this method"
-                            description="Only users whose email domain matches one of these will see Azure AD. Domains are case-insensitive."
-                            placeholder="microsoft.com, contoso.com"
+                            description="Only users whose email domain matches one of these will see Okta. Domains are case-insensitive."
+                            placeholder="acme.com, acme.io"
                             value={form.values.emailDomains}
                             onChange={(domains) =>
                                 form.setFieldValue('emailDomains', domains)
@@ -189,7 +229,7 @@ const OrganizationSsoPanel: FC = () => {
                     </Title>
                     <Checkbox
                         label="Allow password sign-in for users matching this method"
-                        description="When unchecked, users whose email domain matches Azure AD discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                        description="When unchecked, users whose email domain matches Okta discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
                         checked={form.values.allowPassword}
                         onChange={(event) =>
                             form.setFieldValue(
@@ -217,7 +257,7 @@ const OrganizationSsoPanel: FC = () => {
                             loading={upsert.isLoading}
                             disabled={upsert.isLoading}
                         >
-                            {existing ? 'Save changes' : 'Enable Azure AD'}
+                            {existing ? 'Save changes' : 'Enable Okta'}
                         </Button>
                     </Group>
                 </Stack>
@@ -227,7 +267,7 @@ const OrganizationSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
-                    title="Remove Azure AD configuration"
+                    title="Remove Okta configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"
                     actions={
@@ -245,8 +285,8 @@ const OrganizationSsoPanel: FC = () => {
                 >
                     <Text>
                         After removing this configuration, users in this
-                        organization will no longer be able to sign in with
-                        Azure AD via the per-organization configuration.
+                        organization will no longer be able to sign in with Okta
+                        via the per-organization configuration.
                     </Text>
                 </MantineModal>
             )}
@@ -254,4 +294,4 @@ const OrganizationSsoPanel: FC = () => {
     );
 };
 
-export default OrganizationSsoPanel;
+export default OktaSsoPanel;

@@ -1,5 +1,6 @@
 export enum OrganizationSsoProvider {
     AZUREAD = 'azuread',
+    OKTA = 'okta',
 }
 
 export const isOrganizationSsoProvider = (
@@ -13,6 +14,17 @@ export type AzureAdSsoConfig = {
     oauth2ClientId: string;
     oauth2ClientSecret: string;
     oauth2TenantId: string;
+};
+
+export type OktaSsoConfig = {
+    oauth2Issuer: string;
+    oktaDomain: string;
+    oauth2ClientId: string;
+    oauth2ClientSecret: string;
+    /** Optional custom authorization server (Okta API Access Management). */
+    authorizationServerId: string | null;
+    /** Optional extra scopes (space-separated) appended to the auth request. */
+    extraScopes: string | null;
 };
 
 /**
@@ -62,4 +74,38 @@ export type ApiAzureAdSsoConfigResponse = {
 export type ApiUpsertAzureAdSsoConfigResponse = {
     status: 'ok';
     results: AzureAdSsoConfigSummary;
+};
+
+export type OktaSsoConfigSummary = Pick<
+    OktaSsoConfig,
+    | 'oauth2Issuer'
+    | 'oktaDomain'
+    | 'oauth2ClientId'
+    | 'authorizationServerId'
+    | 'extraScopes'
+> &
+    OrganizationSsoMethodFlags & {
+        hasClientSecret: boolean;
+    };
+
+export type UpsertOktaSsoConfig = {
+    oauth2Issuer: string;
+    oktaDomain: string;
+    oauth2ClientId: string;
+    /**
+     * When omitted on update, the stored secret is preserved. Required on create.
+     */
+    oauth2ClientSecret?: string;
+    authorizationServerId?: string | null;
+    extraScopes?: string | null;
+} & Partial<OrganizationSsoMethodFlags>;
+
+export type ApiOktaSsoConfigResponse = {
+    status: 'ok';
+    results: OktaSsoConfigSummary | null;
+};
+
+export type ApiUpsertOktaSsoConfigResponse = {
+    status: 'ok';
+    results: OktaSsoConfigSummary;
 };

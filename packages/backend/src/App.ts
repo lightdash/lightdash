@@ -42,7 +42,6 @@ import {
     invalidUserErrorHandler,
     isAzureAdPassportStrategyAvailableToUse,
     isGenericOidcPassportStrategyAvailableToUse,
-    isOktaPassportStrategyAvailableToUse,
     localPassportStrategy,
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
@@ -872,9 +871,11 @@ export default class App {
             passport.use(googlePassportStrategy);
             refresh.use(googlePassportStrategy);
         }
-        if (isOktaPassportStrategyAvailableToUse) {
-            passport.use('okta', new OpenIDClientOktaStrategy());
-        }
+        // Always register the Okta strategy: it resolves its config per
+        // request (per-org DB config by email, else instance env config), so
+        // it must be available even when no instance-level Okta env config is
+        // set.
+        passport.use('okta', new OpenIDClientOktaStrategy());
         if (oneLoginPassportStrategy) {
             passport.use('oneLogin', oneLoginPassportStrategy);
         }
