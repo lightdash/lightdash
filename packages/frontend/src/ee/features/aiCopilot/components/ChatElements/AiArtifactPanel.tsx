@@ -28,7 +28,7 @@ import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
 } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiPreviewSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import styles from './AiArtifactPanel.module.css';
@@ -309,7 +309,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                                 size="sm"
                                 variant="subtle"
                                 color="ldGray.6"
-                                onClick={() => dispatch(clearArtifact())}
+                                onClick={() => dispatch(clearPreview())}
                                 aria-label="Close"
                             >
                                 <MantineIcon icon={IconX} />

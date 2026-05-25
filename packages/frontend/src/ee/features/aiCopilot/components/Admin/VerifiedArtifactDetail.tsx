@@ -4,7 +4,7 @@ import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview, setArtifactPreview } from '../../store/aiPreviewSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -20,9 +20,8 @@ export const VerifiedArtifactDetail: FC = () => {
     }>();
     const [searchParams] = useSearchParams();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const preview = useAiAgentStoreSelector((state) => state.aiPreview.preview);
+    const artifact = preview?.kind === 'artifact' ? preview : null;
 
     const versionUuid = searchParams.get('versionUuid');
     const threadUuid = searchParams.get('threadUuid');
@@ -53,7 +52,7 @@ export const VerifiedArtifactDetail: FC = () => {
             promptUuid
         ) {
             dispatch(
-                setArtifact({
+                setArtifactPreview({
                     projectUuid,
                     agentUuid,
                     artifactUuid,
@@ -65,7 +64,7 @@ export const VerifiedArtifactDetail: FC = () => {
         }
 
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [
         dispatch,

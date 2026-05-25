@@ -1,6 +1,6 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { useEffect, useMemo, useRef } from 'react';
-import { clearArtifact, setArtifact } from '../store/aiArtifactSlice';
+import { clearPreview, setArtifactPreview } from '../store/aiPreviewSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -20,16 +20,15 @@ export const useAiAgentThreadArtifact = ({
     thread,
 }: UseAiAgentThreadArtifactOptions) => {
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const preview = useAiAgentStoreSelector((state) => state.aiPreview.preview);
+    const artifact = preview?.kind === 'artifact' ? preview : null;
 
     const lastHandledMessageUuidRef = useRef<string | null>(null);
     const prevArtifactRef = useRef<typeof artifact>(null);
 
     useEffect(() => {
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
             lastHandledMessageUuidRef.current = null;
             prevArtifactRef.current = null;
         };
@@ -77,7 +76,7 @@ export const useAiAgentThreadArtifact = ({
         const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
         if (!latestArtifact) return;
         dispatch(
-            setArtifact({
+            setArtifactPreview({
                 artifactUuid: latestArtifact.artifactUuid,
                 versionUuid: latestArtifact.versionUuid,
                 messageUuid: latestAssistantMessage.uuid,

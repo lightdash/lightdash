@@ -21,7 +21,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiPreviewSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
@@ -101,7 +101,7 @@ export const AiChartVisualization: FC<Props> = ({
                         size="sm"
                         variant="subtle"
                         color="ldGray.9"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -156,7 +156,7 @@ export const AiChartVisualization: FC<Props> = ({
                         size="sm"
                         variant="subtle"
                         color="ldGray.4"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>

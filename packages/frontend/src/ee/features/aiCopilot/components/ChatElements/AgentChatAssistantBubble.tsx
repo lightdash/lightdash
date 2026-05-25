@@ -53,7 +53,7 @@ import {
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview, setArtifactPreview } from '../../store/aiPreviewSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -859,9 +859,10 @@ export const AssistantBubble: FC<Props> = memo(
         showAddToEvalsButton = false,
         mcpServers,
     }) => {
-        const artifact = useAiAgentStoreSelector(
-            (state) => state.aiArtifact.artifact,
+        const preview = useAiAgentStoreSelector(
+            (state) => state.aiPreview.preview,
         );
+        const artifact = preview?.kind === 'artifact' ? preview : null;
         const dispatch = useAiAgentStoreDispatch();
 
         if (!projectUuid) throw new Error(`Project Uuid not found`);
@@ -977,11 +978,11 @@ export const AssistantBubble: FC<Props> = memo(
                                               artifact?.versionUuid ===
                                                   messageArtifact.versionUuid;
                                           if (isThisArtifactOpen) {
-                                              dispatch(clearArtifact());
+                                              dispatch(clearPreview());
                                               return;
                                           }
                                           dispatch(
-                                              setArtifact({
+                                              setArtifactPreview({
                                                   artifactUuid:
                                                       messageArtifact.artifactUuid,
                                                   versionUuid:

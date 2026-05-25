@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
@@ -46,7 +46,6 @@ import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTi
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-
 type TabGroup = {
     key: string;
     tiles: Dashboard['tiles'];
@@ -264,7 +263,13 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     );
 };
 
-export const MinimalDashboardView: FC = () => {
+type MinimalDashboardViewProps = {
+    dashboardContextBridge?: ReactNode;
+};
+
+export const MinimalDashboardView: FC<MinimalDashboardViewProps> = ({
+    dashboardContextBridge,
+}) => {
     const projectUuid = useDashboardPageContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardPageContext((c) => c.dashboardUuid);
     const tabUuid = useDashboardPageContext((c) => c.tabUuid);
@@ -515,6 +520,7 @@ export const MinimalDashboardView: FC = () => {
             dateZoom={dateZoom}
             defaultInvalidateCache={true}
         >
+            {dashboardContextBridge}
             <MinimalDashboardContent
                 filteredAndSortedDashboardTiles={
                     filteredAndSortedDashboardTiles

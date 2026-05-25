@@ -31,7 +31,8 @@
     );
 }
 
-.contentLink[data-artifact-active='true'] {
+.contentLink[data-artifact-active='true'],
+.contentLink[data-dashboard-active='true'] {
     background-color: light-dark(
         color-mix(
             in srgb,

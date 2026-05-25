@@ -17,7 +17,7 @@ import { IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiPreviewSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
 import styles from './AiDashboardVisualization.module.css';
@@ -77,7 +77,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                     size="sm"
                                     variant="subtle"
                                     color="gray"
-                                    onClick={() => dispatch(clearArtifact())}
+                                    onClick={() => dispatch(clearPreview())}
                                 >
                                     <MantineIcon icon={IconX} color="gray" />
                                 </ActionIcon>

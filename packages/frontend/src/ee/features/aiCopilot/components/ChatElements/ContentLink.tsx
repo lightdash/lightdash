@@ -6,15 +6,19 @@ import {
     IconLayoutDashboard,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
-import { setArtifact } from '../../store/aiArtifactSlice';
+import {
+    setArtifactPreview,
+    setDashboardPreview,
+} from '../../store/aiPreviewSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { useAiAgentPageLayoutContext } from '../AiAgentPageLayout/useAiAgentPageLayoutContext';
 import styles from './ContentLink.module.css';
 
 export type SqlRunnerLinkState = {
@@ -42,16 +46,36 @@ export const ContentLink: FC<ContentLinkProps> = ({
     sqlRunnerLinkState,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const currentArtifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const layoutContext = useAiAgentPageLayoutContext();
+    const preview = useAiAgentStoreSelector((state) => state.aiPreview.preview);
+    const currentArtifact = preview?.kind === 'artifact' ? preview : null;
+    const currentDashboardPreview =
+        preview?.kind === 'dashboard' ? preview : null;
+
+    const isModifiedClick = (e: MouseEvent<HTMLElement>) =>
+        e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+
+    const onLinkClick =
+        'onClick' in props && typeof props.onClick === 'function'
+            ? props.onClick
+            : undefined;
 
     switch (contentType) {
-        case 'dashboard-link':
+        case 'dashboard-link': {
+            const dashboardUuid =
+                'data-dashboard-uuid' in props &&
+                typeof props['data-dashboard-uuid'] === 'string'
+                    ? props['data-dashboard-uuid']
+                    : undefined;
+
+            const isActive =
+                currentDashboardPreview?.dashboardUuid === dashboardUuid;
+
             return (
                 <Anchor
                     {...props}
                     data-content-link="true"
+                    data-dashboard-active={isActive || undefined}
                     target="_blank"
                     fz="xs"
                     fw={500}
@@ -59,6 +83,23 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     td="none"
                     classNames={{
                         root: styles.contentLink,
+                    }}
+                    onClick={(e) => {
+                        onLinkClick?.(e);
+                        if (e.defaultPrevented || !dashboardUuid) return;
+                        if (isModifiedClick(e)) return;
+
+                        e.preventDefault();
+                        layoutContext?.collapseSidebar();
+                        dispatch(
+                            setDashboardPreview({
+                                dashboardUuid,
+                                messageUuid: message.uuid,
+                                threadUuid: message.threadUuid,
+                                projectUuid,
+                                agentUuid,
+                            }),
+                        );
                     }}
                 >
                     <MantineIcon
@@ -83,6 +124,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     />
                 </Anchor>
             );
+        }
 
         case 'chart-link': {
             const chartType =
@@ -180,8 +222,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     onClick={(e) => {
                         e.preventDefault();
                         if (artifactUuid && versionUuid) {
+                            layoutContext?.collapseSidebar();
                             dispatch(
-                                setArtifact({
+                                setArtifactPreview({
                                     artifactUuid,
                                     versionUuid,
                                     messageUuid: message.uuid,

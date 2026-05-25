@@ -5,12 +5,12 @@ import {
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams } from 'react-router';
 import { type StreamPart } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreSelector } from '../../ee/features/aiCopilot/store/hooks';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
 import useDashboardContext from './useDashboardContext';
+import { useDashboardPageContext } from './useDashboardPageContext';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -46,12 +46,16 @@ const getEditContentToolArgs = (
         ? (value as EditContentToolArgs)
         : undefined;
 
-const DashboardAiAgentContextBridge = () => {
+type DashboardAiAgentContextBridgeProps = {
+    threadUuid?: string;
+};
+
+const DashboardAiAgentContextBridge = ({
+    threadUuid,
+}: DashboardAiAgentContextBridgeProps) => {
     const queryClient = useQueryClient();
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const projectUuid = useDashboardPageContext((c) => c.projectUuid);
+    const dashboardUuid = useDashboardPageContext((c) => c.dashboardUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -74,9 +78,10 @@ const DashboardAiAgentContextBridge = () => {
     const activeThreadId = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeThreadId,
     );
+    const resolvedThreadUuid = threadUuid ?? activeThreadId;
     const activeThreadParts = useAiAgentStoreSelector((state) =>
-        activeThreadId
-            ? (state.aiAgentThreadStream[activeThreadId]?.parts ?? [])
+        resolvedThreadUuid
+            ? (state.aiAgentThreadStream[resolvedThreadUuid]?.parts ?? [])
             : [],
     );
 

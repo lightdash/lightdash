@@ -6,7 +6,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview, setArtifactPreview } from '../../store/aiPreviewSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -19,15 +19,14 @@ export const VerifiedArtifactsLayout: FC = () => {
     const theme = useMantineTheme();
     const { projectUuid, agentUuid } = useParams();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const preview = useAiAgentStoreSelector((state) => state.aiPreview.preview);
+    const artifact = preview?.kind === 'artifact' ? preview : null;
 
     const handleArtifactSelect = (
         selectedArtifact: AiAgentVerifiedArtifact,
     ) => {
         dispatch(
-            setArtifact({
+            setArtifactPreview({
                 projectUuid: projectUuid!,
                 agentUuid: agentUuid!,
                 artifactUuid: selectedArtifact.artifactUuid,
@@ -40,7 +39,7 @@ export const VerifiedArtifactsLayout: FC = () => {
 
     useEffect(() => {
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [dispatch]);
 

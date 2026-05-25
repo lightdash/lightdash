@@ -107,7 +107,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const resolvedProjectUuid = projectUuid ?? routeProjectUuid;
     const { showToastWarning, showToastInfo } = useToaster();
     const hasNotifiedLockedOverrideRef = useRef(false);
-
     // Reset the "locked filter override" toast guard on dashboard navigation
     // so each dashboard gets a fresh chance to notify the viewer.
     useEffect(() => {
