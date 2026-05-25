@@ -1,10 +1,13 @@
 import {
     ApiAzureAdSsoConfigResponse,
     ApiErrorPayload,
+    ApiOktaSsoConfigResponse,
     ApiSuccessEmpty,
     ApiUpsertAzureAdSsoConfigResponse,
+    ApiUpsertOktaSsoConfigResponse,
     assertRegisteredAccount,
     UpsertAzureAdSsoConfig,
+    UpsertOktaSsoConfig,
 } from '@lightdash/common';
 import {
     Body,
@@ -92,6 +95,72 @@ export class OrganizationSsoController extends BaseController {
         await this.services
             .getOrganizationSsoService()
             .deleteAzureAdConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Returns the current organization's Okta SSO configuration (sensitive
+     * fields are not included).
+     * @summary Get Okta SSO configuration
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/okta')
+    @OperationId('GetOktaSsoConfig')
+    async getOktaConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiOktaSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .getOktaConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Creates or updates the current organization's Okta SSO configuration.
+     * Omit `oauth2ClientSecret` to preserve the previously stored secret on
+     * updates.
+     * @summary Upsert Okta SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/okta')
+    @OperationId('UpsertOktaSsoConfig')
+    async upsertOktaConfig(
+        @Request() req: express.Request,
+        @Body() body: UpsertOktaSsoConfig,
+    ): Promise<ApiUpsertOktaSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .upsertOktaConfig(req.account, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Removes the current organization's Okta SSO configuration.
+     * @summary Delete Okta SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Delete('/okta')
+    @OperationId('DeleteOktaSsoConfig')
+    async deleteOktaConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getOrganizationSsoService()
+            .deleteOktaConfig(req.account);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }

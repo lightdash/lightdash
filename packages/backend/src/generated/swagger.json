@@ -13278,6 +13278,7 @@
                     "generateBarVizConfig",
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
+                    "generateUuids",
                     "findExplores",
                     "findFields",
                     "discoverFields",
@@ -13313,8 +13314,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13372,8 +13373,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -17386,6 +17387,128 @@
                             }
                         },
                         "required": ["oauth2TenantId", "oauth2ClientId"],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+                    }
+                ]
+            },
+            "Pick_OktaSsoConfig.oauth2Issuer-or-oktaDomain-or-oauth2ClientId-or-authorizationServerId-or-extraScopes_": {
+                "properties": {
+                    "oauth2ClientId": {
+                        "type": "string"
+                    },
+                    "oauth2Issuer": {
+                        "type": "string"
+                    },
+                    "oktaDomain": {
+                        "type": "string"
+                    },
+                    "authorizationServerId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional custom authorization server (Okta API Access Management)."
+                    },
+                    "extraScopes": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional extra scopes (space-separated) appended to the auth request."
+                    }
+                },
+                "required": [
+                    "oauth2ClientId",
+                    "oauth2Issuer",
+                    "oktaDomain",
+                    "authorizationServerId",
+                    "extraScopes"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OktaSsoConfigSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_OktaSsoConfig.oauth2Issuer-or-oktaDomain-or-oauth2ClientId-or-authorizationServerId-or-extraScopes_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+                    },
+                    {
+                        "properties": {
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hasClientSecret"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiOktaSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OktaSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertOktaSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OktaSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpsertOktaSsoConfig": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "extraScopes": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "authorizationServerId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "oauth2ClientSecret": {
+                                "type": "string",
+                                "description": "When omitted on update, the stored secret is preserved. Required on create."
+                            },
+                            "oauth2ClientId": {
+                                "type": "string"
+                            },
+                            "oktaDomain": {
+                                "type": "string"
+                            },
+                            "oauth2Issuer": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "oauth2ClientId",
+                            "oktaDomain",
+                            "oauth2Issuer"
+                        ],
                         "type": "object"
                     },
                     {
@@ -34248,7 +34371,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3012.3",
+        "version": "0.3013.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39211,6 +39334,108 @@
                 },
                 "description": "Removes the current organization's Azure AD SSO configuration.",
                 "summary": "Delete Azure AD SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/sso/okta": {
+            "get": {
+                "operationId": "GetOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOktaSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's Okta SSO configuration (sensitive\nfields are not included).",
+                "summary": "Get Okta SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertOktaSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's Okta SSO configuration.\nOmit `oauth2ClientSecret` to preserve the previously stored secret on\nupdates.",
+                "summary": "Upsert Okta SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertOktaSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's Okta SSO configuration.",
+                "summary": "Delete Okta SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []

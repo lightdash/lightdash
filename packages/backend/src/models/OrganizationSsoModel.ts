@@ -1,5 +1,6 @@
 import {
     AzureAdSsoConfig,
+    OktaSsoConfig,
     OrganizationSsoMethodFlags,
     OrganizationSsoProvider,
     UnexpectedServerError,
@@ -15,6 +16,7 @@ type OrganizationSsoModelArguments = {
 
 type ProviderConfigTypeMap = {
     [OrganizationSsoProvider.AZUREAD]: AzureAdSsoConfig;
+    [OrganizationSsoProvider.OKTA]: OktaSsoConfig;
 };
 
 export type OrganizationSsoMethod<P extends OrganizationSsoProvider> = {

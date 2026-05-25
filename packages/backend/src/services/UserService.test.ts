@@ -604,6 +604,124 @@ describe('UserService', () => {
         });
     });
 
+    describe('getLoginOptions per-org Okta SSO discovery', () => {
+        // Per-org Okta config lives in the DB. The instance has NO Okta env
+        // config — discovery must work purely from the stored method, proving
+        // the per-org path is independent of environment variables.
+        const oktaMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.OKTA as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.okta.com',
+                oktaDomain: 'acme.okta.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+                authorizationServerId: 'default',
+                extraScopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        // Google enabled instance-wide, Okta NOT configured via env.
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    loginPath: '/login/okta',
+                },
+            },
+        };
+
+        test('per-org Okta match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'okta'],
+            });
+        });
+
+        test('per-org Okta match + allow_password=false → forceRedirect to /login/okta', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([{ ...oktaMethod, allowPassword: false }]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=user%40acme.com',
+                showOptions: ['okta'],
+            });
+        });
+
+        test('brand-new user matching per-org Okta → forceRedirect with login_hint', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=newbie%40acme.com',
+                showOptions: ['okta'],
+            });
+        });
+
+        test('existing user in a DIFFERENT org → per-org Okta method filtered out (cross-org hijack defence)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]); // org-1
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'victim-uuid',
+                email: 'victim@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Victim Org' },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('victim@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                // No Okta — the matching method belonged to a different org
+                showOptions: ['email'],
+            });
+        });
+    });
+
     describe('loginWithOpenId', () => {
         test('should throw error if provider not allowed', async () => {
             await expect(

@@ -1,4 +1,4 @@
-import { AuthorizationError } from '@lightdash/common';
+import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
@@ -195,7 +195,10 @@ const resolveAzureAdStrategyName = async (
     const email = getLoginHint(req);
 
     if (email) {
-        const method = await ssoService.findEnabledAzureAdMethodForEmail(email);
+        const method = await ssoService.findEnabledMethodForEmail(
+            email,
+            OrganizationSsoProvider.AZUREAD,
+        );
         if (method) {
             return registerAzureAdStrategyForOrg(
                 method.organizationUuid,
@@ -371,7 +374,10 @@ apiV1Router.get(
                 const orgUuid = strategyName.slice('azuread:'.length);
                 const config = await req.services
                     .getOrganizationSsoService()
-                    .getAzureAdConfigForOrganization(orgUuid);
+                    .getConfigForOrganization(
+                        orgUuid,
+                        OrganizationSsoProvider.AZUREAD,
+                    );
                 if (config) {
                     registerAzureAdStrategyForOrg(orgUuid, config);
                 }

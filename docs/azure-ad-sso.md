@@ -93,7 +93,7 @@ The route reads `?login_hint=<email>` from the query and calls
 [`apiV1Router.ts`](../packages/backend/src/routers/apiV1Router.ts). The
 resolver:
 
-1. Calls `findEnabledAzureAdMethodForEmail(email)` to find the matching
+1. Calls `findEnabledMethodForEmail(email, AZUREAD)` to find the matching
    per-org config.
 2. If found, dynamically registers a passport strategy named
    `azuread:<orgUuid>` with that org's config and returns the strategy
