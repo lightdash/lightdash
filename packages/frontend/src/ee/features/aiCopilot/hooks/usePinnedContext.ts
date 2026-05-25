@@ -13,6 +13,16 @@ type Args = {
     dashboardUuid?: string | null;
 };
 
+const sortPinnedContext = <
+    T extends AiPromptContextInput[number] | AiPromptContextItem,
+>(
+    context: T[],
+): T[] =>
+    [...context].sort((a, b) => {
+        if (a.type === b.type) return 0;
+        return a.type === 'dashboard' ? -1 : 1;
+    });
+
 /**
  * Resolves a chart and/or dashboard into the two shapes the AI agent
  * thread-creation flow needs:
@@ -50,7 +60,7 @@ export const usePinnedContext = ({
                 dashboardSlug: dashboard?.slug ?? null,
             });
         }
-        return items;
+        return sortPinnedContext(items);
     }, [chartUuid, dashboardUuid, chart?.slug, dashboard?.slug]);
 
     const previewItems: AiPromptContextItem[] = useMemo(() => {
@@ -80,7 +90,7 @@ export const usePinnedContext = ({
                 pinnedVersionUuid: null,
             });
         }
-        return items;
+        return sortPinnedContext(items);
     }, [chartUuid, dashboardUuid, chart, dashboard?.name, dashboard?.slug]);
 
     return { contextInput, previewItems };
