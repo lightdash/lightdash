@@ -78,9 +78,4 @@
   html, body {
     @apply bg-background text-foreground;
   }
-  /* Default bottom gutter so generated apps don't feel cramped at the
-     bottom (and so full-content screenshots have breathing room). */
-  #root {
-    padding-bottom: 20px;
-  }
 }
