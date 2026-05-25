@@ -1,3 +1,21 @@
+# [0.3014.0](https://github.com/lightdash/lightdash/compare/0.3013.0...0.3014.0) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** improve edit content error message and add exhaustive type check ([#23466](https://github.com/lightdash/lightdash/issues/23466)) ([3718c00](https://github.com/lightdash/lightdash/commit/3718c00346d19ad7eceafb1bec1da7ad849790e5))
+* **ai-agents:** migrate inline styles to CSS modules and fix overflow/truncation issues ([#23469](https://github.com/lightdash/lightdash/issues/23469)) ([bcb2c64](https://github.com/lightdash/lightdash/commit/bcb2c64839beded7b405b01b0dc2dee186923ee4))
+* include charts in loose dashbaords on upload ([#23467](https://github.com/lightdash/lightdash/issues/23467)) ([0d9840c](https://github.com/lightdash/lightdash/commit/0d9840c07fbf88fd37068c3d645358419bfc087e))
+
+
+### Features
+
+* add per-org Okta SSO configuration with DB-stored config and admin settings panel ([#23462](https://github.com/lightdash/lightdash/issues/23462)) ([a611c7b](https://github.com/lightdash/lightdash/commit/a611c7b22533c6a90a5ccb10604a707fc0ad1cc5))
+* add typed dashboard tile as-code types and generate dashboard-as-code JSON schema ([#23447](https://github.com/lightdash/lightdash/issues/23447)) ([22c8037](https://github.com/lightdash/lightdash/commit/22c8037fee4fddd79218f94880ee33d7e6c679a8))
+* **ai-agents:** add `generateUuids` tool for stable UUID generation ([#23465](https://github.com/lightdash/lightdash/issues/23465)) ([a2f316d](https://github.com/lightdash/lightdash/commit/a2f316d38962ceee03f21e6575894f2dc79268ef))
+* attach dashboard context to AI agent requests from dashboard chart tiles ([#23468](https://github.com/lightdash/lightdash/issues/23468)) ([3975482](https://github.com/lightdash/lightdash/commit/39754824395a77ed2080b9a85b6764a4d8470629))
+* redesign org SSO panels with collapsible config, provider logos, and status badges ([#23470](https://github.com/lightdash/lightdash/issues/23470)) ([d6ce7d3](https://github.com/lightdash/lightdash/commit/d6ce7d3bb93192c9101b573751bd1d91c1a9d32f))
+
 # [0.3013.0](https://github.com/lightdash/lightdash/compare/0.3012.3...0.3013.0) (2026-05-25)
 
 
