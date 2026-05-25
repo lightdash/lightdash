@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     chartAsCodeSchema,
     dashboardAsCodeSchema,
     ParameterError,
@@ -141,7 +142,14 @@ export class AiAgentContentValidation {
 
     private getValidator(type: ContentType): ValidateFunction {
         const validators = this.getValidators();
-        return type === 'chart' ? validators.chart : validators.dashboard;
+        switch (type) {
+            case 'chart':
+                return validators.chart;
+            case 'dashboard':
+                return validators.dashboard;
+            default:
+                return assertUnreachable(type, 'Unsupported content type');
+        }
     }
 
     private getValidators(): {
