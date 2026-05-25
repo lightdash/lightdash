@@ -1,3 +1,15 @@
+# [0.3017.0](https://github.com/lightdash/lightdash/compare/0.3016.0...0.3017.0) (2026-05-25)
+
+
+### Bug Fixes
+
+* remove `isPaletteStagedDirty` guard from color palette resolution logic ([#23479](https://github.com/lightdash/lightdash/issues/23479)) ([303ef40](https://github.com/lightdash/lightdash/commit/303ef4064ffd9e3e772b4352730a17011baf93c3))
+
+
+### Features
+
+* **pivot:** show callout when pivot dimensions have fixed colors from data model ([#23480](https://github.com/lightdash/lightdash/issues/23480)) ([e1b32f9](https://github.com/lightdash/lightdash/commit/e1b32f9e2dfc714c0f96360d4f2bc28fef117ec3))
+
 # [0.3016.0](https://github.com/lightdash/lightdash/compare/0.3015.1...0.3016.0) (2026-05-25)
 
 
