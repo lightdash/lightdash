@@ -1,3 +1,10 @@
+## [0.3015.1](https://github.com/lightdash/lightdash/compare/0.3015.0...0.3015.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* remove padding on data app root ([#23478](https://github.com/lightdash/lightdash/issues/23478)) ([3ed246a](https://github.com/lightdash/lightdash/commit/3ed246ab6fd52b1ab2923017fcdb5d8397021d96))
+
 # [0.3015.0](https://github.com/lightdash/lightdash/compare/0.3014.0...0.3015.0) (2026-05-25)
 
 
