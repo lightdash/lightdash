@@ -2101,7 +2101,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "lastVersionChartKind": {
                                 "allOf": [
@@ -2234,7 +2235,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "hideTitle": {
                                 "type": "boolean"
@@ -2600,10 +2602,12 @@
                     },
                     "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "uuid": {
                         "type": "string"
@@ -13309,8 +13313,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13368,8 +13372,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13393,6 +13397,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -13616,19 +13633,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -13637,9 +13654,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
                                                             "error",
                                                             "rejected",
-                                                            "success",
                                                             "timeout"
                                                         ]
                                                     }
@@ -25036,69 +25053,88 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_": {
+            "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
                 "properties": {
                     "description": {
-                        "type": "string"
-                    },
-                    "name": {
                         "type": "string"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
-                "required": ["name", "slug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__": {
+            "Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_": {
+                "$ref": "#/components/schemas/Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardTabAsCode": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    "hidden": {
+                        "type": "boolean"
                     },
-                    "x": {
+                    "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
                     },
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["hidden", "order", "name", "uuid"],
+                "type": "object"
+            },
+            "DashboardTileAsCodeBase": {
+                "properties": {
                     "tabUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1,
+                        "maximum": 36
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0,
+                        "maximum": 35
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "tileSlug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["type", "x", "y", "h", "w"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "required": ["w", "h", "y", "x", "type"],
+                "type": "object"
             },
-            "Omit_DashboardTile.properties-or-uuid_": {
-                "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
                 "properties": {
                     "title": {
                         "type": "string"
@@ -25109,80 +25145,238 @@
                     },
                     "hideTitle": {
                         "type": "boolean"
-                    },
-                    "chartSlug": {
-                        "type": "string"
                     }
                 },
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "DashboardTileAsCode": {
+            "DashboardChartTileAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_DashboardTile.properties-or-uuid_"
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
                     },
                     {
                         "properties": {
                             "properties": {
-                                "anyOf": [
+                                "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_"
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
                                     },
                                     {
                                         "properties": {
-                                            "hideFrame": {
-                                                "type": "boolean"
-                                            },
-                                            "content": {
-                                                "type": "string"
-                                            },
-                                            "title": {
-                                                "type": "string"
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
                                             }
                                         },
-                                        "required": ["content", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "url": {
-                                                "type": "string"
-                                            },
-                                            "hideTitle": {
-                                                "type": "boolean"
-                                            },
-                                            "title": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["url", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "showDivider": {
-                                                "type": "boolean"
-                                            },
-                                            "text": {
-                                                "type": "string"
-                                            },
-                                            "title": {}
-                                        },
-                                        "required": ["text"],
+                                        "required": ["chartSlug"],
                                         "type": "object"
                                     }
                                 ]
                             },
-                            "tileSlug": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
                             }
                         },
-                        "required": ["properties"],
+                        "required": ["properties", "type"],
                         "type": "object"
+                    }
+                ]
+            },
+            "Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["chartName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardSqlChartTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "required": ["chartSlug"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardMarkdownTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "hideFrame": {
+                                        "type": "boolean"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardLoomTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "url": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["url", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardHeadingTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "showDivider": {
+                                        "type": "boolean"
+                                    },
+                                    "text": {
+                                        "type": "string"
+                                    },
+                                    "title": {}
+                                },
+                                "required": ["text"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.HEADING"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardDataAppTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "appDeletedAt": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "appUuid": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["appUuid", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.DATA_APP"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardTileAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardDataAppTileAsCode"
                     }
                 ]
             },
@@ -25248,7 +25442,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_"
+                        "$ref": "#/components/schemas/Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_"
                     },
                     {
                         "properties": {
@@ -25312,9 +25506,30 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                            },
+                            "tabs": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTabAsCode"
+                                },
+                                "type": "array"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "minLength": 1
                             }
                         },
-                        "required": ["spaceSlug", "version", "tiles"],
+                        "required": [
+                            "spaceSlug",
+                            "version",
+                            "tiles",
+                            "tabs",
+                            "slug",
+                            "name"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -25745,13 +25960,15 @@
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -25796,7 +26013,7 @@
                     },
                     "tabs": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
                         },
                         "type": "array"
                     },
@@ -34031,7 +34248,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3012.2",
+        "version": "0.3012.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -9,6 +9,24 @@ import {
 import { CoderService } from './CoderService';
 
 describe('CoderService', () => {
+    describe('getChartSlugForTileUuid', () => {
+        it('should return undefined when chart tile slug is null', () => {
+            const mockDashboard = {
+                tiles: [
+                    {
+                        uuid: 'uuid-1',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { chartSlug: null },
+                    },
+                ],
+            } as AnyType;
+
+            expect(
+                CoderService.getChartSlugForTileUuid(mockDashboard, 'uuid-1'),
+            ).toBeUndefined();
+        });
+    });
+
     describe('getFiltersWithTileSlugs', () => {
         it('should convert tile UUIDs to slugs in filters', () => {
             const mockDashboard: DashboardDAO = {
@@ -203,6 +221,81 @@ describe('CoderService', () => {
                     someTargetProperty: 'value1',
                 },
             });
+        });
+    });
+
+    describe('convertTileWithSlugsToUuids', () => {
+        it('should allow chart tiles with null chartSlug', async () => {
+            const service = new CoderService({
+                analytics: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: {
+                    find: jest.fn(),
+                } as AnyType,
+                savedSqlModel: {
+                    find: jest.fn(),
+                } as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+            });
+
+            const result = await service.convertTileWithSlugsToUuids(
+                'project-uuid',
+                [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        x: 0,
+                        y: 0,
+                        h: 2,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            chartSlug: null,
+                            chartName: 'Deleted chart',
+                        },
+                    },
+                    {
+                        type: DashboardTileTypes.SQL_CHART,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        x: 4,
+                        y: 0,
+                        h: 2,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            chartSlug: null,
+                            chartName: 'Deleted SQL chart',
+                        },
+                    },
+                ] as AnyType,
+            );
+
+            expect(result).toMatchObject([
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        chartSlug: null,
+                        savedChartUuid: null,
+                    },
+                },
+                {
+                    type: DashboardTileTypes.SQL_CHART,
+                    properties: {
+                        chartSlug: null,
+                        savedSqlUuid: null,
+                    },
+                },
+            ]);
+            expect(result[0].uuid).toEqual(expect.any(String));
+            expect(result[1].uuid).toEqual(expect.any(String));
         });
     });
 });
