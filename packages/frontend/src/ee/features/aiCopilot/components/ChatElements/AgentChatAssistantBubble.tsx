@@ -95,6 +95,12 @@ type SqlApprovalSegment = {
 };
 type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
+const HIDDEN_TOOL_NAMES = new Set<AiAgentToolName>([
+    'improveContext',
+    'proposeChange',
+    'generateUuids',
+]);
+
 const segmentStreamParts = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
@@ -105,10 +111,7 @@ const segmentStreamParts = (
             segments.push({ kind: 'text', text: part.text, idx });
             return;
         }
-        if (
-            part.toolName === 'improveContext' ||
-            part.toolName === 'proposeChange'
-        ) {
+        if (HIDDEN_TOOL_NAMES.has(part.toolName)) {
             return;
         }
         if (
@@ -662,8 +665,7 @@ const AssistantBubbleContent: FC<{
                 // the final markdown answer below as the hero.
                 const renderableToolCalls = message.toolCalls.filter(
                     (tc) =>
-                        tc.toolName !== 'improveContext' &&
-                        tc.toolName !== 'proposeChange' &&
+                        !HIDDEN_TOOL_NAMES.has(tc.toolName) &&
                         // Subagent children render nested under their parent's row, not as top-level siblings.
                         tc.parentToolCallId === null,
                 );
