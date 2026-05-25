@@ -121,11 +121,41 @@ export function wrapSentryTransactionSync<T>(
     );
 }
 
-export function runWorkerThread<T>(worker: Worker): Promise<T> {
-    return new Promise((resolve, reject) => {
-        worker.on('message', resolve);
-        worker.on('error', reject);
+export class WorkerThreadTimeoutError extends Error {
+    constructor(public readonly timeoutMs: number) {
+        super(`Worker thread timed out after ${timeoutMs}ms`);
+        this.name = 'WorkerThreadTimeoutError';
+    }
+}
+
+export function runWorkerThread<T>(
+    worker: Worker,
+    timeoutMs?: number,
+): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        let timedOut = false;
+        const timer =
+            timeoutMs && timeoutMs > 0
+                ? setTimeout(() => {
+                      timedOut = true;
+                      void worker.terminate();
+                      reject(new WorkerThreadTimeoutError(timeoutMs));
+                  }, timeoutMs)
+                : null;
+        const clear = () => {
+            if (timer) clearTimeout(timer);
+        };
+        worker.on('message', (value: T) => {
+            clear();
+            resolve(value);
+        });
+        worker.on('error', (err) => {
+            clear();
+            reject(err);
+        });
         worker.on('exit', (code) => {
+            clear();
+            if (timedOut) return;
             if (code !== 0) {
                 Logger.error(`Worker thread stopped with exit code ${code}`);
                 reject(new Error(`Worker stopped with exit code ${code}`));

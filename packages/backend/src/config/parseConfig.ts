@@ -1140,6 +1140,9 @@ export type LightdashConfig = {
         copilot: AiCopilotConfigSchemaType;
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
+        aiAgentDocument: {
+            extractionTimeoutMs: number;
+        };
     };
     embedding: {
         enabled: boolean;
@@ -2212,6 +2215,12 @@ export const parseConfig = (): LightdashConfig => {
             copilot: copilotConfig,
             analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
             analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
+            aiAgentDocument: {
+                extractionTimeoutMs:
+                    getIntegerFromEnvironmentVariable(
+                        'AI_AGENT_KNOWLEDGE_DOCUMENT_EXTRACTION_TIMEOUT_MS',
+                    ) ?? 30_000,
+            },
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',

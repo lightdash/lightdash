@@ -1,12 +1,13 @@
 import {
     AI_AGENT_DOCUMENT_SUPPORTED_FILE_EXTENSIONS,
+    assertUnreachable,
     ParameterError,
+    TimeoutError,
 } from '@lightdash/common';
-import mammoth from 'mammoth';
-import PDFParser from 'pdf2json';
-import WordExtractor from 'word-extractor';
+import { Worker } from 'node:worker_threads';
+import { runWorkerThread, WorkerThreadTimeoutError } from '../../utils';
 
-type SupportedDocumentKind =
+export type SupportedDocumentKind =
     | 'markdown'
     | 'text'
     | 'csv'
@@ -14,6 +15,10 @@ type SupportedDocumentKind =
     | 'doc'
     | 'pdf';
 
+export type WorkerExtractorKind = Extract<
+    SupportedDocumentKind,
+    'docx' | 'doc' | 'pdf'
+>;
 type SupportedDocumentType = {
     kind: SupportedDocumentKind;
     mimeType: string;
@@ -154,53 +159,39 @@ const assertHasReadableText = (content: string): string => {
     return normalized;
 };
 
-const extractWordText = async (buffer: Buffer): Promise<string> => {
-    const extractor = new WordExtractor();
-    const doc = await extractor.extract(buffer);
-    return [
-        doc.getHeaders({ includeFooters: false }),
-        doc.getBody(),
-        doc.getTextboxes(),
-        doc.getFootnotes(),
-        doc.getEndnotes(),
-        doc.getAnnotations(),
-        doc.getFooters(),
-    ]
-        .filter(Boolean)
-        .join('\n\n');
-};
+const EXTRACTOR_WORKER_PATH =
+    './dist/ee/services/aiAgentDocumentExtractor.worker.js';
 
-const decodePdfText = (text: string): string => {
+const extractInWorker = async (
+    buffer: Buffer,
+    kind: WorkerExtractorKind,
+    timeoutMs: number,
+): Promise<string> => {
+    const worker = new Worker(EXTRACTOR_WORKER_PATH, {
+        workerData: { buffer, kind },
+    });
     try {
-        return decodeURIComponent(text);
-    } catch {
-        return text;
+        return await runWorkerThread<string>(worker, timeoutMs);
+    } catch (err) {
+        if (err instanceof WorkerThreadTimeoutError) {
+            throw new TimeoutError(
+                `Document took too long to process. Try a smaller or simpler file.`,
+            );
+        }
+        throw err;
     }
 };
-
-const extractPdfText = (buffer: Buffer): Promise<string> =>
-    new Promise((resolve, reject) => {
-        const parser = new PDFParser(null, true);
-        parser.on('pdfParser_dataError', (err) => {
-            parser.destroy();
-            reject(err instanceof Error ? err : err.parserError);
-        });
-        parser.on('pdfParser_dataReady', () => {
-            const rawText = parser.getRawTextContent();
-            parser.destroy();
-            resolve(decodePdfText(rawText));
-        });
-        parser.parseBuffer(buffer);
-    });
 
 export const extractAiAgentDocumentText = async ({
     buffer,
     mimeType,
     filename,
+    timeoutMs,
 }: {
     buffer: Buffer;
     mimeType: string;
     filename: string;
+    timeoutMs: number;
 }): Promise<{
     content: string;
     mimeType: string;
@@ -217,28 +208,19 @@ export const extractAiAgentDocumentText = async ({
                 mimeType: documentType.mimeType,
                 storageExtension: documentType.storageExtension,
             };
-        case 'docx': {
-            const result = await mammoth.extractRawText({ buffer });
-            return {
-                content: assertHasReadableText(result.value),
-                mimeType: documentType.mimeType,
-                storageExtension: documentType.storageExtension,
-            };
-        }
+        case 'docx':
         case 'doc':
-            return {
-                content: assertHasReadableText(await extractWordText(buffer)),
-                mimeType: documentType.mimeType,
-                storageExtension: documentType.storageExtension,
-            };
         case 'pdf':
             return {
-                content: assertHasReadableText(await extractPdfText(buffer)),
+                content: assertHasReadableText(
+                    await extractInWorker(buffer, documentType.kind, timeoutMs),
+                ),
                 mimeType: documentType.mimeType,
                 storageExtension: documentType.storageExtension,
             };
         default:
-            throw new ParameterError(
+            return assertUnreachable(
+                documentType.kind,
                 `Unsupported file type. ${allowedExtensionsMessage}`,
             );
     }
