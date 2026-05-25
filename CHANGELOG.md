@@ -1,3 +1,10 @@
+## [0.3012.1](https://github.com/lightdash/lightdash/compare/0.3012.0...0.3012.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** bring back loadSkill tool ([#23459](https://github.com/lightdash/lightdash/issues/23459)) ([6453800](https://github.com/lightdash/lightdash/commit/64538003aee4188dd552aa00b0f81c4715d4b005))
+
 # [0.3012.0](https://github.com/lightdash/lightdash/compare/0.3011.1...0.3012.0) (2026-05-25)
 
 
