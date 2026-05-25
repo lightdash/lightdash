@@ -1,4 +1,4 @@
-import type { DashboardTabWithUrls } from '@lightdash/common';
+import { type DashboardTab } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -13,7 +13,6 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
 import styles from './MinimalDashboardTabs.module.css';
@@ -21,14 +20,18 @@ import styles from './MinimalDashboardTabs.module.css';
 const MinimalDashboardTabs = ({
     tabs,
     activeTabId,
+    onTabChange,
 }: {
-    tabs: DashboardTabWithUrls[];
+    tabs: DashboardTab[];
     activeTabId: string | null;
+    onTabChange: (tabUuid: string) => void;
 }) => {
-    const navigate = useNavigate();
     const { ref, isTruncated } = useIsTruncated();
 
     const activeTab = tabs.find((tab) => tab.uuid === activeTabId) ?? tabs[0];
+    const activeTabIndex = tabs.findIndex((tab) => tab.uuid === activeTab.uuid);
+    const previousTab = tabs[activeTabIndex - 1];
+    const nextTab = tabs[activeTabIndex + 1];
 
     return (
         <Group p="xs" bg="background" gap={10} justify="space-between">
@@ -36,11 +39,11 @@ const MinimalDashboardTabs = ({
                 size="md"
                 color="gray"
                 onClick={() => {
-                    if (activeTab.prevUrl) {
-                        void navigate(activeTab.prevUrl);
+                    if (previousTab) {
+                        onTabChange(previousTab.uuid);
                     }
                 }}
-                disabled={!activeTab.prevUrl}
+                disabled={!previousTab}
             >
                 <MantineIcon icon={IconChevronLeft} size="lg" />
             </ActionIcon>
@@ -71,7 +74,7 @@ const MinimalDashboardTabs = ({
                                 <Menu.Item
                                     key={tab.uuid}
                                     onClick={() => {
-                                        void navigate(tab.selfUrl);
+                                        onTabChange(tab.uuid);
                                     }}
                                 >
                                     <Text
@@ -95,11 +98,11 @@ const MinimalDashboardTabs = ({
                 size="md"
                 color="gray"
                 onClick={() => {
-                    if (activeTab.nextUrl) {
-                        void navigate(activeTab.nextUrl);
+                    if (nextTab) {
+                        onTabChange(nextTab.uuid);
                     }
                 }}
-                disabled={!activeTab.nextUrl}
+                disabled={!nextTab}
             >
                 <MantineIcon icon={IconChevronRight} size="lg" />
             </ActionIcon>

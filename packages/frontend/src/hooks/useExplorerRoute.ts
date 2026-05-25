@@ -2,7 +2,6 @@ import {
     BinType,
     ChartType,
     CustomDimensionType,
-    DateGranularity,
     getItemId,
     isCartesianChartConfig,
     type BinRange,
@@ -28,6 +27,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import useApp from '../providers/App/useApp';
+import { getDateZoomGranularityFromSearch } from '../providers/Dashboard/dashboardPageUtils';
 import {
     defaultQueryExecution,
     defaultState,
@@ -112,23 +112,9 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     };
 };
 
-export const useDateZoomGranularitySearch = ():
-    | DateGranularity
-    | string
-    | undefined => {
+export const useDateZoomGranularitySearch = () => {
     const { search } = useLocation();
-
-    const searchParams = new URLSearchParams(search);
-    const dateZoomParam = searchParams.get('dateZoom');
-    if (!dateZoomParam) return undefined;
-
-    const standardMatch = Object.values(DateGranularity).find(
-        (granularity) =>
-            granularity.toLowerCase() === dateZoomParam.toLowerCase(),
-    );
-    // Return standard match if found, otherwise use the param directly
-    // (supports custom granularity keys like "slt_week")
-    return standardMatch ?? dateZoomParam;
+    return getDateZoomGranularityFromSearch(search);
 };
 
 // To handle older url params where exploreName wasn't required

@@ -36,7 +36,6 @@ import React, {
     useRef,
     useState,
 } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
@@ -64,8 +63,10 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
+import { getActiveDashboardTab } from './dashboardPageUtils';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
 import useDashboardContext from './useDashboardContext';
+import { useDashboardPageContext } from './useDashboardPageContext';
 import useDashboardTileStatusContext from './useDashboardTileStatusContext';
 
 const emptyFilters: DashboardFilters = {
@@ -97,32 +98,26 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     defaultInvalidateCache,
     children,
 }) => {
-    const { search, pathname } = useLocation();
-    const navigate = useNavigate();
+    const dashboardUuid = useDashboardPageContext((c) => c.dashboardUuid);
+    const tabUuid = useDashboardPageContext((c) => c.tabUuid);
+    const isEditMode = useDashboardPageContext((c) => c.isEditMode);
+    const search = useDashboardPageContext((c) => c.search);
+    const replaceSearch = useDashboardPageContext((c) => c.replaceSearch);
+    const routeProjectUuid = useDashboardPageContext((c) => c.projectUuid);
+    const resolvedProjectUuid = projectUuid ?? routeProjectUuid;
     const { showToastWarning, showToastInfo } = useToaster();
     const hasNotifiedLockedOverrideRef = useRef(false);
-
-    const { dashboardUuid, tabUuid, mode } = useParams<{
-        dashboardUuid: string;
-        tabUuid?: string;
-        mode?: string;
-    }>() as {
-        dashboardUuid: string;
-        tabUuid?: string;
-        mode?: string;
-    };
 
     // Reset the "locked filter override" toast guard on dashboard navigation
     // so each dashboard gets a fresh chance to notify the viewer.
     useEffect(() => {
         hasNotifiedLockedOverrideRef.current = false;
     }, [dashboardUuid]);
-    const isEditMode = mode === 'edit';
 
     const {
         mutateAsync: versionRefresh,
         isLoading: isRefreshingDashboardVersion,
-    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
+    } = useDashboardVersionRefresh(dashboardUuid ?? '', resolvedProjectUuid);
 
     // Embedded dashboards will not be using this query hook to load the dashboard,
     // so we need to set the dashboard manually
@@ -135,7 +130,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         error: dashboardError,
     } = useDashboardQuery({
         uuidOrSlug: dashboardUuid,
-        projectUuid,
+        projectUuid: resolvedProjectUuid,
         useQueryOptions: {
             select: (d) => {
                 if (schedulerFilters) {
@@ -158,8 +153,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     });
 
     const { data: dashboardComments } = useGetComments(
-        dashboardUuid,
-        projectUuid,
+        dashboardUuid ?? '',
+        resolvedProjectUuid,
         !!dashboardCommentsCheck &&
             !!dashboardCommentsCheck.canViewDashboardComments,
     );
@@ -331,15 +326,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // In view mode, hidden tabs are not selectable — fall back to the first
     // visible tab if the URL points at a hidden tab. In edit mode all tabs are selectable.
     useEffect(() => {
-        if (dashboardTabs && dashboardTabs.length > 0) {
-            const selectableTabs = isEditMode
-                ? dashboardTabs
-                : dashboardTabs.filter((tab) => !tab.hidden);
-            const tabsForFallback =
-                selectableTabs.length > 0 ? selectableTabs : dashboardTabs;
-            const urlMatch = selectableTabs.find((tab) => tab.uuid === tabUuid);
-            setActiveTab(urlMatch ?? tabsForFallback[0]);
-        }
+        setActiveTab(
+            getActiveDashboardTab({
+                tabs: dashboardTabs,
+                tabUuid,
+                isEditMode,
+            }),
+        );
     }, [dashboardTabs, tabUuid, isEditMode]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
@@ -504,10 +497,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [tileParameterReferences]);
 
     const { data: projectParameters } = useParameters(
-        projectUuid,
+        resolvedProjectUuid,
         Array.from(dashboardParameterReferences ?? []),
         {
-            enabled: !!projectUuid && !!dashboardParameterReferences,
+            enabled: !!resolvedProjectUuid && !!dashboardParameterReferences,
         },
     );
 
@@ -551,15 +544,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         const newSearch = newParams.toString();
 
         if (currentSearch !== newSearch) {
-            void navigate(
-                {
-                    pathname,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
+            replaceSearch(newSearch);
         }
-    }, [dateZoomGranularity, search, navigate, pathname, embed.mode]);
+    }, [dateZoomGranularity, search, replaceSearch, embed.mode]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -611,7 +598,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         data: dashboardAvailableFiltersData,
     } = useDashboardsAvailableFilters(
         savedChartUuidsAndTileUuids ?? [],
-        projectUuid,
+        resolvedProjectUuid,
         embedToken,
     );
 
@@ -930,20 +917,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         const newSearch = newParams.toString();
         const currentSearch = currentParams.toString();
         if (newSearch !== currentSearch) {
-            void navigate(
-                {
-                    pathname,
-                    search: newSearch,
-                },
-                { replace: true },
-            );
+            replaceSearch(newSearch);
         }
     }, [
         dashboardFilters,
         safeTemporaryFilters,
-        navigate,
-        pathname,
         overridesForSavedDashboardFilters,
+        replaceSearch,
         search,
         embed.mode,
     ]);
@@ -1493,7 +1473,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     );
 
     const value = {
-        projectUuid,
+        projectUuid: resolvedProjectUuid,
         isDashboardLoading,
         dashboard: dashboard || embedDashboard,
         setEmbedDashboard,

@@ -14,9 +14,8 @@ import {
 } from '@lightdash/common';
 import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -33,20 +32,20 @@ import {
 } from '../features/dashboardTabs/gridUtils';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
-import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
-import useSearchParams from '../hooks/useSearchParams';
+import {
+    getActiveDashboardTab,
+    getDateZoomGranularityFromSearch,
+    getMinimalDashboardTabPath,
+    sortDashboardTabs,
+} from '../providers/Dashboard/dashboardPageUtils';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import { DashboardRouterProvider } from '../providers/Dashboard/DashboardRouterProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import { useDashboardPageContext } from '../providers/Dashboard/useDashboardPageContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-
-type TabWithUrls = DashboardTab & {
-    prevUrl: string | null;
-    nextUrl: string | null;
-    selfUrl: string;
-};
 
 type TabGroup = {
     key: string;
@@ -61,8 +60,9 @@ type MinimalDashboardContentProps = {
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     isTabEmpty: boolean;
     canNavigateBetweenTabs: boolean;
-    tabsWithUrls: TabWithUrls[];
+    tabs: DashboardTab[];
     activeTab: DashboardTab | null;
+    onTabChange: (tabUuid: string) => void;
 };
 
 const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
@@ -143,8 +143,9 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     gridProps,
     isTabEmpty,
     canNavigateBetweenTabs,
-    tabsWithUrls,
+    tabs,
     activeTab,
+    onTabChange,
 }) => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
@@ -200,8 +201,9 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
             {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
             {canNavigateBetweenTabs && (
                 <MinimalDashboardTabs
-                    tabs={tabsWithUrls}
+                    tabs={tabs}
                     activeTabId={activeTab?.uuid || null}
+                    onTabChange={onTabChange}
                 />
             )}
 
@@ -262,14 +264,20 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     );
 };
 
-const MinimalDashboard: FC = () => {
-    const { projectUuid, dashboardUuid, tabUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-        tabUuid?: string;
-    }>();
+export const MinimalDashboardView: FC = () => {
+    const projectUuid = useDashboardPageContext((c) => c.projectUuid);
+    const dashboardUuid = useDashboardPageContext((c) => c.dashboardUuid);
+    const tabUuid = useDashboardPageContext((c) => c.tabUuid);
+    const search = useDashboardPageContext((c) => c.search);
+    const switchToTab = useDashboardPageContext((c) => c.switchToTab);
 
-    const schedulerUuid = useSearchParams('schedulerUuid');
+    const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+    const schedulerUuid = searchParams.get('schedulerUuid');
+    const schedulerTabs = searchParams.get('selectedTabs');
+    const dateZoom = useMemo(
+        () => getDateZoomGranularityFromSearch(search),
+        [search],
+    );
 
     const [sendNowSchedulerFilters] = useSessionStorage<
         DashboardFilterRule[] | undefined
@@ -283,9 +291,6 @@ const MinimalDashboard: FC = () => {
         key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
     });
 
-    const schedulerTabs = useSearchParams('selectedTabs');
-    const dateZoom = useDateZoomGranularitySearch();
-
     const {
         data: dashboard,
         isError: isDashboardError,
@@ -295,16 +300,15 @@ const MinimalDashboard: FC = () => {
         projectUuid,
     });
 
-    const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
-
-    useEffect(() => {
-        // Minimal/embed renders are always treated as view mode — hidden tabs
-        // should not be selectable. Fall back to the first visible tab.
-        const visibleTabs = dashboard?.tabs.filter((tab) => !tab.hidden) ?? [];
-        const matchedTab =
-            visibleTabs.find((tab) => tab.uuid === tabUuid) ?? visibleTabs[0];
-        setActiveTab(matchedTab || null);
-    }, [tabUuid, dashboard?.tabs]);
+    const activeTab = useMemo(
+        () =>
+            getActiveDashboardTab({
+                tabs: dashboard?.tabs ?? [],
+                tabUuid,
+                isEditMode: false,
+            }) ?? null,
+        [dashboard?.tabs, tabUuid],
+    );
 
     const {
         data: scheduler,
@@ -337,30 +341,14 @@ const MinimalDashboard: FC = () => {
         return undefined;
     }, [schedulerTabs]);
 
-    const generateTabUrl = useCallback(
-        (tabId: string) =>
-            `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`,
-        [projectUuid, dashboardUuid],
-    );
-
     const sortedTabs = useMemo(
-        () => dashboard?.tabs.sort((a, b) => a.order - b.order) ?? [],
+        () => sortDashboardTabs(dashboard?.tabs ?? []),
         [dashboard?.tabs],
     );
-
-    const tabsWithUrls = useMemo(() => {
-        return sortedTabs.map((tab, index) => {
-            const prevTab = sortedTabs[index - 1];
-            const nextTab = sortedTabs[index + 1];
-
-            return {
-                ...tab,
-                prevUrl: prevTab ? generateTabUrl(prevTab.uuid) : null,
-                nextUrl: nextTab ? generateTabUrl(nextTab.uuid) : null,
-                selfUrl: generateTabUrl(tab.uuid),
-            };
-        });
-    }, [sortedTabs, generateTabUrl]);
+    const navigableTabs = useMemo(
+        () => sortedTabs.filter((tab) => !tab.hidden),
+        [sortedTabs],
+    );
 
     const gridProps = getResponsiveGridLayoutProps({
         stackVerticallyOnSmallestBreakpoint: true,
@@ -387,7 +375,9 @@ const MinimalDashboard: FC = () => {
 
                 // Show legacy tiles (without tabUuid) on the first tab for backwards compatibility
                 const tileHasNoTab = !tile.tabUuid;
-                const isFirstTab = activeTab.uuid === sortedTabs[0]?.uuid;
+                const isFirstTab =
+                    activeTab.uuid ===
+                    (navigableTabs[0]?.uuid ?? sortedTabs[0]?.uuid);
 
                 return tileHasNoTab && isFirstTab;
             }) ?? [];
@@ -402,7 +392,13 @@ const MinimalDashboard: FC = () => {
             );
             return tabAIndex - tabBIndex;
         });
-    }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
+    }, [
+        dashboard?.tiles,
+        schedulerTabsSelected,
+        activeTab,
+        navigableTabs,
+        sortedTabs,
+    ]);
 
     const layouts = useMemo(() => {
         return {
@@ -508,7 +504,7 @@ const MinimalDashboard: FC = () => {
         activeTab && filteredAndSortedDashboardTiles.length === 0;
 
     const canNavigateBetweenTabs =
-        !schedulerTabsSelected && tabsWithUrls.length > 0;
+        !schedulerTabsSelected && navigableTabs.length > 0;
 
     return (
         <DashboardProvider
@@ -528,11 +524,18 @@ const MinimalDashboard: FC = () => {
                 gridProps={gridProps}
                 isTabEmpty={!!isTabEmpty}
                 canNavigateBetweenTabs={canNavigateBetweenTabs}
-                tabsWithUrls={tabsWithUrls}
+                tabs={navigableTabs}
                 activeTab={activeTab}
+                onTabChange={switchToTab}
             />
         </DashboardProvider>
     );
 };
+
+const MinimalDashboard: FC = () => (
+    <DashboardRouterProvider buildTabPath={getMinimalDashboardTabPath}>
+        <MinimalDashboardView />
+    </DashboardRouterProvider>
+);
 
 export default MinimalDashboard;

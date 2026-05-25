@@ -33,7 +33,9 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
+import { getDashboardTabPath } from '../providers/Dashboard/dashboardPageUtils';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import { DashboardRouterProvider } from '../providers/Dashboard/DashboardRouterProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useFullscreen from '../providers/Fullscreen/useFullscreen';
@@ -891,14 +893,16 @@ const DashboardPage: FC = () => {
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
 
     return (
-        <DashboardProvider
-            key={dashboardUuid}
-            projectUuid={projectUuid}
-            dashboardCommentsCheck={dashboardCommentsCheck}
-        >
-            <DashboardAiAgentContextBridge />
-            <Dashboard />
-        </DashboardProvider>
+        <DashboardRouterProvider buildTabPath={getDashboardTabPath}>
+            <DashboardProvider
+                key={dashboardUuid}
+                projectUuid={projectUuid}
+                dashboardCommentsCheck={dashboardCommentsCheck}
+            >
+                <DashboardAiAgentContextBridge />
+                <Dashboard />
+            </DashboardProvider>
+        </DashboardRouterProvider>
     );
 };
 

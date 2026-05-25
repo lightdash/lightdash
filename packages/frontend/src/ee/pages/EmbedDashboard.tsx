@@ -2,7 +2,9 @@ import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { getEmbedDashboardTabPath } from '../../providers/Dashboard/dashboardPageUtils';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
+import { DashboardRouterProvider } from '../../providers/Dashboard/DashboardRouterProvider';
 import EmbedDashboard from '../features/embed/EmbedDashboard/components/EmbedDashboard';
 import useEmbed from '../providers/Embed/useEmbed';
 
@@ -29,9 +31,17 @@ const EmbedDashboardPage: FC<{
     }
 
     return (
-        <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard containerStyles={containerStyles} />
-        </DashboardProvider>
+        <DashboardRouterProvider
+            buildTabPath={getEmbedDashboardTabPath}
+            projectUuid={projectUuid}
+        >
+            <DashboardProvider
+                embedToken={embedToken}
+                projectUuid={projectUuid}
+            >
+                <EmbedDashboard containerStyles={containerStyles} />
+            </DashboardProvider>
+        </DashboardRouterProvider>
     );
 };
 export default EmbedDashboardPage;
