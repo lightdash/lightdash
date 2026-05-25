@@ -1,3 +1,11 @@
+## [0.3012.2](https://github.com/lightdash/lightdash/compare/0.3012.1...0.3012.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** use proper UUIDs and add `hidden` field in dashboard reference examples ([#23464](https://github.com/lightdash/lightdash/issues/23464)) ([ca046e9](https://github.com/lightdash/lightdash/commit/ca046e9fa4a5543220fd8aad0a72da9d90f15c94))
+* **skills:** add `hidden` field to dashboard tab examples and docs ([#23463](https://github.com/lightdash/lightdash/issues/23463)) ([5d44d9b](https://github.com/lightdash/lightdash/commit/5d44d9baa411b533b4666f629ca68d8cbef089a5))
+
 ## [0.3012.1](https://github.com/lightdash/lightdash/compare/0.3012.0...0.3012.1) (2026-05-25)
 
 
