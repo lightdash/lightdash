@@ -1,3 +1,10 @@
+# [0.3015.0](https://github.com/lightdash/lightdash/compare/0.3014.0...0.3015.0) (2026-05-25)
+
+
+### Features
+
+* add per-org generic OIDC SSO with dynamic strategy cache and admin settings panel ([#23473](https://github.com/lightdash/lightdash/issues/23473)) ([6f8ca39](https://github.com/lightdash/lightdash/commit/6f8ca39adf490cc19833c894badff6719463a95f))
+
 # [0.3014.0](https://github.com/lightdash/lightdash/compare/0.3013.0...0.3014.0) (2026-05-25)
 
 
