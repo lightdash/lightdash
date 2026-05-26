@@ -3888,7 +3888,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // fieldAliasMap[ref] to handle interdependent table calculation references
             // Field references must be quoted to handle reserved words and special characters
             expect(result).toContain(
-                '"impressions_any" - CASE WHEN LAG("row_index", 1)',
+                '"impressions_any" - CASE WHEN LAG("column_index", 1)',
             );
             expect(result).toContain('LAG("impressions_any", 1)');
 
