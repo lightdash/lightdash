@@ -12,9 +12,7 @@ import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureF
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 
-const TEMPLATE_NAME =
-    process.env.E2B_AGENTIC_WRITEBACK_TEMPLATE_NAME ||
-    'lightdash-agentic-writeback';
+const TEMPLATE_NAME = 'lightdash-agentic-writeback';
 
 // Hard ceiling on a single synchronous run. The HTTP request is held open for
 // the duration, so keep this well under typical load-balancer/proxy timeouts.
