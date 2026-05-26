@@ -1,3 +1,10 @@
+# [0.3022.0](https://github.com/lightdash/lightdash/compare/0.3021.0...0.3022.0) (2026-05-26)
+
+
+### Features
+
+* **ee:** resolve ai-writeback target repo from project's dbt connection ([#23513](https://github.com/lightdash/lightdash/issues/23513)) ([78897d8](https://github.com/lightdash/lightdash/commit/78897d878bff3f2909ea0c77d7047a019824eb36))
+
 # [0.3021.0](https://github.com/lightdash/lightdash/compare/0.3020.0...0.3021.0) (2026-05-26)
 
 
