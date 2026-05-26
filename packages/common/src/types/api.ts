@@ -24,6 +24,10 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiRouterDecisionCommitResponse,
+    ApiAiRouterDecisionListResponse,
+    ApiAiRouterResponse,
+    ApiAiRouterRouteResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiCreateEvaluationResponse,
@@ -1061,6 +1065,10 @@ type ApiResults =
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
+    | ApiAiRouterResponse['results']
+    | ApiAiRouterRouteResponse['results']
+    | ApiAiRouterDecisionCommitResponse['results']
+    | ApiAiRouterDecisionListResponse['results']
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']

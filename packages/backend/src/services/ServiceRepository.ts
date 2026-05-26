@@ -139,6 +139,7 @@ interface ServiceManifest {
     aiAgentAdminService: unknown;
     aiAgentDocumentService: unknown;
     aiAgentReviewClassifierService: unknown;
+    aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
     scimService: unknown;
     supportService: unknown;
@@ -1275,6 +1276,8 @@ export class ServiceRepository
         AiAgentReviewClassifierServiceImplT,
     >(): AiAgentReviewClassifierServiceImplT {
         return this.getService('aiAgentReviewClassifierService');
+    public getAiRouterService<AiRouterServiceImplT>(): AiRouterServiceImplT {
+        return this.getService('aiRouterService');
     }
 
     public getRolesService(): RolesService {

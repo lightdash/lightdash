@@ -7028,7 +7028,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Get available agents for a user with their full context, filtered by access if OAuth is required
      */
-    private async getAvailableAgents(
+    public async getAvailableAgents(
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
