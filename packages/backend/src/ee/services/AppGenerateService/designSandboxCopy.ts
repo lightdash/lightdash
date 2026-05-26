@@ -167,6 +167,13 @@ export async function copyDesignIntoSandbox(args: {
     }
     /* eslint-enable no-await-in-loop */
 
+    // Free-text "extra instructions" from the theme editor join the uploaded
+    // instruction files in the same effective-skill append slot. Service
+    // normalises empty strings to null, so a truthy check is enough.
+    if (design.extraInstructions) {
+        instructionParts.push(design.extraInstructions);
+    }
+
     const instructionMarkdown = instructionParts.join('\n\n---\n\n');
 
     logger.info(

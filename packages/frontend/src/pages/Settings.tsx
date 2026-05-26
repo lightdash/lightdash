@@ -62,7 +62,9 @@ import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
-import OrganizationSsoPanel from '../components/UserSettings/OrganizationSsoPanel';
+import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
+import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/GenericOidcSsoPanel';
+import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -483,17 +485,18 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/sso',
                 element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Stack gap="xs">
-                                <Title order={4}>Single Sign-On</Title>
-                                <Text c="ldGray.6" fz="xs">
-                                    Configure SSO providers for this
-                                    organization.
-                                </Text>
-                            </Stack>
-                            <OrganizationSsoPanel />
-                        </SettingsGridCard>
+                    <Stack gap="md">
+                        <Stack gap="xs">
+                            <Title order={5}>Single Sign-On</Title>
+                            <Text c="ldGray.6" fz="xs">
+                                Configure SSO providers for your organization.
+                                Users are routed to the matching provider based
+                                on their email domain.
+                            </Text>
+                        </Stack>
+                        <AzureAdSsoPanel />
+                        <OktaSsoPanel />
+                        <GenericOidcSsoPanel />
                     </Stack>
                 ),
             });

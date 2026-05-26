@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "0.3011.0",
+  "version": "0.3018.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,8 +22,10 @@
     "fix-lint": "pnpm run linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
-    "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts",
+    "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/chart-as-code-1.0.json",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
+    "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
+    "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "test": "TZ=UTC LANG=en_US.UTF-8 jest",
     "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
     "release": "pnpm publish --no-git-checks --access public"

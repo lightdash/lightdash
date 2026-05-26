@@ -164,6 +164,12 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
         showSubtotalsExpanded?: boolean;
+        /**
+         * When true, visually deduplicate repeated row-index dim values
+         * without rendering aggregate subtotal rows. Implicitly true when
+         * `showSubtotals` is true (subtotals always group).
+         */
+        showRowGrouping?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
@@ -194,6 +200,7 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     showSubtotals = false,
     showSubtotalsExpanded = false,
+    showRowGrouping = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
@@ -206,14 +213,27 @@ const PivotTable: FC<PivotTableProps> = ({
     const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
+    // Row grouping without subtotals must always render expanded — there's
+    // no UI affordance to expand groups in that mode (no carat) and
+    // collapsed groups would hide all leaf data. Force-expanded when
+    // showRowGrouping is on without subtotals; otherwise honor showSubtotalsExpanded.
+    const groupingOnlyMode = showRowGrouping && !showSubtotals;
+    const expandAllByDefault = showSubtotalsExpanded || groupingOnlyMode;
     const [expanded, setExpanded] = React.useState<ExpandedState>(
-        showSubtotalsExpanded ? true : {},
+        expandAllByDefault ? true : {},
     );
-    const [prevShowSubtotalsExpanded, setPrevShowSubtotalsExpanded] =
-        React.useState(showSubtotalsExpanded);
-    if (showSubtotalsExpanded !== prevShowSubtotalsExpanded) {
-        setPrevShowSubtotalsExpanded(showSubtotalsExpanded);
-        setExpanded(showSubtotalsExpanded ? true : {});
+    // Re-derive `expanded` when the "should expand all" predicate flips
+    // (e.g. user toggles row grouping or subtotals-expanded). React's
+    // recommended render-time setState pattern for derived state from
+    // props — not a useEffect, no extra render (React detects the
+    // setState before commit and just renders once with the new value).
+    // We rely on `autoResetExpanded: false` (table config below) so
+    // TanStack doesn't wipe this on setGrouping calls.
+    const [prevExpandAllByDefault, setPrevExpandAllByDefault] =
+        React.useState(expandAllByDefault);
+    if (expandAllByDefault !== prevExpandAllByDefault) {
+        setPrevExpandAllByDefault(expandAllByDefault);
+        setExpanded(expandAllByDefault ? true : {});
     }
 
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
@@ -595,6 +615,19 @@ const PivotTable: FC<PivotTableProps> = ({
         );
     }, [hasCustomWidths, colWidths]);
 
+    // Passthrough columns are registered with TanStack so their values
+    // surface in `getAllCells()` for richText / image row context, but they
+    // must not render as headers or body cells.
+    const columnVisibility = useMemo(() => {
+        const visibility: Record<string, boolean> = {};
+        for (const col of data.retrofitData.pivotColumnInfo) {
+            if (col.columnType === 'passthrough') {
+                visibility[col.fieldId] = false;
+            }
+        }
+        return visibility;
+    }, [data.retrofitData.pivotColumnInfo]);
+
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
         columns: columns,
@@ -602,12 +635,20 @@ const PivotTable: FC<PivotTableProps> = ({
             grouping,
             expanded,
             columnOrder: columnOrder,
+            columnVisibility,
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },
         },
         onGroupingChange: setGrouping,
         onExpandedChange: setExpanded,
+        // Don't let TanStack auto-collapse all rows when grouping changes —
+        // the expanded state is driven by `expandAllByDefault` (above) and
+        // we want it to survive the setGrouping call. Without this,
+        // toggling row-grouping leaves us with only top-level aggregate
+        // rows visible because TanStack resets expanded={} on every
+        // grouping change.
+        autoResetExpanded: false,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
         getCoreRowModel: getCoreRowModel(),
@@ -908,7 +949,13 @@ const PivotTable: FC<PivotTableProps> = ({
 
     useEffect(() => {
         // TODO: Remove code duplicated from non-pivot table version.
-        if (showSubtotals) {
+        // Grouping is driven by either subtotals (renders aggregate rows) or
+        // row-grouping (visually dedups row dims without aggregates).
+        // Both reuse the same TanStack setGrouping machinery; the cell
+        // renderer downstream conditionally suppresses subtotal content
+        // when only row-grouping is on.
+        const groupingActive = showSubtotals || showRowGrouping;
+        if (groupingActive) {
             const groupedColumns = data.indexValueTypes.map(
                 (valueType) => valueType.fieldId,
             );
@@ -932,7 +979,13 @@ const PivotTable: FC<PivotTableProps> = ({
                 table.resetGrouping();
             }
         }
-    }, [showSubtotals, data.indexValueTypes, table, columnOrder]);
+    }, [
+        showSubtotals,
+        showRowGrouping,
+        data.indexValueTypes,
+        table,
+        columnOrder,
+    ]);
 
     return (
         <Table
@@ -1463,10 +1516,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                             miw={rowNumberWidth}
                                             maw={rowNumberWidth}
                                         >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext(),
-                                            )}
+                                            {/* Suppress the row number on
+                                             * group-header rows when we're
+                                             * in grouping-only mode — those
+                                             * rows act as visual headers
+                                             * for the merged dim value, not
+                                             * data rows, so a counter on
+                                             * them reads as a parallel
+                                             * sequence interleaved with the
+                                             * leaf-row counter. */}
+                                            {groupingOnlyMode &&
+                                            row.getIsGrouped()
+                                                ? null
+                                                : flexRender(
+                                                      cell.column.columnDef
+                                                          .cell,
+                                                      cell.getContext(),
+                                                  )}
                                         </Table.Cell>
                                     );
                                 }
@@ -1689,63 +1755,90 @@ const PivotTable: FC<PivotTableProps> = ({
                                         )}
                                     >
                                         {cell.getIsGrouped() ? (
-                                            <Group spacing="two" noWrap>
-                                                <Button
-                                                    compact
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    styles={(theme) => ({
-                                                        root: {
-                                                            height: 'unset',
-                                                            paddingLeft:
-                                                                theme.spacing
-                                                                    .two,
-                                                            paddingRight:
-                                                                theme.spacing
-                                                                    .xxs,
-                                                            fontFeatureSettings:
-                                                                "'tnum'",
-                                                        },
-                                                        leftIcon: {
-                                                            marginRight: 0,
-                                                        },
-                                                    })}
-                                                    onClick={(
-                                                        e: React.MouseEvent<HTMLButtonElement>,
-                                                    ) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
-                                                        toggleExpander();
-                                                    }}
-                                                    leftIcon={
-                                                        <MantineIcon
-                                                            size={14}
-                                                            icon={
-                                                                row.getIsExpanded()
-                                                                    ? IconChevronDown
-                                                                    : IconChevronRight
-                                                            }
-                                                        />
-                                                    }
-                                                    style={{
-                                                        color:
-                                                            fontColor ??
-                                                            'inherit',
-                                                    }}
-                                                >
-                                                    ({countSubRows(row)})
-                                                </Button>
-                                                {flexRender(
+                                            // Grouping-only mode (row dedup
+                                            // without subtotals): suppress the
+                                            // carat + group count chrome and
+                                            // just render the dim value. The
+                                            // expand-toggle would be a no-op
+                                            // anyway since groups are forced
+                                            // expanded in this mode.
+                                            groupingOnlyMode ? (
+                                                flexRender(
                                                     cell.column.columnDef.cell,
                                                     cell.getContext(),
-                                                )}
-                                            </Group>
+                                                )
+                                            ) : (
+                                                <Group spacing="two" noWrap>
+                                                    <Button
+                                                        compact
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        styles={(theme) => ({
+                                                            root: {
+                                                                height: 'unset',
+                                                                paddingLeft:
+                                                                    theme
+                                                                        .spacing
+                                                                        .two,
+                                                                paddingRight:
+                                                                    theme
+                                                                        .spacing
+                                                                        .xxs,
+                                                                fontFeatureSettings:
+                                                                    "'tnum'",
+                                                            },
+                                                            leftIcon: {
+                                                                marginRight: 0,
+                                                            },
+                                                        })}
+                                                        onClick={(
+                                                            e: React.MouseEvent<HTMLButtonElement>,
+                                                        ) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            toggleExpander();
+                                                        }}
+                                                        leftIcon={
+                                                            <MantineIcon
+                                                                size={14}
+                                                                icon={
+                                                                    row.getIsExpanded()
+                                                                        ? IconChevronDown
+                                                                        : IconChevronRight
+                                                                }
+                                                            />
+                                                        }
+                                                        style={{
+                                                            color:
+                                                                fontColor ??
+                                                                'inherit',
+                                                        }}
+                                                    >
+                                                        ({countSubRows(row)})
+                                                    </Button>
+                                                    {flexRender(
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                        cell.getContext(),
+                                                    )}
+                                                </Group>
+                                            )
                                         ) : cell.getIsAggregated() ? (
-                                            flexRender(
-                                                cell.column.columnDef
-                                                    .aggregatedCell ??
-                                                    cell.column.columnDef.cell,
-                                                cell.getContext(),
+                                            // In grouping-only mode the
+                                            // aggregate row stands in for a
+                                            // dedup "header" — render the dim
+                                            // cells via getIsGrouped() above,
+                                            // but suppress the subtotal metric
+                                            // values so the row looks like a
+                                            // leaf row with the dim filled in.
+                                            groupingOnlyMode ? null : (
+                                                flexRender(
+                                                    cell.column.columnDef
+                                                        .aggregatedCell ??
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                    cell.getContext(),
+                                                )
                                             )
                                         ) : cell.getIsPlaceholder() ? null : (
                                             flexRender(

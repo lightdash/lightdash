@@ -30,6 +30,7 @@ import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
+import { toolGenerateUuidsArgsSchema } from '../tools/generateUuids';
 
 const toolLoadSkillArgsSchema = z
     .object({
@@ -68,6 +69,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
     loadSkill: 'load_skill',
+    generateUuids: 'generate_uuids',
     runQuery: 'query_result',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
@@ -99,6 +101,7 @@ const TOOL_SCHEMAS = {
     editContent: toolEditContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
     loadSkill: toolLoadSkillArgsSchema,
+    generateUuids: toolGenerateUuidsArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
     runQuery: toolRunQueryArgsSchema,
     runSavedChart: toolRunSavedChartArgsSchema,

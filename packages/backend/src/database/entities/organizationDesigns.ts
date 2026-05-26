@@ -7,6 +7,7 @@ export type DbOrganizationDesign = {
     organization_uuid: string;
     name: string;
     description: string | null;
+    extra_instructions: string | null;
     is_default: boolean;
     created_at: Date;
     updated_at: Date;
@@ -21,7 +22,11 @@ export type DbOrganizationDesignIn = Pick<
 export type DbOrganizationDesignUpdate = Partial<
     Pick<
         DbOrganizationDesign,
-        'name' | 'description' | 'is_default' | 'updated_at'
+        | 'name'
+        | 'description'
+        | 'extra_instructions'
+        | 'is_default'
+        | 'updated_at'
     >
 >;
 

@@ -232,6 +232,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
         showSubtotalsExpanded,
+        showRowGrouping,
         updateColumnProperty,
     } = visualizationConfig.chartConfig;
 
@@ -308,6 +309,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 hideRowNumbers={hideRowNumbers}
                                 showSubtotals={showSubtotals}
                                 showSubtotalsExpanded={showSubtotalsExpanded}
+                                showRowGrouping={showRowGrouping}
                                 columnProperties={
                                     visualizationConfig.chartConfig
                                         .columnProperties
@@ -329,6 +331,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 hideRowNumbers={hideRowNumbers}
                                 showSubtotals={showSubtotals}
                                 showSubtotalsExpanded={showSubtotalsExpanded}
+                                showRowGrouping={showRowGrouping}
                                 columnProperties={
                                     visualizationConfig.chartConfig
                                         .columnProperties

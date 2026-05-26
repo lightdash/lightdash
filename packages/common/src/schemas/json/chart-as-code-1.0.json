@@ -1620,6 +1620,42 @@
                     },
                     "type": "object"
                 },
+                "hexbinConfig": {
+                    "description": "Configuration for H3 hexagonal binning visualization",
+                    "properties": {
+                        "aggregation": {
+                            "$ref": "#/$defs/MapHexbinAggregation",
+                            "description": "Aggregation applied when valueBasis = FIELD. Defaults to SUM."
+                        },
+                        "emptyBinColor": {
+                            "description": "Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8\n(#rrggbbaa) = fill with alpha, null/undefined = outline only.",
+                            "type": ["string", "null"]
+                        },
+                        "fixedResolution": {
+                            "description": "H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise.",
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "opacity": {
+                            "description": "Opacity of hex polygons (0.1 to 1)",
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "showEmptyBins": {
+                            "description": "Render outlined empty cells across the visible map area, so the user\ncan see \"where there is no data\" relative to the hex grid.",
+                            "type": "boolean"
+                        },
+                        "sizingMode": {
+                            "$ref": "#/$defs/MapHexbinSizingMode",
+                            "description": "How bin size is determined. Defaults to DYNAMIC if unset."
+                        },
+                        "valueBasis": {
+                            "$ref": "#/$defs/MapHexbinValueBasis",
+                            "description": "What drives cell color: count of points (default) or an aggregation\nover a chosen value field (controlled via the chart's `valueFieldId`)."
+                        }
+                    },
+                    "type": "object"
+                },
                 "latitudeFieldId": {
                     "description": "Field ID for latitude values",
                     "type": "string"
@@ -1696,7 +1732,7 @@
             "type": "string"
         },
         "MapChartType": {
-            "enum": ["scatter", "area", "heatmap"],
+            "enum": ["scatter", "area", "heatmap", "hexbin"],
             "type": "string"
         },
         "MapFieldConfig": {
@@ -1711,6 +1747,18 @@
                 }
             },
             "type": "object"
+        },
+        "MapHexbinAggregation": {
+            "enum": ["sum", "avg", "min", "max"],
+            "type": "string"
+        },
+        "MapHexbinSizingMode": {
+            "enum": ["dynamic", "fixed"],
+            "type": "string"
+        },
+        "MapHexbinValueBasis": {
+            "enum": ["count", "field"],
+            "type": "string"
         },
         "MapTileBackground": {
             "enum": [
@@ -1835,6 +1883,10 @@
             "additionalProperties": true,
             "description": "Filter rule for metrics, targeting fields by reference",
             "properties": {
+                "caseSensitive": {
+                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
+                    "type": "boolean"
+                },
                 "disabled": {
                     "description": "Whether this filter is disabled",
                     "type": "boolean"
@@ -2125,6 +2177,10 @@
         "Pick_FilterRule.Exclude_keyofFilterRule.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
+                "caseSensitive": {
+                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
+                    "type": "boolean"
+                },
                 "disabled": {
                     "description": "Whether this filter is disabled",
                     "type": "boolean"
@@ -2360,6 +2416,37 @@
                 }
             },
             "required": ["field"],
+            "type": "object"
+        },
+        "PivotSortAnchor": {
+            "description": "Coordinates of a single pivot column, used to anchor a row sort to that\nspecific column when results are pivoted.",
+            "properties": {
+                "reference": {
+                    "type": "string"
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "required": ["value", "reference"],
             "type": "object"
         },
         "PivotValue": {
@@ -2635,6 +2722,13 @@
                 "nullsFirst": {
                     "description": "Sort null values first",
                     "type": "boolean"
+                },
+                "pivotValues": {
+                    "description": "Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results.",
+                    "items": {
+                        "$ref": "#/$defs/PivotSortAnchor"
+                    },
+                    "type": "array"
                 }
             },
             "required": ["descending", "fieldId"],
@@ -2943,6 +3037,10 @@
                 },
                 "showSubtotals": {
                     "description": "Show subtotal rows",
+                    "type": "boolean"
+                },
+                "showSubtotalsExpanded": {
+                    "description": "Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true.",
                     "type": "boolean"
                 },
                 "showTableNames": {
@@ -3400,8 +3498,8 @@
     },
     "required": [
         "name",
-        "chartConfig",
         "slug",
+        "chartConfig",
         "tableName",
         "spaceSlug",
         "version",

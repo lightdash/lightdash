@@ -37,6 +37,7 @@ const mapDbDesign = (
     organizationUuid: row.organization_uuid,
     name: row.name,
     description: row.description,
+    extraInstructions: row.extra_instructions,
     isDefault: row.is_default,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -121,7 +122,11 @@ export class OrganizationDesignModel {
     async update(
         organizationUuid: string,
         designUuid: string,
-        data: { name?: string; description?: string | null },
+        data: {
+            name?: string;
+            description?: string | null;
+            extraInstructions?: string | null;
+        },
     ): Promise<ApiOrganizationDesign> {
         const updateData: Record<string, unknown> = {
             updated_at: this.database.fn.now() as unknown as Date,
@@ -129,6 +134,8 @@ export class OrganizationDesignModel {
         if (data.name !== undefined) updateData.name = data.name;
         if (data.description !== undefined)
             updateData.description = data.description;
+        if (data.extraInstructions !== undefined)
+            updateData.extra_instructions = data.extraInstructions;
 
         const [row] = await this.database(OrganizationDesignsTableName)
             .where('organization_uuid', organizationUuid)

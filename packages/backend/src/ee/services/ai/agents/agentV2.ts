@@ -16,11 +16,13 @@ import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateUuids } from '../tools/generateUuids';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
 import { getImproveContext } from '../tools/improveContext';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
@@ -259,6 +261,14 @@ const getAgentTools = (
         getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
     });
 
+    const loadSkill =
+        args.availableSkills.length > 0
+            ? getLoadSkill({
+                  loadSkill: dependencies.loadSkill,
+              })
+            : null;
+    const generateUuids = getGenerateUuids();
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
@@ -275,6 +285,7 @@ const getAgentTools = (
         runQuery,
         runSavedChart,
         generateDashboard,
+        generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(args.enableSelfImprovement && args.canManageAgent
             ? { proposeChange }
@@ -283,6 +294,7 @@ const getAgentTools = (
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
+        ...(loadSkill ? { loadSkill } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };

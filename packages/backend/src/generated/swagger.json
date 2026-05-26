@@ -2101,7 +2101,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "lastVersionChartKind": {
                                 "allOf": [
@@ -2234,7 +2235,8 @@
                     "properties": {
                         "properties": {
                             "chartSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "hideTitle": {
                                 "type": "boolean"
@@ -2600,10 +2602,12 @@
                     },
                     "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "uuid": {
                         "type": "string"
@@ -13274,6 +13278,7 @@
                     "generateBarVizConfig",
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
+                    "generateUuids",
                     "findExplores",
                     "findFields",
                     "discoverFields",
@@ -13393,6 +13398,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -17858,6 +17876,226 @@
                     }
                 ]
             },
+            "Pick_OktaSsoConfig.oauth2Issuer-or-oktaDomain-or-oauth2ClientId-or-authorizationServerId-or-extraScopes_": {
+                "properties": {
+                    "oauth2ClientId": {
+                        "type": "string"
+                    },
+                    "oauth2Issuer": {
+                        "type": "string"
+                    },
+                    "oktaDomain": {
+                        "type": "string"
+                    },
+                    "authorizationServerId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional custom authorization server (Okta API Access Management)."
+                    },
+                    "extraScopes": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional extra scopes (space-separated) appended to the auth request."
+                    }
+                },
+                "required": [
+                    "oauth2ClientId",
+                    "oauth2Issuer",
+                    "oktaDomain",
+                    "authorizationServerId",
+                    "extraScopes"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OktaSsoConfigSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_OktaSsoConfig.oauth2Issuer-or-oktaDomain-or-oauth2ClientId-or-authorizationServerId-or-extraScopes_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+                    },
+                    {
+                        "properties": {
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hasClientSecret"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiOktaSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OktaSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertOktaSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OktaSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpsertOktaSsoConfig": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "extraScopes": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "authorizationServerId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "oauth2ClientSecret": {
+                                "type": "string",
+                                "description": "When omitted on update, the stored secret is preserved. Required on create."
+                            },
+                            "oauth2ClientId": {
+                                "type": "string"
+                            },
+                            "oktaDomain": {
+                                "type": "string"
+                            },
+                            "oauth2Issuer": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "oauth2ClientId",
+                            "oktaDomain",
+                            "oauth2Issuer"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+                    }
+                ]
+            },
+            "Pick_GenericOidcSsoConfig.clientId-or-metadataDocumentEndpoint-or-scopes_": {
+                "properties": {
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "metadataDocumentEndpoint": {
+                        "type": "string",
+                        "description": "OIDC discovery document URL (`.well-known/openid-configuration`)."
+                    },
+                    "scopes": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional extra scopes (space-separated) appended to the auth request."
+                    }
+                },
+                "required": ["clientId", "metadataDocumentEndpoint", "scopes"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "GenericOidcSsoConfigSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_GenericOidcSsoConfig.clientId-or-metadataDocumentEndpoint-or-scopes_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+                    },
+                    {
+                        "properties": {
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hasClientSecret"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGenericOidcSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GenericOidcSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertGenericOidcSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GenericOidcSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpsertGenericOidcSsoConfig": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "scopes": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "metadataDocumentEndpoint": {
+                                "type": "string"
+                            },
+                            "clientSecret": {
+                                "type": "string",
+                                "description": "When omitted on update, the stored secret is preserved. Required on create."
+                            },
+                            "clientId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["metadataDocumentEndpoint", "clientId"],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+                    }
+                ]
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -20408,6 +20646,13 @@
             },
             "PivotConfiguration": {
                 "properties": {
+                    "passthroughDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Hidden pivot-column dimensions that are NOT sort targets but still need\ntheir values carried through the SQL pipeline so that other fields'\n`richText` / `image:` templates can reference them via\n`row.<table>.<field>.raw`. They participate in `group_by_query` SELECT\nand GROUP BY (same as sortOnlyDimensions) but do NOT affect\n`column_ranking` ORDER BY (they don't drive sort). Without this bucket\nthe dim would be dropped entirely from the query and `row.*.raw`\nreferences would silently resolve to undefined."
+                    },
                     "sortOnlyDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/GroupByColumn"
@@ -25511,69 +25756,88 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_": {
+            "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
                 "properties": {
                     "description": {
-                        "type": "string"
-                    },
-                    "name": {
                         "type": "string"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
-                "required": ["name", "slug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__": {
+            "Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_": {
+                "$ref": "#/components/schemas/Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardTabAsCode": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    "hidden": {
+                        "type": "boolean"
                     },
-                    "x": {
+                    "order": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "minimum": 0
                     },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
                     },
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["hidden", "order", "name", "uuid"],
+                "type": "object"
+            },
+            "DashboardTileAsCodeBase": {
+                "properties": {
                     "tabUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1,
+                        "maximum": 36
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 1
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0,
+                        "maximum": 35
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "tileSlug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["type", "x", "y", "h", "w"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "required": ["w", "h", "y", "x", "type"],
+                "type": "object"
             },
-            "Omit_DashboardTile.properties-or-uuid_": {
-                "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
                 "properties": {
                     "title": {
                         "type": "string"
@@ -25584,80 +25848,238 @@
                     },
                     "hideTitle": {
                         "type": "boolean"
-                    },
-                    "chartSlug": {
-                        "type": "string"
                     }
                 },
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "DashboardTileAsCode": {
+            "DashboardChartTileAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_DashboardTile.properties-or-uuid_"
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
                     },
                     {
                         "properties": {
                             "properties": {
-                                "anyOf": [
+                                "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_"
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
                                     },
                                     {
                                         "properties": {
-                                            "hideFrame": {
-                                                "type": "boolean"
-                                            },
-                                            "content": {
-                                                "type": "string"
-                                            },
-                                            "title": {
-                                                "type": "string"
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
                                             }
                                         },
-                                        "required": ["content", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "url": {
-                                                "type": "string"
-                                            },
-                                            "hideTitle": {
-                                                "type": "boolean"
-                                            },
-                                            "title": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["url", "title"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "showDivider": {
-                                                "type": "boolean"
-                                            },
-                                            "text": {
-                                                "type": "string"
-                                            },
-                                            "title": {}
-                                        },
-                                        "required": ["text"],
+                                        "required": ["chartSlug"],
                                         "type": "object"
                                     }
                                 ]
                             },
-                            "tileSlug": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
                             }
                         },
-                        "required": ["properties"],
+                        "required": ["properties", "type"],
                         "type": "object"
+                    }
+                ]
+            },
+            "Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["chartName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardSqlChartTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardSqlChartTileProperties-at-properties.title-or-hideTitle-or-chartName_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "chartSlug": {
+                                                "type": "string",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "required": ["chartSlug"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardMarkdownTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "hideFrame": {
+                                        "type": "boolean"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardLoomTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "url": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["url", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardHeadingTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "showDivider": {
+                                        "type": "boolean"
+                                    },
+                                    "text": {
+                                        "type": "string"
+                                    },
+                                    "title": {}
+                                },
+                                "required": ["text"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.HEADING"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardDataAppTileAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "properties": {
+                                "properties": {
+                                    "appDeletedAt": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "appUuid": {
+                                        "type": "string"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["appUuid", "title"],
+                                "type": "object"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/DashboardTileTypes.DATA_APP"
+                            }
+                        },
+                        "required": ["properties", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardTileAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTileAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardDataAppTileAsCode"
                     }
                 ]
             },
@@ -25723,7 +26145,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_"
+                        "$ref": "#/components/schemas/Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_"
                     },
                     {
                         "properties": {
@@ -25787,9 +26209,30 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                            },
+                            "tabs": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTabAsCode"
+                                },
+                                "type": "array"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "minLength": 1
                             }
                         },
-                        "required": ["spaceSlug", "version", "tiles"],
+                        "required": [
+                            "spaceSlug",
+                            "version",
+                            "tiles",
+                            "tabs",
+                            "slug",
+                            "name"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -26220,13 +26663,15 @@
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -26271,7 +26716,7 @@
                     },
                     "tabs": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
                         },
                         "type": "array"
                     },
@@ -27339,6 +27784,11 @@
                     "isDefault": {
                         "type": "boolean"
                     },
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Free-text override appended to the agent's effective skill at build\ntime, alongside any uploaded `instruction` markdown files. Empty\nstring is normalised to `null` server-side."
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -27359,6 +27809,7 @@
                     "updatedAt",
                     "createdAt",
                     "isDefault",
+                    "extraInstructions",
                     "description",
                     "name",
                     "organizationUuid",
@@ -27417,6 +27868,10 @@
             },
             "UpdateOrganizationDesignRequest": {
                 "properties": {
+                    "extraInstructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -31895,6 +32350,12 @@
                         "properties": {
                             "pivotDetails": {
                                 "properties": {
+                                    "passthroughDimensions": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/GroupByColumn"
+                                        },
+                                        "type": "array"
+                                    },
                                     "originalColumns": {
                                         "$ref": "#/components/schemas/ResultColumns"
                                     },
@@ -34490,7 +34951,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3011.0",
+        "version": "0.3013.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39453,6 +39914,210 @@
                 },
                 "description": "Removes the current organization's Azure AD SSO configuration.",
                 "summary": "Delete Azure AD SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/sso/okta": {
+            "get": {
+                "operationId": "GetOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOktaSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's Okta SSO configuration (sensitive\nfields are not included).",
+                "summary": "Get Okta SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertOktaSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's Okta SSO configuration.\nOmit `oauth2ClientSecret` to preserve the previously stored secret on\nupdates.",
+                "summary": "Upsert Okta SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertOktaSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteOktaSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's Okta SSO configuration.",
+                "summary": "Delete Okta SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/sso/oidc": {
+            "get": {
+                "operationId": "GetGenericOidcSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGenericOidcSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's generic OIDC SSO configuration\n(sensitive fields are not included).",
+                "summary": "Get generic OIDC SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertGenericOidcSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertGenericOidcSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's generic OIDC SSO\nconfiguration. Omit `clientSecret` to preserve the previously stored\nsecret on updates.",
+                "summary": "Upsert generic OIDC SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertGenericOidcSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteGenericOidcSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's generic OIDC SSO configuration.",
+                "summary": "Delete generic OIDC SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []

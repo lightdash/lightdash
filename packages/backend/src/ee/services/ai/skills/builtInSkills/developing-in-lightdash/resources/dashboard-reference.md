@@ -204,25 +204,30 @@ Add section headers:
 
 ## Dashboard Tabs
 
+**IMPORTANT:** Tab `uuid` values must be valid UUIDs (e.g., `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`), not friendly names. The linter will reject non-UUID values. Generate UUIDs with `generateUuids` tool.
+
 Organize tiles into multiple views:
 
 ```json
 {
     "tabs": [
         {
+            "hidden": false,
             "name": "Overview",
             "order": 0,
-            "uuid": "overview-tab"
+            "uuid": "b3f1a2c4-d5e6-4f78-9abc-def012345678"
         },
         {
+            "hidden": false,
             "name": "Details",
             "order": 1,
-            "uuid": "details-tab"
+            "uuid": "c4d2b3e5-f6a7-4089-bcde-f12345678901"
         },
         {
+            "hidden": false,
             "name": "Trends",
             "order": 2,
-            "uuid": "trends-tab"
+            "uuid": "d5e3c4f6-a7b8-4190-cdef-234567890123"
         }
     ],
     "tiles": [
@@ -231,7 +236,7 @@ Organize tiles into multiple views:
             "properties": {
                 "chartSlug": "revenue-summary"
             },
-            "tabUuid": "overview-tab",
+            "tabUuid": "b3f1a2c4-d5e6-4f78-9abc-def012345678",
             "type": "saved_chart",
             "w": 36,
             "x": 0,
@@ -242,7 +247,7 @@ Organize tiles into multiple views:
             "properties": {
                 "chartSlug": "detailed-breakdown"
             },
-            "tabUuid": "details-tab",
+            "tabUuid": "c4d2b3e5-f6a7-4089-bcde-f12345678901",
             "type": "saved_chart",
             "w": 36,
             "x": 0,
@@ -550,19 +555,22 @@ When `config` is omitted, date zoom is enabled with all default granularities.
     "spaceSlug": "leadership",
     "tabs": [
         {
+            "hidden": false,
             "name": "Overview",
             "order": 0,
-            "uuid": "overview-tab"
+            "uuid": "e6f4d5a7-b8c9-4201-def0-345678901234"
         },
         {
+            "hidden": false,
             "name": "By Region",
             "order": 1,
-            "uuid": "by-region-tab"
+            "uuid": "f7a5e6b8-c9d0-4312-ef01-456789012345"
         },
         {
+            "hidden": false,
             "name": "By Product",
             "order": 2,
-            "uuid": "by-product-tab"
+            "uuid": "a8b6f7c9-d0e1-4423-f012-567890123456"
         }
     ],
     "tiles": [

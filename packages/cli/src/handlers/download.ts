@@ -516,8 +516,10 @@ const readLooseCodeFiles = async (
                         );
                     }
                 } catch (e) {
-                    GlobalState.debug(
-                        `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                    GlobalState.log(
+                        styles.warning(
+                            `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                        ),
                     );
                 }
             }),
@@ -1417,11 +1419,13 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
 const getDashboardChartSlugs = async (
     dashboardSlugs: string[],
     customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
 ) => {
-    const dashboardItems = await readCodeFiles<DashboardAsCode>(
+    const folderDashboards = await readCodeFiles<DashboardAsCode>(
         'dashboards',
         customPath,
     );
+    const dashboardItems = [...folderDashboards, ...looseDashboards];
 
     const filteredDashboardItems =
         dashboardSlugs.length > 0
@@ -1496,6 +1500,19 @@ export const uploadHandler = async (
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
 
+        // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
+        const looseFiles = await readLooseCodeFiles(options.path);
+        if (looseFiles.charts.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
+            );
+        }
+        if (looseFiles.dashboards.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
+            );
+        }
+
         // Always include the charts from dashboards if includeCharts is true regardless of the charts filters
         const chartSlugs = options.includeCharts
             ? Array.from(
@@ -1504,6 +1521,7 @@ export const uploadHandler = async (
                       ...(await getDashboardChartSlugs(
                           options.dashboards,
                           options.path,
+                          looseFiles.dashboards,
                       )),
                   ]),
               )
@@ -1527,19 +1545,6 @@ export const uploadHandler = async (
         if (Object.keys(spaceNames).length > 0) {
             GlobalState.log(
                 `Found ${Object.keys(spaceNames).length} space definition(s)`,
-            );
-        }
-
-        // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
-        const looseFiles = await readLooseCodeFiles(options.path);
-        if (looseFiles.charts.length > 0) {
-            GlobalState.log(
-                `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
-            );
-        }
-        if (looseFiles.dashboards.length > 0) {
-            GlobalState.log(
-                `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
             );
         }
 
@@ -1619,4 +1624,8 @@ export const uploadHandler = async (
             },
         });
     }
+};
+
+export const testHelpers = {
+    getDashboardChartSlugs,
 };

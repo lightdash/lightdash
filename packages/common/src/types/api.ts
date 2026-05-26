@@ -149,7 +149,11 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
-import { type AzureAdSsoConfigSummary } from './organizationSso';
+import {
+    type AzureAdSsoConfigSummary,
+    type GenericOidcSsoConfigSummary,
+    type OktaSsoConfigSummary,
+} from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -741,6 +745,11 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
         originalColumns: ResultColumns;
+        // Hidden pivot-column dims that are carried through the SQL pipeline
+        // for cross-field richText/image templates (`row.<table>.<field>.raw`)
+        // but are not rendered as pivot column headers. Their raw values are
+        // attached to each result row under their fieldId.
+        passthroughDimensions?: GroupByColumn[];
     } | null;
 };
 
@@ -927,6 +936,8 @@ type ApiResults =
     | ApiDownloadCsv
     | AllowedEmailDomains
     | AzureAdSsoConfigSummary
+    | OktaSsoConfigSummary
+    | GenericOidcSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

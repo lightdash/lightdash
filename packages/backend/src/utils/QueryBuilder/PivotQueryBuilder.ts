@@ -137,6 +137,9 @@ export class PivotQueryBuilder {
         for (const col of this.pivotConfiguration.sortOnlyDimensions ?? []) {
             existingRefs.add(col.reference);
         }
+        for (const col of this.pivotConfiguration.passthroughDimensions ?? []) {
+            existingRefs.add(col.reference);
+        }
 
         const allTableCalculationIds = new Set(
             Object.values(this.itemsMap)
@@ -395,6 +398,11 @@ export class PivotQueryBuilder {
      * @param sortOnlyDimensions - Pivot-column dims that are hidden from display
      *   but still need to pass through the GROUP BY so they're available for
      *   column ORDER BY (sortOnlyDimensions in PivotConfiguration).
+     * @param passthroughDimensions - Pivot-column dims that are hidden and
+     *   NOT sort targets, but still need to pass through the GROUP BY so
+     *   other fields' richText / image templates can reference them via
+     *   `row.<table>.<field>.raw`. Unlike sortOnlyDimensions, they do NOT
+     *   participate in any ORDER BY downstream.
      * @returns SQL for the group_by_query CTE
      */
     private getGroupByQuerySQL(
@@ -402,6 +410,7 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: PivotConfiguration['groupByColumns'],
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
+        passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
@@ -412,6 +421,13 @@ export class PivotQueryBuilder {
             // pivot-spread columns (not in groupByColumns), but they still
             // need to survive the aggregation pipeline.
             ...(sortOnlyDimensions || []).map(
+                (col) => `${q}${col.reference}${q}`,
+            ),
+            // Passthrough dimensions: hidden non-sort pivot dims that need
+            // to flow through to row data so cross-field templates can read
+            // their values via row.<table>.<field>.raw. Like sortOnlyDimensions
+            // they survive GROUP BY but do not affect any ORDER BY.
+            ...(passthroughDimensions || []).map(
                 (col) => `${q}${col.reference}${q}`,
             ),
             ...indexColumns.map((col) => `${q}${col.reference}${q}`),
@@ -1236,12 +1252,21 @@ export class PivotQueryBuilder {
         >,
         usePrecomputedRankings: boolean = false,
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
+        passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectReferences = [
             ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
             ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
+            // Passthrough dimensions: hidden non-sort pivot dims that need
+            // to flow through to row data for cross-field richText/image
+            // templates. They are in group_by_query (added by
+            // getGroupByQuerySQL) but not pivot-spread, so include them
+            // explicitly here so they reach the final SELECT.
+            ...(passthroughDimensions || []).map(
+                (col) => `g.${q}${col.reference}${q}`,
+            ),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
@@ -1489,6 +1514,7 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         columnLimit: number | undefined,
         sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
+        passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
@@ -1547,6 +1573,7 @@ export class PivotQueryBuilder {
             metricFirstValueQueries,
             needsPrecomputedRankings,
             sortOnlyDimensions,
+            passthroughDimensions,
         );
 
         let maxColumnsPerValueColumnSql = '';
@@ -1663,6 +1690,7 @@ export class PivotQueryBuilder {
             sortBy,
             sortOnlyColumns,
             sortOnlyDimensions,
+            passthroughDimensions,
         } = this.pivotConfiguration;
 
         // Merge sort-only columns into valuesColumns for SQL generation.
@@ -1695,6 +1723,7 @@ export class PivotQueryBuilder {
             valuesColumns,
             groupByColumns,
             sortOnlyDimensions,
+            passthroughDimensions,
         );
 
         let finalSql: string;
@@ -1710,6 +1739,7 @@ export class PivotQueryBuilder {
                 sortBy,
                 columnLimit,
                 sortOnlyDimensions,
+                passthroughDimensions,
             );
         } else {
             finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);

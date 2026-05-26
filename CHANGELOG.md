@@ -1,3 +1,111 @@
+# [0.3018.0](https://github.com/lightdash/lightdash/compare/0.3017.1...0.3018.0) (2026-05-26)
+
+
+### Features
+
+* validate organization SSO provider URLs are public https (PROD-7895) ([#23476](https://github.com/lightdash/lightdash/issues/23476)) ([ba48b96](https://github.com/lightdash/lightdash/commit/ba48b96b4ff7374c252f762ff5143229ace28dcf))
+
+## [0.3017.1](https://github.com/lightdash/lightdash/compare/0.3017.0...0.3017.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **turbo:** set frontend build outputs to build/ ([#23481](https://github.com/lightdash/lightdash/issues/23481)) ([75344ea](https://github.com/lightdash/lightdash/commit/75344eadc68efcb07f4d3dd67e389f2a5f170629))
+
+# [0.3017.0](https://github.com/lightdash/lightdash/compare/0.3016.0...0.3017.0) (2026-05-25)
+
+
+### Bug Fixes
+
+* remove `isPaletteStagedDirty` guard from color palette resolution logic ([#23479](https://github.com/lightdash/lightdash/issues/23479)) ([303ef40](https://github.com/lightdash/lightdash/commit/303ef4064ffd9e3e772b4352730a17011baf93c3))
+
+
+### Features
+
+* **pivot:** show callout when pivot dimensions have fixed colors from data model ([#23480](https://github.com/lightdash/lightdash/issues/23480)) ([e1b32f9](https://github.com/lightdash/lightdash/commit/e1b32f9e2dfc714c0f96360d4f2bc28fef117ec3))
+
+# [0.3016.0](https://github.com/lightdash/lightdash/compare/0.3015.1...0.3016.0) (2026-05-25)
+
+
+### Features
+
+* **pivot:** group repeated row values without requiring subtotals (PROD-5901) ([#23474](https://github.com/lightdash/lightdash/issues/23474)) ([f684aa7](https://github.com/lightdash/lightdash/commit/f684aa74119c36e0284434e5778d4b300c98c420))
+
+## [0.3015.1](https://github.com/lightdash/lightdash/compare/0.3015.0...0.3015.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* remove padding on data app root ([#23478](https://github.com/lightdash/lightdash/issues/23478)) ([3ed246a](https://github.com/lightdash/lightdash/commit/3ed246ab6fd52b1ab2923017fcdb5d8397021d96))
+
+# [0.3015.0](https://github.com/lightdash/lightdash/compare/0.3014.0...0.3015.0) (2026-05-25)
+
+
+### Features
+
+* add per-org generic OIDC SSO with dynamic strategy cache and admin settings panel ([#23473](https://github.com/lightdash/lightdash/issues/23473)) ([6f8ca39](https://github.com/lightdash/lightdash/commit/6f8ca39adf490cc19833c894badff6719463a95f))
+
+# [0.3014.0](https://github.com/lightdash/lightdash/compare/0.3013.0...0.3014.0) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** improve edit content error message and add exhaustive type check ([#23466](https://github.com/lightdash/lightdash/issues/23466)) ([3718c00](https://github.com/lightdash/lightdash/commit/3718c00346d19ad7eceafb1bec1da7ad849790e5))
+* **ai-agents:** migrate inline styles to CSS modules and fix overflow/truncation issues ([#23469](https://github.com/lightdash/lightdash/issues/23469)) ([bcb2c64](https://github.com/lightdash/lightdash/commit/bcb2c64839beded7b405b01b0dc2dee186923ee4))
+* include charts in loose dashbaords on upload ([#23467](https://github.com/lightdash/lightdash/issues/23467)) ([0d9840c](https://github.com/lightdash/lightdash/commit/0d9840c07fbf88fd37068c3d645358419bfc087e))
+
+
+### Features
+
+* add per-org Okta SSO configuration with DB-stored config and admin settings panel ([#23462](https://github.com/lightdash/lightdash/issues/23462)) ([a611c7b](https://github.com/lightdash/lightdash/commit/a611c7b22533c6a90a5ccb10604a707fc0ad1cc5))
+* add typed dashboard tile as-code types and generate dashboard-as-code JSON schema ([#23447](https://github.com/lightdash/lightdash/issues/23447)) ([22c8037](https://github.com/lightdash/lightdash/commit/22c8037fee4fddd79218f94880ee33d7e6c679a8))
+* **ai-agents:** add `generateUuids` tool for stable UUID generation ([#23465](https://github.com/lightdash/lightdash/issues/23465)) ([a2f316d](https://github.com/lightdash/lightdash/commit/a2f316d38962ceee03f21e6575894f2dc79268ef))
+* attach dashboard context to AI agent requests from dashboard chart tiles ([#23468](https://github.com/lightdash/lightdash/issues/23468)) ([3975482](https://github.com/lightdash/lightdash/commit/39754824395a77ed2080b9a85b6764a4d8470629))
+* redesign org SSO panels with collapsible config, provider logos, and status badges ([#23470](https://github.com/lightdash/lightdash/issues/23470)) ([d6ce7d3](https://github.com/lightdash/lightdash/commit/d6ce7d3bb93192c9101b573751bd1d91c1a9d32f))
+
+# [0.3013.0](https://github.com/lightdash/lightdash/compare/0.3012.3...0.3013.0) (2026-05-25)
+
+
+### Features
+
+* add an "extra instructions" field to themes ([#23455](https://github.com/lightdash/lightdash/issues/23455)) ([64b6524](https://github.com/lightdash/lightdash/commit/64b652413e10a591ad08d670aeb015ca890acf2c))
+
+## [0.3012.3](https://github.com/lightdash/lightdash/compare/0.3012.2...0.3012.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* **sql-runner:** preserve user ORDER BY → LIMIT adjacency (PROD-7880) ([#23460](https://github.com/lightdash/lightdash/issues/23460)) ([3c7d2b7](https://github.com/lightdash/lightdash/commit/3c7d2b7f247ec417fdc1e326e74cc1695c65af9f))
+
+## [0.3012.2](https://github.com/lightdash/lightdash/compare/0.3012.1...0.3012.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** use proper UUIDs and add `hidden` field in dashboard reference examples ([#23464](https://github.com/lightdash/lightdash/issues/23464)) ([ca046e9](https://github.com/lightdash/lightdash/commit/ca046e9fa4a5543220fd8aad0a72da9d90f15c94))
+* **skills:** add `hidden` field to dashboard tab examples and docs ([#23463](https://github.com/lightdash/lightdash/issues/23463)) ([5d44d9b](https://github.com/lightdash/lightdash/commit/5d44d9baa411b533b4666f629ca68d8cbef089a5))
+
+## [0.3012.1](https://github.com/lightdash/lightdash/compare/0.3012.0...0.3012.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** bring back loadSkill tool ([#23459](https://github.com/lightdash/lightdash/issues/23459)) ([6453800](https://github.com/lightdash/lightdash/commit/64538003aee4188dd552aa00b0f81c4715d4b005))
+
+# [0.3012.0](https://github.com/lightdash/lightdash/compare/0.3011.1...0.3012.0) (2026-05-25)
+
+
+### Features
+
+* auto-trigger OAuth connection after MCP server creation ([#23454](https://github.com/lightdash/lightdash/issues/23454)) ([e53029f](https://github.com/lightdash/lightdash/commit/e53029f4eda9ef1540fd7e4c67e32e20a5f66bca))
+
+## [0.3011.1](https://github.com/lightdash/lightdash/compare/0.3011.0...0.3011.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **pivot:** carry hidden dims through SQL as passthrough so richText/image row references keep resolving (PROD-7873) ([#23452](https://github.com/lightdash/lightdash/issues/23452)) ([5eaf613](https://github.com/lightdash/lightdash/commit/5eaf6130a863b81b9ed015b1c1d394bbef94fa88))
+
 # [0.3011.0](https://github.com/lightdash/lightdash/compare/0.3010.0...0.3011.0) (2026-05-22)
 
 

@@ -10,6 +10,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import contentLinkStyles from '../ChatElements/ContentLink.module.css';
+import styles from './PinnedContextCard.module.css';
 
 type Props = {
     item: AiPromptContextItem;
@@ -72,7 +73,7 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
                 fillOpacity={0.2}
                 strokeWidth={1.9}
             />
-            <Text fz="sm" fw={500} m={0} truncate>
+            <Text fz="sm" fw={500} m={0} truncate className={styles.label}>
                 {meta.label}
             </Text>
             <MantineIcon

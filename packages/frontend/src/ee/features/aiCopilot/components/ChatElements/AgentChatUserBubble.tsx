@@ -7,6 +7,7 @@ import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import styles from './AgentChatUserBubble.module.css';
 
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
@@ -23,7 +24,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     return (
         <Stack
             gap={2}
-            style={{ alignSelf: 'flex-end' }}
+            className={styles.bubble}
             bg={isActive ? 'ldGray.0' : 'transparent'}
         >
             <Stack gap={0} align="flex-end">
@@ -48,7 +49,12 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
             </Stack>
 
             {message.context.length > 0 && projectUuid && (
-                <Group gap="xs" wrap="wrap" justify="flex-end">
+                <Group
+                    gap="xs"
+                    wrap="wrap"
+                    justify="flex-end"
+                    className={styles.contextGroup}
+                >
                     {message.context.map((item, idx) => (
                         <PinnedContextCard
                             key={`${item.type}-${
@@ -70,20 +76,11 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 px="sm"
                 withBorder
                 color="white"
-                style={{
-                    overflow: 'unset',
-                    backgroundColor:
-                        'color-mix(in srgb, var(--mantine-color-ldGray-1) 45%, transparent)',
-                }}
+                className={styles.messageCard}
             >
                 <MDEditor.Markdown
                     source={message.message}
-                    style={{
-                        backgroundColor: 'transparent',
-                        fontWeight: 500,
-                        fontSize: '0.8125rem',
-                        color: 'var(--mantine-color-ldGray-8)',
-                    }}
+                    className={styles.markdown}
                 />
             </Card>
         </Stack>

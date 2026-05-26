@@ -181,9 +181,15 @@ const updateProjectAgent = (projectUuid: string, data: ApiUpdateAiAgent) =>
         body: JSON.stringify(data),
     });
 
-export const useProjectUpdateAiAgentMutation = (projectUuid: string) => {
+export const useProjectUpdateAiAgentMutation = (
+    projectUuid: string,
+    options?: {
+        showSuccessToast?: boolean;
+    },
+) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
+    const showSuccessToast = options?.showSuccessToast ?? true;
 
     return useMutation<
         ApiAiAgentResponse['results'],
@@ -231,9 +237,11 @@ export const useProjectUpdateAiAgentMutation = (projectUuid: string) => {
             return { previousAgentMcpServers };
         },
         onSuccess: async (data) => {
-            showToastSuccess({
-                title: 'AI agent updated successfully',
-            });
+            if (showSuccessToast) {
+                showToastSuccess({
+                    title: 'AI agent updated successfully',
+                });
+            }
             await queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, data.uuid],
             });
