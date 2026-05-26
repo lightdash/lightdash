@@ -1,3 +1,10 @@
+## [0.3019.1](https://github.com/lightdash/lightdash/compare/0.3019.0...0.3019.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* **prod-7857:** restore space palette cascade for untouched saved charts ([#23485](https://github.com/lightdash/lightdash/issues/23485)) ([8ddf79b](https://github.com/lightdash/lightdash/commit/8ddf79bc2012769b4bd8234f9737d72d630446da)), closes [#23479](https://github.com/lightdash/lightdash/issues/23479)
+
 # [0.3019.0](https://github.com/lightdash/lightdash/compare/0.3018.0...0.3019.0) (2026-05-26)
 
 
