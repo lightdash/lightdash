@@ -21,6 +21,7 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -103,6 +104,14 @@ const organizationSsoModel = {
     findGoogleMethodsForEmailDomain: jest.fn(async () => []),
 };
 
+const organizationSettingsModel = {
+    get: jest.fn(async () => ({
+        oidcLinkingEnabled: null,
+        oidcToEmailLinkingEnabled: null,
+    })),
+    update: jest.fn(),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
@@ -123,6 +132,8 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
             {} as OrganizationAllowedEmailDomainsModel,
         organizationSsoModel:
             organizationSsoModel as unknown as OrganizationSsoModel,
+        organizationSettingsModel:
+            organizationSettingsModel as unknown as OrganizationSettingsModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
@@ -1217,6 +1228,43 @@ describe('UserService', () => {
                 0,
             );
         });
+        test('links via per-org OIDC linking even when the instance env flag is off', async () => {
+            // Instance env flags are off (default config); the org opts in
+            // through organization_settings.
+            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+                oidcLinkingEnabled: true,
+                oidcToEmailLinkingEnabled: false,
+            });
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userId: sessionUser.userId }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+        });
+        test('links via per-org OIDC-to-email linking even when the instance env flag is off', async () => {
+            // No matching OIDC identity → the OIDC-linking gate is skipped; the
+            // user is matched by verified primary email and the org opts in.
+            (
+                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+                oidcLinkingEnabled: false,
+                oidcToEmailLinkingEnabled: true,
+            });
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userId: sessionUser.userId }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+        });
         test('should update openid ', async () => {
             // Mock that identity is found for that openid
             (
@@ -1308,6 +1356,13 @@ describe('UserService', () => {
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
+                organizationSettingsModel: {
+                    get: jest.fn(async () => ({
+                        oidcLinkingEnabled: null,
+                        oidcToEmailLinkingEnabled: null,
+                    })),
+                    update: jest.fn(),
+                } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:
@@ -1377,6 +1432,13 @@ describe('UserService', () => {
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
+                organizationSettingsModel: {
+                    get: jest.fn(async () => ({
+                        oidcLinkingEnabled: null,
+                        oidcToEmailLinkingEnabled: null,
+                    })),
+                    update: jest.fn(),
+                } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:

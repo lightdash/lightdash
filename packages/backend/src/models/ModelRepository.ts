@@ -32,6 +32,7 @@ import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmail
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
+import { OrganizationSettingsModel } from './OrganizationSettingsModel';
 import { OrganizationSsoModel } from './OrganizationSsoModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
@@ -93,6 +94,7 @@ export type ModelManifest = {
     organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
@@ -437,6 +439,13 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getOrganizationSettingsModel(): OrganizationSettingsModel {
+        return this.getModel(
+            'organizationSettingsModel',
+            () => new OrganizationSettingsModel({ database: this.database }),
         );
     }
 

@@ -62,6 +62,7 @@ import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
+import AccountLinkingPanel from '../components/UserSettings/OrganizationSso/AccountLinkingPanel';
 import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
 import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/GenericOidcSsoPanel';
 import GoogleSsoPanel from '../components/UserSettings/OrganizationSso/GoogleSsoPanel';
@@ -503,6 +504,7 @@ const Settings: FC = () => {
                         {/* Google has no per-org credentials; only show the
                             toggle when Google is enabled instance-wide. */}
                         {health?.auth.google.enabled && <GoogleSsoPanel />}
+                        <AccountLinkingPanel />
                     </Stack>
                 ),
             });
