@@ -105,7 +105,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
         selectUnsavedColorPaletteUuid,
     );
     const resolverChartUuid =
-        stagedColorPaletteUuid === null ? undefined : savedChart?.uuid;
+        stagedColorPaletteUuid === null && savedChart?.colorPaletteUuid != null
+            ? undefined
+            : savedChart?.uuid;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
         chartUuid: resolverChartUuid,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
