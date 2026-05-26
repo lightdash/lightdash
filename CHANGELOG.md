@@ -1,3 +1,16 @@
+# [0.3021.0](https://github.com/lightdash/lightdash/compare/0.3020.0...0.3021.0) (2026-05-26)
+
+
+### Bug Fixes
+
+* **ai-agent:** preserve instructions on partial agent updates ([#23510](https://github.com/lightdash/lightdash/issues/23510)) ([#23511](https://github.com/lightdash/lightdash/issues/23511)) ([d9003b3](https://github.com/lightdash/lightdash/commit/d9003b3c12139bf851ca70f4c14b5f37499b854f))
+* ensure Apply button is visible in filter chart tiles popover on smaller screens ([#23502](https://github.com/lightdash/lightdash/issues/23502)) ([a5400b6](https://github.com/lightdash/lightdash/commit/a5400b654a274a4b4dc1cef1841268db8bf3a28b))
+
+
+### Features
+
+* **ee:** ai-writeback — clone repo, run prompt, raise PR ([#23507](https://github.com/lightdash/lightdash/issues/23507)) ([06b6860](https://github.com/lightdash/lightdash/commit/06b68608dc8874b5c35bed64b41ba63c9d558d22))
+
 # [0.3020.0](https://github.com/lightdash/lightdash/compare/0.3019.2...0.3020.0) (2026-05-26)
 
 
