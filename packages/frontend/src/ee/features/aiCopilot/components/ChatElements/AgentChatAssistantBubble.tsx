@@ -1,6 +1,7 @@
 import {
     type AiAgentToolName,
     type AiAgentMessageAssistant,
+    type AiAgentToolCall,
     type AiMcpServer,
     isToolProposeChangeResult,
     type ToolProposeChangeArgs,
@@ -174,6 +175,20 @@ const groupPersistedToolCalls = (
         }
     }
     return groups;
+};
+
+const getPendingPersistedSqlApprovals = (
+    message: AiAgentMessageAssistant,
+): AiAgentToolCall[] => {
+    const resolvedToolCallIds = new Set(
+        message.toolResults.map((result) => result.toolCallId),
+    );
+
+    return message.toolCalls.filter(
+        (toolCall) =>
+            toolCall.toolName === 'runSql' &&
+            !resolvedToolCallIds.has(toolCall.toolCallId),
+    );
 };
 
 const getToolOutputStatus = (toolOutput: unknown) => {
@@ -671,6 +686,28 @@ const AssistantBubbleContent: FC<{
                 );
                 const persistedToolGroups: LiveActivityToolGroup[] =
                     groupPersistedToolCalls(renderableToolCalls);
+                const persistedSqlApprovals =
+                    getPendingPersistedSqlApprovals(message);
+                const pendingApprovalContent =
+                    persistedSqlApprovals.length > 0 ? (
+                        <Stack gap={6}>
+                            {persistedSqlApprovals.map((toolCall) => (
+                                <SqlApprovalCard
+                                    key={toolCall.toolCallId}
+                                    projectUuid={projectUuid}
+                                    agentUuid={agentUuid}
+                                    threadUuid={message.threadUuid}
+                                    toolCallId={toolCall.toolCallId}
+                                    toolArgs={
+                                        toolCall.toolArgs as {
+                                            sql: string;
+                                            limit?: number;
+                                        }
+                                    }
+                                />
+                            ))}
+                        </Stack>
+                    ) : null;
                 return (
                     <>
                         <ImproveContextToolCall
@@ -686,8 +723,20 @@ const AssistantBubbleContent: FC<{
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
                                 mcpServers={mcpServers}
+                                pendingContent={pendingApprovalContent}
                             />
                         )}
+                        {persistedToolGroups.length === 0 &&
+                            pendingApprovalContent && (
+                                <LiveActivityCard
+                                    toolGroups={[]}
+                                    isLive={isStreaming || isPending}
+                                    toolResults={message.toolResults}
+                                    toolCalls={message.toolCalls}
+                                    mcpServers={mcpServers}
+                                    pendingContent={pendingApprovalContent}
+                                />
+                            )}
                         {message.reasoning && message.reasoning.length > 0 && (
                             <ReasoningHistoryRow
                                 texts={toReasoningTexts(
