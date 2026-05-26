@@ -26,6 +26,7 @@ import {
     OrganizationSsoModel,
 } from '../../models/OrganizationSsoModel';
 import { UserModel } from '../../models/UserModel';
+import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
 
 type OrganizationSsoServiceArguments = {
@@ -168,6 +169,25 @@ export class OrganizationSsoService extends BaseService {
         }
     }
 
+    /**
+     * SSO provider URLs (the OIDC discovery document, the Okta domain) are
+     * fetched server-side during issuer discovery, so they must resolve to a
+     * public https address. Rejects localhost, private and internal-network
+     * addresses (DNS-resolved). Validated when the config is saved.
+     */
+    private static async assertPublicSsoUrl(
+        rawUrl: string,
+        label: string,
+    ): Promise<void> {
+        try {
+            await validatePublicHttpUrl(rawUrl);
+        } catch {
+            throw new ParameterError(
+                `${label} must be a valid public https URL — localhost, private and internal network addresses are not allowed.`,
+            );
+        }
+    }
+
     private assertCanManageSso(account: RegisteredAccount): string {
         const organizationUuid = account.organization?.organizationUuid;
         if (!organizationUuid) {
@@ -304,6 +324,13 @@ export class OrganizationSsoService extends BaseService {
             );
         }
 
+        // The Okta domain builds the issuer URL fetched server-side during
+        // discovery — require a public https URL.
+        await OrganizationSsoService.assertPublicSsoUrl(
+            `https://${data.oktaDomain.trim().replace(/^https?:\/\//, '')}`,
+            'Okta domain',
+        );
+
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
         }
@@ -396,6 +423,13 @@ export class OrganizationSsoService extends BaseService {
                 'clientId and metadataDocumentEndpoint are required',
             );
         }
+
+        // The discovery document URL is fetched server-side during discovery —
+        // require a public https URL.
+        await OrganizationSsoService.assertPublicSsoUrl(
+            data.metadataDocumentEndpoint.trim(),
+            'OIDC discovery document URL',
+        );
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
