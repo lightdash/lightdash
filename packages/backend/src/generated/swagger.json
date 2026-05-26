@@ -6169,6 +6169,10 @@
                         "$ref": "#/components/schemas/Record_string.ColumnProperties_",
                         "description": "Column-specific configuration"
                     },
+                    "showRowGrouping": {
+                        "type": "boolean",
+                        "description": "Visually deduplicate repeated row-index dimension values across consecutive\nrows without showing aggregate subtotal rows. When `showSubtotals` is true,\ngrouping is implicitly active and this flag is ignored. Defaults to false."
+                    },
                     "showSubtotalsExpanded": {
                         "type": "boolean",
                         "description": "Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true."
@@ -34951,7 +34955,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3013.0",
+        "version": "0.3018.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

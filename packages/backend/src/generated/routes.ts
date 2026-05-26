@@ -5375,6 +5375,7 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 columns: { ref: 'Record_string.ColumnProperties_' },
+                showRowGrouping: { dataType: 'boolean' },
                 showSubtotalsExpanded: { dataType: 'boolean' },
                 showSubtotals: { dataType: 'boolean' },
                 showResultsTotal: { dataType: 'boolean' },
