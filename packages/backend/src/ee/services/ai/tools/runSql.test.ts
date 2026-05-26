@@ -109,4 +109,23 @@ describe('getRunSql', () => {
         );
         expect(output.metadata?.status).toBe('success');
     });
+
+    it('does not open another approval wait after approval times out', async () => {
+        const waitForSqlApproval = jest.fn().mockResolvedValue('timeout');
+        const { tool, dependencies } = makeTool({ waitForSqlApproval });
+
+        const firstOutput = await executeRunSql(tool, 'tool-call-1');
+        const secondOutput = await executeRunSql(tool, 'tool-call-2');
+
+        expect(firstOutput.metadata?.status).toBe('timeout');
+        expect(secondOutput.metadata?.status).toBe('timeout');
+        expect(secondOutput.result).toContain(
+            'Do not call runSql again in this response',
+        );
+        expect(dependencies.waitForSqlApproval).toHaveBeenCalledTimes(1);
+        expect(dependencies.waitForSqlApproval).toHaveBeenCalledWith(
+            'tool-call-1',
+        );
+        expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+    });
 });
