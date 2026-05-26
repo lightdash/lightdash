@@ -1,3 +1,10 @@
+## [0.3019.2](https://github.com/lightdash/lightdash/compare/0.3019.1...0.3019.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* stringify custom_groups when copying chart versions to previews (SPK-461) ([#23486](https://github.com/lightdash/lightdash/issues/23486)) ([c26b728](https://github.com/lightdash/lightdash/commit/c26b728dbd72c3cd1d8ac340f4fc3d6eed443fb0))
+
 ## [0.3019.1](https://github.com/lightdash/lightdash/compare/0.3019.0...0.3019.1) (2026-05-26)
 
 
