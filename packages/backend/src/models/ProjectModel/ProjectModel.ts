@@ -13,6 +13,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
@@ -20,6 +21,7 @@ import {
     GroupType,
     IdContentMapping,
     isExploreError,
+    normalizeWarehouseCredentials,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -37,6 +39,7 @@ import {
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
+    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -235,6 +238,51 @@ export class ProjectModel {
                     AthenaAuthenticationType.IAM_ROLE)
         ) {
             return incompleteConfig;
+        }
+        // DuckLake nests secrets inside catalog/dataPath — see stripDucklakeNestedSensitive.
+        if (
+            incompleteConfig.type === WarehouseTypes.DUCKDB &&
+            completeConfig.type === WarehouseTypes.DUCKDB &&
+            incompleteConfig.connectionType === DuckdbConnectionType.DUCKLAKE &&
+            completeConfig.connectionType === DuckdbConnectionType.DUCKLAKE
+        ) {
+            const mergeNested = (
+                incomplete: Record<string, AnyType>,
+                complete: Record<string, AnyType>,
+                fields: readonly string[],
+            ): Record<string, AnyType> => {
+                if (incomplete.type !== complete.type) return incomplete;
+                const result = { ...incomplete };
+                fields.forEach((f) => {
+                    const cur = result[f];
+                    if ((cur === undefined || cur === '') && complete[f]) {
+                        result[f] = complete[f];
+                    }
+                });
+                return result;
+            };
+            const mergedCatalog = mergeNested(
+                incompleteConfig.catalog as Record<string, AnyType>,
+                completeConfig.catalog as Record<string, AnyType>,
+                ['user', 'password'],
+            );
+            const mergedDataPath = mergeNested(
+                incompleteConfig.dataPath as Record<string, AnyType>,
+                completeConfig.dataPath as Record<string, AnyType>,
+                [
+                    'accessKeyId',
+                    'secretAccessKey',
+                    'hmacKeyId',
+                    'hmacSecret',
+                    'connectionString',
+                    'accountKey',
+                ],
+            );
+            return {
+                ...incompleteConfig,
+                catalog: mergedCatalog,
+                dataPath: mergedDataPath,
+            } as T;
         }
         return {
             ...incompleteConfig,
@@ -982,11 +1030,13 @@ export class ProjectModel {
                 }
                 let sensitiveCredentials: CreateWarehouseCredentials;
                 try {
-                    sensitiveCredentials = JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            project.encrypted_credentials,
-                        ),
-                    ) as CreateWarehouseCredentials;
+                    sensitiveCredentials = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                project.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    );
                 } catch (e) {
                     throw new UnexpectedServerError(
                         'Failed to load warehouse credentials',
@@ -1106,11 +1156,13 @@ export class ProjectModel {
         }
 
         try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(
-                    orgCredentials.warehouse_connection,
-                ),
-            ) as CreateWarehouseCredentials;
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        orgCredentials.warehouse_connection,
+                    ),
+                ) as CreateWarehouseCredentials,
+            );
         } catch (e) {
             throw new UnexpectedServerError(
                 'Failed to load organization warehouse credentials',
@@ -1140,10 +1192,21 @@ export class ProjectModel {
               ) as WarehouseCredentials)
             : undefined;
 
+        const scrubbedCredentials =
+            nonSensitiveCredentials &&
+            sensitiveCredentials &&
+            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
+            sensitiveCredentials.connectionType ===
+                DuckdbConnectionType.DUCKLAKE
+                ? (stripDucklakeNestedSensitive(
+                      sensitiveCredentials,
+                  ) as WarehouseCredentials)
+                : nonSensitiveCredentials;
+
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                nonSensitiveCredentials,
+                scrubbedCredentials,
             );
 
         return {
@@ -2252,10 +2315,11 @@ export class ProjectModel {
         }
 
         try {
-            const credentials = JSON.parse(
-                this.encryptionUtil.decrypt(row.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-            // Store in cache
+            const credentials = normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials,
+            );
             warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;
         } catch (e) {
@@ -2293,9 +2357,11 @@ export class ProjectModel {
 
             let credentials: CreateWarehouseCredentials;
             try {
-                credentials = JSON.parse(
-                    this.encryptionUtil.decrypt(row.encrypted_credentials),
-                ) as CreateWarehouseCredentials;
+                credentials = normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                );
             } catch {
                 return false;
             }

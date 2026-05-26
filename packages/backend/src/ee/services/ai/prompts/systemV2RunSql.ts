@@ -18,7 +18,7 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.ATHENA]:
         'Athena SQL dialect (Presto-compatible). Use SEQUENCE() + UNNEST for arrays, approx_percentile for percentiles, regexp_like for regex.',
     [WarehouseTypes.DUCKDB]:
-        'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex.',
+        'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
 
 export const getRunSqlSection = (

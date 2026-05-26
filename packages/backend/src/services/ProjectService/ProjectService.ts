@@ -55,6 +55,7 @@ import {
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
@@ -1360,9 +1361,44 @@ export class ProjectService extends BaseService {
                 };
             }
             case WarehouseTypes.DUCKDB: {
+                if (
+                    credentials.connectionType ===
+                    DuckdbConnectionType.MOTHERDUCK
+                ) {
+                    return {
+                        ...credentials,
+                        token: '',
+                    };
+                }
+                const { catalog, dataPath } = credentials;
+                const clearedCatalog =
+                    catalog.type === 'postgres'
+                        ? { ...catalog, user: '', password: '' }
+                        : catalog;
+                let clearedDataPath: typeof dataPath = dataPath;
+                if (dataPath.type === 's3') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        accessKeyId: '',
+                        secretAccessKey: '',
+                    };
+                } else if (dataPath.type === 'gcs') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        hmacKeyId: '',
+                        hmacSecret: '',
+                    };
+                } else if (dataPath.type === 'azure') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        connectionString: '',
+                        accountKey: '',
+                    };
+                }
                 return {
                     ...credentials,
-                    token: '',
+                    catalog: clearedCatalog,
+                    dataPath: clearedDataPath,
                 };
             }
 
@@ -6182,7 +6218,10 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
-                return credentials.database;
+                return credentials.connectionType ===
+                    DuckdbConnectionType.DUCKLAKE
+                    ? (credentials.catalogAlias ?? 'ducklake')
+                    : credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }

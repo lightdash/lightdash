@@ -1,5 +1,8 @@
 import {
     DimensionType,
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     QueryExecutionContext,
     WarehouseTypes,
     WeekDay,
@@ -779,6 +782,7 @@ describe('DuckdbWarehouseClient', () => {
             name: 'pass token in connection string for MotherDuck',
             credentials: {
                 type: WarehouseTypes.DUCKDB as const,
+                connectionType: DuckdbConnectionType.MOTHERDUCK as const,
                 database: 'my_database',
                 schema: 'main',
                 token: 'my_motherduck_token',
@@ -819,6 +823,7 @@ describe('DuckdbWarehouseClient', () => {
             () =>
                 new DuckdbWarehouseClient({
                     type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.MOTHERDUCK,
                     database: 'my_database',
                     schema: 'main',
                     token: '',
@@ -831,6 +836,7 @@ describe('DuckdbWarehouseClient', () => {
     it('should expose the configured start of week', () => {
         const client = new DuckdbWarehouseClient({
             type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
             database: 'analytics',
             schema: 'main',
             token: 'motherduck_token',
@@ -860,6 +866,7 @@ describe('DuckdbWarehouseClient', () => {
 
         const client = new DuckdbWarehouseClient({
             type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
             database: 'analytics',
             schema: 'main',
             token: 'motherduck_token',
@@ -879,6 +886,202 @@ describe('DuckdbWarehouseClient', () => {
                     },
                 },
             },
+        });
+    });
+
+    describe('DuckLake bootstrap', () => {
+        const captureRunMock = () =>
+            jest.fn().mockResolvedValue({
+                getRowObjects: async () => [],
+            });
+
+        const collectStatements = (runMock: jest.Mock): string[] =>
+            runMock.mock.calls.map((c) => c[0] as string);
+
+        it('attaches a postgres-catalog + S3 DuckLake in the correct order', async () => {
+            const runMock = captureRunMock();
+            const streamMock = jest.fn(async () =>
+                getMockStreamResult([[]], []),
+            );
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
+                schema: 'main',
+                catalogAlias: 'ducklake',
+                catalog: {
+                    type: DucklakeCatalogType.POSTGRES,
+                    host: 'pg.example.com',
+                    port: 5432,
+                    database: 'catalog',
+                    user: 'ducklake_user',
+                    password: 'p@ss',
+                },
+                dataPath: {
+                    type: DucklakeDataPathType.S3,
+                    url: 's3://my-bucket/path/',
+                    accessKeyId: 'AKIAEXAMPLE',
+                    secretAccessKey: 'SECRETEXAMPLE',
+                    region: 'us-east-1',
+                },
+            });
+
+            await client.runQuery('SELECT 1');
+            const stmts = collectStatements(runMock);
+            const joined = stmts.join('\n');
+
+            // No explicit INSTALL/LOAD in DuckLake mode — rely on autoload.
+            expect(joined).not.toMatch(/INSTALL httpfs/);
+            expect(joined).not.toMatch(/LOAD httpfs/);
+
+            // Hardening flips autoload to TRUE for DuckLake.
+            expect(stmts).toEqual(
+                expect.arrayContaining([
+                    'SET autoinstall_known_extensions = true;',
+                    'SET autoload_known_extensions = true;',
+                    'SET allow_community_extensions = false;',
+                    'SET allow_unredacted_secrets = false;',
+                ]),
+            );
+
+            const catalogIdx = stmts.findIndex((s) =>
+                /__lightdash_ducklake_catalog/.test(s),
+            );
+            const dataIdx = stmts.findIndex((s) =>
+                /__lightdash_ducklake_data/.test(s),
+            );
+            const duckLakeSecretIdx = stmts.findIndex((s) =>
+                /SECRET __lightdash_ducklake\s/.test(s),
+            );
+            const attachIdx = stmts.findIndex((s) =>
+                /^ATTACH 'ducklake:__lightdash_ducklake'/.test(s),
+            );
+
+            expect(catalogIdx).toBeGreaterThanOrEqual(0);
+            expect(dataIdx).toBeGreaterThan(catalogIdx);
+            expect(duckLakeSecretIdx).toBeGreaterThan(dataIdx);
+            expect(attachIdx).toBeGreaterThan(duckLakeSecretIdx);
+
+            expect(stmts[catalogIdx]).toMatch(/TYPE postgres/);
+            expect(stmts[catalogIdx]).toMatch(/HOST 'pg.example.com'/);
+            expect(stmts[catalogIdx]).toMatch(/PASSWORD 'p@ss'/);
+
+            expect(stmts[dataIdx]).toMatch(/TYPE s3/);
+            expect(stmts[dataIdx]).toMatch(/KEY_ID 'AKIAEXAMPLE'/);
+            expect(stmts[dataIdx]).toMatch(/SCOPE 's3:\/\/my-bucket\/path\/'/);
+        });
+
+        it('uses inline ATTACH (no ducklake secret) for SQLite catalog + local data path', async () => {
+            const runMock = captureRunMock();
+            const streamMock = jest.fn(async () =>
+                getMockStreamResult([[]], []),
+            );
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
+                schema: 'main',
+                catalog: {
+                    type: DucklakeCatalogType.SQLITE,
+                    path: '/tmp/ducklake.sqlite',
+                },
+                dataPath: {
+                    type: DucklakeDataPathType.LOCAL,
+                    path: '/tmp/ducklake-data',
+                },
+            });
+
+            await client.runQuery('SELECT 1');
+            const stmts = collectStatements(runMock);
+            const joined = stmts.join('\n');
+
+            expect(joined).not.toMatch(/__lightdash_ducklake_catalog/);
+            expect(joined).not.toMatch(/__lightdash_ducklake_data/);
+            expect(joined).not.toMatch(/SECRET __lightdash_ducklake\s/);
+            expect(
+                stmts.some((s) =>
+                    /^ATTACH 'ducklake:sqlite:\/tmp\/ducklake\.sqlite' AS "ducklake" \(DATA_PATH '\/tmp\/ducklake-data', READ_ONLY\);/.test(
+                        s,
+                    ),
+                ),
+            ).toBe(true);
+        });
+
+        it('rejects user SQL that contains ATTACH even in DuckLake mode', async () => {
+            const runMock = captureRunMock();
+            const streamMock = jest.fn(async () =>
+                getMockStreamResult([[]], []),
+            );
+            const extractStatements = jest.fn(async () => ({
+                count: 1,
+                prepare: async () => ({
+                    statementType: 25, // ATTACH
+                    destroySync: jest.fn(),
+                }),
+            }));
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock, {
+                    extractStatements,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
+                schema: 'main',
+                catalog: {
+                    type: DucklakeCatalogType.SQLITE,
+                    path: '/tmp/c.sqlite',
+                },
+                dataPath: {
+                    type: DucklakeDataPathType.LOCAL,
+                    path: '/tmp/d',
+                },
+            });
+
+            await expect(
+                client.runQuery("ATTACH 'ducklake:evil' AS bad;"),
+            ).rejects.toThrow(/only SELECT statements are allowed/);
+        });
+
+        it('keeps autoload disabled for non-DuckLake modes', async () => {
+            const runMock = captureRunMock();
+            const streamMock = jest.fn(async () =>
+                getMockStreamResult([[]], []),
+            );
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
+            });
+
+            await client.runQuery('SELECT 1');
+            const stmts = collectStatements(runMock);
+
+            expect(stmts).toEqual(
+                expect.arrayContaining([
+                    'SET autoinstall_known_extensions = false;',
+                    'SET autoload_known_extensions = false;',
+                ]),
+            );
+            // Regression: existing modes still explicitly INSTALL/LOAD httpfs.
+            expect(stmts).toEqual(
+                expect.arrayContaining(['INSTALL httpfs;', 'LOAD httpfs;']),
+            );
         });
     });
 });

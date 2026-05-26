@@ -4,6 +4,7 @@ import {
     CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
     getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -139,6 +140,7 @@ function getMockCredentials(
         case SupportedDbtAdapter.DUCKDB:
             return {
                 type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
                 database: ':memory:',
                 schema: 'main',
                 token: '',

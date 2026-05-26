@@ -30,6 +30,11 @@ export enum WarehouseTypes {
     DUCKDB = 'duckdb',
 }
 
+export enum DuckdbConnectionType {
+    MOTHERDUCK = 'motherduck',
+    DUCKLAKE = 'ducklake',
+}
+
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;
@@ -217,8 +222,9 @@ export type AthenaCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
-export type CreateDuckdbCredentials = {
+export type CreateDuckdbMotherduckCredentials = {
     type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.MOTHERDUCK;
     database: string;
     schema: string;
     token: string;
@@ -227,10 +233,216 @@ export type CreateDuckdbCredentials = {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
 };
-export type DuckdbCredentials = Omit<
-    CreateDuckdbCredentials,
+export type DuckdbMotherduckCredentials = Omit<
+    CreateDuckdbMotherduckCredentials,
     SensitiveCredentialsFieldNames
 >;
+
+export enum DucklakeCatalogType {
+    POSTGRES = 'postgres',
+    SQLITE = 'sqlite',
+    DUCKDB = 'duckdb',
+}
+
+export enum DucklakeDataPathType {
+    S3 = 's3',
+    GCS = 'gcs',
+    AZURE = 'azure',
+    LOCAL = 'local',
+}
+
+export type CreateDucklakeCatalogPostgres = {
+    type: DucklakeCatalogType.POSTGRES;
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+};
+export type DucklakeCatalogPostgres = Omit<
+    CreateDucklakeCatalogPostgres,
+    'user' | 'password'
+>;
+
+export type CreateDucklakeCatalogSqlite = {
+    type: DucklakeCatalogType.SQLITE;
+    path: string;
+};
+export type DucklakeCatalogSqlite = CreateDucklakeCatalogSqlite;
+
+export type CreateDucklakeCatalogDuckdb = {
+    type: DucklakeCatalogType.DUCKDB;
+    path: string;
+};
+export type DucklakeCatalogDuckdb = CreateDucklakeCatalogDuckdb;
+
+export type CreateDucklakeCatalog =
+    | CreateDucklakeCatalogPostgres
+    | CreateDucklakeCatalogSqlite
+    | CreateDucklakeCatalogDuckdb;
+
+export type DucklakeCatalog =
+    | DucklakeCatalogPostgres
+    | DucklakeCatalogSqlite
+    | DucklakeCatalogDuckdb;
+
+export type CreateDucklakeDataPathS3 = {
+    type: DucklakeDataPathType.S3;
+    url: string;
+    endpoint?: string;
+    region?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    forcePathStyle?: boolean;
+    useSsl?: boolean;
+};
+export type DucklakeDataPathS3 = Omit<
+    CreateDucklakeDataPathS3,
+    'accessKeyId' | 'secretAccessKey'
+>;
+
+export type CreateDucklakeDataPathGcs = {
+    type: DucklakeDataPathType.GCS;
+    url: string;
+    hmacKeyId?: string;
+    hmacSecret?: string;
+};
+export type DucklakeDataPathGcs = Omit<
+    CreateDucklakeDataPathGcs,
+    'hmacKeyId' | 'hmacSecret'
+>;
+
+export type CreateDucklakeDataPathAzure = {
+    type: DucklakeDataPathType.AZURE;
+    url: string;
+    connectionString?: string;
+    accountName?: string;
+    accountKey?: string;
+};
+export type DucklakeDataPathAzure = Omit<
+    CreateDucklakeDataPathAzure,
+    'connectionString' | 'accountKey'
+>;
+
+export type CreateDucklakeDataPathLocal = {
+    type: DucklakeDataPathType.LOCAL;
+    path: string;
+};
+export type DucklakeDataPathLocal = CreateDucklakeDataPathLocal;
+
+export type CreateDucklakeDataPath =
+    | CreateDucklakeDataPathS3
+    | CreateDucklakeDataPathGcs
+    | CreateDucklakeDataPathAzure
+    | CreateDucklakeDataPathLocal;
+
+export type DucklakeDataPath =
+    | DucklakeDataPathS3
+    | DucklakeDataPathGcs
+    | DucklakeDataPathAzure
+    | DucklakeDataPathLocal;
+
+export type CreateDuckdbDucklakeCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.DUCKLAKE;
+    catalog: CreateDucklakeCatalog;
+    dataPath: CreateDucklakeDataPath;
+    schema: string;
+    catalogAlias?: string;
+    threads?: number;
+    requireUserCredentials?: boolean;
+    startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
+};
+
+export type DuckdbDucklakeCredentials = Omit<
+    CreateDuckdbDucklakeCredentials,
+    'catalog' | 'dataPath'
+> & {
+    catalog: DucklakeCatalog;
+    dataPath: DucklakeDataPath;
+};
+
+export type CreateDuckdbCredentials =
+    | CreateDuckdbMotherduckCredentials
+    | CreateDuckdbDucklakeCredentials;
+
+export type DuckdbCredentials =
+    | DuckdbMotherduckCredentials
+    | DuckdbDucklakeCredentials;
+
+/**
+ * Rows created before the connectionType field was introduced are
+ * MotherDuck-shaped DuckDB credentials. Default the field at decrypt time
+ * so the discriminated union narrows correctly without a data migration.
+ */
+export const normalizeWarehouseCredentials = <
+    T extends CreateWarehouseCredentials,
+>(
+    credentials: T,
+): T => {
+    if (
+        credentials.type === WarehouseTypes.DUCKDB &&
+        (credentials as { connectionType?: DuckdbConnectionType })
+            .connectionType === undefined
+    ) {
+        return {
+            ...credentials,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+        };
+    }
+    return credentials;
+};
+
+/**
+ * Top-level sensitive-field stripping does not reach into the nested
+ * catalog/dataPath objects, so call this after the generic strip to
+ * scrub nested credentials from a CreateDuckdbDucklakeCredentials.
+ */
+export const stripDucklakeNestedSensitive = (
+    credentials: CreateDuckdbDucklakeCredentials,
+): DuckdbDucklakeCredentials => {
+    const stripCatalog = (catalog: CreateDucklakeCatalog): DucklakeCatalog => {
+        switch (catalog.type) {
+            case DucklakeCatalogType.POSTGRES: {
+                const { user, password, ...rest } = catalog;
+                return rest;
+            }
+            case DucklakeCatalogType.SQLITE:
+            case DucklakeCatalogType.DUCKDB:
+                return catalog;
+            default:
+                return catalog;
+        }
+    };
+    const stripDataPath = (
+        dataPath: CreateDucklakeDataPath,
+    ): DucklakeDataPath => {
+        switch (dataPath.type) {
+            case DucklakeDataPathType.S3: {
+                const { accessKeyId, secretAccessKey, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.GCS: {
+                const { hmacKeyId, hmacSecret, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.AZURE: {
+                const { connectionString, accountKey, ...rest } = dataPath;
+                return rest;
+            }
+            case DucklakeDataPathType.LOCAL:
+                return dataPath;
+            default:
+                return dataPath;
+        }
+    };
+    return {
+        ...credentials,
+        catalog: stripCatalog(credentials.catalog),
+        dataPath: stripDataPath(credentials.dataPath),
+    };
+};
 
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
