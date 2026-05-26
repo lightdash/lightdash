@@ -80,7 +80,7 @@
         "date-fns": "4.1.0",
         "dayjs": "1.11.10",
         "dompurify": "3.4.0",
-        "echarts": "5.6.0",
+        "echarts": "6.1.0",
         "echarts-6": "npm:echarts@6.0.0",
         "echarts-for-react": "3.0.2",
         "echarts-for-react-6": "npm:echarts-for-react@3.0.1",
