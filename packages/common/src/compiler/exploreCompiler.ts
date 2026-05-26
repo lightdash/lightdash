@@ -454,7 +454,8 @@ export class ExploreCompiler {
                                 );
 
                             const isTimeIntervalBaseDimensionVisible =
-                                dimension.timeInterval &&
+                                (dimension.timeInterval ||
+                                    dimension.customTimeInterval) &&
                                 dimension.timeIntervalBaseDimensionName &&
                                 expandedFields
                                     ? expandedFields.includes(
