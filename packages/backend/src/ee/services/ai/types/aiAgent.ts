@@ -29,6 +29,7 @@ import {
     ListKnowledgeDocumentsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
+    ProposeWritebackFn,
     ReadContentFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
@@ -75,6 +76,7 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    enableAiWriteback: boolean;
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
@@ -133,6 +135,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
+    proposeWriteback: ProposeWritebackFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     loadSkill: LoadAgentSkillFn;

@@ -39,6 +39,7 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    DbtProjectType,
     Explore,
     ExploreCompiler,
     FeatureFlags,
@@ -201,6 +202,7 @@ import {
     GetSavedChartFn,
     ListExploresFn,
     ListWarehouseTablesFn,
+    ProposeWritebackFn,
     ReadContentFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
@@ -235,6 +237,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
+import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -281,6 +284,7 @@ type AiAgentServiceDependencies = {
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
     aiAgentContentValidation: AiAgentContentValidation;
+    aiWritebackService: AiWritebackService;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -462,6 +466,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
+    private readonly aiWritebackService: AiWritebackService;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -517,6 +523,7 @@ export class AiAgentService extends BaseService {
             dependencies.aiOrganizationSettingsService;
         this.shareService = dependencies.shareService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
+        this.aiWritebackService = dependencies.aiWritebackService;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -5021,6 +5028,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
+        const proposeWriteback: ProposeWritebackFn = (args) =>
+            wrapSentryTransaction('AiAgent.proposeWriteback', {}, async () => {
+                const project = await this.projectModel.get(projectUuid);
+                if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
+                    throw new ParameterError(
+                        "This project's dbt connection is not a GitHub repository, so writeback is not available. Tell the user the project must be connected to GitHub to use writeback.",
+                    );
+                }
+                const [owner, repo] =
+                    project.dbtConnection.repository.split('/');
+                if (!owner || !repo) {
+                    throw new ParameterError(
+                        `Could not parse owner/repo from dbt connection repository "${project.dbtConnection.repository}".`,
+                    );
+                }
+                return this.aiWritebackService.run(user, projectUuid, {
+                    owner,
+                    repo,
+                    prompt: args.prompt,
+                });
+            });
+
         return {
             listExplores,
             getExplore,
@@ -5047,6 +5076,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             createChange,
+            proposeWriteback,
             getExploreCompiler,
         };
     }
@@ -5148,6 +5178,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             getExploreCompiler,
             createChange,
+            proposeWriteback,
         } = this.getAiAgentDependencies(user, prompt);
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -5235,6 +5266,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiAgentRevamp,
             });
+        const { enabled: aiWritebackEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiWriteback,
+            });
         const availableSkills = agentRevampEnabled
             ? await BuiltInSkills.getAiAgentSkills()
             : [];
@@ -5263,6 +5299,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
+            enableAiWriteback: aiWritebackEnabled,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -5316,6 +5353,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             getExploreCompiler,
             createChange,
+            proposeWriteback,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,

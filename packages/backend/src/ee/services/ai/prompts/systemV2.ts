@@ -9,6 +9,7 @@ import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
+import { AI_WRITEBACK_SECTION } from './systemV2AiWriteback';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
@@ -25,6 +26,7 @@ export const getSystemPromptV2 = (args: {
     date?: string;
     enableDataAccess?: boolean;
     enableSelfImprovement?: boolean;
+    enableAiWriteback?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -35,6 +37,7 @@ export const getSystemPromptV2 = (args: {
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableSelfImprovement = false,
+        enableAiWriteback = false,
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
@@ -109,6 +112,10 @@ export const getSystemPromptV2 = (args: {
         '{{self_improvement_section}}',
         enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
     )
+        .replace(
+            '{{ai_writeback_section}}',
+            enableAiWriteback ? AI_WRITEBACK_SECTION : '',
+        )
         .replace(
             '{{data_access_section}}',
             enableDataAccess

@@ -180,6 +180,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, context }) =>

@@ -6,6 +6,7 @@ import {
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
+    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     CacheMetadata,
@@ -267,3 +268,7 @@ export type RecordSqlApprovalFn = (
 export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;
+
+export type ProposeWritebackFn = (args: {
+    prompt: string;
+}) => Promise<AiWritebackRunResult>;
