@@ -510,7 +510,7 @@
                     "type": "string"
                 }
             },
-            "required": ["hidden", "order", "name", "uuid"],
+            "required": ["order", "name", "uuid"],
             "type": "object"
         },
         "DashboardTileAsCode": {

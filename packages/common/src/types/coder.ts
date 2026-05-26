@@ -231,7 +231,7 @@ export type DashboardTabAsCode = {
      * @minimum 0
      */
     order: number;
-    hidden: DashboardTab['hidden'];
+    hidden?: DashboardTab['hidden'];
 };
 
 export type DashboardAsCode = Omit<

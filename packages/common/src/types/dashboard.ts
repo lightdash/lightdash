@@ -192,7 +192,7 @@ export type DashboardTab = {
      * @minimum 0
      */
     order: number;
-    hidden: boolean;
+    hidden?: boolean;
 };
 
 export type DashboardTabWithUrls = DashboardTab & {
