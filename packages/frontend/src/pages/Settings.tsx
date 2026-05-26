@@ -65,6 +65,7 @@ import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
 import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/GenericOidcSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
+import OneLoginSsoPanel from '../components/UserSettings/OrganizationSso/OneLoginSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -497,6 +498,7 @@ const Settings: FC = () => {
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
                         <GenericOidcSsoPanel />
+                        <OneLoginSsoPanel />
                     </Stack>
                 ),
             });
@@ -1100,6 +1102,26 @@ const Settings: FC = () => {
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
                                             leftSection={
                                                 <MantineIcon icon={IconClock} />
+                                            }
+                                        />
+                                    </Can>
+
+                                    <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Preview settings"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/previewsConfig`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconUserCode}
+                                                />
                                             }
                                         />
                                     </Can>

@@ -18100,6 +18100,94 @@
                     }
                 ]
             },
+            "Pick_OneLoginSsoConfig.oauth2Issuer-or-oauth2ClientId_": {
+                "properties": {
+                    "oauth2ClientId": {
+                        "type": "string"
+                    },
+                    "oauth2Issuer": {
+                        "type": "string"
+                    }
+                },
+                "required": ["oauth2ClientId", "oauth2Issuer"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OneLoginSsoConfigSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_OneLoginSsoConfig.oauth2Issuer-or-oauth2ClientId_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+                    },
+                    {
+                        "properties": {
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hasClientSecret"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiOneLoginSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OneLoginSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertOneLoginSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OneLoginSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpsertOneLoginSsoConfig": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "oauth2ClientSecret": {
+                                "type": "string",
+                                "description": "When omitted on update, the stored secret is preserved. Required on create."
+                            },
+                            "oauth2ClientId": {
+                                "type": "string"
+                            },
+                            "oauth2Issuer": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["oauth2ClientId", "oauth2Issuer"],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+                    }
+                ]
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -25172,6 +25260,61 @@
                     }
                 },
                 "required": ["compileJobUuid", "projectUuid"],
+                "type": "object"
+            },
+            "PreviewExpirationProjectSettings": {
+                "properties": {
+                    "maxPreviewExpirationHours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultPreviewExpirationHours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "maxPreviewExpirationHours",
+                    "defaultPreviewExpirationHours",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_PreviewExpirationProjectSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PreviewExpirationProjectSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiPreviewExpirationProjectSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_PreviewExpirationProjectSettings_"
+            },
+            "UpdatePreviewExpirationProjectSettings": {
+                "properties": {
+                    "maxPreviewExpirationHours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultPreviewExpirationHours": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "maxPreviewExpirationHours",
+                    "defaultPreviewExpirationHours"
+                ],
                 "type": "object"
             },
             "UpdateSchedulerSettings": {
@@ -34955,7 +35098,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3018.0",
+        "version": "0.3019.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -40122,6 +40265,108 @@
                 },
                 "description": "Removes the current organization's generic OIDC SSO configuration.",
                 "summary": "Delete generic OIDC SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/sso/oneLogin": {
+            "get": {
+                "operationId": "GetOneLoginSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOneLoginSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's OneLogin SSO configuration (sensitive\nfields are not included).",
+                "summary": "Get OneLogin SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertOneLoginSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertOneLoginSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's OneLogin SSO\nconfiguration. Omit `oauth2ClientSecret` to preserve the previously\nstored secret on updates.",
+                "summary": "Upsert OneLogin SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertOneLoginSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteOneLoginSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's OneLogin SSO configuration.",
+                "summary": "Delete OneLogin SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
@@ -48037,6 +48282,96 @@
                                 },
                                 "required": ["copyContent", "name"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/previews-config": {
+            "get": {
+                "operationId": "getProjectPreviewExpirationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPreviewExpirationProjectSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get preview project expiration settings for a project",
+                "summary": "Get preview expiration settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateProjectPreviewExpirationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPreviewExpirationProjectSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update preview project expiration settings for a project",
+                "summary": "Update preview expiration settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePreviewExpirationProjectSettings"
                             }
                         }
                     }

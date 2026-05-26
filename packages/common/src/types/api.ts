@@ -153,6 +153,7 @@ import {
     type AzureAdSsoConfigSummary,
     type GenericOidcSsoConfigSummary,
     type OktaSsoConfigSummary,
+    type OneLoginSsoConfigSummary,
 } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
@@ -168,6 +169,7 @@ import type {
     ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
+import { type ApiPreviewExpirationProjectSettingsResponse } from './previewExpirationProjectSettings';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -938,6 +940,7 @@ type ApiResults =
     | AzureAdSsoConfigSummary
     | OktaSsoConfigSummary
     | GenericOidcSsoConfigSummary
+    | OneLoginSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring
@@ -1062,6 +1065,7 @@ type ApiResults =
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
+    | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']

@@ -2,6 +2,7 @@ export enum OrganizationSsoProvider {
     AZUREAD = 'azuread',
     OKTA = 'okta',
     GENERIC_OIDC = 'oidc',
+    ONELOGIN = 'oneLogin',
 }
 
 export const isOrganizationSsoProvider = (
@@ -146,4 +147,37 @@ export type ApiGenericOidcSsoConfigResponse = {
 export type ApiUpsertGenericOidcSsoConfigResponse = {
     status: 'ok';
     results: GenericOidcSsoConfigSummary;
+};
+
+export type OneLoginSsoConfig = {
+    oauth2Issuer: string;
+    oauth2ClientId: string;
+    oauth2ClientSecret: string;
+};
+
+export type OneLoginSsoConfigSummary = Pick<
+    OneLoginSsoConfig,
+    'oauth2Issuer' | 'oauth2ClientId'
+> &
+    OrganizationSsoMethodFlags & {
+        hasClientSecret: boolean;
+    };
+
+export type UpsertOneLoginSsoConfig = {
+    oauth2Issuer: string;
+    oauth2ClientId: string;
+    /**
+     * When omitted on update, the stored secret is preserved. Required on create.
+     */
+    oauth2ClientSecret?: string;
+} & Partial<OrganizationSsoMethodFlags>;
+
+export type ApiOneLoginSsoConfigResponse = {
+    status: 'ok';
+    results: OneLoginSsoConfigSummary | null;
+};
+
+export type ApiUpsertOneLoginSsoConfigResponse = {
+    status: 'ok';
+    results: OneLoginSsoConfigSummary;
 };

@@ -1,3 +1,24 @@
+## [0.3019.2](https://github.com/lightdash/lightdash/compare/0.3019.1...0.3019.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* stringify custom_groups when copying chart versions to previews (SPK-461) ([#23486](https://github.com/lightdash/lightdash/issues/23486)) ([c26b728](https://github.com/lightdash/lightdash/commit/c26b728dbd72c3cd1d8ac340f4fc3d6eed443fb0))
+
+## [0.3019.1](https://github.com/lightdash/lightdash/compare/0.3019.0...0.3019.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* **prod-7857:** restore space palette cascade for untouched saved charts ([#23485](https://github.com/lightdash/lightdash/issues/23485)) ([8ddf79b](https://github.com/lightdash/lightdash/commit/8ddf79bc2012769b4bd8234f9737d72d630446da)), closes [#23479](https://github.com/lightdash/lightdash/issues/23479)
+
+# [0.3019.0](https://github.com/lightdash/lightdash/compare/0.3018.0...0.3019.0) (2026-05-26)
+
+
+### Features
+
+* admin-configurable preview expiration per project (SPK-459) ([#23131](https://github.com/lightdash/lightdash/issues/23131)) ([f2b019c](https://github.com/lightdash/lightdash/commit/f2b019c690b3ef3e43f9b881d316a2450af038db))
+
 # [0.3018.0](https://github.com/lightdash/lightdash/compare/0.3017.1...0.3018.0) (2026-05-26)
 
 

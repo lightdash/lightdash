@@ -2,6 +2,7 @@ import {
     AzureAdSsoConfig,
     GenericOidcSsoConfig,
     OktaSsoConfig,
+    OneLoginSsoConfig,
     OrganizationSsoMethodFlags,
     OrganizationSsoProvider,
     UnexpectedServerError,
@@ -19,6 +20,7 @@ type ProviderConfigTypeMap = {
     [OrganizationSsoProvider.AZUREAD]: AzureAdSsoConfig;
     [OrganizationSsoProvider.OKTA]: OktaSsoConfig;
     [OrganizationSsoProvider.GENERIC_OIDC]: GenericOidcSsoConfig;
+    [OrganizationSsoProvider.ONELOGIN]: OneLoginSsoConfig;
 };
 
 export type OrganizationSsoMethod<P extends OrganizationSsoProvider> = {

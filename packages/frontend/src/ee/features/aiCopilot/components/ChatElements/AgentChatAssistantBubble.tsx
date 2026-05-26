@@ -1,6 +1,7 @@
 import {
     type AiAgentToolName,
     type AiAgentMessageAssistant,
+    type AiAgentToolCall,
     type AiMcpServer,
     isToolProposeChangeResult,
     type ToolProposeChangeArgs,
@@ -176,6 +177,20 @@ const groupPersistedToolCalls = (
     return groups;
 };
 
+const getPendingPersistedSqlApprovals = (
+    message: AiAgentMessageAssistant,
+): AiAgentToolCall[] => {
+    const resolvedToolCallIds = new Set(
+        message.toolResults.map((result) => result.toolCallId),
+    );
+
+    return message.toolCalls.filter(
+        (toolCall) =>
+            toolCall.toolName === 'runSql' &&
+            !resolvedToolCallIds.has(toolCall.toolCallId),
+    );
+};
+
 const getToolOutputStatus = (toolOutput: unknown) => {
     const metadata = (toolOutput as { metadata?: unknown } | undefined)
         ?.metadata;
@@ -186,6 +201,20 @@ const getToolOutputStatus = (toolOutput: unknown) => {
 
     const status = (metadata as { status?: unknown }).status;
     return typeof status === 'string' ? status : undefined;
+};
+
+const getRunSqlTimeoutErrorMessage = (
+    message: AiAgentMessageAssistant,
+): string | null => {
+    const hasRunSqlTimeout = message.toolResults.some(
+        (result) =>
+            result.toolName === 'runSql' &&
+            getToolOutputStatus(result) === 'timeout',
+    );
+
+    return hasRunSqlTimeout
+        ? 'SQL approval timed out before the query could run. Approve the SQL prompt or retry when ready.'
+        : null;
 };
 
 const getRunSqlLinkStateFromArgs = (
@@ -329,6 +358,15 @@ const AssistantBubbleContent: FC<{
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
     const streamingError = streamingState?.error;
+    const runSqlTimeoutErrorMessage = getRunSqlTimeoutErrorMessage(message);
+    const displayErrorMessage =
+        runSqlTimeoutErrorMessage ||
+        streamingError ||
+        message.errorMessage ||
+        'Failed to generate response. Please try again.';
+    const displayErrorTitle = runSqlTimeoutErrorMessage
+        ? 'SQL approval timed out'
+        : 'Something went wrong';
     const sqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
         message,
         streamParts: streamingState?.parts,
@@ -412,12 +450,10 @@ const AssistantBubbleContent: FC<{
                         >
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
-                                    Something went wrong
+                                    {displayErrorTitle}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {streamingError ||
-                                        message.errorMessage ||
-                                        'Failed to generate response. Please try again.'}
+                                    {displayErrorMessage}
                                 </Text>
                             </Stack>
                         </Alert>
@@ -671,6 +707,28 @@ const AssistantBubbleContent: FC<{
                 );
                 const persistedToolGroups: LiveActivityToolGroup[] =
                     groupPersistedToolCalls(renderableToolCalls);
+                const persistedSqlApprovals =
+                    getPendingPersistedSqlApprovals(message);
+                const pendingApprovalContent =
+                    persistedSqlApprovals.length > 0 ? (
+                        <Stack gap={6}>
+                            {persistedSqlApprovals.map((toolCall) => (
+                                <SqlApprovalCard
+                                    key={toolCall.toolCallId}
+                                    projectUuid={projectUuid}
+                                    agentUuid={agentUuid}
+                                    threadUuid={message.threadUuid}
+                                    toolCallId={toolCall.toolCallId}
+                                    toolArgs={
+                                        toolCall.toolArgs as {
+                                            sql: string;
+                                            limit?: number;
+                                        }
+                                    }
+                                />
+                            ))}
+                        </Stack>
+                    ) : null;
                 return (
                     <>
                         <ImproveContextToolCall
@@ -686,8 +744,20 @@ const AssistantBubbleContent: FC<{
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
                                 mcpServers={mcpServers}
+                                pendingContent={pendingApprovalContent}
                             />
                         )}
+                        {persistedToolGroups.length === 0 &&
+                            pendingApprovalContent && (
+                                <LiveActivityCard
+                                    toolGroups={[]}
+                                    isLive={isStreaming || isPending}
+                                    toolResults={message.toolResults}
+                                    toolCalls={message.toolCalls}
+                                    mcpServers={mcpServers}
+                                    pendingContent={pendingApprovalContent}
+                                />
+                            )}
                         {message.reasoning && message.reasoning.length > 0 && (
                             <ReasoningHistoryRow
                                 texts={toReasoningTexts(

@@ -1,1 +1,1 @@
-FROM ghcr.io/browserless/chromium:v2.38.2
+FROM ghcr.io/browserless/chromium:v2.49.0
