@@ -56,6 +56,7 @@ import {
 } from './gridUtils';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
+import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
 import { useGridStyles } from './useGridStyles';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -271,21 +272,32 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [currentCols, handleUpdateTiles],
     );
 
-    const handleDragStart = useCallback(() => setIsInteracting(true), []);
+    const { start: startAutoScroll, stop: stopAutoScroll } =
+        useAutoScrollOnDrag();
+
+    const handleDragStart = useCallback(() => {
+        setIsInteracting(true);
+        startAutoScroll();
+    }, [startAutoScroll]);
     const handleDragStop = useCallback(
         (layout: Layout[]) => {
+            stopAutoScroll();
             setIsInteracting(false);
             void handleUpdateTilesWithScaling(layout);
         },
-        [handleUpdateTilesWithScaling],
+        [handleUpdateTilesWithScaling, stopAutoScroll],
     );
-    const handleResizeStart = useCallback(() => setIsInteracting(true), []);
+    const handleResizeStart = useCallback(() => {
+        setIsInteracting(true);
+        startAutoScroll();
+    }, [startAutoScroll]);
     const handleResizeStop = useCallback(
         (layout: Layout[]) => {
+            stopAutoScroll();
             setIsInteracting(false);
             void handleUpdateTilesWithScaling(layout);
         },
-        [handleUpdateTilesWithScaling],
+        [handleUpdateTilesWithScaling, stopAutoScroll],
     );
     const handleBreakpointChange = useCallback(
         (_: string, cols: number) => setCurrentCols(cols),
