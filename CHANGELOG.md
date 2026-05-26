@@ -1,3 +1,10 @@
+# [0.3018.0](https://github.com/lightdash/lightdash/compare/0.3017.1...0.3018.0) (2026-05-26)
+
+
+### Features
+
+* validate organization SSO provider URLs are public https (PROD-7895) ([#23476](https://github.com/lightdash/lightdash/issues/23476)) ([ba48b96](https://github.com/lightdash/lightdash/commit/ba48b96b4ff7374c252f762ff5143229ace28dcf))
+
 ## [0.3017.1](https://github.com/lightdash/lightdash/compare/0.3017.0...0.3017.1) (2026-05-25)
 
 
