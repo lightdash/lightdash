@@ -14,6 +14,7 @@ import {
     getValidAiQueryLimit,
     isExploreError,
     JobPollTimeoutError,
+    mcpRunAiWritebackArgsSchema,
     mcpToolListExploresArgsSchema,
     MissingConfigError,
     NotFoundError,
@@ -110,6 +111,7 @@ import {
 import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
+import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import {
     registerAppResource,
     registerAppTool,
@@ -134,6 +136,7 @@ export enum McpToolName {
     RUN_SQL = 'run_sql',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
+    RUN_AI_WRITEBACK = 'run_ai_writeback',
 }
 
 type McpServiceArguments = {
@@ -154,6 +157,7 @@ type McpServiceArguments = {
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiAgentService: AiAgentService;
+    aiWritebackService: AiWritebackService;
 };
 
 export type ExtraContext = {
@@ -240,6 +244,8 @@ export class McpService extends BaseService {
 
     private aiAgentService: AiAgentService;
 
+    private aiWritebackService: AiWritebackService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -262,6 +268,7 @@ export class McpService extends BaseService {
         featureFlagService,
         aiOrganizationSettingsService,
         aiAgentService,
+        aiWritebackService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -281,6 +288,7 @@ export class McpService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.aiAgentService = aiAgentService;
+        this.aiWritebackService = aiWritebackService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
@@ -1519,6 +1527,82 @@ export class McpService extends BaseService {
                     ctx,
                     JSON.stringify(verifiedContent, null, 2),
                 );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.RUN_AI_WRITEBACK,
+            {
+                description: mcpRunAiWritebackArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpRunAiWritebackArgsSchema,
+                ),
+                outputSchema: {
+                    output: z
+                        .string()
+                        .describe('The text output produced by the agent.'),
+                    exitCode: z
+                        .number()
+                        .int()
+                        .describe("The sandbox command's exit status."),
+                    prUrl: z
+                        .string()
+                        .nullable()
+                        .describe(
+                            'URL of the pull request opened from the agent changes, or null when the agent made no file changes.',
+                        ),
+                },
+                annotations: {
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: false,
+                },
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.RUN_AI_WRITEBACK,
+                    projectUuid,
+                );
+
+                try {
+                    const result = await this.aiWritebackService.run(
+                        user,
+                        projectUuid,
+                        { prompt: args.prompt },
+                    );
+
+                    const summary = result.prUrl
+                        ? `AI writeback complete. Pull request opened: ${result.prUrl}`
+                        : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        `${summary}\n\n${result.output}`,
+                        {
+                            output: result.output,
+                            exitCode: result.exitCode,
+                            prUrl: result.prUrl,
+                        },
+                    );
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error running AI writeback: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
             },
         );
 
