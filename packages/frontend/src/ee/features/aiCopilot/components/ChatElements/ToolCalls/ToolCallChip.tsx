@@ -29,6 +29,7 @@ export const ToolCallChip: FC<ToolCallChipProps> = ({
     ...rest
 }) => (
     <Badge
+        component="span"
         color="gray"
         variant="light"
         size="xs"
@@ -43,6 +44,7 @@ export const ToolCallChip: FC<ToolCallChipProps> = ({
     >
         {typeof children === 'string' ? (
             <TruncatedText
+                inline
                 maxWidth={maxWidth}
                 fz="inherit"
                 c="inherit"
