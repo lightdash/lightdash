@@ -39,7 +39,6 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
-    DbtProjectType,
     Explore,
     ExploreCompiler,
     FeatureFlags,
@@ -5029,26 +5028,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         const proposeWriteback: ProposeWritebackFn = (args) =>
-            wrapSentryTransaction('AiAgent.proposeWriteback', {}, async () => {
-                const project = await this.projectModel.get(projectUuid);
-                if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
-                    throw new ParameterError(
-                        "This project's dbt connection is not a GitHub repository, so writeback is not available. Tell the user the project must be connected to GitHub to use writeback.",
-                    );
-                }
-                const [owner, repo] =
-                    project.dbtConnection.repository.split('/');
-                if (!owner || !repo) {
-                    throw new ParameterError(
-                        `Could not parse owner/repo from dbt connection repository "${project.dbtConnection.repository}".`,
-                    );
-                }
-                return this.aiWritebackService.run(user, projectUuid, {
-                    owner,
-                    repo,
+            wrapSentryTransaction('AiAgent.proposeWriteback', {}, () =>
+                this.aiWritebackService.run(user, projectUuid, {
                     prompt: args.prompt,
-                });
-            });
+                }),
+            );
 
         return {
             listExplores,
