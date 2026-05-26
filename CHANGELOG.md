@@ -1,3 +1,10 @@
+# [0.3019.0](https://github.com/lightdash/lightdash/compare/0.3018.0...0.3019.0) (2026-05-26)
+
+
+### Features
+
+* admin-configurable preview expiration per project (SPK-459) ([#23131](https://github.com/lightdash/lightdash/issues/23131)) ([f2b019c](https://github.com/lightdash/lightdash/commit/f2b019c690b3ef3e43f9b881d316a2450af038db))
+
 # [0.3018.0](https://github.com/lightdash/lightdash/compare/0.3017.1...0.3018.0) (2026-05-26)
 
 
