@@ -153,6 +153,7 @@ import {
     type AzureAdSsoConfigSummary,
     type GenericOidcSsoConfigSummary,
     type OktaSsoConfigSummary,
+    type OneLoginSsoConfigSummary,
 } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
@@ -939,6 +940,7 @@ type ApiResults =
     | AzureAdSsoConfigSummary
     | OktaSsoConfigSummary
     | GenericOidcSsoConfigSummary
+    | OneLoginSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

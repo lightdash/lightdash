@@ -795,6 +795,74 @@ describe('UserService', () => {
         });
     });
 
+    describe('getLoginOptions per-org OneLogin discovery', () => {
+        const oneLoginMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.ONELOGIN as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.onelogin.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                oneLogin: {
+                    ...lightdashConfigMock.auth.oneLogin,
+                    loginPath: '/login/oneLogin',
+                },
+            },
+        };
+
+        test('per-org OneLogin match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oneLoginMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'oneLogin'],
+            });
+        });
+
+        test('brand-new user matching per-org OneLogin → forceRedirect to /login/oneLogin', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oneLoginMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/oneLogin?login_hint=newbie%40acme.com',
+                showOptions: ['oneLogin'],
+            });
+        });
+    });
+
     describe('loginWithOpenId', () => {
         test('should throw error if provider not allowed', async () => {
             await expect(

@@ -127,9 +127,12 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                 />
             ) : null;
         case OpenIdIdentityIssuerType.ONELOGIN:
-            return health.data?.auth.oneLogin.enabled ? (
+            return health.data?.auth.oneLogin.enabled || forceShow ? (
                 <ThirdPartySignInButtonBase
-                    loginPath={health.data.auth.oneLogin.loginPath}
+                    loginPath={
+                        health.data?.auth.oneLogin.loginPath ??
+                        '/login/oneLogin'
+                    }
                     redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}

@@ -9,6 +9,8 @@ import {
     NotFoundError,
     OktaSsoConfig,
     OktaSsoConfigSummary,
+    OneLoginSsoConfig,
+    OneLoginSsoConfigSummary,
     OrganizationSsoMethodFlags,
     OrganizationSsoProvider,
     ParameterError,
@@ -16,6 +18,7 @@ import {
     UpsertAzureAdSsoConfig,
     UpsertGenericOidcSsoConfig,
     UpsertOktaSsoConfig,
+    UpsertOneLoginSsoConfig,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -71,6 +74,18 @@ const toGenericOidcSummary = (
     metadataDocumentEndpoint: method.config.metadataDocumentEndpoint,
     scopes: method.config.scopes,
     hasClientSecret: !!method.config.clientSecret,
+    enabled: method.enabled,
+    overrideEmailDomains: method.overrideEmailDomains,
+    emailDomains: method.emailDomains,
+    allowPassword: method.allowPassword,
+});
+
+const toOneLoginSummary = (
+    method: OrganizationSsoMethod<OrganizationSsoProvider.ONELOGIN>,
+): OneLoginSsoConfigSummary => ({
+    oauth2Issuer: method.config.oauth2Issuer,
+    oauth2ClientId: method.config.oauth2ClientId,
+    hasClientSecret: !!method.config.oauth2ClientSecret,
     enabled: method.enabled,
     overrideEmailDomains: method.overrideEmailDomains,
     emailDomains: method.emailDomains,
@@ -493,6 +508,103 @@ export class OrganizationSsoService extends BaseService {
         await this.organizationSsoModel.delete(
             organizationUuid,
             OrganizationSsoProvider.GENERIC_OIDC,
+        );
+    }
+
+    async getOneLoginConfig(
+        account: RegisteredAccount,
+    ): Promise<OneLoginSsoConfigSummary | null> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const method = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        return method ? toOneLoginSummary(method) : null;
+    }
+
+    async upsertOneLoginConfig(
+        account: RegisteredAccount,
+        data: UpsertOneLoginSsoConfig,
+    ): Promise<OneLoginSsoConfigSummary> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+
+        if (!data.oauth2ClientId?.trim() || !data.oauth2Issuer?.trim()) {
+            throw new ParameterError(
+                'oauth2ClientId and oauth2Issuer are required',
+            );
+        }
+
+        // The issuer builds the token/userinfo URLs fetched server-side during
+        // the callback — require a public https URL.
+        await OrganizationSsoService.assertPublicSsoUrl(
+            data.oauth2Issuer.trim(),
+            'OneLogin issuer URL',
+        );
+
+        if (data.emailDomains && data.emailDomains.length > 0) {
+            OrganizationSsoService.validateEmailDomains(data.emailDomains);
+        }
+
+        const existing = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+
+        const clientSecret =
+            data.oauth2ClientSecret?.trim() ||
+            existing?.config.oauth2ClientSecret;
+        if (!clientSecret) {
+            throw new ParameterError('oauth2ClientSecret is required');
+        }
+
+        const config: OneLoginSsoConfig = {
+            oauth2Issuer: data.oauth2Issuer.trim(),
+            oauth2ClientId: data.oauth2ClientId.trim(),
+            oauth2ClientSecret: clientSecret,
+        };
+
+        const flags: Partial<OrganizationSsoMethodFlags> = {
+            enabled: data.enabled,
+            overrideEmailDomains: data.overrideEmailDomains,
+            emailDomains: data.emailDomains,
+            allowPassword: data.allowPassword,
+        };
+
+        await this.organizationSsoModel.upsert(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
+            config,
+            flags,
+            account.user.userUuid,
+        );
+
+        const refreshed = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        if (!refreshed) {
+            throw new UnexpectedServerError(
+                'Failed to read back upserted SSO configuration',
+            );
+        }
+        return toOneLoginSummary(refreshed);
+    }
+
+    async deleteOneLoginConfig(account: RegisteredAccount): Promise<void> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const existing = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        if (!existing) {
+            throw new NotFoundError('No OneLogin SSO configuration found');
+        }
+        await this.organizationSsoModel.delete(
+            organizationUuid,
+            OrganizationSsoProvider.ONELOGIN,
         );
     }
 
