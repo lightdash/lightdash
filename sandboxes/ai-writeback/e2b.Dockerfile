@@ -24,10 +24,6 @@ RUN npm install -g sfw
 
 RUN sfw npm install -g @anthropic-ai/claude-code
 
-# pnpm for installing the Lightdash CLI
-ENV PNPM_HOME="/usr/local/pnpm"
-ENV PATH="${PNPM_HOME}:${PATH}"
-RUN sfw npm install -g pnpm@10.33.0 \
-    && sfw pnpm add -g @lightdash/cli
+RUN sfw npm install -g @lightdash/cli
 
 WORKDIR /home/user

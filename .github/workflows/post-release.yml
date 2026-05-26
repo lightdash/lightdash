@@ -623,18 +623,18 @@ jobs:
         run: pnpm exec tsx assign-tag.ts
 
   # ============================================================================
-  # Job 5: Agentic Writeback E2B template — publish a tag matching this release
+  # Job 5: AI Writeback E2B template — publish a tag matching this release
   # ============================================================================
   # Mirrors the data-app template jobs above. Two paths:
-  #   build  — full E2B template rebuild when sandboxes/agentic-writeback/**
+  #   build  — full E2B template rebuild when sandboxes/ai-writeback/**
   #            changed since the previous release.
   #   retag  — fast path that re-tags the existing :latest build with the new
   #            release version, so every released version still has a pinned
   #            tag without burning E2B build minutes on a no-op rebuild.
   # The build is self-contained (no root workspace deps), so there is no
   # "Install root deps" step.
-  agentic-writeback-template-resolve:
-    name: Resolve agentic writeback E2B template build action
+  ai-writeback-template-resolve:
+    name: Resolve AI writeback E2B template build action
     runs-on: depot-ubuntu-24.04-4
     outputs:
       action: ${{ steps.plan.outputs.action }}
@@ -663,7 +663,7 @@ jobs:
             ACTION="build"
             SOURCE_TAG=""
           else
-            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/agentic-writeback/' || true)
+            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/ai-writeback/' || true)
             if [ -n "$CHANGED" ]; then
               echo "Template changed since $PREVIOUS_TAG — performing full build"
               echo "$CHANGED"
@@ -679,10 +679,10 @@ jobs:
           echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
           echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
 
-  agentic-writeback-template-build:
-    name: Build agentic writeback E2B template (${{ matrix.region }})
-    needs: agentic-writeback-template-resolve
-    if: needs.agentic-writeback-template-resolve.outputs.action == 'build'
+  ai-writeback-template-build:
+    name: Build AI writeback E2B template (${{ matrix.region }})
+    needs: ai-writeback-template-resolve
+    if: needs.ai-writeback-template-resolve.outputs.action == 'build'
     runs-on: depot-ubuntu-24.04-4
     strategy:
       fail-fast: false
@@ -691,8 +691,8 @@ jobs:
     env:
       E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
       E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-agentic-writeback
-      E2B_TEMPLATE_TAG: ${{ needs.agentic-writeback-template-resolve.outputs.primary_tag }}
+      E2B_TEMPLATE_NAME: lightdash-ai-writeback
+      E2B_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
       E2B_TEMPLATE_EXTRA_TAGS: latest
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -715,17 +715,17 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Install sandbox deps
-        working-directory: sandboxes/agentic-writeback
+        working-directory: sandboxes/ai-writeback
         run: sfw pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build & publish E2B template
-        working-directory: sandboxes/agentic-writeback
+        working-directory: sandboxes/ai-writeback
         run: pnpm run build
 
-  agentic-writeback-template-retag:
-    name: Re-tag existing agentic writeback E2B build (${{ matrix.region }})
-    needs: agentic-writeback-template-resolve
-    if: needs.agentic-writeback-template-resolve.outputs.action == 'retag'
+  ai-writeback-template-retag:
+    name: Re-tag existing AI writeback E2B build (${{ matrix.region }})
+    needs: ai-writeback-template-resolve
+    if: needs.ai-writeback-template-resolve.outputs.action == 'retag'
     runs-on: depot-ubuntu-24.04-4
     strategy:
       fail-fast: false
@@ -734,9 +734,9 @@ jobs:
     env:
       E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
       E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-agentic-writeback
-      E2B_TEMPLATE_TAG: ${{ needs.agentic-writeback-template-resolve.outputs.primary_tag }}
-      E2B_TEMPLATE_SOURCE_TAG: ${{ needs.agentic-writeback-template-resolve.outputs.source_tag }}
+      E2B_TEMPLATE_NAME: lightdash-ai-writeback
+      E2B_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
+      E2B_TEMPLATE_SOURCE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.source_tag }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -758,9 +758,9 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Install sandbox deps
-        working-directory: sandboxes/agentic-writeback
+        working-directory: sandboxes/ai-writeback
         run: sfw pnpm install --frozen-lockfile --prefer-offline
 
       - name: Re-tag :latest build with release version
-        working-directory: sandboxes/agentic-writeback
+        working-directory: sandboxes/ai-writeback
         run: pnpm exec tsx assign-tag.ts

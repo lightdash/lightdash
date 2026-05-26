@@ -1360,6 +1360,62 @@ export type DataAppEvent =
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent;
 
+export type AiWritebackStartedEvent = BaseTrack & {
+    event: 'ai_writeback.started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+    };
+};
+
+export type AiWritebackCompletedEvent = BaseTrack & {
+    event: 'ai_writeback.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+        exitCode: number;
+        // Whether the agent changed any files. When false no PR is opened.
+        hasChanges: boolean;
+        prCreated: boolean;
+        totalDurationMs: number;
+    };
+};
+
+// Pipeline stage that was running when an AI writeback run failed.
+export type AiWritebackFailureStage =
+    | 'install'
+    | 'sandbox'
+    | 'clone'
+    | 'agent'
+    | 'commit'
+    | 'push'
+    | 'pull_request';
+
+export type AiWritebackFailedEvent = BaseTrack & {
+    event: 'ai_writeback.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+        failureStage: AiWritebackFailureStage;
+        errorMessage: string;
+        totalDurationMs: number;
+    };
+};
+
+export type AiWritebackEvent =
+    | AiWritebackStartedEvent
+    | AiWritebackCompletedEvent
+    | AiWritebackFailedEvent;
+
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
     userId: string;
@@ -2129,6 +2185,7 @@ type TypedEvent =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | DataAppEvent
+    | AiWritebackEvent
     | PinnedListUpdated
     | FavoriteToggled
     | DownloadCsv

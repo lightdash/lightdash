@@ -127,7 +127,7 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
-    agenticWritebackService: unknown;
+    aiWritebackService: unknown;
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
@@ -1194,10 +1194,10 @@ export class ServiceRepository
         );
     }
 
-    public getAgenticWritebackService<
-        AgenticWritebackServiceImplT,
-    >(): AgenticWritebackServiceImplT {
-        return this.getService('agenticWritebackService');
+    public getAiWritebackService<
+        AiWritebackServiceImplT,
+    >(): AiWritebackServiceImplT {
+        return this.getService('aiWritebackService');
     }
 
     public getAppGenerateService<

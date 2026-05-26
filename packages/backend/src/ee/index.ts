@@ -28,13 +28,13 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
-import { AgenticWritebackService } from './services/AgenticWritebackService/AgenticWritebackService';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiService } from './services/AiService/AiService';
+import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
@@ -81,12 +81,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            agenticWritebackService: ({ context, models }) =>
-                new AgenticWritebackService({
+            aiWritebackService: ({ context, models }) =>
+                new AiWritebackService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({

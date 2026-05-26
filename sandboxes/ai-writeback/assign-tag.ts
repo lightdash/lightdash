@@ -2,14 +2,14 @@
 /**
  * Stamps a new tag onto an existing E2B template build without rebuilding.
  *
- * Used by the agentic-writeback-template GitHub workflow at release time when
+ * Used by the ai-writeback-template GitHub workflow at release time when
  * no template files changed since the previous release — instead of burning
  * E2B build minutes for a no-op rebuild, we just point the new version's tag
  * at the build that `:latest` (or another source tag) already references.
  *
  * Inputs (env):
  *   E2B_API_KEY               — required
- *   E2B_TEMPLATE_NAME         — required (e.g. lightdash-agentic-writeback)
+ *   E2B_TEMPLATE_NAME         — required (e.g. lightdash-ai-writeback)
  *   E2B_TEMPLATE_TAG          — required, the new tag to stamp (e.g. 0.2870.0)
  *   E2B_TEMPLATE_SOURCE_TAG   — required, the source build identifier (e.g. latest)
  *   E2B_TEMPLATE_EXTRA_TAGS   — optional, comma-separated additional tags

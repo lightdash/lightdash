@@ -209,13 +209,13 @@ export enum FeatureFlags {
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
-     * Enable the (in-progress) agentic writeback feature. Spins up an e2b
+     * Enable the (in-progress) AI writeback feature. Spins up an e2b
      * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
      * user-supplied prompt against it synchronously. Off by default — gated
      * while the sandbox runtime and write-back semantics are still being
      * built out.
      */
-    AgenticWriteback = 'agentic-writeback',
+    AiWriteback = 'ai-writeback',
 }
 
 export type FeatureFlag = {
