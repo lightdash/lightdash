@@ -5,13 +5,11 @@ import { type ApiSuccess } from '../../types/api/success';
  * cloned into a sandbox, the prompt is executed by the Claude Code CLI, and a
  * pull request is opened against the repo if the agent changes any files.
  *
- * `owner` is the GitHub account (organization or user) that owns the repo, and
- * `repo` is the repository name. The organization's connected GitHub App must
- * have access to `owner/repo`.
+ * The target repository (owner, repo) and the dbt project sub-folder are
+ * resolved server-side from the Lightdash project's dbt connection — identified
+ * by the `projectUuid` path parameter — so the caller only supplies the prompt.
  */
 export type AiWritebackRequestBody = {
-    owner: string;
-    repo: string;
     prompt: string;
 };
 

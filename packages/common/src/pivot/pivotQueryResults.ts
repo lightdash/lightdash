@@ -260,12 +260,15 @@ const getColSpanByKey = (
  * a flat row shape per output row.
  *
  * INVARIANT: `allCombinedData.length === indexValues.length`. The
- * `convertSqlPivotedRowsToPivotData` caller emits one row per input warehouse
- * row (1-to-1), and a separate post-processing step in that caller attaches
- * passthrough dimension values onto each output row positionally by index.
- * If this function ever starts coalescing/dropping rows, the positional
- * merge will silently associate passthrough values with the wrong rows.
- * The caller has a dev-mode warn that catches this during testing.
+ * `convertSqlPivotedRowsToPivotData` caller emits `rows.length` output rows
+ * in the standard pivot path, or `rows.length * baseMetricsArray.length`
+ * when `metricsAsRows: true` (each input row fans out to one output row per
+ * metric). A separate post-processing step in that caller attaches
+ * passthrough dimension values onto each output row positionally, dividing
+ * the output index by the fanout factor to land back on the originating
+ * input row. If this function ever starts coalescing/dropping rows, the
+ * positional merge will silently associate passthrough values with the
+ * wrong rows. The caller has a dev-mode warn that catches this during testing.
  */
 const combinedRetrofit = (
     data: PivotData,
@@ -1725,17 +1728,31 @@ export const convertSqlPivotedRowsToPivotData = ({
     // to the wrong row. The dev-mode warn below catches that during testing
     // without crashing prod for users.
     if (passthroughDimensions.length > 0) {
+        // In metricsAsRows mode, combinedRetrofit fans each input row out to
+        // baseMetricsArray.length output rows (one per metric). The positional
+        // merge below must divide the output index by that factor to land back
+        // on the originating input row — otherwise each metric row reads the
+        // passthrough value from a *different* input row, surfacing as
+        // mismatched images / cross-field template values for repeated row
+        // dims (PROD-7873 follow-up to PR #23452).
+        const inputRowsPerOutputRow =
+            pivotConfig.metricsAsRows && baseMetricsArray.length > 0
+                ? baseMetricsArray.length
+                : 1;
+        const expectedOutputLength = rows.length * inputRowsPerOutputRow;
         if (
             process.env.NODE_ENV !== 'production' &&
-            retrofitted.retrofitData.allCombinedData.length !== rows.length
+            retrofitted.retrofitData.allCombinedData.length !==
+                expectedOutputLength
         ) {
             // eslint-disable-next-line no-console
             console.warn(
                 `[pivot] passthrough positional merge invariant violated: ` +
                     `allCombinedData.length=${retrofitted.retrofitData.allCombinedData.length} ` +
-                    `!= rows.length=${rows.length}. Passthrough values may be ` +
-                    `attached to the wrong rows. Investigate combinedRetrofit ` +
-                    `for row coalescing.`,
+                    `!= rows.length*metricsFanout=${expectedOutputLength} ` +
+                    `(rows.length=${rows.length}, fanout=${inputRowsPerOutputRow}). ` +
+                    `Passthrough values may be attached to the wrong rows. ` +
+                    `Investigate combinedRetrofit for row coalescing.`,
             );
         }
         retrofitted.retrofitData.pivotColumnInfo = [
@@ -1750,7 +1767,8 @@ export const convertSqlPivotedRowsToPivotData = ({
         retrofitted.retrofitData.allCombinedData =
             retrofitted.retrofitData.allCombinedData.map(
                 (combinedRow, rowIndex) => {
-                    const inputRow = rows[rowIndex];
+                    const inputRow =
+                        rows[Math.floor(rowIndex / inputRowsPerOutputRow)];
                     if (!inputRow) return combinedRow;
                     const enriched: ResultRow = { ...combinedRow };
                     for (const dim of passthroughDimensions) {

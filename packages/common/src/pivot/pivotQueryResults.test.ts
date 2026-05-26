@@ -1,4 +1,10 @@
 import { type ItemsMap } from '../types/field';
+import { type ResultRow } from '../types/results';
+import {
+    SortByDirection,
+    VizAggregationOptions,
+    VizIndexType,
+} from '../visualizations/types';
 import {
     convertSqlPivotedRowsToPivotData,
     pivotQueryResults,
@@ -2022,5 +2028,159 @@ describe('passthrough dimensions (PROD-7873)', () => {
             (c) => c.columnType === 'passthrough',
         );
         expect(passthroughEntries).toEqual([]);
+    });
+
+    // PROD-7933 regression. Before the fix, the post-retrofit merge did
+    // `rows[outputRowIndex]` — but in `metricsAsRows: true` mode each input row
+    // fans out to `baseMetricsArray.length` output rows, so the off-by-N
+    // shifted passthrough values onto unrelated rows. Customer-visible symptom
+    // was four metric rows of the same product carrying four *different*
+    // product images.
+    it('metricsAsRows: each metric row carries the passthrough value of its originating input row', () => {
+        // Two input rows × two metrics → four output rows. If the merge ever
+        // regresses back to `rows[rowIndex]`:
+        //   - output 0 (row 0, metric 0) reads rows[0] → image_a ✓ (coincidence)
+        //   - output 1 (row 0, metric 1) reads rows[1] → image_b ✗
+        //   - output 2 (row 1, metric 0) reads rows[2] → undefined ✗
+        //   - output 3 (row 1, metric 1) reads rows[3] → undefined ✗
+        // The assertions below pin down all four positions, so any regression
+        // (off-by-one, undefined-on-overflow, swapped pairing) will fail loudly.
+        const rows: ResultRow[] = [
+            {
+                orders_order_date_year: {
+                    value: {
+                        raw: '2025-01-01T00:00:00Z',
+                        formatted: '2025',
+                    },
+                },
+                orders_status_image_url: {
+                    value: {
+                        raw: 'https://placehold.co/60?text=A',
+                        formatted: 'https://placehold.co/60?text=A',
+                    },
+                },
+                payments_total_revenue_any_bank_transfer: {
+                    value: { raw: 100, formatted: '100' },
+                },
+                orders_total_order_amount_any_bank_transfer: {
+                    value: { raw: 200, formatted: '200' },
+                },
+            },
+            {
+                orders_order_date_year: {
+                    value: {
+                        raw: '2024-01-01T00:00:00Z',
+                        formatted: '2024',
+                    },
+                },
+                orders_status_image_url: {
+                    value: {
+                        raw: 'https://placehold.co/60?text=B',
+                        formatted: 'https://placehold.co/60?text=B',
+                    },
+                },
+                payments_total_revenue_any_bank_transfer: {
+                    value: { raw: 50, formatted: '50' },
+                },
+                orders_total_order_amount_any_bank_transfer: {
+                    value: { raw: 75, formatted: '75' },
+                },
+            },
+        ];
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails: {
+                totalColumnCount: 1,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: 'payments_payment_method',
+                            },
+                        ],
+                        referenceField: 'payments_total_revenue',
+                        pivotColumnName:
+                            'payments_total_revenue_any_bank_transfer',
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: 'payments_payment_method',
+                            },
+                        ],
+                        referenceField: 'orders_total_order_amount',
+                        pivotColumnName:
+                            'orders_total_order_amount_any_bank_transfer',
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: 'orders_order_date_year',
+                    },
+                ],
+                groupByColumns: [{ reference: 'payments_payment_method' }],
+                passthroughDimensions: [
+                    { reference: 'orders_status_image_url' },
+                ],
+                sortBy: [
+                    {
+                        direction: SortByDirection.DESC,
+                        reference: 'orders_order_date_year',
+                    },
+                ],
+                originalColumns: {},
+            },
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: true,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_payment_method',
+                    'payments_total_revenue',
+                    'orders_total_order_amount',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // Sanity: two input rows × two metrics = four output rows.
+        expect(result.retrofitData.allCombinedData).toHaveLength(4);
+
+        // Output rows 0 and 1 are both expansions of input row 0 (year=2025)
+        // — both must carry image A. Output rows 2 and 3 are both expansions
+        // of input row 1 (year=2024) — both must carry image B.
+        const imageUrls = result.retrofitData.allCombinedData.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (r) => (r.orders_status_image_url as any)?.value?.raw,
+        );
+        expect(imageUrls).toEqual([
+            'https://placehold.co/60?text=A',
+            'https://placehold.co/60?text=A',
+            'https://placehold.co/60?text=B',
+            'https://placehold.co/60?text=B',
+        ]);
+
+        // The passthrough column is also registered with the right marker so
+        // the frontend hides it via TanStack columnVisibility (PR #23452 flow).
+        const passthroughEntries = result.retrofitData.pivotColumnInfo.filter(
+            (c) => c.columnType === 'passthrough',
+        );
+        expect(passthroughEntries).toEqual([
+            {
+                fieldId: 'orders_status_image_url',
+                baseId: 'orders_status_image_url',
+                underlyingId: undefined,
+                columnType: 'passthrough',
+            },
+        ]);
     });
 });
