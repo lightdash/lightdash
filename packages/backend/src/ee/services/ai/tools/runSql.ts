@@ -77,11 +77,20 @@ export const getRunSql = ({
     recordSqlApproval,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
-}: Dependencies) =>
-    tool({
+}: Dependencies) => {
+    let sqlApprovalTimedOut = false;
+
+    return tool({
         description: toolRunSqlArgsSchema.description,
         inputSchema: toolRunSqlArgsSchema,
         execute: async ({ sql, limit }, { toolCallId }) => {
+            if (sqlApprovalTimedOut) {
+                return {
+                    result: 'A previous SQL approval timed out in this response. Do not call runSql again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+                    metadata: { status: 'timeout' },
+                };
+            }
+
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
             try {
@@ -146,6 +155,7 @@ export const getRunSql = ({
                     };
                 }
                 if (decision === 'timeout') {
+                    sqlApprovalTimedOut = true;
                     await renderState({ kind: 'timeout', sql });
                     return {
                         result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
@@ -268,3 +278,4 @@ export const getRunSql = ({
             }
         },
     });
+};
