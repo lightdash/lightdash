@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
@@ -223,9 +224,21 @@ export class AiWritebackService extends BaseService {
     ): Promise<AiWritebackRunResult> {
         await this.assertEnabled(user);
 
-        // Confirm the project exists (and the user can read it) before
-        // spending money on a sandbox.
-        await this.projectModel.getSummary(projectUuid);
+        // Confirm the project exists and the user can view it before spending
+        // money on a sandbox. Permission is enforced with an explicit CASL
+        // check via the audited ability.
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');

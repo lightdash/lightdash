@@ -18,6 +18,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { z } from 'zod';
 import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
@@ -26,6 +27,28 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
+
+// owner/repo are interpolated into the clone URL, so validate their shape
+// against GitHub's naming rules before use.
+const aiWritebackBodySchema = z.object({
+    // GitHub account login: 1-39 chars, alphanumeric or single internal
+    // hyphens, no leading/trailing hyphen.
+    owner: z
+        .string()
+        .regex(
+            /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/,
+            'A valid GitHub owner is required',
+        ),
+    // Repository name: 1-100 chars, alphanumeric/hyphen/underscore/period,
+    // and not "." or "..".
+    repo: z
+        .string()
+        .regex(
+            /^(?!\.{1,2}$)[a-zA-Z0-9._-]{1,100}$/,
+            'A valid GitHub repository name is required',
+        ),
+    prompt: z.string().trim().min(1, 'prompt is required'),
+});
 
 @Route('/api/v1/ee/projects/{projectUuid}/ai-writeback')
 @Hidden()
@@ -54,30 +77,18 @@ export class AiWritebackController extends BaseController {
         @Body() body: AiWritebackRequestBody,
     ): Promise<ApiAiWritebackResponse> {
         assertRegisteredAccount(req.account);
-        if (!body.prompt || body.prompt.trim().length === 0) {
-            throw new ParameterError('prompt is required');
-        }
-        // owner/repo are interpolated into the clone URL, so validate their
-        // shape against GitHub's naming rules before use.
-        // owner: GitHub account login (1-39 chars, alphanumeric or single
-        // hyphens, no leading/trailing hyphen).
-        const ownerRegex =
-            /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
-        if (!body.owner || !ownerRegex.test(body.owner)) {
-            throw new ParameterError('A valid GitHub owner is required');
-        }
-        // repo: 1-100 chars, alphanumeric/hyphen/underscore/period, not . or ..
-        const repoRegex = /^(?!\.{1,2}$)[a-zA-Z0-9._-]{1,100}$/;
-        if (!body.repo || !repoRegex.test(body.repo)) {
+        const parsed = aiWritebackBodySchema.safeParse(body);
+        if (!parsed.success) {
             throw new ParameterError(
-                'A valid GitHub repository name is required',
+                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
             );
         }
+        const { owner, repo, prompt } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run(
             toSessionUser(req.account),
             projectUuid,
-            { owner: body.owner, repo: body.repo, prompt: body.prompt },
+            { owner, repo, prompt },
         );
         return {
             status: 'ok',
