@@ -2,6 +2,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { DimensionType, FieldType, friendlyName } from '../types/field';
 import { FilterOperator } from '../types/filter';
+import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
     parseAllReferences,
@@ -1096,6 +1097,140 @@ describe('Explore compilation with model-level parameters', () => {
             expect(result.tables.b.dimensions).toHaveProperty('dim1');
             expect(result.tables.b.dimensions).toHaveProperty('dim2');
             expect(result.tables.b.dimensions).not.toHaveProperty('dim3');
+        });
+
+        it('should include time interval and custom granularity child dimensions when their base is listed in join.fields', () => {
+            const explore: UncompiledExplore = {
+                name: 'test_explore',
+                label: 'Test Explore',
+                tags: [],
+                baseTable: 'a',
+                groupLabel: undefined,
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: '${a.dim1} = ${b.dim1}',
+                        fields: ['dim1', 'order_date'],
+                    },
+                ],
+                tables: {
+                    a: {
+                        name: 'a',
+                        label: 'a',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'test.a',
+                        dimensions: {
+                            dim1: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'dim1',
+                                label: 'Dim 1',
+                                table: 'a',
+                                tableLabel: 'a',
+                                sql: '${TABLE}.dim1',
+                                hidden: false,
+                                index: 0,
+                            },
+                        },
+                        metrics: {},
+                        lineageGraph: {},
+                    },
+                    b: {
+                        name: 'b',
+                        label: 'b',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'test.b',
+                        dimensions: {
+                            dim1: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'dim1',
+                                label: 'Dim 1',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.dim1',
+                                hidden: false,
+                                index: 0,
+                            },
+                            order_date: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date',
+                                label: 'Order date',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.order_date',
+                                hidden: false,
+                                index: 1,
+                                isIntervalBase: true,
+                            },
+                            order_date_month: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date_month',
+                                label: 'Order date month',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: "DATE_TRUNC('MONTH', ${TABLE}.order_date)",
+                                hidden: false,
+                                index: 2,
+                                timeInterval: TimeFrames.MONTH,
+                                timeIntervalBaseDimensionName: 'order_date',
+                                timeIntervalBaseDimensionType:
+                                    DimensionType.DATE,
+                            },
+                            order_date_week_starting_friday: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date_week_starting_friday',
+                                label: 'Order date week starting Friday',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: "DATE_TRUNC('WEEK', ${TABLE}.order_date + INTERVAL '2 days') - INTERVAL '2 days'",
+                                hidden: false,
+                                index: 3,
+                                timeInterval: undefined,
+                                customTimeInterval: 'week_starting_friday',
+                                timeIntervalBaseDimensionName: 'order_date',
+                                timeIntervalBaseDimensionType:
+                                    DimensionType.DATE,
+                            },
+                            unrelated_dim: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'unrelated_dim',
+                                label: 'Unrelated',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.unrelated_dim',
+                                hidden: false,
+                                index: 4,
+                            },
+                        },
+                        metrics: {},
+                        lineageGraph: {},
+                    },
+                },
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                meta: {},
+            };
+
+            const result = compiler.compileExplore(explore);
+
+            expect(result.tables.b.dimensions).toHaveProperty('order_date');
+            expect(result.tables.b.dimensions).toHaveProperty(
+                'order_date_month',
+            );
+            // PROD-7858: custom granularity children should be retained alongside
+            // standard time intervals when the base dimension is in join.fields
+            expect(result.tables.b.dimensions).toHaveProperty(
+                'order_date_week_starting_friday',
+            );
+            expect(result.tables.b.dimensions).not.toHaveProperty(
+                'unrelated_dim',
+            );
         });
 
         it('should throw error for non-existent set in join', () => {
