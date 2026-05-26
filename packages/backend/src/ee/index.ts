@@ -18,6 +18,7 @@ import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
+import { AiRouterModel } from './models/AiRouterModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -34,6 +35,7 @@ import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
+import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
@@ -191,6 +193,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            aiRouterService: ({ models, repository, context }) =>
+                new AiRouterService({
+                    lightdashConfig: context.lightdashConfig,
+                    aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                 }),
             aiAgentDocumentService: ({ models, repository, context }) =>
                 new AiAgentDocumentService({
@@ -502,6 +511,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
+            aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
