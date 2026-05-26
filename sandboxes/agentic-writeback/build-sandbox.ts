@@ -2,8 +2,8 @@
 /**
  * Builds and uploads the e2b sandbox template for Lightdash agentic writeback.
  *
- * The template pre-installs dbt adapters and the Claude CLI — so sandboxes
- * start instantly ready to run.
+ * The template pre-installs dbt adapters, the Claude CLI, and the Lightdash
+ * CLI — so sandboxes start instantly ready to run.
  *
  * Prerequisites:
  *   npm install       # in this directory
