@@ -1,5 +1,5 @@
 export * from './AiAgent';
-export * from './agenticWriteback/types';
+export * from './aiWriteback/types';
 export * from './apps/types';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';

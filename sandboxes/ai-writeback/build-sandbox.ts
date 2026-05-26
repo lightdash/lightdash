@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Builds and uploads the e2b sandbox template for Lightdash agentic writeback.
+ * Builds and uploads the e2b sandbox template for Lightdash AI writeback.
  *
  * The template pre-installs dbt adapters, the Claude CLI, and the Lightdash
  * CLI — so sandboxes start instantly ready to run.
@@ -34,7 +34,7 @@ async function main() {
         }).fromDockerfile(dockerfile);
 
         const templateName =
-            process.env.E2B_TEMPLATE_NAME || 'lightdash-agentic-writeback';
+            process.env.E2B_TEMPLATE_NAME || 'lightdash-ai-writeback';
 
         const primaryTag = process.env.E2B_TEMPLATE_TAG?.trim() || '';
         const extraTags = (process.env.E2B_TEMPLATE_EXTRA_TAGS || '')
