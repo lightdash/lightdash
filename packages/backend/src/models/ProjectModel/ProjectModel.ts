@@ -638,6 +638,47 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async getPreviewExpirationSettings(projectUuid: string): Promise<{
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const row = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select(
+                'default_preview_expiration_hours',
+                'max_preview_expiration_hours',
+            )
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return {
+            defaultPreviewExpirationHours: row.default_preview_expiration_hours,
+            maxPreviewExpirationHours: row.max_preview_expiration_hours,
+        };
+    }
+
+    async updatePreviewExpirationSettings(
+        projectUuid: string,
+        settings: {
+            defaultPreviewExpirationHours: number;
+            maxPreviewExpirationHours: number;
+        },
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                default_preview_expiration_hours:
+                    settings.defaultPreviewExpirationHours,
+                max_preview_expiration_hours:
+                    settings.maxPreviewExpirationHours,
+            });
+    }
+
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);

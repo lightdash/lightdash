@@ -3035,6 +3035,10 @@
                     "description": "Show row totals/calculations",
                     "type": "boolean"
                 },
+                "showRowGrouping": {
+                    "description": "Visually deduplicate repeated row-index dimension values across consecutive\nrows without showing aggregate subtotal rows. When `showSubtotals` is true,\ngrouping is implicitly active and this flag is ignored. Defaults to false.",
+                    "type": "boolean"
+                },
                 "showSubtotals": {
                     "description": "Show subtotal rows",
                     "type": "boolean"
