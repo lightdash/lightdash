@@ -207,6 +207,15 @@ export enum FeatureFlags {
      * instances. This does not block product access.
      */
     OrganizationTrialWarning = 'organization-trial-warning',
+
+    /**
+     * Enable the (in-progress) agentic writeback feature. Spins up an e2b
+     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
+     * user-supplied prompt against it synchronously. Off by default — gated
+     * while the sandbox runtime and write-back semantics are still being
+     * built out.
+     */
+    AgenticWriteback = 'agentic-writeback',
 }
 
 export type FeatureFlag = {
