@@ -2851,7 +2851,10 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
-                { custom_range: (value: AnyType) => JSON.stringify(value) },
+                {
+                    custom_range: (value: AnyType) => JSON.stringify(value),
+                    custom_groups: (value: AnyType) => JSON.stringify(value),
+                },
             );
             await copyChartVersionContent(
                 SavedChartCustomSqlDimensionsTableName,
