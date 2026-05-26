@@ -1,11 +1,14 @@
 import { subject } from '@casl/ability';
 import {
+    DbtProjectType,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isUserWithOrg,
     MissingConfigError,
+    ParameterError,
     type AiWritebackRunResult,
+    type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
@@ -50,6 +53,12 @@ const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
 //
+// `dbtProjectDir` is the dbt project sub-folder resolved from the Lightdash
+// project's dbt connection (relative to the repo root, which is the agent's
+// working directory). The agent uses it as the `--project-dir` for the compile
+// rather than discovering it, so the compile targets the project the prompt is
+// actually about.
+//
 // When the agent makes file changes it must also run \`lightdash compile\` so the
 // host (and reviewer) can see whether the resulting dbt project still parses.
 // The compile uses --skip-warehouse-catalog so no live warehouse connection is
@@ -58,24 +67,26 @@ const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 // unset variables. The original profiles.yml in the checkout must NOT be
 // touched — \`git add --all\` runs after the agent and would otherwise sweep
 // the patched file into the PR.
-const SYSTEM_PROMPT = `
+const buildSystemPrompt = (dbtProjectDir: string): string =>
+    `
 You are an autonomous coding agent working inside a checkout of a git repository.
 
 - The repository is already cloned in your working directory. Edit the
   appropriate files to satisfy the user's request.
+- The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
+  is your working directory).
 - Do NOT commit, push, or run any git commands — the host handles git.
 
 If you made any file changes, perform ALL of these follow-up steps before you
 finish:
 
-1. Discover the dbt project directory by locating the file \`dbt_project.yml\`
-   (search the repo; common locations are \`./dbt_project.yml\` or
-   \`./dbt/dbt_project.yml\`). The directory that contains it is the
-   \`--project-dir\`.
+1. The dbt project directory (containing \`dbt_project.yml\`) is
+   \`${dbtProjectDir}\`. Use it as the \`--project-dir\`.
 
 2. Discover the profiles directory by locating \`profiles.yml\` (common
-   locations are \`./profiles/profiles.yml\` or alongside \`dbt_project.yml\`).
-   The directory that contains it is the original profiles directory.
+   locations are \`${dbtProjectDir}/profiles/profiles.yml\` or alongside
+   \`dbt_project.yml\` in \`${dbtProjectDir}\`). The directory that contains it
+   is the original profiles directory.
 
 3. Prepare a TEMPORARY profiles directory at \`/tmp/ld-profiles\`:
    - Copy the discovered \`profiles.yml\` to \`/tmp/ld-profiles/profiles.yml\`.
@@ -90,7 +101,7 @@ finish:
 4. From the repo root, run:
      lightdash compile --skip-warehouse-catalog \\
        --profiles-dir /tmp/ld-profiles \\
-       --project-dir <discovered dbt project dir>
+       --project-dir ${dbtProjectDir}
    Capture the exit code and the last meaningful line of output.
 
 5. In your final reply, include ONE line summarising the compile result —
@@ -171,6 +182,45 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Resolve the target GitHub repository and dbt project sub-folder from a
+     * Lightdash project's dbt connection. AI writeback clones over GitHub and
+     * opens a PR via the GitHub App, so only GitHub-backed dbt connections are
+     * supported.
+     *
+     * `repository` is stored as `owner/repo`. `project_sub_path` is the
+     * sub-folder holding the dbt project, relative to the repo root (stored
+     * with a leading slash, e.g. `/dbt`, and `/` for the repo root); it is
+     * normalised to a path relative to the repo root (`dbt`, or `.` for the
+     * root) so it can be passed straight to the compile's `--project-dir`.
+     */
+    private static resolveGithubConnection(connection: DbtProjectConfig): {
+        owner: string;
+        repo: string;
+        projectSubPath: string;
+    } {
+        if (connection.type !== DbtProjectType.GITHUB) {
+            throw new ParameterError(
+                `AI writeback requires a GitHub dbt connection, but this project uses "${connection.type}"`,
+            );
+        }
+        const [owner, repo] = connection.repository.split('/');
+        if (!owner || !repo) {
+            throw new ParameterError(
+                `Project's dbt connection has an invalid repository "${connection.repository}" (expected "owner/repo")`,
+            );
+        }
+        const relativeSubPath = connection.project_sub_path
+            .trim()
+            .replace(/^\/+/, '')
+            .replace(/\/+$/, '');
+        return {
+            owner,
+            repo,
+            projectSubPath: relativeSubPath === '' ? '.' : relativeSubPath,
+        };
+    }
+
+    /**
      * Resolve a GitHub App installation access token for the user's
      * organization. The token authenticates the in-sandbox clone/push and the
      * pull request creation. Throws if no installation exists.
@@ -216,18 +266,15 @@ export class AiWritebackService extends BaseService {
     async run(
         user: SessionUser,
         projectUuid: string,
-        {
-            owner,
-            repo,
-            prompt,
-        }: { owner: string; repo: string; prompt: string },
+        { prompt }: { prompt: string },
     ): Promise<AiWritebackRunResult> {
         await this.assertEnabled(user);
 
         // Confirm the project exists and the user can view it before spending
         // money on a sandbox. Permission is enforced with an explicit CASL
-        // check via the audited ability.
-        const project = await this.projectModel.getSummary(projectUuid);
+        // check via the audited ability. The full project also carries the dbt
+        // connection we resolve the target repo and sub-folder from.
+        const project = await this.projectModel.get(projectUuid);
         if (
             this.createAuditedAbility(user).cannot(
                 'view',
@@ -239,6 +286,11 @@ export class AiWritebackService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        // The repo to clone/PR against and the dbt project dir to compile come
+        // from the project's connection — never from the caller.
+        const { owner, repo, projectSubPath } =
+            AiWritebackService.resolveGithubConnection(project.dbtConnection);
 
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -293,7 +345,10 @@ export class AiWritebackService extends BaseService {
             // arbitrary content (quotes, newlines, shell metacharacters) can't
             // break the command line. The system prompt is passed via
             // --append-system-prompt-file; only the user prompt is piped in.
-            await sandbox.files.write(SYSTEM_PROMPT_PATH, SYSTEM_PROMPT);
+            await sandbox.files.write(
+                SYSTEM_PROMPT_PATH,
+                buildSystemPrompt(projectSubPath),
+            );
             await sandbox.files.write(PROMPT_PATH, prompt);
 
             stage = 'agent';
