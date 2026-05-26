@@ -18,12 +18,16 @@ RUN pip install --no-cache-dir \
         dbt-postgres \
         dbt-duckdb
 
-RUN npm install -g @anthropic-ai/claude-code
+# Socket Firewall (sfw) blocks known-malicious packages at install time.
+# Install it first, then route every npm/pnpm install through it.
+RUN npm install -g sfw
+
+RUN sfw npm install -g @anthropic-ai/claude-code
 
 # pnpm for installing the Lightdash CLI
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="${PNPM_HOME}:${PATH}"
-RUN npm install -g pnpm@10.33.0 \
-    && pnpm add -g @lightdash/cli
+RUN sfw npm install -g pnpm@10.33.0 \
+    && sfw pnpm add -g @lightdash/cli
 
 WORKDIR /home/user
