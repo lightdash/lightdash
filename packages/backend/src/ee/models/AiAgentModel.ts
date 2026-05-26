@@ -1887,7 +1887,10 @@ export class AiAgentModel {
                 { tx: trx },
             );
 
-            if (args.instruction !== instruction) {
+            if (
+                args.instruction !== undefined &&
+                args.instruction !== instruction
+            ) {
                 const [result] = await trx(AiAgentInstructionVersionsTableName)
                     .insert({
                         ai_agent_uuid: agent.ai_agent_uuid,
