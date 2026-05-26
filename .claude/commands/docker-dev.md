@@ -6,6 +6,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
 - **`start`**: Auto-detect state and run what's needed (fresh setup, migrations, or just start PM2). Uses shared base snapshot to bootstrap new instances fast.
+- **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): Same as `start`, but provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`) and runs the EE migration/seed pass. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
 - **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
@@ -89,6 +90,16 @@ test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Crea
 
 # Check 3: CLAUDE.local.md has local dev instructions
 grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: Add local dev instructions to CLAUDE.local.md"
+
+# Check 3b (EE): license present but EE migrations not yet applied → /health will 500
+# Only relevant when LIGHTDASH_LICENSE_KEY is in the env file. ai_agent_document is a recent EE
+# migration table, absent from the core-only shared base — so it detects a missing EE migration pass.
+if grep -q "^LIGHTDASH_LICENSE_KEY=" .env.development.local 2>/dev/null; then
+  EE_APPLIED=$(docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='ai_agent_document') THEN 'yes' ELSE 'no' END" 2>/dev/null)
+  [ "$EE_APPLIED" = "yes" ] && echo "OK: EE license present and EE migrations applied" || echo "NEED: EE license present but EE migrations NOT applied — run Step EE-2 (or /health will 500)"
+else
+  echo "OK: No EE license (core-only instance)"
+fi
 
 # Check 4: Dependencies installed and generated build artifacts present
 #  - common/dist:                        compiled @lightdash/common
@@ -188,9 +199,87 @@ esac
 
 ---
 
+## Enterprise Edition (EE) Mode
+
+Trigger when the user asks to start with **"ee"**, **"ee enabled"**, **"enterprise"**, or passes `start ee` / `start --ee`. Also auto-detect: if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`, treat the instance as EE for all migrate/seed/snapshot steps.
+
+### Why EE changes the flow
+
+The license key is read once at module load in `packages/backend/src/knexfile.ts`:
+
+```ts
+const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey; // from process.env.LIGHTDASH_LICENSE_KEY
+```
+
+When truthy, knex **appends two extra directories**: `./ee/database/migrations` (70+ EE migrations) and `./ee/database/seeds/development`. The license also gates every EE *service provider* — without it, EE services throw `Unable to initialize service 'X' - no factory or provider`. (EE controllers are always registered, so a no-license call returns 422, not 404.)
+
+Consequences you MUST handle:
+
+1. **Migrations/seeds must run with the license in scope.** The standard migrate/seed commands load only `.env.development`, which does NOT contain the license — it lives in `.env.development.local`. Always also pass `-e .env.development.local` (first, so it wins) or `hasEnterpriseLicense` is false and the EE migration directory is silently skipped.
+2. **The shared base snapshot predates the license** — it's built core-only and shared with non-EE instances. After bootstrapping an EE instance from it, the DB has only core migrations. You MUST run an EE migration pass, or `/health` returns 500 (`Database has not been migrated yet`) because knex now resolves core + EE and sees the EE migrations as pending.
+3. **Snapshot AFTER the EE migration pass** so `/docker-dev reset` restores EE-migrated state. The standard Auto-Snapshot step already runs after migrations — just ensure the EE pass happens first.
+4. **Do NOT push EE state into the shared base.** Other instances may be non-EE and would see the EE tables / applied-out-of-list migrations. Leave `rebuild`'s shared-base refresh core-only.
+
+Two feature-gating layers are independent: the **license** (`LIGHTDASH_LICENSE_KEY`) controls whether EE wiring + EE schema exist at all; individual **feature flags** (`LIGHTDASH_ENABLE_FEATURE_FLAGS`) gate features inside an EE service. EE setup here only handles the license — flip feature flags separately if a specific feature needs them.
+
+### Step EE-1: Fetch the license key from 1Password
+
+The key lives in the 1Password item **"Development Lightdash EE license key"**, in the `password` field (a JWT starting `eyJ...`). The item's notes confirm the env var is `LIGHTDASH_LICENSE_KEY`. Use ONLY this development item — never customer-named license items (confidentiality policy).
+
+Append it to `.env.development.local` without echoing the secret:
+
+```bash
+printf 'LIGHTDASH_LICENSE_KEY=%s\n' \
+  "$(op item get "Development Lightdash EE license key" --fields label=password --reveal 2>/dev/null)" \
+  >> .env.development.local
+# verify without revealing the key:
+grep -q "^LIGHTDASH_LICENSE_KEY=eyJ" .env.development.local && echo "OK: license written" || echo "FAIL: license missing"
+```
+
+If `op` errors with a sign-in/auth failure, ask the user to run `! op signin` in the session, then retry.
+
+### Step EE-2: EE migration + seed pass
+
+Run **after** the env file has the license, and after bootstrap (or full migrate). The only difference from the standard commands is the extra `-e .env.development.local`:
+
+```bash
+# Apply core + EE migrations (license in scope → EE migration dir included)
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
+
+# Confirm no pending migrations (this is what HealthService checks)
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+  pnpm -F backend exec knex migrate:status --knexfile src/knexfile.ts | tail -3   # expect "No Pending Migration files Found."
+```
+
+For seeds, the choice depends on the path:
+- **Bootstrapped instance** (core already seeded): run ONLY the EE seed so you don't re-seed core data:
+  ```bash
+  PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+    pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts
+  ```
+- **Full setup** (first instance, empty schema): run the normal `pnpm -F backend seed` but with `-e .env.development.local -e .env.development` so core + EE seeds run together cleanly.
+
+### Step EE-3: Verify EE is wired
+
+```bash
+curl -s -o /dev/null -w "health HTTP %{http_code}\n" "http://localhost:$PORT/api/v1/health"   # expect 200, not 500
+pm2 logs "${LD_INSTANCE_ID}-api" --lines 200 --nostream 2>/dev/null \
+  | grep -iE "Enterprise license.*valid|no factory or provider"
+```
+
+Expect `Enterprise license for <site> is valid.` and no `no factory or provider` lines.
+
+### EE flow summary
+
+`start ee` runs the normal `start` flow with these insertions: after **Create Environment File** → **Step EE-1**; after **Bootstrap** (or **Run Migrations**) → **Step EE-2**; then the existing **Auto-Snapshot** and **Start PM2**; finally **Step EE-3** to verify.
+
+---
+
 ## `start`: Auto-detect and Setup
 
 Run State Detection first. For each `NEED:`, run the corresponding setup step below. If all checks show `OK:`, just start PM2.
+
+**If EE mode** (see **Enterprise Edition (EE) Mode** above): after the env file is created, run **Step EE-1** (license), and after bootstrap/migrate run **Step EE-2** (EE migration + seed pass), then verify with **Step EE-3**.
 
 ### Start Docker Services
 
@@ -237,6 +326,8 @@ fi
 
 **After bootstrapping, skip directly to "Auto-Snapshot" and "Start PM2".**
 
+> **EE mode:** the shared base is core-only, so a bootstrapped EE instance still needs an EE migration pass. After bootstrap, run **Step EE-2** (EE migration + seed pass) BEFORE the Auto-Snapshot, or `/health` will 500 on pending EE migrations.
+
 ### Create Environment File
 
 ```bash
@@ -273,6 +364,8 @@ LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
+
+> **EE mode:** now run **Step EE-1** to append `LIGHTDASH_LICENSE_KEY` from 1Password to this file, before any migrate/seed runs.
 
 ### Add Local Dev Instructions to CLAUDE.local.md
 
@@ -428,6 +521,8 @@ ln -sf dbt venv/bin/dbt1.7
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
 ```
 
+> **EE mode:** add `-e .env.development.local` (first) so the license is in scope and the EE migration directory is included: `pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate`. See **Step EE-2**.
+
 ### Seed Database (skip if bootstrapped)
 
 ```bash
@@ -435,6 +530,8 @@ export PATH="$(pwd)/venv/bin:$PATH"
 export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 ```
+
+> **EE mode (full setup):** also pass `-e .env.development.local` so core + EE seeds run together on the empty schema.
 
 ### Build dbt Models (skip if bootstrapped)
 
@@ -640,7 +737,9 @@ PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABA
   "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
-After completion, take an instance snapshot (see "Auto-Snapshot" in `start`). Also update the shared base snapshot so future instances get the latest:
+> **EE mode:** add `-e .env.development.local` to BOTH the migrate and seed commands above so the EE migrations/seeds are included. Do NOT refresh the shared base from an EE rebuild (next step) — keep the shared base core-only for non-EE instances. See **Enterprise Edition (EE) Mode**.
+
+After completion, take an instance snapshot (see "Auto-Snapshot" in `start`). Also update the shared base snapshot so future instances get the latest (**core-only instances only** — skip this for EE rebuilds):
 
 ```bash
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
