@@ -170,8 +170,15 @@ mcpRouter.all(
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const headerProjectUuid = extractProjectUuidFromHeader(req);
+                // Dark launch: the run_ai_writeback tool is only registered
+                // (and thus only listed/invocable) when the AiWriteback flag is
+                // enabled for this caller. Resolved here because tool
+                // registration in createServer/setupHandlers is synchronous.
+                const aiWritebackEnabled =
+                    await mcpService.isAiWritebackEnabled(req.user!);
                 const mcpServer = mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
+                    aiWritebackEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
