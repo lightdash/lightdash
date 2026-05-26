@@ -185,6 +185,20 @@ const getToolOutputStatus = (toolOutput: unknown) => {
     return typeof status === 'string' ? status : undefined;
 };
 
+const getRunSqlTimeoutErrorMessage = (
+    message: AiAgentMessageAssistant,
+): string | null => {
+    const hasRunSqlTimeout = message.toolResults.some(
+        (result) =>
+            result.toolName === 'runSql' &&
+            getToolOutputStatus(result) === 'timeout',
+    );
+
+    return hasRunSqlTimeout
+        ? 'SQL approval timed out before the query could run. Approve the SQL prompt or retry when ready.'
+        : null;
+};
+
 const getRunSqlLinkStateFromArgs = (
     toolArgs: unknown,
 ): SqlRunnerLinkState | null => {
@@ -326,6 +340,15 @@ const AssistantBubbleContent: FC<{
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
     const streamingError = streamingState?.error;
+    const runSqlTimeoutErrorMessage = getRunSqlTimeoutErrorMessage(message);
+    const displayErrorMessage =
+        runSqlTimeoutErrorMessage ||
+        streamingError ||
+        message.errorMessage ||
+        'Failed to generate response. Please try again.';
+    const displayErrorTitle = runSqlTimeoutErrorMessage
+        ? 'SQL approval timed out'
+        : 'Something went wrong';
     const sqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
         message,
         streamParts: streamingState?.parts,
@@ -409,12 +432,10 @@ const AssistantBubbleContent: FC<{
                         >
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
-                                    Something went wrong
+                                    {displayErrorTitle}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {streamingError ||
-                                        message.errorMessage ||
-                                        'Failed to generate response. Please try again.'}
+                                    {displayErrorMessage}
                                 </Text>
                             </Stack>
                         </Alert>
