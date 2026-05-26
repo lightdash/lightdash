@@ -1,3 +1,24 @@
+# [0.3020.0](https://github.com/lightdash/lightdash/compare/0.3019.2...0.3020.0) (2026-05-26)
+
+
+### Bug Fixes
+
+* **ai-agent:** avoid runSql retry after timeout ([#23499](https://github.com/lightdash/lightdash/issues/23499)) ([a9b10d0](https://github.com/lightdash/lightdash/commit/a9b10d0d3e3daefdeb16322308393d2c8959403e))
+* **ai-agent:** recover pending SQL approvals ([#23498](https://github.com/lightdash/lightdash/issues/23498)) ([3247855](https://github.com/lightdash/lightdash/commit/324785598eaac6dab3d592ec3dce9280325bc78d))
+* **ai-agent:** surface SQL approval timeout ([#23501](https://github.com/lightdash/lightdash/issues/23501)) ([903b512](https://github.com/lightdash/lightdash/commit/903b5124ad5ccfaffcca69e5dcbd259b996dc91c))
+* **ai-agent:** wrap ToolCallChip as <span> to fix invalid HTML in chat ([#23484](https://github.com/lightdash/lightdash/issues/23484)) ([63160f6](https://github.com/lightdash/lightdash/commit/63160f6c859ea0005691047e29fdf4bde450d1eb)), closes [#185](https://github.com/lightdash/lightdash/issues/185) [#23008](https://github.com/lightdash/lightdash/issues/23008) [#13221](https://github.com/lightdash/lightdash/issues/13221)
+* **compiler:** include custom granularity dims in joined tables when join specifies fields (PROD-7858) ([#23504](https://github.com/lightdash/lightdash/issues/23504)) ([a060312](https://github.com/lightdash/lightdash/commit/a060312a7535e4086c032cd5607ec9842f7968e5))
+
+
+### Features
+
+* add DuckLake as a DuckDB connection type ([#23446](https://github.com/lightdash/lightdash/issues/23446)) ([ec2373c](https://github.com/lightdash/lightdash/commit/ec2373c6fd5d8d1ff1652fe126df6d093f128832))
+* add per-org Google SSO opt-out policy with admin settings panel and login enforcement ([#23487](https://github.com/lightdash/lightdash/issues/23487)) ([f952516](https://github.com/lightdash/lightdash/commit/f952516d28a20eafcb8fe83912d4dacfe2c9fd8c))
+* add per-org OneLogin SSO with dynamic strategy cache and admin settings panel ([#23483](https://github.com/lightdash/lightdash/issues/23483)) ([7f8cd03](https://github.com/lightdash/lightdash/commit/7f8cd03d09d9b9307004d392986d9d566bab3de9))
+* **dashboard:** autoscroll while dragging a tile (PROD-7891) ([#23492](https://github.com/lightdash/lightdash/issues/23492)) ([0db7349](https://github.com/lightdash/lightdash/commit/0db734960389fd33e2ff14eae2909fc5fd2b2081))
+* **ee:** agentic writeback — sandbox prompt execution (in progress) ([#23494](https://github.com/lightdash/lightdash/issues/23494)) ([59a2a03](https://github.com/lightdash/lightdash/commit/59a2a038b82ecf4817adad8b5781c6746c00efc3))
+* **ee:** install Lightdash CLI via pnpm in agentic writeback sandbox ([#23505](https://github.com/lightdash/lightdash/issues/23505)) ([2300f95](https://github.com/lightdash/lightdash/commit/2300f9560e928c69f49747de479cf3e9e181221f))
+
 ## [0.3019.2](https://github.com/lightdash/lightdash/compare/0.3019.1...0.3019.2) (2026-05-26)
 
 
