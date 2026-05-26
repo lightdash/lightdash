@@ -8,7 +8,10 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
-import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import type {
+    AiWritebackFailureStage,
+    LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import {
     createPullRequest,
     getInstallationToken,
@@ -180,21 +183,42 @@ export class AiWritebackService extends BaseService {
         // spending money on a sandbox.
         await this.projectModel.getSummary(projectUuid);
 
-        const { installationId, token } =
-            await this.getGithubInstallation(user);
-
-        const e2bApiKey = this.getE2bApiKey();
-        const anthropicApiKey = this.getAnthropicApiKey();
-
-        const sandbox = await Sandbox.create(TEMPLATE_NAME, {
-            apiKey: e2bApiKey,
-            timeoutMs: RUN_TIMEOUT_MS,
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const eventBase = {
+            organizationId: user.organizationUuid,
+            projectId: projectUuid,
+            owner,
+            repo,
+        };
+        const startedAt = Date.now();
+        this.analytics.track({
+            event: 'ai_writeback.started',
+            userId: user.userUuid,
+            properties: eventBase,
         });
-        this.logger.info(
-            `AiWriteback: sandbox created (sandboxId=${sandbox.sandboxId}, project=${projectUuid})`,
-        );
 
+        // Track the current pipeline stage so a failure is attributed to it.
+        let stage: AiWritebackFailureStage = 'install';
+        let sandbox: Sandbox | undefined;
         try {
+            const { installationId, token } =
+                await this.getGithubInstallation(user);
+
+            const e2bApiKey = this.getE2bApiKey();
+            const anthropicApiKey = this.getAnthropicApiKey();
+
+            stage = 'sandbox';
+            sandbox = await Sandbox.create(TEMPLATE_NAME, {
+                apiKey: e2bApiKey,
+                timeoutMs: RUN_TIMEOUT_MS,
+            });
+            this.logger.info(
+                `AiWriteback: sandbox created (sandboxId=${sandbox.sandboxId}, project=${projectUuid})`,
+            );
+
+            stage = 'clone';
             // Clone over HTTPS using the installation token as the password.
             const cloneUrl = `https://${REPO_HOST}/${owner}/${repo}.git`;
             await sandbox.git.clone(cloneUrl, {
@@ -215,6 +239,7 @@ export class AiWritebackService extends BaseService {
             await sandbox.files.write(SYSTEM_PROMPT_PATH, SYSTEM_PROMPT);
             await sandbox.files.write(PROMPT_PATH, prompt);
 
+            stage = 'agent';
             // Run the agent inside the repo so its edits land on the checkout.
             const result = await sandbox.commands.run(
                 `cat ${PROMPT_PATH} | claude -p ` +
@@ -242,6 +267,17 @@ export class AiWritebackService extends BaseService {
                 this.logger.info(
                     `AiWriteback: no file changes — skipping PR (sandboxId=${sandbox.sandboxId})`,
                 );
+                this.analytics.track({
+                    event: 'ai_writeback.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        ...eventBase,
+                        exitCode: result.exitCode,
+                        hasChanges: false,
+                        prCreated: false,
+                        totalDurationMs: Date.now() - startedAt,
+                    },
+                });
                 return {
                     output: result.stdout,
                     exitCode: result.exitCode,
@@ -261,12 +297,14 @@ export class AiWritebackService extends BaseService {
             );
 
             const branch = `lightdash-ai-writeback/${Date.now()}`;
+            stage = 'commit';
             await sandbox.git.createBranch(CWD, branch);
             await sandbox.git.add(CWD, { all: true });
             await sandbox.git.commit(CWD, title, {
                 authorName: COMMIT_AUTHOR_NAME,
                 authorEmail: COMMIT_AUTHOR_EMAIL,
             });
+            stage = 'push';
             await sandbox.git.push(CWD, {
                 remote: 'origin',
                 branch,
@@ -275,6 +313,7 @@ export class AiWritebackService extends BaseService {
                 password: token,
             });
 
+            stage = 'pull_request';
             const pr = await createPullRequest({
                 owner,
                 repo,
@@ -289,20 +328,46 @@ export class AiWritebackService extends BaseService {
                 `AiWriteback: opened PR ${pr.html_url} (sandboxId=${sandbox.sandboxId})`,
             );
 
+            this.analytics.track({
+                event: 'ai_writeback.completed',
+                userId: user.userUuid,
+                properties: {
+                    ...eventBase,
+                    exitCode: result.exitCode,
+                    hasChanges: true,
+                    prCreated: true,
+                    totalDurationMs: Date.now() - startedAt,
+                },
+            });
+
             return {
                 output: result.stdout,
                 exitCode: result.exitCode,
                 prUrl: pr.html_url,
             };
+        } catch (error) {
+            this.analytics.track({
+                event: 'ai_writeback.failed',
+                userId: user.userUuid,
+                properties: {
+                    ...eventBase,
+                    failureStage: stage,
+                    errorMessage: getErrorMessage(error),
+                    totalDurationMs: Date.now() - startedAt,
+                },
+            });
+            throw error;
         } finally {
-            try {
-                await sandbox.kill();
-            } catch (error) {
-                this.logger.warn(
-                    `AiWriteback: failed to kill sandbox ${sandbox.sandboxId}: ${getErrorMessage(
-                        error,
-                    )}`,
-                );
+            if (sandbox) {
+                try {
+                    await sandbox.kill();
+                } catch (error) {
+                    this.logger.warn(
+                        `AiWriteback: failed to kill sandbox ${sandbox.sandboxId}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
             }
         }
     }
