@@ -64,6 +64,7 @@ import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import AzureAdSsoPanel from '../components/UserSettings/OrganizationSso/AzureAdSsoPanel';
 import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/GenericOidcSsoPanel';
+import GoogleSsoPanel from '../components/UserSettings/OrganizationSso/GoogleSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import OneLoginSsoPanel from '../components/UserSettings/OrganizationSso/OneLoginSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
@@ -499,6 +500,9 @@ const Settings: FC = () => {
                         <OktaSsoPanel />
                         <GenericOidcSsoPanel />
                         <OneLoginSsoPanel />
+                        {/* Google has no per-org credentials; only show the
+                            toggle when Google is enabled instance-wide. */}
+                        {health?.auth.google.enabled && <GoogleSsoPanel />}
                     </Stack>
                 ),
             });
@@ -557,6 +561,7 @@ const Settings: FC = () => {
         health?.hasSlack,
         health?.hasGithub,
         health?.hasGitlab,
+        health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         isSsoOrganizationSettingsEnabled,
         isLeaveOrganizationEnabled,

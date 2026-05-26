@@ -2269,12 +2269,44 @@ export class UserService extends BaseService {
         });
     }
 
-    async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
+    /**
+     * Whether Google sign-in is disabled for the given email's domain by the
+     * owning organization. Google is enabled by default (shared instance OAuth
+     * app); a per-org `google` policy row with enabled=false opts out. For
+     * existing users we only honour policies from orgs they belong to — same
+     * domain-hijack guard as getLoginOptions.
+     */
+    private async isGoogleDisabledForEmail(email: string): Promise<boolean> {
+        const domain = email?.split('@')[1]?.toLowerCase();
+        if (!domain) return false;
+        const googleMethods =
+            await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                domain,
+            );
+        if (googleMethods.length === 0) return false;
+
+        const existingUser = await this.userModel.findUserByEmail(email);
+        if (!existingUser) {
+            return googleMethods.some((m) => !m.enabled);
+        }
+        const userOrgs = await this.userModel.getOrganizationsForUser(
+            existingUser.userUuid,
+        );
+        const userOrgUuids = new Set(userOrgs.map((o) => o.organizationUuid));
+        return googleMethods
+            .filter((m) => userOrgUuids.has(m.organizationUuid))
+            .some((m) => !m.enabled);
+    }
+
+    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
-            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.GOOGLE:
+                // Enabled by default, but an org can disable Google sign-in
+                // for its domains via a per-org policy.
+                return !(await this.isGoogleDisabledForEmail(email));
+            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.OKTA:
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
@@ -2594,6 +2626,14 @@ export class UserService extends BaseService {
                   domain,
               )
             : [];
+        // Per-org Google policy rows for the domain (includes disabled rows —
+        // a `google` row exists precisely to record an opt-out, which the
+        // enabled-only discovery above would never surface).
+        const allGoogleMethods = domain
+            ? await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
 
         // Security: if the email belongs to an existing Lightdash user, only
         // surface SSO methods from orgs they actually belong to. Prevents a
@@ -2603,6 +2643,7 @@ export class UserService extends BaseService {
         // upstream feature flag + ops vetting is the gate for that case.
         const existingUser = await this.userModel.findUserByEmail(email);
         let matchingPerOrgMethods = allMatchingMethods;
+        let matchingGoogleMethods = allGoogleMethods;
         if (existingUser) {
             const userOrgs = await this.userModel.getOrganizationsForUser(
                 existingUser.userUuid,
@@ -2613,7 +2654,19 @@ export class UserService extends BaseService {
             matchingPerOrgMethods = allMatchingMethods.filter((m) =>
                 userOrgUuids.has(m.organizationUuid),
             );
+            matchingGoogleMethods = allGoogleMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
         }
+
+        // Google is enabled by default (shared instance OAuth app), so absence
+        // of a `google` row means "follow the instance default". An org opts
+        // out by storing a row with enabled=false for its domains — that
+        // suppresses the instance Google button here and is enforced
+        // server-side by isLoginMethodAllowed.
+        const googleEnabledForUser =
+            instancesOptions.has(OpenIdIdentityIssuerType.GOOGLE) &&
+            !matchingGoogleMethods.some((m) => !m.enabled);
 
         // Each SSO provider enum value maps 1:1 to its OpenIdIdentityIssuerType
         // string (e.g. 'azuread'); funnel through unknown to satisfy TS.
@@ -2631,7 +2684,9 @@ export class UserService extends BaseService {
 
         if (matchingPerOrgMethods.length > 0) {
             // Per-org SSO suppresses instance-level SSO providers for this
-            // email's domain. Only the matching per-org methods are offered.
+            // email's domain. Google is a per-org provider like the others:
+            // an enabled `google` row flows through discovery above and shows
+            // here; otherwise it follows the instance default.
             ssoOptionsForUser = Array.from(matchingPerOrgProviders);
             // Password visibility is governed by the SSO rows: lenient rule
             // — ANY matching method that permits password → show password.
@@ -2641,9 +2696,13 @@ export class UserService extends BaseService {
         } else {
             // No per-org SSO matches: instance-level behavior preserved.
             // Show OIDC issuers the user has previously linked (filtered to
-            // instance-supported providers).
-            ssoOptionsForUser = openIdIssuers.filter((o) =>
-                instancesOptions.has(o),
+            // instance-supported providers), dropping Google if the org
+            // opted out for this domain.
+            ssoOptionsForUser = openIdIssuers.filter(
+                (o) =>
+                    instancesOptions.has(o) &&
+                    (googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE),
             );
             passwordAllowedForUser = true;
         }
@@ -2664,7 +2723,11 @@ export class UserService extends BaseService {
         // new signup.
         if (showOptions.length === 0) {
             return {
-                showOptions: Array.from(instancesOptions),
+                showOptions: Array.from(instancesOptions).filter(
+                    (o) =>
+                        googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE,
+                ),
                 forceRedirect: false,
                 redirectUri: undefined,
             };

@@ -2,10 +2,12 @@ import {
     type ApiError,
     type AzureAdSsoConfigSummary,
     type GenericOidcSsoConfigSummary,
+    type GoogleSsoConfigSummary,
     type OktaSsoConfigSummary,
     type OneLoginSsoConfigSummary,
     type UpsertAzureAdSsoConfig,
     type UpsertGenericOidcSsoConfig,
+    type UpsertGoogleSsoConfig,
     type UpsertOktaSsoConfig,
     type UpsertOneLoginSsoConfig,
 } from '@lightdash/common';
@@ -294,6 +296,78 @@ export const useDeleteOneLoginSsoConfig = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to remove OneLogin SSO settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const GOOGLE_QUERY_KEY = ['organization_sso', 'google'];
+
+const getGoogleSsoConfig = async () =>
+    lightdashApi<GoogleSsoConfigSummary | null>({
+        url: '/org/sso/google',
+        method: 'GET',
+        body: undefined,
+    });
+
+const upsertGoogleSsoConfig = async (data: UpsertGoogleSsoConfig) =>
+    lightdashApi<GoogleSsoConfigSummary>({
+        url: '/org/sso/google',
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+const deleteGoogleSsoConfig = async () =>
+    lightdashApi<undefined>({
+        url: '/org/sso/google',
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useGoogleSsoConfig = () =>
+    useQuery<GoogleSsoConfigSummary | null, ApiError>({
+        queryKey: GOOGLE_QUERY_KEY,
+        queryFn: getGoogleSsoConfig,
+    });
+
+export const useUpsertGoogleSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<GoogleSsoConfigSummary, ApiError, UpsertGoogleSsoConfig>(
+        upsertGoogleSsoConfig,
+        {
+            mutationKey: ['organization_sso', 'google', 'upsert'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(GOOGLE_QUERY_KEY);
+                showToastSuccess({
+                    title: 'Google SSO settings saved',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to save Google SSO settings',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useDeleteGoogleSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<undefined, ApiError>(deleteGoogleSsoConfig, {
+        mutationKey: ['organization_sso', 'google', 'delete'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(GOOGLE_QUERY_KEY);
+            showToastSuccess({
+                title: 'Google SSO settings removed',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to remove Google SSO settings',
                 apiError: error,
             });
         },

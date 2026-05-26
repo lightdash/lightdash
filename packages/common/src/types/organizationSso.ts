@@ -3,6 +3,7 @@ export enum OrganizationSsoProvider {
     OKTA = 'okta',
     GENERIC_OIDC = 'oidc',
     ONELOGIN = 'oneLogin',
+    GOOGLE = 'google',
 }
 
 export const isOrganizationSsoProvider = (
@@ -180,4 +181,29 @@ export type ApiOneLoginSsoConfigResponse = {
 export type ApiUpsertOneLoginSsoConfigResponse = {
     status: 'ok';
     results: OneLoginSsoConfigSummary;
+};
+
+/**
+ * Google is unique among the per-org SSO providers: it has no per-org
+ * credentials and is enabled by default using the shared instance OAuth app.
+ * The stored config is therefore empty today — a `google` row exists only to
+ * express an org's explicit policy (typically: disable Google for its domains,
+ * or scope the `allowPassword` / `emailDomains` flags). The blob is a
+ * schema-less encrypted JSON object, so own-credential fields (e.g. a customer
+ * Google OAuth client) can be added later without a migration.
+ */
+export type GoogleSsoConfig = Record<string, never>;
+
+export type GoogleSsoConfigSummary = OrganizationSsoMethodFlags;
+
+export type UpsertGoogleSsoConfig = Partial<OrganizationSsoMethodFlags>;
+
+export type ApiGoogleSsoConfigResponse = {
+    status: 'ok';
+    results: GoogleSsoConfigSummary | null;
+};
+
+export type ApiUpsertGoogleSsoConfigResponse = {
+    status: 'ok';
+    results: GoogleSsoConfigSummary;
 };
