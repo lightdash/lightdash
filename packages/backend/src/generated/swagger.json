@@ -18175,6 +18175,45 @@
                     }
                 ]
             },
+            "GoogleSsoConfigSummary": {
+                "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+            },
+            "ApiGoogleSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GoogleSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertGoogleSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GoogleSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpsertGoogleSsoConfig": {
+                "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -40392,6 +40431,108 @@
                 },
                 "description": "Removes the current organization's OneLogin SSO configuration.",
                 "summary": "Delete OneLogin SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/sso/google": {
+            "get": {
+                "operationId": "GetGoogleSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGoogleSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's Google SSO policy. Google is enabled\nby default using the shared instance OAuth app; a configuration only\nexists when the org has set an explicit policy (e.g. disabled Google).\n`null` means no explicit policy — Google follows the instance default.",
+                "summary": "Get Google SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertGoogleSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertGoogleSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's Google SSO policy. Google\nhas no per-org credentials — only the `enabled` / domain / password\nflags are stored.",
+                "summary": "Upsert Google SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertGoogleSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteGoogleSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's Google SSO policy, reverting to the\ninstance default (Google enabled).",
+                "summary": "Delete Google SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []

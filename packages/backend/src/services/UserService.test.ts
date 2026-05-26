@@ -100,6 +100,7 @@ const projectModel = {
 
 const organizationSsoModel = {
     findEnabledMethodsForEmailDomain: jest.fn(async () => []),
+    findGoogleMethodsForEmailDomain: jest.fn(async () => []),
 };
 
 const createUserService = (lightdashConfig: LightdashConfig) =>
@@ -860,6 +861,236 @@ describe('UserService', () => {
                     'https://test.lightdash.cloud/api/v1/login/oneLogin?login_hint=newbie%40acme.com',
                 showOptions: ['oneLogin'],
             });
+        });
+    });
+
+    describe('getLoginOptions per-org Google provider', () => {
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+            },
+        };
+
+        const oktaMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.OKTA as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.okta.com',
+                oktaDomain: 'acme.okta.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+                authorizationServerId: 'default',
+                extraScopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const googleMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.GOOGLE as unknown as never,
+            config: {},
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        test('an enabled Google row is shown alongside other per-org SSO (flows through discovery)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod, googleMethod]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: true,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'okta', 'google'],
+            });
+        });
+
+        test('org disabled Google (no other SSO) → Google dropped from the new-signup fallback', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('returning user with a linked Google identity but org disabled Google → Google hidden', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'member-uuid',
+                email: 'member@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-1', organizationName: 'Acme Org' },
+            ]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.GOOGLE,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('member@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('disabling policy is ignored for a non-member (cross-org) → Google stays', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'outsider-uuid',
+                email: 'outsider@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Other Org' },
+            ]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.GOOGLE,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('outsider@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'google'],
+            });
+        });
+    });
+
+    describe('isLoginMethodAllowed Google per-org opt-out', () => {
+        test('allows Google when the domain has no per-org policy', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'user@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(true);
+        });
+
+        test('blocks Google when the owning org disabled it', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'user@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(false);
+        });
+
+        test('allows Google for a non-member even if another org disabled it (cross-org)', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'outsider-uuid',
+                email: 'outsider@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Other Org' },
+            ]);
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'outsider@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(true);
         });
     });
 

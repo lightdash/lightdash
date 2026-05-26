@@ -6,6 +6,8 @@ import {
     ForbiddenError,
     GenericOidcSsoConfig,
     GenericOidcSsoConfigSummary,
+    GoogleSsoConfig,
+    GoogleSsoConfigSummary,
     NotFoundError,
     OktaSsoConfig,
     OktaSsoConfigSummary,
@@ -17,6 +19,7 @@ import {
     UnexpectedServerError,
     UpsertAzureAdSsoConfig,
     UpsertGenericOidcSsoConfig,
+    UpsertGoogleSsoConfig,
     UpsertOktaSsoConfig,
     UpsertOneLoginSsoConfig,
     type RegisteredAccount,
@@ -86,6 +89,15 @@ const toOneLoginSummary = (
     oauth2Issuer: method.config.oauth2Issuer,
     oauth2ClientId: method.config.oauth2ClientId,
     hasClientSecret: !!method.config.oauth2ClientSecret,
+    enabled: method.enabled,
+    overrideEmailDomains: method.overrideEmailDomains,
+    emailDomains: method.emailDomains,
+    allowPassword: method.allowPassword,
+});
+
+const toGoogleSummary = (
+    method: OrganizationSsoMethod<OrganizationSsoProvider.GOOGLE>,
+): GoogleSsoConfigSummary => ({
     enabled: method.enabled,
     overrideEmailDomains: method.overrideEmailDomains,
     emailDomains: method.emailDomains,
@@ -605,6 +617,80 @@ export class OrganizationSsoService extends BaseService {
         await this.organizationSsoModel.delete(
             organizationUuid,
             OrganizationSsoProvider.ONELOGIN,
+        );
+    }
+
+    async getGoogleConfig(
+        account: RegisteredAccount,
+    ): Promise<GoogleSsoConfigSummary | null> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const method = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GOOGLE,
+        );
+        return method ? toGoogleSummary(method) : null;
+    }
+
+    /**
+     * Google has no per-org credentials (it uses the shared instance OAuth
+     * app), so the stored config is empty and only the flags are meaningful.
+     * A row exists purely to record an org's explicit policy — most commonly
+     * `enabled: false` to disable Google sign-in for the org's domains.
+     */
+    async upsertGoogleConfig(
+        account: RegisteredAccount,
+        data: UpsertGoogleSsoConfig,
+    ): Promise<GoogleSsoConfigSummary> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+
+        if (data.emailDomains && data.emailDomains.length > 0) {
+            OrganizationSsoService.validateEmailDomains(data.emailDomains);
+        }
+
+        const config: GoogleSsoConfig = {};
+
+        const flags: Partial<OrganizationSsoMethodFlags> = {
+            enabled: data.enabled,
+            overrideEmailDomains: data.overrideEmailDomains,
+            emailDomains: data.emailDomains,
+            allowPassword: data.allowPassword,
+        };
+
+        await this.organizationSsoModel.upsert(
+            organizationUuid,
+            OrganizationSsoProvider.GOOGLE,
+            config,
+            flags,
+            account.user.userUuid,
+        );
+
+        const refreshed = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GOOGLE,
+        );
+        if (!refreshed) {
+            throw new UnexpectedServerError(
+                'Failed to read back upserted SSO configuration',
+            );
+        }
+        return toGoogleSummary(refreshed);
+    }
+
+    async deleteGoogleConfig(account: RegisteredAccount): Promise<void> {
+        await this.assertFeatureEnabled(account);
+        const organizationUuid = this.assertCanManageSso(account);
+        const existing = await this.organizationSsoModel.findMethod(
+            organizationUuid,
+            OrganizationSsoProvider.GOOGLE,
+        );
+        if (!existing) {
+            throw new NotFoundError('No Google SSO configuration found');
+        }
+        await this.organizationSsoModel.delete(
+            organizationUuid,
+            OrganizationSsoProvider.GOOGLE,
         );
     }
 
