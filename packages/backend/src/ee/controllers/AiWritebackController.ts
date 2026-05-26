@@ -28,25 +28,9 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 
-// owner/repo are interpolated into the clone URL, so validate their shape
-// against GitHub's naming rules before use.
+// The target repo (owner/repo) and dbt sub-folder are resolved server-side from
+// the project's dbt connection, so the body only carries the prompt.
 const aiWritebackBodySchema = z.object({
-    // GitHub account login: 1-39 chars, alphanumeric or single internal
-    // hyphens, no leading/trailing hyphen.
-    owner: z
-        .string()
-        .regex(
-            /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/,
-            'A valid GitHub owner is required',
-        ),
-    // Repository name: 1-100 chars, alphanumeric/hyphen/underscore/period,
-    // and not "." or "..".
-    repo: z
-        .string()
-        .regex(
-            /^(?!\.{1,2}$)[a-zA-Z0-9._-]{1,100}$/,
-            'A valid GitHub repository name is required',
-        ),
     prompt: z.string().trim().min(1, 'prompt is required'),
 });
 
@@ -83,12 +67,12 @@ export class AiWritebackController extends BaseController {
                 parsed.error.errors[0]?.message ?? 'Invalid request parameters',
             );
         }
-        const { owner, repo, prompt } = parsed.data;
+        const { prompt } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run(
             toSessionUser(req.account),
             projectUuid,
-            { owner, repo, prompt },
+            { prompt },
         );
         return {
             status: 'ok',
