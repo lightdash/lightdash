@@ -1,3 +1,10 @@
+## [0.3022.1](https://github.com/lightdash/lightdash/compare/0.3022.0...0.3022.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* **pivot:** align passthrough dims with metricsAsRows fanout (PROD-7933) ([#23512](https://github.com/lightdash/lightdash/issues/23512)) ([e4d9397](https://github.com/lightdash/lightdash/commit/e4d9397bf47ffcd3d6d9d4f2db76726c258c1b5d)), closes [#23452](https://github.com/lightdash/lightdash/issues/23452)
+
 # [0.3022.0](https://github.com/lightdash/lightdash/compare/0.3021.0...0.3022.0) (2026-05-26)
 
 
