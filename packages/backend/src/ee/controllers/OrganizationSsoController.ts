@@ -3,14 +3,17 @@ import {
     ApiErrorPayload,
     ApiGenericOidcSsoConfigResponse,
     ApiOktaSsoConfigResponse,
+    ApiOneLoginSsoConfigResponse,
     ApiSuccessEmpty,
     ApiUpsertAzureAdSsoConfigResponse,
     ApiUpsertGenericOidcSsoConfigResponse,
     ApiUpsertOktaSsoConfigResponse,
+    ApiUpsertOneLoginSsoConfigResponse,
     assertRegisteredAccount,
     UpsertAzureAdSsoConfig,
     UpsertGenericOidcSsoConfig,
     UpsertOktaSsoConfig,
+    UpsertOneLoginSsoConfig,
 } from '@lightdash/common';
 import {
     Body,
@@ -230,6 +233,72 @@ export class OrganizationSsoController extends BaseController {
         await this.services
             .getOrganizationSsoService()
             .deleteGenericOidcConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Returns the current organization's OneLogin SSO configuration (sensitive
+     * fields are not included).
+     * @summary Get OneLogin SSO configuration
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/oneLogin')
+    @OperationId('GetOneLoginSsoConfig')
+    async getOneLoginConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiOneLoginSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .getOneLoginConfig(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Creates or updates the current organization's OneLogin SSO
+     * configuration. Omit `oauth2ClientSecret` to preserve the previously
+     * stored secret on updates.
+     * @summary Upsert OneLogin SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/oneLogin')
+    @OperationId('UpsertOneLoginSsoConfig')
+    async upsertOneLoginConfig(
+        @Request() req: express.Request,
+        @Body() body: UpsertOneLoginSsoConfig,
+    ): Promise<ApiUpsertOneLoginSsoConfigResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSsoService()
+            .upsertOneLoginConfig(req.account, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Removes the current organization's OneLogin SSO configuration.
+     * @summary Delete OneLogin SSO configuration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Delete('/oneLogin')
+    @OperationId('DeleteOneLoginSsoConfig')
+    async deleteOneLoginConfig(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getOrganizationSsoService()
+            .deleteOneLoginConfig(req.account);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }

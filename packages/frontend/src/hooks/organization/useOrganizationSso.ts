@@ -3,9 +3,11 @@ import {
     type AzureAdSsoConfigSummary,
     type GenericOidcSsoConfigSummary,
     type OktaSsoConfigSummary,
+    type OneLoginSsoConfigSummary,
     type UpsertAzureAdSsoConfig,
     type UpsertGenericOidcSsoConfig,
     type UpsertOktaSsoConfig,
+    type UpsertOneLoginSsoConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
@@ -223,6 +225,75 @@ export const useDeleteGenericOidcSsoConfig = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to remove OIDC SSO settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const ONELOGIN_QUERY_KEY = ['organization_sso', 'oneLogin'];
+
+const getOneLoginSsoConfig = async () =>
+    lightdashApi<OneLoginSsoConfigSummary | null>({
+        url: '/org/sso/oneLogin',
+        method: 'GET',
+        body: undefined,
+    });
+
+const upsertOneLoginSsoConfig = async (data: UpsertOneLoginSsoConfig) =>
+    lightdashApi<OneLoginSsoConfigSummary>({
+        url: '/org/sso/oneLogin',
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+const deleteOneLoginSsoConfig = async () =>
+    lightdashApi<undefined>({
+        url: '/org/sso/oneLogin',
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useOneLoginSsoConfig = () =>
+    useQuery<OneLoginSsoConfigSummary | null, ApiError>({
+        queryKey: ONELOGIN_QUERY_KEY,
+        queryFn: getOneLoginSsoConfig,
+    });
+
+export const useUpsertOneLoginSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<
+        OneLoginSsoConfigSummary,
+        ApiError,
+        UpsertOneLoginSsoConfig
+    >(upsertOneLoginSsoConfig, {
+        mutationKey: ['organization_sso', 'oneLogin', 'upsert'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(ONELOGIN_QUERY_KEY);
+            showToastSuccess({ title: 'OneLogin SSO settings saved' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to save OneLogin SSO settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useDeleteOneLoginSsoConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<undefined, ApiError>(deleteOneLoginSsoConfig, {
+        mutationKey: ['organization_sso', 'oneLogin', 'delete'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(ONELOGIN_QUERY_KEY);
+            showToastSuccess({ title: 'OneLogin SSO settings removed' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to remove OneLogin SSO settings',
                 apiError: error,
             });
         },
