@@ -1,3 +1,21 @@
 .signInButton:hover {
     text-decoration: underline;
 }
+
+.lastUsedWrapper {
+    position: relative;
+    /* Stretch the wrapped button to full width, matching the unwrapped buttons
+       that get their width from the parent Stack's align-items: stretch. */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Float the tag over the top-left edge of the button so it doesn't take up
+   layout space or shift the button's content (PostHog-style). */
+.lastUsedBadge {
+    position: absolute;
+    top: -0.625rem;
+    left: 0.75rem;
+    z-index: 1;
+    pointer-events: none;
+}
