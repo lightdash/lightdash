@@ -24,7 +24,7 @@ import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPa
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
+import AgentsRouterPage from './AgentsRouterPage';
 
 const AGENT_FEATURES = [
     {
@@ -85,9 +85,6 @@ const AgentsWelcome = () => {
             enabled: isAiCopilotEnabledOrTrial,
         },
     });
-    const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
-        enabled: isAiCopilotEnabledOrTrial,
-    });
 
     if (aiOrganizationSettingsQuery.isLoading) {
         return <AiPageLoading />;
@@ -96,30 +93,16 @@ const AgentsWelcome = () => {
         return <Navigate to="/" replace />;
     }
 
-    if (agentsQuery.isError || userAgentPreferencesQuery.isError) {
+    if (agentsQuery.isError) {
         return <div>something went wrong...</div>;
     }
 
-    if (agentsQuery.isLoading || userAgentPreferencesQuery.isLoading) {
+    if (agentsQuery.isLoading) {
         return <AiPageLoading />;
     }
 
-    if (userAgentPreferencesQuery.data?.defaultAgentUuid) {
-        return (
-            <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${userAgentPreferencesQuery.data.defaultAgentUuid}`}
-                replace
-            />
-        );
-    }
-
     if (agentsQuery.data.length > 0) {
-        return (
-            <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
-                replace
-            />
-        );
+        return <AgentsRouterPage />;
     }
 
     return (
