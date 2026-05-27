@@ -1,3 +1,11 @@
+# [0.3023.0](https://github.com/lightdash/lightdash/compare/0.3022.2...0.3023.0) (2026-05-27)
+
+
+### Features
+
+* **dev:** deterministic fast-path script for /docker-dev start ([#23517](https://github.com/lightdash/lightdash/issues/23517)) ([0312a35](https://github.com/lightdash/lightdash/commit/0312a35ef7636d4f6ffded7e9c10c8d26dbcfbb8))
+* **ee:** add run_ai_writeback MCP tool ([#23518](https://github.com/lightdash/lightdash/issues/23518)) ([f280dfa](https://github.com/lightdash/lightdash/commit/f280dfa235f586dd1ffe4601ec798dd7452df44d))
+
 ## [0.3022.2](https://github.com/lightdash/lightdash/compare/0.3022.1...0.3022.2) (2026-05-27)
 
 
