@@ -44,7 +44,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
     const agentQuery = useAiAgent(projectUuid!, agentUuid!);
-    const { agent } = useOutletContext<AgentContext>();
+    const { agent, agents } = useOutletContext<AgentContext>();
 
     const canManage = useAiAgentPermission({
         action: 'manage',
@@ -155,6 +155,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
                 threadUuid={threadUuid}
+                agents={agents}
+                selectedAgent={agent}
                 latestAssistantMessageUuid={
                     [...(thread.messages ?? [])]
                         .reverse()

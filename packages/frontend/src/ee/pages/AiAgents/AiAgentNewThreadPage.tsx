@@ -62,7 +62,7 @@ const AiAgentNewThreadPage: FC = () => {
                     }),
                 ),
         });
-    const { agent } = useOutletContext<AgentContext>();
+    const { agent, agents } = useOutletContext<AgentContext>();
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
         agentUuid,
@@ -262,6 +262,8 @@ const AiAgentNewThreadPage: FC = () => {
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
+                        agents={agents}
+                        selectedAgent={agent}
                         models={modelOptions}
                         selectedModelId={selectedModelKey}
                         onModelChange={handleSelectedModelKeyChange}
