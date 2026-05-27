@@ -54,6 +54,14 @@ const toolEditContentArgsSchema = z
     })
     .describe('Edit a dashboard or chart by applying a patch.');
 
+const toolProposeWritebackArgsSchema = z
+    .object({
+        prompt: z.string(),
+    })
+    .describe(
+        'Open a pull request that modifies the dbt project / semantic layer.',
+    );
+
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
@@ -80,6 +88,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
+    proposeWriteback: 'propose_writeback',
 } satisfies Record<ToolName, string>;
 
 // Explicit mapping of tool names to their schemas
@@ -103,6 +112,7 @@ const TOOL_SCHEMAS = {
     loadSkill: toolLoadSkillArgsSchema,
     generateUuids: toolGenerateUuidsArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
+    proposeWriteback: toolProposeWritebackArgsSchema,
     runQuery: toolRunQueryArgsSchema,
     runSavedChart: toolRunSavedChartArgsSchema,
     runSql: toolRunSqlArgsSchema,

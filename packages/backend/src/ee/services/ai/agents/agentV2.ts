@@ -24,6 +24,7 @@ import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
+import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
@@ -249,6 +250,12 @@ const getAgentTools = (
         getExploreCompiler: dependencies.getExploreCompiler,
     });
 
+    const proposeWriteback = args.enableAiWriteback
+        ? getProposeWriteback({
+              proposeWriteback: dependencies.proposeWriteback,
+          })
+        : null;
+
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
     });
@@ -290,6 +297,7 @@ const getAgentTools = (
         ...(args.enableSelfImprovement && args.canManageAgent
             ? { proposeChange }
             : {}),
+        ...(proposeWriteback ? { proposeWriteback } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -321,6 +329,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             knowledgeDocuments: args.knowledgeDocuments,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            enableAiWriteback: args.enableAiWriteback,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
