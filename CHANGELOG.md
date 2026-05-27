@@ -1,3 +1,10 @@
+# [0.3026.0](https://github.com/lightdash/lightdash/compare/0.3025.3...0.3026.0) (2026-05-27)
+
+
+### Features
+
+* **ee:** fall back to a system agent for Slack when none configured (behind feature flag) ([#23555](https://github.com/lightdash/lightdash/issues/23555)) ([37e7420](https://github.com/lightdash/lightdash/commit/37e7420344d0688f0f9d18fdd88103bfc072a08a))
+
 ## [0.3025.3](https://github.com/lightdash/lightdash/compare/0.3025.2...0.3025.3) (2026-05-27)
 
 
