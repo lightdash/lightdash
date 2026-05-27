@@ -1,3 +1,16 @@
+# [0.3027.0](https://github.com/lightdash/lightdash/compare/0.3026.0...0.3027.0) (2026-05-27)
+
+
+### Bug Fixes
+
+* **prod-7941:** push date and user predicates into user-activity CTE ([#23562](https://github.com/lightdash/lightdash/issues/23562)) ([170dd3d](https://github.com/lightdash/lightdash/commit/170dd3d8df5fde1bba6acf4d7825bdba96590970))
+
+
+### Features
+
+* **ai-writeback:** add ai_writeback_thread table + PR update helper ([#23556](https://github.com/lightdash/lightdash/issues/23556)) ([c26bcc7](https://github.com/lightdash/lightdash/commit/c26bcc7e1b6f6de88ad61755688eb152773d7537)), closes [#23557](https://github.com/lightdash/lightdash/issues/23557) [#23558](https://github.com/lightdash/lightdash/issues/23558)
+* **ai-writeback:** conversational continuation (part-2) ([#23557](https://github.com/lightdash/lightdash/issues/23557)) ([37965ee](https://github.com/lightdash/lightdash/commit/37965eefb51c6b5a6aec8952983fb2f69f286983)), closes [#23556](https://github.com/lightdash/lightdash/issues/23556)
+
 # [0.3026.0](https://github.com/lightdash/lightdash/compare/0.3025.3...0.3026.0) (2026-05-27)
 
 
