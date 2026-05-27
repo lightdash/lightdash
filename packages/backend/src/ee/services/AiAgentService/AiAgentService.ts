@@ -99,6 +99,7 @@ import {
 import * as JsonPatch from 'fast-json-patch';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
+import { z } from 'zod';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -7522,7 +7523,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const conversationHistory = await client.conversations.replies({
                     channel: channelId,
                     ts: threadTs || '',
-                    limit: 10,
+                    limit: 100,
                 });
 
                 // Check if we're in the multi-agent channel
@@ -7719,14 +7720,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 try {
-                    const { projectUuid, channelId } = JSON.parse(rawValue);
-
-                    if (!projectUuid || !channelId) {
+                    // The action value is user-controlled (it round-trips
+                    // through Slack), so validate its shape before trusting it.
+                    const projectSelectionSchema = z.object({
+                        projectUuid: z.string().uuid(),
+                        channelId: z.string().min(1),
+                    });
+                    const parseResult = projectSelectionSchema.safeParse(
+                        JSON.parse(rawValue),
+                    );
+                    if (!parseResult.success) {
                         Logger.error('Invalid project selection value', {
                             value: rawValue,
+                            error: parseResult.error.message,
                         });
                         return;
                     }
+                    const { projectUuid, channelId } = parseResult.data;
 
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -7812,7 +7822,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         await client.conversations.replies({
                             channel: channelId,
                             ts: threadTs,
-                            limit: 10,
+                            limit: 100,
                         });
                     const originalMessage = conversationHistory.messages?.find(
                         (msg) =>
