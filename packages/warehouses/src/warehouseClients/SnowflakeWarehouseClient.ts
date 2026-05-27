@@ -481,10 +481,41 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
-            await this.executeStatements(
-                connection,
-                `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
-            );
+            try {
+                await this.executeStatements(
+                    connection,
+                    `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
+                );
+            } catch (e) {
+                // Best-effort: fetch session identity to attach diagnostic
+                // context (user/role/session_id) to the error. Useful when a
+                // user's session role lacks USAGE on the warehouse — surfaces
+                // the role that needs the grant. Falls back to the raw error
+                // if the identity lookup itself fails.
+                let identityContext = '';
+                try {
+                    const identity = await this.executeStatements(
+                        connection,
+                        `SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role", CURRENT_SESSION() AS "session_id"`,
+                    );
+                    const row = (identity.rows?.[0] ?? {}) as Record<
+                        string,
+                        unknown
+                    >;
+                    identityContext = ` (user=${JSON.stringify(
+                        row.user,
+                    )}, role=${JSON.stringify(
+                        row.role,
+                    )}, session_id=${JSON.stringify(row.session_id)})`;
+                } catch {
+                    // ignore — identity lookup is best-effort only
+                }
+                throw new WarehouseConnectionError(
+                    `Failed to select Snowflake warehouse "${
+                        this.connectionOptions.warehouse
+                    }"${identityContext}: ${getErrorMessage(e)}`,
+                );
+            }
         }
 
         const sessionParams: string[] = [];
@@ -1184,6 +1215,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     this.formatWarehouseErrorMessage(customErrorMessage);
                 return new WarehouseQueryError(formattedMessage);
             }
+            // Append the warehouse configured on the connection so admins can
+            // tell apart "warehouse was set but Snowflake rejected the
+            // selection" from "no warehouse was configured at all" — the
+            // latter usually means the credentials are missing the field.
+            const configured = this.connectionOptions.warehouse;
+            const detail = configured
+                ? ` (configured warehouse: "${configured}")`
+                : ' (no warehouse was configured on the connection — credentials may be missing this field)';
+            return new WarehouseQueryError(`${originalMessage}${detail}`);
         }
 
         // pull error type from data object
