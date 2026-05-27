@@ -148,6 +148,10 @@ import {
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
 import {
+    OrganizationSettingsTable,
+    OrganizationSettingsTableName,
+} from '../database/entities/organizationSettings';
+import {
     OrganizationSsoConfigurationsTable,
     OrganizationSsoConfigurationsTableName,
 } from '../database/entities/organizationSsoConfigurations';
@@ -474,6 +478,7 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
+        [OrganizationSettingsTableName]: OrganizationSettingsTable;
         [OrganizationSsoConfigurationsTableName]: OrganizationSsoConfigurationsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;

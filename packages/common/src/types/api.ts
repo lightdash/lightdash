@@ -149,6 +149,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
+import { type OrganizationSettings } from './organizationSettings';
 import {
     type AzureAdSsoConfigSummary,
     type GenericOidcSsoConfigSummary,
@@ -941,6 +942,7 @@ type ApiResults =
     | OktaSsoConfigSummary
     | GenericOidcSsoConfigSummary
     | OneLoginSsoConfigSummary
+    | OrganizationSettings
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

@@ -1,0 +1,41 @@
+import { Knex } from 'knex';
+
+export const OrganizationSettingsTableName = 'organization_settings';
+
+/**
+ * Per-organization settings migrated from instance-wide env vars. One row per
+ * organization (keyed by `organization_uuid`); absence of a row means every
+ * setting takes its default. Designed to grow as more Pro settings move
+ * org-level.
+ */
+export type DbOrganizationSettings = {
+    organization_uuid: string;
+    // Nullable: NULL means "not set — inherit the instance default".
+    oidc_linking_enabled: boolean | null;
+    oidc_to_email_linking_enabled: boolean | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+// The actual settings columns — everything except the key and timestamps.
+// Derived from `DbOrganizationSettings` so adding a setting column flows into
+// the insert/update types automatically (no extra edits here).
+export type DbOrganizationSettingsColumns = Omit<
+    DbOrganizationSettings,
+    'organization_uuid' | 'created_at' | 'updated_at'
+>;
+
+type DbOrganizationSettingsInsert = Pick<
+    DbOrganizationSettings,
+    'organization_uuid'
+> &
+    Partial<DbOrganizationSettingsColumns>;
+
+export type OrganizationSettingsTable = Knex.CompositeTableType<
+    DbOrganizationSettings,
+    DbOrganizationSettingsInsert,
+    Partial<
+        DbOrganizationSettingsColumns &
+            Pick<DbOrganizationSettings, 'updated_at'>
+    >
+>;

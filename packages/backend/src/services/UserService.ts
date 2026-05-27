@@ -41,6 +41,7 @@ import {
     PasswordReset,
     ProjectMemberRole,
     RegisterOrActivateUser,
+    resolveEffectiveOrganizationSettings,
     ServiceAccount,
     SessionUser,
     SnowflakeAuthenticationType,
@@ -81,6 +82,7 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -107,6 +109,7 @@ type UserServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationSsoModel: OrganizationSsoModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
@@ -213,6 +216,8 @@ export class UserService extends BaseService {
 
     private readonly organizationSsoModel: OrganizationSsoModel;
 
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -241,6 +246,7 @@ export class UserService extends BaseService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         organizationSsoModel,
+        organizationSettingsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
@@ -263,6 +269,7 @@ export class UserService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.organizationSsoModel = organizationSsoModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
@@ -749,6 +756,42 @@ export class UserService extends BaseService {
         }
     }
 
+    /**
+     * Whether auto-linking a new OIDC identity to an existing user (matched by
+     * a shared OIDC email) is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_linking_enabled` takes priority; when it's
+     * unset (null) we fall back to the instance `AUTH_ENABLE_OIDC_LINKING`.
+     */
+    private async isOidcLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(raw, this.lightdashConfig.auth)
+                .oidcLinkingEnabled ?? false
+        );
+    }
+
+    /**
+     * Whether auto-linking an OIDC identity to an existing user matched by
+     * verified primary email is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_to_email_linking_enabled` takes priority;
+     * when unset (null) we fall back to `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`.
+     */
+    private async isOidcToEmailLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(raw, this.lightdashConfig.auth)
+                .oidcToEmailLinkingEnabled ?? false
+        );
+    }
+
     private async loginWithOpenIdInner(
         openIdUser: OpenIdUser,
         authenticatedUser: SessionUser | undefined,
@@ -857,17 +900,20 @@ export class UserService extends BaseService {
             return loginUser;
         }
 
-        // Link the new openid identity to an existing user if they already have another OIDC with the same email
-        if (!authenticatedUser && this.lightdashConfig.auth.enableOidcLinking) {
+        // Link the new openid identity to an existing user if they already
+        // have another OIDC with the same email. Allowed instance-wide via env
+        // OR per-org via organization_settings — so we resolve the candidate
+        // user first, then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const identities =
                 await this.openIdIdentityModel.findIdentitiesByEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `OIDC linking enabled - Found ${identities.length} existing identities for email ${openIdUser.openId.email}`,
-            );
             const identitiesUsers = uniq(
                 identities.map((identity) => identity.userUuid),
+            );
+            this.logger.info(
+                `OIDC account-linking check for ${openIdUser.openId.email} — found ${identities.length} existing identities (linking decided per-org)`,
             );
             if (identitiesUsers.length > 1) {
                 this.logger.warn(
@@ -877,51 +923,60 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
-                this.logger.info(
-                    `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
-                );
 
                 if (
-                    this.lightdashConfig.groups.enabled === true &&
-                    this.lightdashConfig.auth.enableGroupSync === true &&
-                    Array.isArray(openIdUser.openId.groups) &&
-                    openIdUser.openId.groups.length &&
-                    sessionUser.organizationUuid
+                    await this.isOidcLinkingEnabledForOrg(
+                        sessionUser.organizationUuid,
+                    )
                 ) {
                     this.logger.info(
-                        `Syncing groups for existing user ${
-                            sessionUser.userUuid
-                        } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
                     );
-                    await this.tryAddUserToGroups({
-                        userUuid: sessionUser.userUuid,
-                        groups: openIdUser.openId.groups,
-                        organizationUuid: sessionUser.organizationUuid,
-                    });
-                }
 
-                return this.linkOpenIdIdentityToUser(
-                    sessionUser,
-                    openIdUser,
-                    refreshToken,
-                );
+                    if (
+                        this.lightdashConfig.groups.enabled === true &&
+                        this.lightdashConfig.auth.enableGroupSync === true &&
+                        Array.isArray(openIdUser.openId.groups) &&
+                        openIdUser.openId.groups.length &&
+                        sessionUser.organizationUuid
+                    ) {
+                        this.logger.info(
+                            `Syncing groups for existing user ${
+                                sessionUser.userUuid
+                            } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        );
+                        await this.tryAddUserToGroups({
+                            userUuid: sessionUser.userUuid,
+                            groups: openIdUser.openId.groups,
+                            organizationUuid: sessionUser.organizationUuid,
+                        });
+                    }
+
+                    return this.linkOpenIdIdentityToUser(
+                        sessionUser,
+                        openIdUser,
+                        refreshToken,
+                    );
+                }
             }
         }
 
-        // Link the new openid identity to an existing user if they already have the same primary email and it's verified
-        if (
-            !authenticatedUser &&
-            this.lightdashConfig.auth.enableOidcToEmailLinking
-        ) {
+        // Link the new openid identity to an existing user if they already
+        // have the same verified primary email. Allowed instance-wide via env
+        // OR per-org via organization_settings — resolve the candidate user,
+        // then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const userWithSameEmail =
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `Email linking enabled - Found user with same email: ${!!userWithSameEmail}`,
-            );
 
-            if (userWithSameEmail) {
+            if (
+                userWithSameEmail &&
+                (await this.isOidcToEmailLinkingEnabledForOrg(
+                    userWithSameEmail.organizationUuid,
+                ))
+            ) {
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
                 );

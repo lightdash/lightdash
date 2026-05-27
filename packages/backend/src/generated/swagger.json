@@ -27942,6 +27942,56 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
+            "OrganizationSettings": {
+                "properties": {
+                    "oidcToEmailLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link an OIDC identity to an existing user matched by verified\nprimary email, regardless of how they signed up (overrides\n`AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`; `null` inherits it)."
+                    },
+                    "oidcLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link a new OIDC identity to an existing user who already has a\ndifferent OIDC identity with the same email (overrides\n`AUTH_ENABLE_OIDC_LINKING`; `null` inherits it)."
+                    }
+                },
+                "required": ["oidcToEmailLinkingEnabled", "oidcLinkingEnabled"],
+                "type": "object",
+                "description": "Per-organization settings migrated from instance-wide env vars. Surfaced in\nthe Pro admin panel and stored in the `organization_settings` table. Starts\nwith the OIDC account-linking toggles; designed to grow as more settings\nmove org-level.\n\nEach value is tri-state: `null` means \"not set — inherit the instance/env\ndefault\", while an explicit `true`/`false` overrides the env. The fallback\nto the env default is resolved in the auth layer, not here."
+            },
+            "ApiOrganizationSettingsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_OrganizationSettings_": {
+                "properties": {
+                    "oidcLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link a new OIDC identity to an existing user who already has a\ndifferent OIDC identity with the same email (overrides\n`AUTH_ENABLE_OIDC_LINKING`; `null` inherits it)."
+                    },
+                    "oidcToEmailLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link an OIDC identity to an existing user matched by verified\nprimary email, regardless of how they signed up (overrides\n`AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`; `null` inherits it)."
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateOrganizationSettings": {
+                "$ref": "#/components/schemas/Partial_OrganizationSettings_"
+            },
             "OrganizationDesignFileKind": {
                 "type": "string",
                 "enum": ["instruction", "css", "font", "image"]
@@ -49858,6 +49908,78 @@
                                 },
                                 "type": "array",
                                 "description": "the new order of the pinned items"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/settings": {
+            "get": {
+                "operationId": "GetOrganizationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's settings. Defaults are returned when\nno settings have been saved.",
+                "summary": "Get organization settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "patch": {
+                "operationId": "UpdateOrganizationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Updates the current organization's settings. Only the provided fields\nare changed.",
+                "summary": "Update organization settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationSettings"
                             }
                         }
                     }
