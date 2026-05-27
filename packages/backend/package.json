@@ -206,6 +206,7 @@
         "knex-mock-client": "1.11.0",
         "nodemon": "3.1.9",
         "ts-node": "10.9.2",
-        "typescript": "6.0.3"
+        "typescript": "6.0.3",
+        "zod-to-json-schema": "3.25.1"
     }
 }
