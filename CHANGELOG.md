@@ -1,3 +1,18 @@
+# [0.3025.0](https://github.com/lightdash/lightdash/compare/0.3024.4...0.3025.0) (2026-05-27)
+
+
+### Bug Fixes
+
+* **explorer:** surface table-calc errors with pivot, dedupe error toasts ([#23535](https://github.com/lightdash/lightdash/issues/23535)) ([49e1375](https://github.com/lightdash/lightdash/commit/49e1375aa981bba21829901ebcd197f9297fe39e)), closes [#23515](https://github.com/lightdash/lightdash/issues/23515)
+* **mcp:** resolve project UUID from context in list/set agent tools ([#23543](https://github.com/lightdash/lightdash/issues/23543)) ([1c0c6a1](https://github.com/lightdash/lightdash/commit/1c0c6a11cc0ae8a61942dc8dfddcd545ccad0dce))
+
+
+### Features
+
+* add "Last used" login method cookie with SSO hint badge and email pre-fill ([#23534](https://github.com/lightdash/lightdash/issues/23534)) ([817145c](https://github.com/lightdash/lightdash/commit/817145cecf0293b70c7cf94df1d2cf1ab47417e3))
+* **ai-agents:** enable data access by default for new agents ([#23524](https://github.com/lightdash/lightdash/issues/23524)) ([76b2411](https://github.com/lightdash/lightdash/commit/76b2411893a0beb623f93c03a99853c474305f65))
+* **ee:** expose ai-writeback as a chat-agent tool ([#23514](https://github.com/lightdash/lightdash/issues/23514)) ([0ce510e](https://github.com/lightdash/lightdash/commit/0ce510e1e432e4c07af7e9e25a27abe4c613a6c8))
+
 ## [0.3024.4](https://github.com/lightdash/lightdash/compare/0.3024.3...0.3024.4) (2026-05-27)
 
 
