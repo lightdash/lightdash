@@ -2,9 +2,12 @@ import {
     type AiAgentAdminFilters,
     type AiAgentAdminSort,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentReviewItemsResponse,
+    type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
+    type AiAgentReviewItemStatus,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
@@ -101,6 +104,53 @@ export const useAiAgentAdminAgents = (options?: { enabled?: boolean }) => {
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: ['ai-agent-admin-list'],
         queryFn: getAiAgentAdminAgents,
+        keepPreviousData: true,
+        enabled: options?.enabled ?? true,
+    });
+};
+
+const getAiAgentAdminReviewItems = async (args: {
+    statuses?: AiAgentReviewItemStatus[];
+}) => {
+    const params = createQueryString({
+        status: args.statuses,
+    });
+
+    return lightdashApi<ApiAiAgentReviewItemsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items${params ? `?${params}` : ''}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminReviewItems = (
+    args: { statuses?: AiAgentReviewItemStatus[] },
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<ApiAiAgentReviewItemsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-items', args],
+        queryFn: () => getAiAgentAdminReviewItems(args),
+        keepPreviousData: true,
+        enabled: options?.enabled ?? true,
+    });
+};
+
+const getAiAgentAdminReviewSignals = async () => {
+    return lightdashApi<ApiAiAgentReviewSignalsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-signals`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminReviewSignals = (options?: {
+    enabled?: boolean;
+}) => {
+    return useQuery<ApiAiAgentReviewSignalsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-signals'],
+        queryFn: getAiAgentAdminReviewSignals,
         keepPreviousData: true,
         enabled: options?.enabled ?? true,
     });

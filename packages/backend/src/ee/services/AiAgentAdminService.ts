@@ -3,7 +3,11 @@ import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentReviewItemStatus,
+    AiAgentReviewItemSummary,
+    AiAgentReviewSignalSummary,
     AiAgentSummary,
+    FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -12,10 +16,14 @@ import {
 import jwt from 'jsonwebtoken';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../../services/BaseService';
+import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
+import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 
 type AiAgentAdminServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
 };
 
@@ -24,9 +32,16 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentReviewClassifierModel =
+            dependencies.aiAgentReviewClassifierModel;
+        this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
@@ -82,6 +97,66 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
         return this.aiAgentModel.findAllAgents({
+            organizationUuid,
+        });
+    }
+
+    async listReviewItems(
+        user: SessionUser,
+        statuses?: AiAgentReviewItemStatus[],
+    ): Promise<AiAgentReviewItemSummary[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const featureFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+
+        if (!featureFlag.enabled) {
+            throw new ForbiddenError(
+                'AI agent review classifier is not enabled',
+            );
+        }
+
+        return this.aiAgentReviewClassifierModel.listReviewItems({
+            organizationUuid,
+            statuses,
+        });
+    }
+
+    async listReviewSignals(
+        user: SessionUser,
+    ): Promise<AiAgentReviewSignalSummary[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const featureFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+
+        if (!featureFlag.enabled) {
+            throw new ForbiddenError(
+                'AI agent review classifier is not enabled',
+            );
+        }
+
+        return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
         });
     }

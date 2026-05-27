@@ -1,4 +1,7 @@
-import { type AiAgentAdminThreadSummary } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type AiAgentAdminThreadSummary,
+} from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -15,12 +18,13 @@ import {
     IconChartDots,
     IconGripVertical,
     IconInfoCircle,
+    IconListCheck,
     IconLock,
     IconMessageCircle,
     IconMessageCircleShare,
     IconRobotFace,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useLocation, useNavigate } from 'react-router';
 import LinkButton from '../../../../../components/common/LinkButton';
@@ -30,9 +34,13 @@ import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import AiAgentAdminAgentsTable from './AiAgentAdminAgentsTable';
+import AiAgentAdminReviewItemsTable, {
+    type AiAgentAdminReviewItemPreviewTarget,
+} from './AiAgentAdminReviewItemsTable';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
 import { AiAgentsAdminEnableFeatureToggle } from './AiAgentsAdminEnableFeatureToggle';
 import styles from './AiAgentsAdminLayout.module.css';
@@ -47,12 +55,21 @@ export const AiAgentsAdminLayout = () => {
     const navigate = useNavigate();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: settings } = useAiOrganizationSettings();
-    const activeTab = location.pathname.endsWith('/agents')
-        ? 'agents'
-        : 'threads';
+    const { data: reviewClassifierFlag, isFetched: hasFetchedReviewFlag } =
+        useServerFeatureFlag(FeatureFlags.AiAgentReviewClassifier);
+    const isReviewTabEnabled = reviewClassifierFlag?.enabled === true;
+    const isReviewTabPath = location.pathname.endsWith('/reviews');
+    const activeTab =
+        isReviewTabPath && isReviewTabEnabled
+            ? 'reviews'
+            : location.pathname.endsWith('/agents')
+              ? 'agents'
+              : 'threads';
 
     const [selectedThread, setSelectedThread] =
         useState<AiAgentAdminThreadSummary | null>(null);
+    const [selectedReviewItem, setSelectedReviewItem] =
+        useState<AiAgentAdminReviewItemPreviewTarget | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isAnalyticsEmbedOpen, { toggle: toggleAnalyticsEmbed }] =
         useDisclosure(false);
@@ -64,6 +81,18 @@ export const AiAgentsAdminLayout = () => {
 
     const handleThreadSelect = (thread: AiAgentAdminThreadSummary): void => {
         setSelectedThread(thread);
+        setSelectedReviewItem(null);
+        setIsSidebarOpen(true);
+        if (isAnalyticsEmbedOpen) {
+            toggleAnalyticsEmbed();
+        }
+    };
+
+    const handleReviewItemSelect = (
+        reviewItem: AiAgentAdminReviewItemPreviewTarget,
+    ): void => {
+        setSelectedReviewItem(reviewItem);
+        setSelectedThread(null);
         setIsSidebarOpen(true);
         if (isAnalyticsEmbedOpen) {
             toggleAnalyticsEmbed();
@@ -73,10 +102,66 @@ export const AiAgentsAdminLayout = () => {
     const handleCloseSidebar = () => {
         setIsSidebarOpen(false);
         setSelectedThread(null);
+        setSelectedReviewItem(null);
     };
 
     const isAnalyticsEmbedEnabled =
         health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
+
+    useEffect(() => {
+        if (isReviewTabPath && hasFetchedReviewFlag && !isReviewTabEnabled) {
+            void navigate('/ai-agents/admin/threads', { replace: true });
+        }
+    }, [hasFetchedReviewFlag, isReviewTabEnabled, isReviewTabPath, navigate]);
+
+    const tabDescription = useMemo(() => {
+        switch (activeTab) {
+            case 'agents':
+                return 'View and manage AI Agents';
+            case 'reviews':
+                return 'Review AI Agent findings';
+            case 'threads':
+            default:
+                return 'View and manage AI Agents threads';
+        }
+    }, [activeTab]);
+
+    const tabs = useMemo(
+        () => [
+            {
+                value: 'threads',
+                label: (
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconMessageCircle} />
+                        <Text fz="sm">Threads</Text>
+                    </Group>
+                ),
+            },
+            {
+                value: 'agents',
+                label: (
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconRobotFace} />
+                        <Text fz="sm">Agents</Text>
+                    </Group>
+                ),
+            },
+            ...(isReviewTabEnabled
+                ? [
+                      {
+                          value: 'reviews',
+                          label: (
+                              <Group gap="xs" wrap="nowrap">
+                                  <MantineIcon icon={IconListCheck} />
+                                  <Text fz="sm">Reviews</Text>
+                              </Group>
+                          ),
+                      },
+                  ]
+                : []),
+        ],
+        [isReviewTabEnabled],
+    );
 
     if (!canManageOrganization) {
         return (
@@ -126,9 +211,7 @@ export const AiAgentsAdminLayout = () => {
                                     )}
                             </Group>
                             <Text c="ldGray.6" size="sm" fw={400}>
-                                {activeTab === 'threads'
-                                    ? 'View and manage AI Agents threads'
-                                    : 'View and manage AI Agents'}
+                                {tabDescription}
                             </Text>
                         </Box>
                         <AiAgentsAdminEnableFeatureToggle
@@ -159,33 +242,12 @@ export const AiAgentsAdminLayout = () => {
                             radius="md"
                             value={activeTab}
                             onChange={(value) => {
-                                if (value === 'agents') {
+                                if (value !== 'threads') {
                                     handleCloseSidebar();
                                 }
                                 void navigate(`/ai-agents/admin/${value}`);
                             }}
-                            data={[
-                                {
-                                    value: 'threads',
-                                    label: (
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconMessageCircle}
-                                            />
-                                            <Text fz="sm">Threads</Text>
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: 'agents',
-                                    label: (
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon icon={IconRobotFace} />
-                                            <Text fz="sm">Agents</Text>
-                                        </Group>
-                                    ),
-                                },
-                            ]}
+                            data={tabs}
                         />
                         {activeTab === 'threads' && (
                             <LinkButton
@@ -209,55 +271,85 @@ export const AiAgentsAdminLayout = () => {
                         )}
                     </Group>
 
-                    {activeTab === 'threads' ? (
+                    {activeTab === 'threads' && (
                         <AiAgentAdminThreadsTable
                             onThreadSelect={handleThreadSelect}
                             selectedThread={selectedThread}
                             setSelectedThread={setSelectedThread}
                         />
-                    ) : (
-                        <AiAgentAdminAgentsTable />
+                    )}
+                    {activeTab === 'agents' && <AiAgentAdminAgentsTable />}
+                    {activeTab === 'reviews' && (
+                        <AiAgentAdminReviewItemsTable
+                            selectedReviewItemUuid={
+                                selectedReviewItem?.reviewItemUuid
+                            }
+                            onReviewItemSelect={handleReviewItemSelect}
+                        />
                     )}
                 </Panel>
 
-                {isSidebarOpen && activeTab === 'threads' && (
-                    <>
-                        <PanelResizeHandle
-                            className={styles.resizeHandle}
-                            style={{
-                                width: 2,
-                                backgroundColor: theme.colors.ldGray[3],
-                                cursor: 'col-resize',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <MantineIcon
-                                color="gray"
-                                icon={IconGripVertical}
-                                size="sm"
-                            />
-                        </PanelResizeHandle>
-                        <Panel
-                            id="thread-preview"
-                            defaultSize={30}
-                            minSize={25}
-                            maxSize={50}
-                        >
-                            {!!selectedThread && (
-                                <ThreadPreviewSidebar
-                                    projectUuid={selectedThread.project.uuid}
-                                    agentUuid={selectedThread.agent.uuid}
-                                    threadUuid={selectedThread.uuid}
-                                    isOpen={isSidebarOpen}
-                                    onClose={handleCloseSidebar}
-                                    showAddToEvalsButton
+                {isSidebarOpen &&
+                    (activeTab === 'threads' || activeTab === 'reviews') && (
+                        <>
+                            <PanelResizeHandle
+                                className={styles.resizeHandle}
+                                style={{
+                                    width: 2,
+                                    backgroundColor: theme.colors.ldGray[3],
+                                    cursor: 'col-resize',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <MantineIcon
+                                    color="gray"
+                                    icon={IconGripVertical}
+                                    size="sm"
                                 />
-                            )}
-                        </Panel>
-                    </>
-                )}
+                            </PanelResizeHandle>
+                            <Panel
+                                id="thread-preview"
+                                defaultSize={30}
+                                minSize={25}
+                                maxSize={50}
+                            >
+                                {activeTab === 'threads' &&
+                                    !!selectedThread && (
+                                        <ThreadPreviewSidebar
+                                            projectUuid={
+                                                selectedThread.project.uuid
+                                            }
+                                            agentUuid={
+                                                selectedThread.agent.uuid
+                                            }
+                                            threadUuid={selectedThread.uuid}
+                                            isOpen={isSidebarOpen}
+                                            onClose={handleCloseSidebar}
+                                            showAddToEvalsButton
+                                        />
+                                    )}
+                                {activeTab === 'reviews' &&
+                                    !!selectedReviewItem && (
+                                        <ThreadPreviewSidebar
+                                            projectUuid={
+                                                selectedReviewItem.projectUuid
+                                            }
+                                            agentUuid={
+                                                selectedReviewItem.agentUuid
+                                            }
+                                            threadUuid={
+                                                selectedReviewItem.threadUuid
+                                            }
+                                            isOpen={isSidebarOpen}
+                                            onClose={handleCloseSidebar}
+                                            showAddToEvalsButton
+                                        />
+                                    )}
+                            </Panel>
+                        </>
+                    )}
             </PanelGroup>
             <MantineModal
                 opened={isAnalyticsEmbedOpen}

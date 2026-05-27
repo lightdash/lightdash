@@ -13321,8 +13321,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13380,8 +13380,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13787,8 +13787,26 @@
             "AiAgentMessageAssistantArtifact": {
                 "$ref": "#/components/schemas/Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_"
             },
+            "AiPromptTokenUsage": {
+                "properties": {
+                    "totalTokens": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalTokens"],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "tokenUsage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptTokenUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "modelConfig": {
                         "properties": {
                             "reasoning": {
@@ -13878,6 +13896,7 @@
                     }
                 },
                 "required": [
+                    "tokenUsage",
                     "modelConfig",
                     "referencedArtifacts",
                     "artifacts",
@@ -18822,6 +18841,873 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
+            "AiAgentRootCause": {
+                "type": "string",
+                "enum": [
+                    "semantic_layer",
+                    "project_context",
+                    "agent_configuration",
+                    "data_gap",
+                    "product_capability",
+                    "runtime_reliability",
+                    "feedback_quality",
+                    "not_a_failure",
+                    "ambiguous"
+                ]
+            },
+            "AiAgentReviewItemStatus": {
+                "type": "string",
+                "enum": [
+                    "open",
+                    "in_progress",
+                    "resolved",
+                    "dismissed",
+                    "duplicate"
+                ]
+            },
+            "AiAgentReviewItemDismissedReason": {
+                "type": "string",
+                "enum": [
+                    "not_actionable",
+                    "expected_behavior",
+                    "duplicate",
+                    "low_confidence",
+                    "other"
+                ]
+            },
+            "AiAgentReviewItemOwnerType": {
+                "type": "string",
+                "enum": [
+                    "semantic_layer_owner",
+                    "agent_admin",
+                    "product",
+                    "support",
+                    "unknown"
+                ]
+            },
+            "AiAgentReviewItem": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "linkedPrUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linkedIssueUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statusUpdatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statusUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "findingCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "assignedToUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ownerType": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemOwnerType"
+                    },
+                    "dismissedReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentReviewItemDismissedReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "primaryRootCause": {
+                        "$ref": "#/components/schemas/AiAgentRootCause"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "fingerprint": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "linkedPrUrl",
+                    "linkedIssueUrl",
+                    "statusUpdatedByUserUuid",
+                    "statusUpdatedAt",
+                    "findingCount",
+                    "lastSeenAt",
+                    "firstSeenAt",
+                    "assignedToUserUuid",
+                    "ownerType",
+                    "dismissedReason",
+                    "status",
+                    "primaryRootCause",
+                    "description",
+                    "title",
+                    "agentUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "fingerprint",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentFixTarget": {
+                "type": "string",
+                "enum": [
+                    "semantic_yaml_patch",
+                    "project_context_rule",
+                    "agent_configuration_change",
+                    "dbt_modeling_ticket",
+                    "semantic_layer_ticket",
+                    "product_capability_ticket",
+                    "runtime_reliability_ticket",
+                    "feedback_needed",
+                    "no_action"
+                ]
+            },
+            "AiAgentSemanticTargetRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["model"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["exploreName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "joinName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["join"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["joinName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dimensionName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "metricName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["metric"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["metricName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "parentDimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["additional_dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dimensionName",
+                            "parentDimensionName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["required_filter"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "fieldName",
+                            "exploreName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "targetName": {
+                                "type": "string"
+                            },
+                            "targetType": {
+                                "type": "string",
+                                "enum": ["model", "dimension", "metric"]
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["ai_hint"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "targetName",
+                            "targetType",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentConfigurationSetting": {
+                "type": "string",
+                "enum": [
+                    "instructions",
+                    "knowledge_documents",
+                    "data_access",
+                    "self_improvement",
+                    "sql_mode",
+                    "mcp_servers",
+                    "explore_tags",
+                    "space_access",
+                    "user_or_group_access",
+                    "unknown"
+                ]
+            },
+            "AiAgentTargetRef": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentSemanticTargetRef"
+                    },
+                    {
+                        "properties": {
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["agentUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "setting": {
+                                "$ref": "#/components/schemas/AiAgentConfigurationSetting"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent_config"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["setting", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "capabilityKey": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["product_capability"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["capabilityKey", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["runtime"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["key", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentEvidenceExcerpt": {
+                "properties": {
+                    "redacted": {
+                        "type": "boolean"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "user_prompt",
+                            "assistant_answer",
+                            "next_user_prompt",
+                            "conversation_context",
+                            "tool_call",
+                            "tool_result",
+                            "agent_config"
+                        ]
+                    }
+                },
+                "required": ["redacted", "text", "source"],
+                "type": "object"
+            },
+            "AiAgentRecommendationAction": {
+                "type": "string",
+                "enum": [
+                    "update_semantic_yaml",
+                    "update_agent_instructions",
+                    "add_knowledge_document",
+                    "enable_data_access",
+                    "enable_sql_mode",
+                    "enable_self_improvement",
+                    "configure_mcp_server",
+                    "adjust_explore_tags",
+                    "update_access",
+                    "route_to_product_work",
+                    "request_more_evidence",
+                    "no_action"
+                ]
+            },
+            "AiAgentRecommendation": {
+                "properties": {
+                    "targetRefs": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                        },
+                        "type": "array"
+                    },
+                    "rationale": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "actionType": {
+                        "$ref": "#/components/schemas/AiAgentRecommendationAction"
+                    }
+                },
+                "required": ["targetRefs", "rationale", "title", "actionType"],
+                "type": "object"
+            },
+            "AiAgentReviewItemSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentReviewItem"
+                    },
+                    {
+                        "properties": {
+                            "latestFinding": {
+                                "properties": {
+                                    "createdAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "recommendation": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentRecommendation"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "evidenceExcerpts": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentEvidenceExcerpt"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "targetRefs": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "fixTargets": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentFixTarget"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "subcategories": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "agentUuid": {
+                                        "type": "string"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    },
+                                    "threadUuid": {
+                                        "type": "string"
+                                    },
+                                    "promptUuid": {
+                                        "type": "string"
+                                    },
+                                    "uuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "createdAt",
+                                    "recommendation",
+                                    "evidenceExcerpts",
+                                    "targetRefs",
+                                    "fixTargets",
+                                    "subcategories",
+                                    "agentUuid",
+                                    "projectUuid",
+                                    "threadUuid",
+                                    "promptUuid",
+                                    "uuid"
+                                ],
+                                "type": "object",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["latestFinding"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AiAgentReviewItemSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewItemSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemSummary-Array_"
+            },
+            "AiAgentTurnSignal": {
+                "type": "string",
+                "enum": [
+                    "normal_refinement",
+                    "implicit_correction",
+                    "explicit_dispute",
+                    "retry_after_failure",
+                    "output_shape_correction",
+                    "new_question",
+                    "acceptance_or_continuation",
+                    "product_capability_request",
+                    "human_intervention",
+                    "ambiguous"
+                ]
+            },
+            "AiAgentImplicitSignalSource": {
+                "type": "string",
+                "enum": [
+                    "next_user_correction",
+                    "next_user_dispute",
+                    "next_user_retry",
+                    "output_shape_correction",
+                    "tool_error",
+                    "assistant_no_answer",
+                    "product_capability_request",
+                    "human_intervention"
+                ]
+            },
+            "AiAgentReviewClassifierConfidence": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+            },
+            "AiAgentReviewClassifierEventType": {
+                "type": "string",
+                "enum": ["response_saved", "feedback_changed"]
+            },
+            "AiAgentReviewClassifierRunScope": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "dryRun": {
+                                "type": "boolean"
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "endedAt": {
+                                "type": "string"
+                            },
+                            "startedAt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["backfill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["endedAt", "startedAt", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "promptUuid": {
+                                "type": "string"
+                            },
+                            "eventType": {
+                                "$ref": "#/components/schemas/AiAgentReviewClassifierEventType"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["live_event"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "agentUuid",
+                            "projectUuid",
+                            "threadUuid",
+                            "promptUuid",
+                            "eventType",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "filters": {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            },
+                            "requestedByUserUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["manual"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["filters", "requestedByUserUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentReviewSignalSummary": {
+                "properties": {
+                    "finding": {
+                        "properties": {
+                            "recommendation": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentRecommendation"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "evidenceExcerpts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentEvidenceExcerpt"
+                                },
+                                "type": "array"
+                            },
+                            "fixTargets": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentFixTarget"
+                                },
+                                "type": "array"
+                            },
+                            "subcategories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "primaryRootCause": {
+                                "$ref": "#/components/schemas/AiAgentRootCause"
+                            },
+                            "reviewItemUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "recommendation",
+                            "evidenceExcerpts",
+                            "fixTargets",
+                            "subcategories",
+                            "primaryRootCause",
+                            "reviewItemUuid",
+                            "uuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "responsePreview": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "runScope": {
+                        "$ref": "#/components/schemas/AiAgentReviewClassifierRunScope"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "promotionReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "promotedToFinding": {
+                        "type": "boolean"
+                    },
+                    "confidence": {
+                        "$ref": "#/components/schemas/AiAgentReviewClassifierConfidence"
+                    },
+                    "implicitSignalSources": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentImplicitSignalSource"
+                        },
+                        "type": "array"
+                    },
+                    "signal": {
+                        "$ref": "#/components/schemas/AiAgentTurnSignal"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "runUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finding",
+                    "errorMessage",
+                    "responsePreview",
+                    "prompt",
+                    "runScope",
+                    "createdAt",
+                    "promotionReason",
+                    "promotedToFinding",
+                    "confidence",
+                    "implicitSignalSources",
+                    "signal",
+                    "agentUuid",
+                    "projectUuid",
+                    "threadUuid",
+                    "promptUuid",
+                    "runUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentReviewSignalSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewSignalSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewSignalsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewSignalSummary-Array_"
+            },
             "AiOrganizationSettings": {
                 "properties": {
                     "aiAgentsVisible": {
@@ -23124,6 +24010,7 @@
                 "enum": [
                     "slackAiPrompt",
                     "aiAgentEvalResult",
+                    "aiAgentReviewClassifier",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
@@ -26044,22 +26931,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -26619,22 +27506,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -35383,7 +36270,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3028.1",
+        "version": "0.3031.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -41516,6 +42403,80 @@
                 },
                 "description": "Get all AI agents for admin",
                 "summary": "List AI agents",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items": {
+            "get": {
+                "operationId": "getAiAgentReviewItems",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI agent classifier review items for admin",
+                "summary": "List AI agent review items",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/review-signals": {
+            "get": {
+                "operationId": "getAiAgentReviewSignals",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewSignalsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI agent classifier review signals for admin debugging",
+                "summary": "List AI agent review signals",
                 "security": [],
                 "parameters": []
             }
