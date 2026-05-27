@@ -1,3 +1,10 @@
+## [0.3024.2](https://github.com/lightdash/lightdash/compare/0.3024.1...0.3024.2) (2026-05-27)
+
+
+### Bug Fixes
+
+* data app readiness indicator ([#23530](https://github.com/lightdash/lightdash/issues/23530)) ([7860a09](https://github.com/lightdash/lightdash/commit/7860a09bd0dec56fc203dfe343089436cc2e3fba))
+
 ## [0.3024.1](https://github.com/lightdash/lightdash/compare/0.3024.0...0.3024.1) (2026-05-27)
 
 
