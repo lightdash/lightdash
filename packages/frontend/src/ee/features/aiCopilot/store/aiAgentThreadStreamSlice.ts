@@ -2,7 +2,11 @@ import {
     type AiAgentToolName,
     type AiMcpServerConnectionStatus,
 } from '@lightdash/common';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import {
+    createSlice,
+    prepareAutoBatched,
+    type PayloadAction,
+} from '@reduxjs/toolkit';
 
 type ToolCall = {
     toolCallId: string;
@@ -94,52 +98,70 @@ export const aiAgentThreadStreamSlice = createSlice({
                 ...initialThread,
             };
         },
-        setMessage: (
-            state,
-            action: PayloadAction<{
+        setMessage: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    content: string;
+                }>,
+            ) => {
+                const { threadUuid, content } = action.payload;
+
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.content = content;
+                } else {
+                    console.warn('Streaming thread or message not found:', {
+                        threadUuid,
+                    });
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 content: string;
-            }>,
-        ) => {
-            const { threadUuid, content } = action.payload;
-
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.content = content;
-            } else {
-                console.warn('Streaming thread or message not found:', {
-                    threadUuid,
-                });
-            }
+            }>(),
         },
-        setParts: (
-            state,
-            action: PayloadAction<{
+        setParts: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    parts: StreamPart[];
+                }>,
+            ) => {
+                const { threadUuid, parts } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.parts = parts;
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 parts: StreamPart[];
-            }>,
-        ) => {
-            const { threadUuid, parts } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.parts = parts;
-            }
+            }>(),
         },
-        markToolCallDecided: (
-            state,
-            action: PayloadAction<{
+        markToolCallDecided: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    toolCallId: string;
+                }>,
+            ) => {
+                const { threadUuid, toolCallId } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (
+                    streamingThread &&
+                    !streamingThread.decidedToolCallIds.includes(toolCallId)
+                ) {
+                    streamingThread.decidedToolCallIds.push(toolCallId);
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 toolCallId: string;
-            }>,
-        ) => {
-            const { threadUuid, toolCallId } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (
-                streamingThread &&
-                !streamingThread.decidedToolCallIds.includes(toolCallId)
-            ) {
-                streamingThread.decidedToolCallIds.push(toolCallId);
-            }
+            }>(),
         },
         stopStreaming: (
             state,
@@ -152,31 +174,34 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.isStreaming = false;
             }
         },
-        addToolCall: (
-            state,
-            action: PayloadAction<ToolCall & { threadUuid: string }>,
-        ) => {
-            const { threadUuid, toolCallId, toolName, toolArgs } =
-                action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                const existingIndex = streamingThread.toolCalls.findIndex(
-                    (tc: ToolCall) => tc.toolCallId === toolCallId,
-                );
-                if (existingIndex !== -1) {
-                    streamingThread.toolCalls[existingIndex] = {
-                        ...streamingThread.toolCalls[existingIndex],
-                        toolName,
-                        toolArgs,
-                    };
-                } else {
-                    streamingThread.toolCalls.push({
-                        toolCallId,
-                        toolName,
-                        toolArgs,
-                    });
+        addToolCall: {
+            reducer: (
+                state,
+                action: PayloadAction<ToolCall & { threadUuid: string }>,
+            ) => {
+                const { threadUuid, toolCallId, toolName, toolArgs } =
+                    action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    const existingIndex = streamingThread.toolCalls.findIndex(
+                        (tc: ToolCall) => tc.toolCallId === toolCallId,
+                    );
+                    if (existingIndex !== -1) {
+                        streamingThread.toolCalls[existingIndex] = {
+                            ...streamingThread.toolCalls[existingIndex],
+                            toolName,
+                            toolArgs,
+                        };
+                    } else {
+                        streamingThread.toolCalls.push({
+                            toolCallId,
+                            toolName,
+                            toolArgs,
+                        });
+                    }
                 }
-            }
+            },
+            prepare: prepareAutoBatched<ToolCall & { threadUuid: string }>(),
         },
         setError: (
             state,
@@ -191,23 +216,30 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
-        setImproveContextNotification: (
-            state,
-            action: PayloadAction<{
+        setImproveContextNotification: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    toolCallId: string;
+                    suggestedInstruction: string;
+                }>,
+            ) => {
+                const { threadUuid, toolCallId, suggestedInstruction } =
+                    action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.improveContextNotification = {
+                        toolCallId,
+                        suggestedInstruction,
+                    };
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 toolCallId: string;
                 suggestedInstruction: string;
-            }>,
-        ) => {
-            const { threadUuid, toolCallId, suggestedInstruction } =
-                action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.improveContextNotification = {
-                    toolCallId,
-                    suggestedInstruction,
-                };
-            }
+            }>(),
         },
         clearImproveContextNotification: (
             state,
@@ -219,62 +251,76 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.improveContextNotification = undefined;
             }
         },
-        addReasoning: (
-            state,
-            action: PayloadAction<{
+        addReasoning: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    reasoningId: string;
+                    text: string;
+                }>,
+            ) => {
+                const { threadUuid, reasoningId, text } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    const existingIndex = streamingThread.reasoning.findIndex(
+                        (r: Reasoning) => r.reasoningId === reasoningId,
+                    );
+                    if (existingIndex !== -1) {
+                        const existing =
+                            streamingThread.reasoning[existingIndex];
+
+                        // Find which part this text is continuing
+                        const matchingPartIndex = existing.parts.findIndex(
+                            (part) => text.startsWith(part),
+                        );
+
+                        if (matchingPartIndex !== -1) {
+                            // Update the matching part with longer text
+                            existing.parts[matchingPartIndex] = text;
+                        } else {
+                            // No match found - new part
+                            existing.parts.push(text);
+                        }
+                    } else {
+                        // New reasoning
+                        streamingThread.reasoning.push({
+                            reasoningId,
+                            parts: [text],
+                        });
+                    }
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 reasoningId: string;
                 text: string;
-            }>,
-        ) => {
-            const { threadUuid, reasoningId, text } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                const existingIndex = streamingThread.reasoning.findIndex(
-                    (r: Reasoning) => r.reasoningId === reasoningId,
-                );
-                if (existingIndex !== -1) {
-                    const existing = streamingThread.reasoning[existingIndex];
-
-                    // Find which part this text is continuing
-                    const matchingPartIndex = existing.parts.findIndex((part) =>
-                        text.startsWith(part),
-                    );
-
-                    if (matchingPartIndex !== -1) {
-                        // Update the matching part with longer text
-                        existing.parts[matchingPartIndex] = text;
-                    } else {
-                        // No match found - new part
-                        existing.parts.push(text);
-                    }
-                } else {
-                    // New reasoning
-                    streamingThread.reasoning.push({
-                        reasoningId,
-                        parts: [text],
-                    });
-                }
-            }
+            }>(),
         },
-        addMcpUnavailableNotice: (
-            state,
-            action: PayloadAction<{
+        addMcpUnavailableNotice: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    notice: McpUnavailableNotice;
+                }>,
+            ) => {
+                const { threadUuid, notice } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (
+                    streamingThread &&
+                    !streamingThread.mcpUnavailableNotices.some(
+                        (existingNotice) =>
+                            existingNotice.serverUuid === notice.serverUuid,
+                    )
+                ) {
+                    streamingThread.mcpUnavailableNotices.push(notice);
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 notice: McpUnavailableNotice;
-            }>,
-        ) => {
-            const { threadUuid, notice } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (
-                streamingThread &&
-                !streamingThread.mcpUnavailableNotices.some(
-                    (existingNotice) =>
-                        existingNotice.serverUuid === notice.serverUuid,
-                )
-            ) {
-                streamingThread.mcpUnavailableNotices.push(notice);
-            }
+            }>(),
         },
     },
 });
