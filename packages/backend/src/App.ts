@@ -249,10 +249,13 @@ export default class App {
 
         const expressApp = express();
 
-        // Increase query string array limit from default (20) to 100
-        // to support endpoints that accept large arrays (e.g. chart IDs)
+        // Increase query string array limit from default (20) to 1000
+        // to support endpoints that accept large arrays (e.g. chart IDs for
+        // dashboards with many tiles). Without this, qs silently converts
+        // overflowing arrays into indexed-key objects, breaking TSOA
+        // validation for `string[]` query params.
         expressApp.set('query parser', (str: string) =>
-            qs.parse(str, { arrayLimit: 100 }),
+            qs.parse(str, { arrayLimit: 1000 }),
         );
 
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
