@@ -1,4 +1,8 @@
-import { PR_DESCRIPTION_PATH, PR_TITLE_PATH } from './constants';
+import {
+    PR_DESCRIPTION_PATH,
+    PR_TITLE_PATH,
+    TMP_PROFILES_DIR,
+} from './constants';
 
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
@@ -38,8 +42,8 @@ finish:
    \`dbt_project.yml\` in \`${dbtProjectDir}\`). The directory that contains it
    is the original profiles directory.
 
-3. Prepare a TEMPORARY profiles directory at \`/tmp/ld-profiles\`:
-   - Copy the discovered \`profiles.yml\` to \`/tmp/ld-profiles/profiles.yml\`.
+3. Prepare a TEMPORARY profiles directory at \`${TMP_PROFILES_DIR}\`:
+   - Copy the discovered \`profiles.yml\` to \`${TMP_PROFILES_DIR}/profiles.yml\`.
    - In the COPY only, replace every Jinja \`env_var(...)\` expression — and
      any other Jinja expression that requires runtime values — with a literal
      placeholder string (e.g. \`"placeholder"\`). The goal is a syntactically
@@ -50,7 +54,7 @@ finish:
 
 4. From the repo root, run:
      lightdash compile --skip-warehouse-catalog \\
-       --profiles-dir /tmp/ld-profiles \\
+       --profiles-dir ${TMP_PROFILES_DIR} \\
        --project-dir ${dbtProjectDir}
    Capture the exit code and the last meaningful line of output.
 

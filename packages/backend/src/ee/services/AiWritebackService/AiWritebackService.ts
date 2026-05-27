@@ -30,6 +30,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { DbAiWritebackThread } from '../../database/entities/ai';
 import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
 import {
+    ALLOWED_TOOLS,
     COMMIT_AUTHOR_EMAIL,
     COMMIT_AUTHOR_NAME,
     CWD,
@@ -562,7 +563,7 @@ export class AiWritebackService extends BaseService {
             `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
                 `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
                 '--output-format text ' +
-                '--dangerously-skip-permissions',
+                `--allowedTools "${ALLOWED_TOOLS}"`,
             {
                 cwd: CWD,
                 timeoutMs: RUN_TIMEOUT_MS,
