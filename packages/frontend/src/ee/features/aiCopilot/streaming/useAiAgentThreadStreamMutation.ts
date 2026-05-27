@@ -167,6 +167,8 @@ export function useAiAgentThreadStreamMutation() {
                 });
                 const rawChunkReader = rawChunkStream.getReader();
 
+                const handledToolInputIds = new Set<string>();
+                const handledToolDecisionIds = new Set<string>();
                 const handledToolOutputIds = new Set<string>();
 
                 const consumeRawChunks = (async () => {
@@ -287,8 +289,14 @@ export function useAiAgentThreadStreamMutation() {
                                     // any open approval card. Idempotent.
                                     if (
                                         part.type === 'tool-runSql' &&
-                                        part.state === 'output-available'
+                                        part.state === 'output-available' &&
+                                        !handledToolDecisionIds.has(
+                                            part.toolCallId,
+                                        )
                                     ) {
+                                        handledToolDecisionIds.add(
+                                            part.toolCallId,
+                                        );
                                         dispatch(
                                             markToolCallDecided({
                                                 threadUuid,
@@ -333,12 +341,20 @@ export function useAiAgentThreadStreamMutation() {
                                     break;
                                 }
 
+                                if (
+                                    handledToolInputIds.has(part.toolCallId)
+                                ) {
+                                    break;
+                                }
+
                                 const toolName = part.type.split('-')[1];
 
                                 try {
                                     if (!isAiAgentToolName(toolName)) {
                                         break;
                                     }
+
+                                    handledToolInputIds.add(part.toolCallId);
 
                                     // Store raw tool args (will be validated in rendering components)
                                     dispatch(
@@ -400,9 +416,17 @@ export function useAiAgentThreadStreamMutation() {
                                     part.state === 'output-available' ||
                                     part.state === 'output-error'
                                 ) {
+                                    if (
+                                        handledToolInputIds.has(part.toolCallId)
+                                    ) {
+                                        break;
+                                    }
+
                                     if (!isAiAgentToolName(part.toolName)) {
                                         break;
                                     }
+
+                                    handledToolInputIds.add(part.toolCallId);
 
                                     dispatch(
                                         addToolCall({
