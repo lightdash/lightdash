@@ -3057,23 +3057,25 @@ export class ProjectModel {
 
             const newDashboardVersions =
                 dashboardVersions.length > 0
-                    ? await trx('dashboard_versions')
-                          .insert(
-                              dashboardVersions.map((d) => {
-                                  const createDashboardVersion = {
-                                      ...d,
-                                      dashboard_version_id: undefined,
-                                      dashboard_version_uuid: undefined,
-                                      dashboard_id: dashboardMapping.find(
-                                          (m) => m.id === d.dashboard_id,
-                                      )?.newId!,
-                                  };
-                                  delete createDashboardVersion.dashboard_version_id;
-                                  delete createDashboardVersion.dashboard_version_uuid;
-                                  return createDashboardVersion;
-                              }),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<
+                          (typeof dashboardVersions)[number]
+                      >(
+                          trx,
+                          'dashboard_versions',
+                          dashboardVersions.map((d) => {
+                              const createDashboardVersion = {
+                                  ...d,
+                                  dashboard_version_id: undefined,
+                                  dashboard_version_uuid: undefined,
+                                  dashboard_id: dashboardMapping.find(
+                                      (m) => m.id === d.dashboard_id,
+                                  )?.newId!,
+                              };
+                              delete createDashboardVersion.dashboard_version_id;
+                              delete createDashboardVersion.dashboard_version_uuid;
+                              return createDashboardVersion;
+                          }),
+                      )
                     : [];
 
             const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
@@ -3091,8 +3093,10 @@ export class ProjectModel {
             );
             let newDashboardTabs: DbDashboardTabs[] = [];
             if (dashboardTabs.length > 0) {
-                newDashboardTabs = await trx(DashboardTabsTableName)
-                    .insert(
+                newDashboardTabs =
+                    await chunkedInsertReturning<DbDashboardTabs>(
+                        trx,
+                        DashboardTabsTableName,
                         dashboardTabs.map((d) => ({
                             ...d,
                             uuid: uuidv4(), // we need to generate the uuid here: https://github.com/lightdash/lightdash/issues/10408
@@ -3103,8 +3107,7 @@ export class ProjectModel {
                                 (m) => m.id === d.dashboard_version_id,
                             )?.newId!,
                         })),
-                    )
-                    .returning('*');
+                    );
             }
             const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
                 uuid: dashboardTabs[i].uuid,
@@ -3122,7 +3125,9 @@ export class ProjectModel {
             );
 
             if (dashboardViews.length > 0) {
-                await trx(DashboardViewsTableName).insert(
+                await chunkedInsertReturning<(typeof dashboardViews)[number]>(
+                    trx,
+                    DashboardViewsTableName,
                     dashboardViews.map((d) => ({
                         ...d,
                         dashboard_view_uuid: undefined,
@@ -3198,25 +3203,26 @@ export class ProjectModel {
 
             const newDashboardTiles =
                 dashboardTiles.length > 0
-                    ? await trx('dashboard_tiles')
-                          .insert(
-                              dashboardTiles.map((d) => ({
-                                  ...d,
-                                  // we keep the same dashboard_tile_uuid
-                                  dashboard_version_id:
-                                      dashboardVersionsMapping.find(
-                                          (m) =>
-                                              m.id === d.dashboard_version_id,
-                                      )?.newId!,
-                                  tab_uuid: dashboardTabsMapping.find(
-                                      (m) =>
-                                          m.uuid === d.tab_uuid &&
-                                          m.dashboardVersionId ===
-                                              d.dashboard_version_id,
-                                  )?.newUuid,
-                              })),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<
+                          (typeof dashboardTiles)[number]
+                      >(
+                          trx,
+                          'dashboard_tiles',
+                          dashboardTiles.map((d) => ({
+                              ...d,
+                              // we keep the same dashboard_tile_uuid
+                              dashboard_version_id:
+                                  dashboardVersionsMapping.find(
+                                      (m) => m.id === d.dashboard_version_id,
+                                  )?.newId!,
+                              tab_uuid: dashboardTabsMapping.find(
+                                  (m) =>
+                                      m.uuid === d.tab_uuid &&
+                                      m.dashboardVersionId ===
+                                          d.dashboard_version_id,
+                              )?.newUuid,
+                          })),
+                      )
                     : [];
 
             const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
@@ -3231,7 +3237,11 @@ export class ProjectModel {
 
                 if (content.length === 0) return undefined;
 
-                const newContent = await trx(table).insert(
+                const newContent = await chunkedInsertReturning<
+                    (typeof content)[number]
+                >(
+                    trx,
+                    table,
                     content.map((d) => ({
                         ...d,
 
