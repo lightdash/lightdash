@@ -129,7 +129,6 @@ export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
-export * from './types/lastLogin';
 export * from './types/notifications';
 export * from './types/oauth';
 export * from './types/openIdIdentity';
