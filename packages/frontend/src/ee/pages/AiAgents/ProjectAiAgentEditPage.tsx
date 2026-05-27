@@ -118,7 +118,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             userAccess: [],
             spaceAccess: [],
             mcpServerUuids: [],
-            enableDataAccess: false,
+            enableDataAccess: true,
             enableSelfImprovement: false,
             version: 2, // INFO: Default to v2 for now
         },
