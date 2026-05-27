@@ -30,6 +30,8 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { AgentSelector } from '../AgentSelector';
+import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import { getAgentSuggestionModes } from './suggestionModes';
@@ -74,6 +76,8 @@ interface AgentChatInputProps {
     agentUuid?: string;
     threadUuid?: string;
     latestAssistantMessageUuid?: string;
+    agents?: Agent[];
+    selectedAgent?: Agent;
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
@@ -111,6 +115,8 @@ export const AgentChatInput = ({
     agentUuid,
     threadUuid,
     latestAssistantMessageUuid,
+    agents,
+    selectedAgent,
     models,
     selectedModelId,
     onModelChange,
@@ -186,7 +192,13 @@ export const AgentChatInput = ({
 
     const showModelSelector =
         models && models.length > 1 && onModelChange !== undefined;
-    const isMinimalMode = !showModelSelector;
+    const showAgentSelector = !!(
+        agents &&
+        selectedAgent &&
+        projectUuid &&
+        agents.length > 0
+    );
+    const isMinimalMode = !showModelSelector && !showAgentSelector;
 
     const suggestionsFlag = useServerFeatureFlag(
         FeatureFlags.AiAgentSuggestions,
@@ -572,6 +584,14 @@ export const AgentChatInput = ({
 
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
+                        {showAgentSelector && (
+                            <AgentSelector
+                                projectUuid={projectUuid!}
+                                agents={agents!}
+                                selectedAgent={selectedAgent!}
+                            />
+                        )}
+
                         {showModelSelector && (
                             <ModelSelector
                                 models={models}

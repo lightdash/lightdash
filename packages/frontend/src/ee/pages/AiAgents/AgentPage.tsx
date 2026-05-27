@@ -35,7 +35,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
@@ -335,17 +334,7 @@ const AgentPage = () => {
                 />
             }
             Header={
-                <Group align="center" justify="space-between">
-                    <Box>
-                        {agentsList && agentsList.length && (
-                            <AgentSelector
-                                projectUuid={projectUuid!}
-                                agents={agentsList}
-                                selectedAgent={agent}
-                            />
-                        )}
-                    </Box>
-
+                <Group align="center" justify="flex-end">
                     <Group gap="xs">
                         <Button
                             variant="default"
@@ -391,13 +380,14 @@ const AgentPage = () => {
                 </Group>
             }
         >
-            <Outlet context={{ agent }} />
+            <Outlet context={{ agent, agents: agentsList ?? [] }} />
         </AiAgentPageLayout>
     );
 };
 
 export interface AgentContext {
     agent: AiAgent;
+    agents: AiAgent[];
 }
 
 export default AgentPage;
