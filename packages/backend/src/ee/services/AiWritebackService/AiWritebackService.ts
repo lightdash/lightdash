@@ -271,7 +271,10 @@ export class AiWritebackService extends BaseService {
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const { user, projectUuid, prompt, aiThreadUuid } = args;
 
-        console.log(args);
+        this.logger.info(
+            `AiWriteback: agent run started (projectUuid=${projectUuid}, aiThreadUuid=${aiThreadUuid})`,
+        );
+
         const turn = await this.prepareTurn({
             user,
             projectUuid,
