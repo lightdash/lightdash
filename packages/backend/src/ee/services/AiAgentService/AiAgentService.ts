@@ -110,6 +110,7 @@ import {
     AiAgentFindContentCoverageEvent,
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
+    AiAgentPullRequestViewedEvent,
     AiAgentResponseStreamed,
     AiAgentSuggestionsGeneratedEvent,
     AiAgentSuggestionSubmitEvent,
@@ -168,6 +169,7 @@ import {
 } from '../ai/agents/agentV2';
 import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
+import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import {
@@ -200,6 +202,7 @@ import {
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
+    ListProjectsFn,
     ListWarehouseTablesFn,
     ProposeWritebackFn,
     ReadContentFn,
@@ -224,7 +227,9 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
+    getProjectSelectionBlocks,
     getProposeChangeBlocks,
+    getProposeWritebackBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
@@ -329,7 +334,9 @@ const REFUSAL_RE =
 const SYSTEM_AGENT_NAME = 'Lightdash Assistant';
 const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help the user explore their data by using your query and find tools to answer questions about metrics, dimensions, charts, and dashboards.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.`;
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
+
+After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
 function detectClarifyingQuestion(text: string): boolean {
     return CLARIFYING_QUESTION_RE.test(text);
@@ -5045,6 +5052,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }),
             );
 
+        const listProjects: ListProjectsFn = () =>
+            wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
+                const projects =
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+                const auditedAbility = this.createAuditedAbility(user);
+                return projects
+                    .filter((project) =>
+                        auditedAbility.can(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid: project.projectUuid,
+                            }),
+                        ),
+                    )
+                    .map((project) => ({
+                        projectUuid: project.projectUuid,
+                        name: project.name,
+                        type: project.type,
+                    }));
+            });
+
         return {
             listExplores,
             getExplore,
@@ -5072,6 +5103,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             createChange,
             proposeWriteback,
+            listProjects,
             getExploreCompiler,
         };
     }
@@ -5174,6 +5206,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            listProjects,
         } = this.getAiAgentDependencies(user, prompt);
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -5350,6 +5383,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            listProjects,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -5787,6 +5821,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             this.lightdashConfig.siteUrl,
             toolResults,
         );
+        const proposeWritebackBlocks = getProposeWritebackBlocks(toolResults);
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
@@ -5822,6 +5857,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...getMarkdownBlocks(response),
             ...exploreBlocks,
             ...proposeChangeBlocks,
+            ...proposeWritebackBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
             ...feedbackBlocks,
@@ -6046,6 +6082,65 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
         });
+    }
+
+    // The "View pull request" button is a link button (it just opens the PR
+    // URL), but Slack still sends an interaction payload that must be
+    // acknowledged within 3s, so ack immediately and then track the click.
+    public handleViewPullRequestButton(app: App) {
+        app.action(
+            /^actions\.view_pull_request_button_click/,
+            async ({ ack, body, action, context }) => {
+                // Ack first so the click never times out, then track.
+                await ack();
+
+                try {
+                    if (
+                        body.type !== 'block_actions' ||
+                        action.type !== 'button'
+                    ) {
+                        return;
+                    }
+                    const { teamId } = context;
+                    if (!teamId || !body.user?.id) {
+                        return;
+                    }
+
+                    const organizationUuid =
+                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                            teamId,
+                        );
+
+                    // Attribute to the Lightdash user if their Slack identity is
+                    // linked; otherwise fall back to the workspace install user.
+                    const identity =
+                        await this.openIdIdentityModel.findIdentityByOpenId(
+                            OpenIdIdentityIssuerType.SLACK,
+                            body.user.id,
+                        );
+                    const userUuid =
+                        identity?.userUuid ??
+                        (await this.slackAuthenticationModel.getUserUuid(
+                            teamId,
+                        ));
+
+                    this.analytics.track<AiAgentPullRequestViewedEvent>({
+                        event: 'ai_agent.pull_request_viewed',
+                        userId: userUuid,
+                        properties: {
+                            organizationId: organizationUuid,
+                            prUrl:
+                                'url' in action ? (action.url ?? null) : null,
+                        },
+                    });
+                } catch (e) {
+                    Logger.error(
+                        'Failed to track pull request viewed event',
+                        e,
+                    );
+                }
+            },
+        );
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -6619,7 +6714,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         userUuid,
         projectUuids,
         say,
+        slackChannelId,
         threadTs,
+        promptText,
     }: {
         organizationUuid: string;
         userUuid: string;
@@ -6627,7 +6724,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // When omitted, all of the organization's projects are candidates.
         projectUuids: string[] | null | undefined;
         say: Function;
-        threadTs: string | undefined;
+        slackChannelId: string;
+        // Thread anchor (the mention's own ts for a new thread, the root ts for
+        // a reply). Used for posting replies and the existing-thread lookup.
+        threadTs: string;
+        // The user's message, used to route directly to a named project.
+        promptText: string;
     }): Promise<AiAgentWithContext | 'handled' | undefined> {
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             userUuid,
@@ -6642,38 +6744,107 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return undefined;
         }
 
-        // Candidate projects: the org's projects, optionally restricted to the
-        // channel's configured project filter (dropping any stale/deleted ones).
-        const orgProjects =
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
-        let candidateProjectUuids = orgProjects.map((p) => p.projectUuid);
-        if (projectUuids && projectUuids.length > 0) {
-            const allowed = new Set(projectUuids);
-            candidateProjectUuids = candidateProjectUuids.filter((uuid) =>
-                allowed.has(uuid),
+        const resolveAgentForProject = async (projectUuid: string) => {
+            const agent = await this.aiAgentModel.getOrCreateSystemAgent({
+                organizationUuid,
+                projectUuid,
+                name: SYSTEM_AGENT_NAME,
+                instruction: SYSTEM_AGENT_INSTRUCTION,
+            });
+            const context = await this.getAgentSummaryContext(user, agent);
+            return { ...agent, context };
+        };
+
+        // If this Slack thread is already bound to a project, reuse it so
+        // follow-up mentions don't re-prompt for a project.
+        const existingThreadUuid =
+            await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                slackChannelId,
+                threadTs,
             );
+        if (existingThreadUuid) {
+            const thread =
+                await this.aiAgentModel.findThread(existingThreadUuid);
+            if (thread?.projectUuid) {
+                return resolveAgentForProject(thread.projectUuid);
+            }
         }
 
-        if (candidateProjectUuids.length !== 1) {
+        // Candidate projects: org projects the user can view, optionally
+        // restricted to the channel's configured project filter.
+        const orgProjects =
+            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
+        const allowed =
+            projectUuids && projectUuids.length > 0
+                ? new Set(projectUuids)
+                : null;
+        const auditedAbility = this.createAuditedAbility(user);
+        const candidateProjects = orgProjects.filter(
+            (project) =>
+                (!allowed || allowed.has(project.projectUuid)) &&
+                auditedAbility.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                ),
+        );
+
+        if (candidateProjects.length === 0) {
             await say({
-                text:
-                    candidateProjectUuids.length === 0
-                        ? "⚠️ I couldn't find a project to work with. Ask an admin to set one up in Lightdash."
-                        : "⚠️ This organization has multiple projects, so I'm not sure which one to use. Configure an AI agent for this channel (or restrict the channel to a single project) and I'll use that.",
+                text: "⚠️ I couldn't find a project you have access to. Ask an admin to set one up or grant you access in Lightdash.",
                 thread_ts: threadTs,
             });
             return 'handled';
         }
 
-        const agent = await this.aiAgentModel.getOrCreateSystemAgent({
-            organizationUuid,
-            projectUuid: candidateProjectUuids[0],
-            name: SYSTEM_AGENT_NAME,
-            instruction: SYSTEM_AGENT_INSTRUCTION,
-        });
+        if (candidateProjects.length === 1) {
+            return resolveAgentForProject(candidateProjects[0].projectUuid);
+        }
 
-        const context = await this.getAgentSummaryContext(user, agent);
-        return { ...agent, context };
+        // Multiple accessible projects. First let a lightweight routing pass
+        // see if the user already named a project ("...in the eu project"); if
+        // so, bind to it and let the real agent run the original request.
+        if (promptText.trim().length > 0) {
+            try {
+                const { model } = getModel(this.lightdashConfig.ai.copilot);
+                const routedProjectUuid = await routeProjectForSlack(
+                    model,
+                    candidateProjects.map((project) => ({
+                        projectUuid: project.projectUuid,
+                        name: project.name,
+                    })),
+                    promptText,
+                );
+                if (routedProjectUuid) {
+                    return await resolveAgentForProject(routedProjectUuid);
+                }
+            } catch (e) {
+                // Routing is best-effort; on any failure fall back to the
+                // picker so the user is never blocked.
+                Logger.error(
+                    'Project routing failed, falling back to picker',
+                    e,
+                );
+            }
+        }
+
+        // Couldn't determine the project from the message: ask the user to pick
+        // one. handleProjectSelection resumes from here, recovering the original
+        // question from the Slack thread itself (no server-side state).
+        await say({
+            blocks: getProjectSelectionBlocks(
+                candidateProjects.map((project) => ({
+                    projectUuid: project.projectUuid,
+                    name: project.name,
+                })),
+                slackChannelId,
+            ),
+            text: 'This organization has multiple projects — pick one to continue.',
+            thread_ts: threadTs,
+        });
+        return 'handled';
     }
 
     private async selectAgentForSlack({
@@ -6681,6 +6852,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         messageText,
         channelId,
         threadTs,
+        promptSlackTs,
         say,
         botUserId,
         client,
@@ -6693,6 +6865,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         messageText: string;
         channelId: string;
         threadTs: string | undefined;
+        promptSlackTs: string;
         say: Function;
         botUserId: string | undefined;
         client: WebClient;
@@ -6724,7 +6897,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 userUuid,
                 projectUuids: multiAgentProjectUuids,
                 say,
-                threadTs,
+                slackChannelId: channelId,
+                threadTs: threadTs ?? promptSlackTs,
+                promptText: messageText,
             });
             if (fallback === 'handled') {
                 return undefined;
@@ -7052,6 +7227,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 messageText: event.text,
                 channelId: event.channel,
                 threadTs: event.ts,
+                promptSlackTs: event.ts,
                 say,
                 botUserId: context.botUserId,
                 client,
@@ -7506,6 +7682,257 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    /**
+     * Handles the project picker shown by resolveSystemAgentForSlack when an
+     * org has multiple projects and no agent is configured for the channel.
+     * Resolves the chosen project, binds the system agent to it, and replays the
+     * user's stashed question.
+     */
+    public handleProjectSelection(app: App) {
+        // Matches both the dropdown (action_id `select_project`) and the
+        // per-project buttons (`select_project:<index>`).
+        app.action(
+            /^select_project(:|$)/,
+            async ({ ack, body, client, context }) => {
+                await ack();
+
+                if (body.type !== 'block_actions') {
+                    return;
+                }
+
+                const action = body.actions[0];
+                let rawValue: string | undefined;
+                if (action?.type === 'static_select') {
+                    rawValue = action.selected_option?.value;
+                } else if (action?.type === 'button') {
+                    rawValue = action.value;
+                }
+                if (!rawValue) {
+                    return;
+                }
+
+                const { teamId } = context;
+                if (!teamId || !body.user?.id) {
+                    return;
+                }
+
+                try {
+                    const { projectUuid, channelId } = JSON.parse(rawValue);
+
+                    if (!projectUuid || !channelId) {
+                        Logger.error('Invalid project selection value', {
+                            value: rawValue,
+                        });
+                        return;
+                    }
+
+                    const organizationUuid =
+                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                            teamId,
+                        );
+
+                    const slackSettings =
+                        await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                            organizationUuid,
+                        );
+
+                    if (!slackSettings) {
+                        throw new NotFoundError(
+                            `Slack settings not found for organization ${organizationUuid}`,
+                        );
+                    }
+
+                    const threadTs =
+                        body.message && 'thread_ts' in body.message
+                            ? body.message.thread_ts
+                            : body.message?.ts;
+
+                    const authResult = await this.handleAiAgentAuth(
+                        slackSettings,
+                        {
+                            userId: body.user.id,
+                            teamId,
+                            threadTs,
+                            channelId,
+                            messageId: body.message?.ts || '',
+                            organizationUuid,
+                        },
+                        async () => {},
+                        client,
+                    );
+
+                    if (!authResult) {
+                        return;
+                    }
+
+                    const { userUuid } = authResult;
+
+                    // Re-check the user can still view the chosen project.
+                    const user =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            userUuid,
+                            organizationUuid,
+                        );
+                    const auditedAbility = this.createAuditedAbility(user);
+                    if (
+                        auditedAbility.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        await client.chat.postEphemeral({
+                            channel: channelId,
+                            user: body.user.id,
+                            thread_ts: threadTs,
+                            text: '⚠️ You do not have access to that project.',
+                        });
+                        return;
+                    }
+
+                    // Recover the user's original question from the Slack
+                    // thread itself (Slack is the shared source of truth, so
+                    // this works across replicas without server-side state).
+                    const conversationHistory =
+                        await client.conversations.replies({
+                            channel: channelId,
+                            ts: threadTs || '',
+                            limit: 10,
+                        });
+                    const originalMessage = conversationHistory.messages?.find(
+                        (msg) =>
+                            msg.user === body.user.id &&
+                            !!msg.text &&
+                            msg.text.includes(`<@${context.botUserId}>`),
+                    );
+
+                    const agent =
+                        await this.aiAgentModel.getOrCreateSystemAgent({
+                            organizationUuid,
+                            projectUuid,
+                            name: SYSTEM_AGENT_NAME,
+                            instruction: SYSTEM_AGENT_INSTRUCTION,
+                        });
+
+                    // Replace the picker with a confirmation.
+                    if (body.message?.ts) {
+                        try {
+                            await client.chat.update({
+                                channel: channelId,
+                                ts: body.message.ts,
+                                text: '✅ Project selected',
+                                blocks: [
+                                    {
+                                        type: 'section',
+                                        text: {
+                                            type: 'mrkdwn',
+                                            text: ':white_check_mark: Working in the project you selected.',
+                                        },
+                                    },
+                                ],
+                            });
+                        } catch (updateError) {
+                            Logger.error(
+                                'Failed to update project selection message',
+                                updateError,
+                            );
+                        }
+                    }
+
+                    // If we can't find the original question in the thread, ask
+                    // the user to repeat it rather than guessing.
+                    if (!originalMessage?.text || !originalMessage.ts) {
+                        await client.chat.postMessage({
+                            channel: channelId,
+                            thread_ts: threadTs,
+                            text: "Got it — ask your question again and I'll work in that project.",
+                        });
+                        return;
+                    }
+
+                    const [slackPromptUuid] = await this.createSlackPrompt({
+                        userUuid,
+                        projectUuid,
+                        slackUserId: body.user.id,
+                        slackChannelId: channelId,
+                        slackThreadTs: threadTs,
+                        prompt: originalMessage.text,
+                        promptSlackTs: originalMessage.ts,
+                        agentUuid: agent.uuid,
+                    });
+
+                    const postedMessage = await client.chat.postMessage({
+                        channel: channelId,
+                        thread_ts: threadTs,
+                        username: agent.name,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text: `Hi <@${body.user.id}>, working on your request now :rocket:`,
+                                },
+                            },
+                            {
+                                type: 'context',
+                                elements: [
+                                    {
+                                        type: 'plain_text',
+                                        text: `Reference: ${slackPromptUuid}`,
+                                    },
+                                ],
+                            },
+                        ],
+                        text: 'Working on your request now...',
+                    });
+
+                    if (postedMessage.ts) {
+                        await this.aiAgentModel.updateSlackResponseTs({
+                            promptUuid: slackPromptUuid,
+                            responseSlackTs: postedMessage.ts,
+                        });
+                    }
+
+                    await this.schedulerClient.slackAiPrompt({
+                        slackPromptUuid,
+                        userUuid,
+                        projectUuid,
+                        organizationUuid,
+                    });
+                } catch (e) {
+                    if (e instanceof AiDuplicateSlackPromptError) {
+                        Logger.debug(
+                            'Duplicate slack prompt on project selection',
+                            e,
+                        );
+                        return;
+                    }
+                    Logger.error('Error handling project selection', e);
+                    if (
+                        body.user?.id &&
+                        'channel' in body &&
+                        body.channel?.id
+                    ) {
+                        try {
+                            await client.chat.postEphemeral({
+                                channel: body.channel.id,
+                                user: body.user.id,
+                                text: '⚠️ Something went wrong while selecting the project. Please try again or contact your administrator.',
+                            });
+                        } catch (notifyError) {
+                            Logger.error(
+                                'Failed to send error notification',
+                                notifyError,
+                            );
+                        }
+                    }
+                }
+            },
+        );
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -7927,6 +8354,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     messageText: event.text ?? '',
                     channelId: event.channel,
                     threadTs: event.ts,
+                    promptSlackTs: event.ts,
                     say,
                     botUserId: context.botUserId,
                     client,
@@ -7995,6 +8423,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         messageText: event.text ?? '',
                         channelId: event.channel,
                         threadTs: event.thread_ts,
+                        promptSlackTs: event.ts,
                         say,
                         botUserId: context.botUserId,
                         client,
@@ -8044,7 +8473,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         userUuid,
                         projectUuids: undefined,
                         say,
-                        threadTs: event.thread_ts,
+                        slackChannelId: event.channel,
+                        threadTs: event.thread_ts ?? event.ts,
+                        promptText: event.text ?? '',
                     });
                     if (fallback === 'handled') {
                         return;

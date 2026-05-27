@@ -13293,7 +13293,9 @@
                     "readContent",
                     "editContent",
                     "improveContext",
+                    "listProjects",
                     "loadSkill",
+                    "proposeWriteback",
                     "runSavedChart",
                     "listWarehouseTables",
                     "describeWarehouseTable",
@@ -13402,6 +13404,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -13647,8 +13662,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
+                                                            "rejected",
                                                             "timeout"
                                                         ]
                                                     }
@@ -18397,6 +18412,12 @@
             },
             "AiWritebackRunResult": {
                 "properties": {
+                    "repository": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
                     "prUrl": {
                         "type": "string",
                         "nullable": true
@@ -18409,9 +18430,15 @@
                         "type": "string"
                     }
                 },
-                "required": ["prUrl", "exitCode", "output"],
+                "required": [
+                    "repository",
+                    "projectName",
+                    "prUrl",
+                    "exitCode",
+                    "output"
+                ],
                 "type": "object",
-                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for)."
+                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted."
             },
             "ApiSuccess_AiWritebackRunResult_": {
                 "properties": {
@@ -35219,7 +35246,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3022.1",
+        "version": "0.3026.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

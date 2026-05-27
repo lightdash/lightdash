@@ -17,6 +17,7 @@ export type SetStage = (stage: AiWritebackFailureStage) => void;
 
 export type TurnContext = {
     organizationUuid: string;
+    projectName: string;
     githubConnection: GithubConnection;
     existingRow: DbAiWritebackThread | null;
     isResume: boolean;

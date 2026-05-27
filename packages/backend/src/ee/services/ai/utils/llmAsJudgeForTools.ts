@@ -11,6 +11,7 @@ import {
     toolGetKnowledgeDocumentContentArgsSchema,
     toolImproveContextArgsSchema,
     toolListKnowledgeDocumentsArgsSchema,
+    toolListProjectsArgsSchema,
     toolListWarehouseTablesArgsSchema,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
@@ -87,6 +88,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
+    listProjects: 'list_projects',
     proposeChange: 'propose_change',
     proposeWriteback: 'propose_writeback',
 } satisfies Record<ToolName, string>;
@@ -109,6 +111,7 @@ const TOOL_SCHEMAS = {
     readContent: toolReadContentArgsSchema,
     editContent: toolEditContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
+    listProjects: toolListProjectsArgsSchema,
     loadSkill: toolLoadSkillArgsSchema,
     generateUuids: toolGenerateUuidsArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,

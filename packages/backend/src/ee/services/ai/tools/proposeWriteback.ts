@@ -1,3 +1,4 @@
+import { toolProposeWritebackOutputSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
@@ -22,14 +23,6 @@ const toolProposeWritebackArgsSchema = z
         ].join(' '),
     );
 
-const toolProposeWritebackOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-        prUrl: z.string().nullable().optional(),
-    }),
-});
-
 type Dependencies = {
     proposeWriteback: ProposeWritebackFn;
 };
@@ -41,11 +34,16 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
         outputSchema: toolProposeWritebackOutputSchema,
         execute: async ({ prompt }) => {
             try {
-                const { prUrl, output } = await proposeWriteback({ prompt });
+                const { prUrl, output, projectName, repository } =
+                    await proposeWriteback({ prompt });
 
+                // Surface which Lightdash project + repo were used so the
+                // assistant can report it back and the user can catch a wrong
+                // target.
+                const target = `Lightdash project "${projectName}" (repository ${repository})`;
                 const result = prUrl
-                    ? `Opened pull request: ${prUrl}\n\nAgent summary:\n${output}`
-                    : `The writeback agent ran but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
+                    ? `Opened pull request against ${target}: ${prUrl}\n\nAgent summary:\n${output}`
+                    : `The writeback agent ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 return {
                     result,

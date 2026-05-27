@@ -20,6 +20,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    ProjectType,
     SavedChart,
     SlackPrompt,
     ToolFindContentArgs,
@@ -272,3 +273,11 @@ export type LoadAgentSkillFn = (
 export type ProposeWritebackFn = (args: {
     prompt: string;
 }) => Promise<AiWritebackRunResult>;
+
+export type ListProjectsFn = () => Promise<
+    {
+        projectUuid: string;
+        name: string;
+        type: ProjectType;
+    }[]
+>;

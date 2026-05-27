@@ -27,6 +27,7 @@ import {
     GetSavedChartFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
+    ListProjectsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ProposeWritebackFn,
@@ -137,6 +138,7 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
     proposeWriteback: ProposeWritebackFn;
+    listProjects: ListProjectsFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     loadSkill: LoadAgentSkillFn;

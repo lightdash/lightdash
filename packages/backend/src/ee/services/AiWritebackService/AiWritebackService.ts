@@ -283,6 +283,8 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid,
         });
 
+        const repository = `${turn.githubConnection.owner}/${turn.githubConnection.repo}`;
+
         const tracker = this.startTracking({ user, projectUuid, turn });
 
         let failureStage: AiWritebackFailureStage = 'install';
@@ -313,6 +315,8 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 prompt,
                 projectSubPath: turn.githubConnection.projectSubPath,
+                projectName: turn.projectName,
+                repository,
                 isResume: turn.isResume,
             });
 
@@ -334,6 +338,8 @@ export class AiWritebackService extends BaseService {
                     output: agent.stdout,
                     exitCode: agent.exitCode,
                     prUrl: turn.existingRow?.pr_url ?? null,
+                    projectName: turn.projectName,
+                    repository,
                 };
             }
 
@@ -357,6 +363,8 @@ export class AiWritebackService extends BaseService {
                 output: agent.stdout,
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
+                projectName: turn.projectName,
+                repository,
             };
         } catch (error) {
             tracker.failed(failureStage, error);
@@ -411,6 +419,7 @@ export class AiWritebackService extends BaseService {
 
         return {
             organizationUuid: user.organizationUuid,
+            projectName: project.name,
             githubConnection,
             existingRow,
             isResume: existingRow !== null,
@@ -546,16 +555,20 @@ export class AiWritebackService extends BaseService {
         sandbox,
         prompt,
         projectSubPath,
+        projectName,
+        repository,
         isResume,
     }: {
         sandbox: Sandbox;
         prompt: string;
         projectSubPath: string;
+        projectName: string;
+        repository: string;
         isResume: boolean;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(
             SYSTEM_PROMPT_PATH,
-            buildSystemPrompt(projectSubPath),
+            buildSystemPrompt(projectSubPath, { projectName, repository }),
         );
         await sandbox.files.write(PROMPT_PATH, prompt);
 
