@@ -1368,6 +1368,9 @@ export type AiWritebackStartedEvent = BaseTrack & {
         projectId: string;
         owner: string;
         repo: string;
+        // Whether this turn resumed an existing conversation (and its sandbox)
+        // rather than starting a fresh one.
+        isResume: boolean;
     };
 };
 
@@ -1379,6 +1382,7 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         projectId: string;
         owner: string;
         repo: string;
+        isResume: boolean;
         exitCode: number;
         // Whether the agent changed any files. When false no PR is opened.
         hasChanges: boolean;
@@ -1405,6 +1409,7 @@ export type AiWritebackFailedEvent = BaseTrack & {
         projectId: string;
         owner: string;
         repo: string;
+        isResume: boolean;
         failureStage: AiWritebackFailureStage;
         errorMessage: string;
         totalDurationMs: number;
