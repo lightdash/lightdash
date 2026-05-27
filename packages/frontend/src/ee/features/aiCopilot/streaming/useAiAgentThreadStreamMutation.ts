@@ -341,9 +341,7 @@ export function useAiAgentThreadStreamMutation() {
                                     break;
                                 }
 
-                                if (
-                                    handledToolInputIds.has(part.toolCallId)
-                                ) {
+                                if (handledToolInputIds.has(part.toolCallId)) {
                                     break;
                                 }
 
