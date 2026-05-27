@@ -1,3 +1,10 @@
+## [0.3025.2](https://github.com/lightdash/lightdash/compare/0.3025.1...0.3025.2) (2026-05-27)
+
+
+### Bug Fixes
+
+* exclude PoP metrics from raw fanout CTE projections ([#23544](https://github.com/lightdash/lightdash/issues/23544)) ([9a626f0](https://github.com/lightdash/lightdash/commit/9a626f04646426826a26f6d7917997bbd62a40fb))
+
 ## [0.3025.1](https://github.com/lightdash/lightdash/compare/0.3025.0...0.3025.1) (2026-05-27)
 
 
