@@ -1,3 +1,11 @@
+## [0.3027.1](https://github.com/lightdash/lightdash/compare/0.3027.0...0.3027.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* chunk bulk inserts when copying preview content ([#23561](https://github.com/lightdash/lightdash/issues/23561)) ([3108c75](https://github.com/lightdash/lightdash/commit/3108c75b87b0ac412edfec2ea9657280b6005852))
+* underlying data drilldown on null pivot value ([#23547](https://github.com/lightdash/lightdash/issues/23547)) ([cdce469](https://github.com/lightdash/lightdash/commit/cdce469432813d5616a4478b4056c972c4ea1516))
+
 # [0.3027.0](https://github.com/lightdash/lightdash/compare/0.3026.0...0.3027.0) (2026-05-27)
 
 
