@@ -177,6 +177,39 @@ const lightdashLogLevelToSlackLogLevel = (
     }
 };
 
+/**
+ * Walk a Block Kit payload looking for the first piece of text we can use as
+ * the top-level `text` fallback (push notifications, screen readers, etc.).
+ * Returns `undefined` when nothing usable is found — the caller picks a
+ * generic fallback.
+ */
+const pickFallbackText = (
+    blocks: ChatPostMessageArguments['blocks'],
+): string | undefined => {
+    if (!blocks) {
+        return undefined;
+    }
+    for (const block of blocks) {
+        // Section / header blocks store text at `block.text.text`. Context
+        // blocks store an array under `block.elements`. We accept either.
+        const b = block as {
+            text?: { text?: string } | string;
+            elements?: ReadonlyArray<{ text?: string }>;
+        };
+        if (typeof b.text === 'string' && b.text.length > 0) {
+            return b.text;
+        }
+        if (b.text && typeof b.text !== 'string' && b.text.text) {
+            return b.text.text;
+        }
+        const elementText = b.elements?.find((el) => el.text)?.text;
+        if (elementText) {
+            return elementText;
+        }
+    }
+    return undefined;
+};
+
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
 
@@ -907,11 +940,21 @@ export class SlackClient {
             channel,
         );
 
+        // Slack requires a top-level `text` even when `blocks` is provided —
+        // it's the fallback shown in push notifications, screen readers, etc.
+        // Derive one from the first textual block when the caller hasn't set
+        // it explicitly, so we never trip the "missing text" Bolt warning.
+        const text =
+            slackMessageArgs.text ??
+            pickFallbackText(slackMessageArgs.blocks) ??
+            'New message from Lightdash';
+
         return webClient.chat
             .postMessage({
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 channel: resolvedChannel,
                 ...slackMessageArgs,
+                text,
             })
             .catch((e) => {
                 if (getSlackErrorCode(e) === 'invalid_blocks') {
