@@ -64,6 +64,22 @@ export type AiWebAppThreadTable = Knex.CompositeTableType<
     never
 >;
 
+export const AiWritebackThreadTableName = 'ai_writeback_thread';
+
+export type DbAiWritebackThread = {
+    ai_writeback_thread_uuid: string;
+    ai_thread_uuid: string;
+    sandbox_id: string;
+    pr_url: string;
+    created_at: Date;
+};
+
+export type AiWritebackThreadTable = Knex.CompositeTableType<
+    DbAiWritebackThread,
+    Pick<DbAiWritebackThread, 'ai_thread_uuid' | 'sandbox_id' | 'pr_url'>,
+    Pick<DbAiWritebackThread, 'sandbox_id'>
+>;
+
 export const AiPromptTableName = 'ai_prompt';
 
 export type DbAiPrompt = {

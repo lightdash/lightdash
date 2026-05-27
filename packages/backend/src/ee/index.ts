@@ -18,6 +18,7 @@ import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
+import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
@@ -497,6 +498,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentDocumentModel: ({ database }) =>
                 new AiAgentDocumentModel({ database }),
+            aiWritebackThreadModel: ({ database }) =>
+                new AiWritebackThreadModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
