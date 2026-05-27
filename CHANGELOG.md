@@ -1,3 +1,10 @@
+## [0.3025.3](https://github.com/lightdash/lightdash/compare/0.3025.2...0.3025.3) (2026-05-27)
+
+
+### Bug Fixes
+
+* **prod-7889:** pivot_offset walks across pivot columns within a row ([#23493](https://github.com/lightdash/lightdash/issues/23493)) ([eb1d836](https://github.com/lightdash/lightdash/commit/eb1d836b0284a37be2006dc0aac3670824af3257))
+
 ## [0.3025.2](https://github.com/lightdash/lightdash/compare/0.3025.1...0.3025.2) (2026-05-27)
 
 
