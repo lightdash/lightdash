@@ -1,3 +1,10 @@
+## [0.3024.1](https://github.com/lightdash/lightdash/compare/0.3024.0...0.3024.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* **prod-7902:** preserve space palette cascade when clearing chart-level override ([#23529](https://github.com/lightdash/lightdash/issues/23529)) ([c589548](https://github.com/lightdash/lightdash/commit/c5895484540afe552efe00308af3362aab697806))
+
 # [0.3024.0](https://github.com/lightdash/lightdash/compare/0.3023.0...0.3024.0) (2026-05-27)
 
 
