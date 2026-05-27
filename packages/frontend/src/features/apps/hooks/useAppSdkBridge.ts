@@ -1,5 +1,5 @@
 import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
-import { useCallback, useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 
 // Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
@@ -155,6 +155,18 @@ export function useAppSdkBridge(
     //     unchanged — the rewrite happens entirely on the parent side.
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
 
+    // Maps queryUuid → POST request id. The SDK transport assigns a fresh
+    // request id to the POST (`/metric-query`) and again to each GET poll
+    // (`/query/{uuid}`), so terminal events emitted from the GET handler
+    // would otherwise carry a different id than the pending/running events
+    // emitted from the POST handler. We record the mapping when the POST
+    // resolves with a queryUuid, then re-key ready/error events to the
+    // POST id so consumers can track the full pending → ready/error
+    // lifecycle by a single stable id (without this, MinimalApp's
+    // in-flight set never drains and the screenshot indicator never
+    // mounts).
+    const queryUuidToPostIdRef = useRef<Map<string, string>>(new Map());
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
@@ -302,6 +314,10 @@ export function useAppSdkBridge(
                         const initLabel = (
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
+                        queryUuidToPostIdRef.current.set(
+                            json.results.queryUuid,
+                            id,
+                        );
                         onQueryEvent({
                             id,
                             timestamp: Date.now(),
@@ -333,9 +349,23 @@ export function useAppSdkBridge(
                     // Track query result polling responses
                     if (isQueryResultGet(method, path) && onQueryEvent) {
                         const result = json.results;
+                        // Re-key terminal events to the POST id so consumers
+                        // see a single stable id across the pending →
+                        // ready/error lifecycle. Falls back to the GET id
+                        // only if the mapping is missing (shouldn't happen
+                        // in normal flow — the POST always runs first).
+                        const lifecycleId: string =
+                            (result?.queryUuid &&
+                                queryUuidToPostIdRef.current.get(
+                                    result.queryUuid,
+                                )) ??
+                            id;
                         if (result?.status === 'ready') {
+                            queryUuidToPostIdRef.current.delete(
+                                result.queryUuid,
+                            );
                             onQueryEvent({
-                                id,
+                                id: lifecycleId,
                                 timestamp: Date.now(),
                                 label: null,
                                 exploreName: '',
@@ -363,8 +393,11 @@ export function useAppSdkBridge(
                             result?.status === 'error' ||
                             result?.status === 'expired'
                         ) {
+                            queryUuidToPostIdRef.current.delete(
+                                result.queryUuid,
+                            );
                             onQueryEvent({
-                                id,
+                                id: lifecycleId,
                                 timestamp: Date.now(),
                                 label: null,
                                 exploreName: '',
