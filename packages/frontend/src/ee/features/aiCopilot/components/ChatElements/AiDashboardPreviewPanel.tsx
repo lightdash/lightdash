@@ -1,6 +1,15 @@
-import { ActionIcon, Box, Group, Stack, Text, Title } from '@mantine-8/core';
-import { IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconArrowUpRight, IconX } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
 import {
@@ -9,8 +18,12 @@ import {
 } from '../../../../../pages/MinimalDashboard';
 import DashboardAiAgentContextBridge from '../../../../../providers/Dashboard/DashboardAiAgentContextBridge';
 import { DashboardInMemoryProvider } from '../../../../../providers/Dashboard/DashboardInMemoryProvider';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import { store as aiAgentStore } from '../../store';
+import { openPanel } from '../../store/aiAgentLauncherSlice';
 import { clearPreview } from '../../store/aiPreviewSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
+import { useLauncherDock } from '../Launcher/useLauncherDock';
 
 type DashboardPreviewRef = {
     projectUuid: string;
@@ -24,12 +37,23 @@ type Props = {
 
 export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
     const dispatch = useAiAgentStoreDispatch();
+    const navigate = useNavigate();
+    const { agentUuid, threadUuid, projectUuid } = useParams();
+    const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const rootRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { data: dashboardData } = useDashboardQuery({
         uuidOrSlug: dashboard.dashboardUuid,
         projectUuid: dashboard.projectUuid,
     });
+    const { data: thread } = useAiAgentThread(
+        projectUuid ?? '',
+        agentUuid,
+        threadUuid,
+        {
+            enabled: !!projectUuid && !!agentUuid && !!threadUuid,
+        },
+    );
 
     useEffect(() => {
         const element = rootRef.current;
@@ -62,6 +86,29 @@ export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
             }
         };
     }, []);
+
+    const handleOpenDashboard = () => {
+        if (threadUuid && agentUuid) {
+            addDockItem({
+                threadId: threadUuid,
+                agentUuid,
+                title:
+                    thread?.title ||
+                    thread?.firstMessage?.message ||
+                    'Conversation',
+            });
+            aiAgentStore.dispatch(
+                openPanel({
+                    threadId: threadUuid,
+                    agentUuid,
+                }),
+            );
+        }
+
+        void navigate(
+            `/projects/${dashboard.projectUuid}/dashboards/${dashboard.dashboardUuid}/view`,
+        );
+    };
 
     return (
         <Box
@@ -97,15 +144,31 @@ export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
                             </Text>
                         )}
                     </Stack>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => dispatch(clearPreview())}
-                        aria-label="Close dashboard preview"
-                    >
-                        <MantineIcon icon={IconX} color="gray" />
-                    </ActionIcon>
+                    <Group gap="xs" wrap="nowrap">
+                        <Tooltip label="Open dashboard">
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="gray"
+                                onClick={handleOpenDashboard}
+                                aria-label="Open dashboard"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    color="gray"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => dispatch(clearPreview())}
+                            aria-label="Close dashboard preview"
+                        >
+                            <MantineIcon icon={IconX} color="gray" />
+                        </ActionIcon>
+                    </Group>
                 </Group>
             </Box>
             <Box
