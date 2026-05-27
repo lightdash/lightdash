@@ -300,6 +300,34 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Stage the agent's changes for commit. We deliberately avoid
+     * `git add --all`: the agent can leave scratch files (e.g. PR metadata) in
+     * the working tree, and staging everything is how those leaked into PRs.
+     * Instead we stage only the dbt project subtree the writeback is scoped to,
+     * so anything outside it can never be committed. When the dbt project IS
+     * the repo root we cannot narrow the path, so we fall back to staging all
+     * and rely on resolvePrMetadata having scrubbed the known scratch files
+     * before this runs.
+     */
+    private async stageChanges(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<void> {
+        const scopedToProject = projectSubPath !== '.';
+        this.logger.info(
+            `AiWriteback: staging ${
+                scopedToProject
+                    ? `'${projectSubPath}'`
+                    : 'all (dbt project is the repo root)'
+            } (sandboxId=${sandbox.sandboxId})`,
+        );
+        await sandbox.git.add(
+            CWD,
+            scopedToProject ? { files: [projectSubPath] } : { all: true },
+        );
+    }
+
+    /**
      * Synchronously run a writeback turn through the Claude Code CLI and a
      * PR against the project's GitHub repo.
      *
@@ -792,7 +820,7 @@ export class AiWritebackService extends BaseService {
 
         setStage('commit');
         await sandbox.git.createBranch(CWD, branch);
-        await sandbox.git.add(CWD, { all: true });
+        await this.stageChanges(sandbox, githubConnection.projectSubPath);
         await sandbox.git.commit(CWD, title, {
             authorName: COMMIT_AUTHOR_NAME,
             authorEmail: COMMIT_AUTHOR_EMAIL,
@@ -854,7 +882,7 @@ export class AiWritebackService extends BaseService {
         );
 
         setStage('commit');
-        await sandbox.git.add(CWD, { all: true });
+        await this.stageChanges(sandbox, githubConnection.projectSubPath);
         await sandbox.git.commit(CWD, title, {
             authorName: COMMIT_AUTHOR_NAME,
             authorEmail: COMMIT_AUTHOR_EMAIL,
