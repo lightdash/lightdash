@@ -7749,6 +7749,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             ? body.message.thread_ts
                             : body.message?.ts;
 
+                    // Every downstream step needs the thread anchor (posting
+                    // replies, fetching thread history). Without it we can't
+                    // continue, so bail rather than calling Slack with an empty
+                    // ts.
+                    if (!threadTs) {
+                        Logger.error(
+                            'Project selection action has no thread timestamp',
+                        );
+                        return;
+                    }
+
                     const authResult = await this.handleAiAgentAuth(
                         slackSettings,
                         {
@@ -7800,7 +7811,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     const conversationHistory =
                         await client.conversations.replies({
                             channel: channelId,
-                            ts: threadTs || '',
+                            ts: threadTs,
                             limit: 10,
                         });
                     const originalMessage = conversationHistory.messages?.find(
