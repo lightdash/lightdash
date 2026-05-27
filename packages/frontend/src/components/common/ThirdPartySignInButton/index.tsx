@@ -2,7 +2,7 @@ import {
     OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { Button, Image, type ButtonProps } from '@mantine-8/core';
+import { Badge, Box, Button, Image, type ButtonProps } from '@mantine-8/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import useApp from '../../../providers/App/useApp';
@@ -33,6 +33,13 @@ type ThirdPartySignInButtonProps = {
      * decision to show the button comes from per-org login options.
      */
     forceShow?: boolean;
+    /**
+     * When true, show a "Last used" badge on the button. Set when this provider
+     * matches the method recorded in the last-login cookie.
+     */
+    lastUsed?: boolean;
+    /** Fired when the (anchor) button is clicked, before navigation. */
+    onClick?: () => void;
 } & ButtonProps;
 
 const ThirdPartySignInButtonBase: FC<
@@ -42,6 +49,8 @@ const ThirdPartySignInButtonBase: FC<
         providerName: string;
         redirect?: string;
         loginHint?: string;
+        lastUsed?: boolean;
+        onClick?: () => void;
     } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &
         ButtonProps
 > = ({
@@ -52,9 +61,10 @@ const ThirdPartySignInButtonBase: FC<
     intent,
     redirect,
     loginHint,
+    lastUsed,
     ...props
 }) => {
-    return (
+    const button = (
         <Button
             variant="default"
             color="gray"
@@ -82,6 +92,27 @@ const ThirdPartySignInButtonBase: FC<
             {intent === 'signin' && `Sign in with ${providerName}`}
             {intent === 'add' && 'Add +'}
         </Button>
+    );
+
+    if (!lastUsed) {
+        return button;
+    }
+
+    // A small tag floating over the top edge of the button (PostHog-style) so it
+    // never shifts the button's own content.
+    return (
+        <Box className={classes.lastUsedWrapper}>
+            {button}
+            <Badge
+                className={classes.lastUsedBadge}
+                size="sm"
+                variant="default"
+                radius="sm"
+                tt="none"
+            >
+                Last used
+            </Badge>
+        </Box>
     );
 };
 
