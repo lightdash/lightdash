@@ -104,12 +104,17 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const stagedColorPaletteUuid = useExplorerSelector(
         selectUnsavedColorPaletteUuid,
     );
-    const resolverChartUuid =
-        stagedColorPaletteUuid === null && savedChart?.colorPaletteUuid != null
-            ? undefined
-            : savedChart?.uuid;
+    // When the user has explicitly cleared a previously-set chart-level
+    // palette, ask the resolver to skip the chart-level branch but seed
+    // the space walk from the chart's own space — otherwise the resolver
+    // loses the space cascade entirely and falls back to project/org.
+    const isClearingChartLevelPalette =
+        stagedColorPaletteUuid === null && savedChart?.colorPaletteUuid != null;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        chartUuid: resolverChartUuid,
+        chartUuid: isClearingChartLevelPalette ? undefined : savedChart?.uuid,
+        spaceUuid: isClearingChartLevelPalette
+            ? savedChart?.spaceUuid
+            : undefined,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
     });
 
