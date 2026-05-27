@@ -1,5 +1,9 @@
 /* eslint-disable no-useless-escape */
-import { getEmailDomain } from './email';
+import {
+    getEmailDomain,
+    isPublicEmailProviderDomain,
+    validateOrganizationEmailDomains,
+} from './email';
 
 describe('getEmailDomain', () => {
     it('should return the correct domain for a valid email', () => {
@@ -89,5 +93,44 @@ describe('getEmailDomain', () => {
         expect(getEmailDomain("!#$%&'*+-/=?^_`{}|~@example.org")).toBe(
             'example.org',
         );
+    });
+});
+
+describe('isPublicEmailProviderDomain', () => {
+    it('flags public providers (including former SSO-only entries)', () => {
+        expect(isPublicEmailProviderDomain('gmail.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('outlook.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('icloud.com')).toBe(true);
+        // Consolidated from OrganizationSsoService.DISALLOWED_DOMAINS
+        expect(isPublicEmailProviderDomain('google.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('microsoft.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('onmicrosoft.com')).toBe(true);
+    });
+
+    it('is case-insensitive and trims', () => {
+        expect(isPublicEmailProviderDomain('GMAIL.COM')).toBe(true);
+        expect(isPublicEmailProviderDomain('  Gmail.com ')).toBe(true);
+    });
+
+    it('does not flag corporate domains', () => {
+        expect(isPublicEmailProviderDomain('acme.com')).toBe(false);
+        expect(isPublicEmailProviderDomain('lightdash.com')).toBe(false);
+    });
+});
+
+describe('validateOrganizationEmailDomains', () => {
+    it('returns undefined when all domains are allowed', () => {
+        expect(
+            validateOrganizationEmailDomains(['acme.com', 'acme.io']),
+        ).toBeUndefined();
+    });
+
+    it('returns an error listing public providers', () => {
+        expect(validateOrganizationEmailDomains(['gmail.com'])).toContain(
+            'gmail.com',
+        );
+        expect(
+            validateOrganizationEmailDomains(['acme.com', 'outlook.com']),
+        ).toContain('outlook.com');
     });
 });

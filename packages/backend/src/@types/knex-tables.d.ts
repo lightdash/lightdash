@@ -134,6 +134,10 @@ import {
     OrganizationDesignsTableName,
 } from '../database/entities/organizationDesigns';
 import {
+    OrganizationDomainVerificationsTable,
+    OrganizationDomainVerificationsTableName,
+} from '../database/entities/organizationDomainVerifications';
+import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
@@ -480,6 +484,7 @@ declare module 'knex/types/tables' {
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
         [OrganizationSettingsTableName]: OrganizationSettingsTable;
         [OrganizationSsoConfigurationsTableName]: OrganizationSsoConfigurationsTable;
+        [OrganizationDomainVerificationsTableName]: OrganizationDomainVerificationsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;

@@ -145,6 +145,10 @@ import {
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
 import {
+    type DomainVerificationStatus,
+    type VerifiedDomain,
+} from './organizationDomainVerification';
+import {
     type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
@@ -946,6 +950,8 @@ type ApiResults =
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring
+    | DomainVerificationStatus
+    | VerifiedDomain[]
     | ApiScheduledDownloadCsv
     | PinnedItems
     | ViewStatistics
