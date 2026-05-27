@@ -31,6 +31,7 @@ import type { DbAiWritebackThread } from '../../database/entities/ai';
 import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
 import {
     ALLOWED_TOOLS,
+    CLAUDE_MODEL,
     COMMIT_AUTHOR_EMAIL,
     COMMIT_AUTHOR_NAME,
     CWD,
@@ -561,6 +562,7 @@ export class AiWritebackService extends BaseService {
         const continueFlag = isResume ? '--continue ' : '';
         const result = await sandbox.commands.run(
             `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
+                `--model ${CLAUDE_MODEL} ` +
                 `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
                 '--output-format text ' +
                 `--allowedTools "${ALLOWED_TOOLS}"`,
