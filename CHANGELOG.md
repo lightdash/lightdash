@@ -1,3 +1,15 @@
+# [0.3028.0](https://github.com/lightdash/lightdash/compare/0.3027.1...0.3028.0) (2026-05-27)
+
+
+### Bug Fixes
+
+* **snowflake:** add session identity context to USE WAREHOUSE failures ([#23572](https://github.com/lightdash/lightdash/issues/23572)) ([22f4172](https://github.com/lightdash/lightdash/commit/22f417240546ce0b8f12589497cb61e516b9b99a))
+
+
+### Features
+
+* **ai-agent:** configurable row cap for run_sql tool (SPK-462) ([#23571](https://github.com/lightdash/lightdash/issues/23571)) ([bd958cb](https://github.com/lightdash/lightdash/commit/bd958cbb3abc606d6c83d74e8af91ab25fddfba9))
+
 ## [0.3027.1](https://github.com/lightdash/lightdash/compare/0.3027.0...0.3027.1) (2026-05-27)
 
 
