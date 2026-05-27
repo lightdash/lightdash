@@ -29,134 +29,30 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import type { DbAiWritebackThread } from '../../database/entities/ai';
 import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
+import {
+    COMMIT_AUTHOR_EMAIL,
+    COMMIT_AUTHOR_NAME,
+    CWD,
+    GIT_USERNAME,
+    PR_DESCRIPTION_PATH,
+    PR_TITLE_PATH,
+    PROMPT_PATH,
+    RUN_TIMEOUT_MS,
+    SANDBOX_TIMEOUT_MS,
+    SYSTEM_PROMPT_PATH,
+    TEMPLATE_NAME,
+} from './constants';
+import { buildSystemPrompt } from './templates';
+import type {
+    AiWritebackRunArgs,
+    AppliedChanges,
+    GithubConnection,
+    GithubInstallation,
+    SetStage,
+    TurnContext,
+} from './types';
 
-type GithubConnection = {
-    owner: string;
-    repo: string;
-    projectSubPath: string;
-};
-
-type GithubInstallation = {
-    installationId: string;
-    token: string;
-};
-
-type SetStage = (stage: AiWritebackFailureStage) => void;
-
-type TurnContext = {
-    organizationUuid: string;
-    githubConnection: GithubConnection;
-    existingRow: DbAiWritebackThread | null;
-    isResume: boolean;
-};
-
-type AppliedChanges = {
-    prUrl: string | null;
-    prCreated: boolean;
-    pauseOnExit: boolean;
-};
-
-export type AiWritebackRunArgs = {
-    user: SessionUser;
-    projectUuid: string;
-    prompt: string;
-    aiThreadUuid?: string;
-};
-
-const TEMPLATE_NAME = 'lightdash-ai-writeback';
-
-const REPO_HOST = 'github.com';
-
-// Where the repo is cloned inside the sandbox, and where the agent runs.
-const CWD = '/home/user/repo';
-
-const PROMPT_PATH = '/tmp/prompt.txt';
-const SYSTEM_PROMPT_PATH = '/tmp/system_prompt.txt';
-// Files the agent writes for the host to open a PR from.
-const PR_TITLE_PATH = '/tmp/pr_title.txt';
-const PR_DESCRIPTION_PATH = '/tmp/pr_description.md';
-
-// Installation tokens authenticate over HTTPS with a fixed username.
-const GIT_USERNAME = 'x-access-token';
-
-// Commit identity for changes the agent produces.
-const COMMIT_AUTHOR_NAME = 'Lightdash';
-const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';
-
-// Hard ceiling on a single synchronous run. The HTTP request is held open for
-// the duration, so keep this well under typical load-balancer/proxy timeouts.
-const RUN_TIMEOUT_MS = 10 * 60 * 1000;
-
-// How long an E2B sandbox stays alive before E2B reaps it. Used both when
-// creating a sandbox and when connecting to a paused one to keep it warm.
-const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
-
-// Instructions prepended to every user prompt. The host owns git, so the agent
-// must not touch it; instead it leaves the PR title/description on disk.
-//
-// `dbtProjectDir` is the dbt project sub-folder resolved from the Lightdash
-// project's dbt connection (relative to the repo root, which is the agent's
-// working directory). The agent uses it as the `--project-dir` for the compile
-// rather than discovering it, so the compile targets the project the prompt is
-// actually about.
-//
-// When the agent makes file changes it must also run `lightdash compile` so the
-// host (and reviewer) can see whether the resulting dbt project still parses.
-// The compile uses --skip-warehouse-catalog so no live warehouse connection is
-// needed; profiles.yml is patched in a temporary copy (env_var(...) and other
-// Jinja expressions stripped) so dbt's profile-parsing step doesn't fail on
-// unset variables. The original profiles.yml in the checkout must NOT be
-// touched — `git add --all` runs after the agent and would otherwise sweep
-// the patched file into the PR.
-const buildSystemPrompt = (dbtProjectDir: string): string =>
-    `
-You are an autonomous coding agent working inside a checkout of a git repository.
-
-- The repository is already cloned in your working directory. Edit the
-  appropriate files to satisfy the user's request.
-- The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
-  is your working directory).
-- Do NOT commit, push, or run any git commands — the host handles git.
-
-If you made any file changes, perform ALL of these follow-up steps before you
-finish:
-
-1. The dbt project directory (containing \`dbt_project.yml\`) is
-   \`${dbtProjectDir}\`. Use it as the \`--project-dir\`.
-
-2. Discover the profiles directory by locating \`profiles.yml\` (common
-   locations are \`${dbtProjectDir}/profiles/profiles.yml\` or alongside
-   \`dbt_project.yml\` in \`${dbtProjectDir}\`). The directory that contains it
-   is the original profiles directory.
-
-3. Prepare a TEMPORARY profiles directory at \`/tmp/ld-profiles\`:
-   - Copy the discovered \`profiles.yml\` to \`/tmp/ld-profiles/profiles.yml\`.
-   - In the COPY only, replace every Jinja \`env_var(...)\` expression — and
-     any other Jinja expression that requires runtime values — with a literal
-     placeholder string (e.g. \`"placeholder"\`). The goal is a syntactically
-     valid profiles.yml that does not depend on any environment variable.
-   - Do NOT modify the original \`profiles.yml\` in the repo. The host will
-     commit every file change in the working tree, so the original must stay
-     unchanged.
-
-4. From the repo root, run:
-     lightdash compile --skip-warehouse-catalog \\
-       --profiles-dir /tmp/ld-profiles \\
-       --project-dir ${dbtProjectDir}
-   Capture the exit code and the last meaningful line of output.
-
-5. In your final reply, include ONE line summarising the compile result —
-   for example: "lightdash compile: ok (exit 0)" or
-   "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
-   paste the full compile output.
-
-6. Write two files for the host to open a pull request from:
-   - ${PR_TITLE_PATH}: a single-line PR title, plain text, no emojis, max 72 characters.
-   - ${PR_DESCRIPTION_PATH}: a markdown PR description, plain text, no emojis.
-
-If you did not change any files, skip steps 1–6 entirely and do not write
-${PR_TITLE_PATH} or ${PR_DESCRIPTION_PATH}.
-`.trim();
+export type { AiWritebackRunArgs } from './types';
 
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -375,7 +271,10 @@ export class AiWritebackService extends BaseService {
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const { user, projectUuid, prompt, aiThreadUuid } = args;
 
-        console.log(args);
+        this.logger.info(
+            `AiWriteback: agent run started (projectUuid=${projectUuid}, aiThreadUuid=${aiThreadUuid})`,
+        );
+
         const turn = await this.prepareTurn({
             user,
             projectUuid,
@@ -621,7 +520,7 @@ export class AiWritebackService extends BaseService {
         setStage('clone');
         // Clone over HTTPS using the installation token as the password.
         await sandbox.git.clone(
-            `https://${REPO_HOST}/${githubConnection.owner}/${githubConnection.repo}.git`,
+            `https://github.com/${githubConnection.owner}/${githubConnection.repo}.git`,
             {
                 path: CWD,
                 username: GIT_USERNAME,
