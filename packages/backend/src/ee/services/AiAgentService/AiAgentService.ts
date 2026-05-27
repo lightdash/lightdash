@@ -5037,8 +5037,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const proposeWriteback: ProposeWritebackFn = (args) =>
             wrapSentryTransaction('AiAgent.proposeWriteback', {}, () =>
-                this.aiWritebackService.run(user, projectUuid, {
+                this.aiWritebackService.run({
+                    user,
+                    projectUuid,
                     prompt: args.prompt,
+                    aiThreadUuid: prompt.threadUuid,
                 }),
             );
 

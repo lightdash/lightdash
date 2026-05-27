@@ -418,11 +418,11 @@ export class McpService extends BaseService {
                 );
 
                 try {
-                    const result = await this.aiWritebackService.run(
+                    const result = await this.aiWritebackService.run({
                         user,
                         projectUuid,
-                        { prompt: args.prompt },
-                    );
+                        prompt: args.prompt,
+                    });
 
                     const summary = result.prUrl
                         ? `AI writeback complete. Pull request opened: ${result.prUrl}`

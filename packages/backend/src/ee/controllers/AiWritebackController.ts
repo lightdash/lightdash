@@ -69,11 +69,11 @@ export class AiWritebackController extends BaseController {
         }
         const { prompt } = parsed.data;
         this.setStatus(200);
-        const result = await this.getAiWritebackService().run(
-            toSessionUser(req.account),
+        const result = await this.getAiWritebackService().run({
+            user: toSessionUser(req.account),
             projectUuid,
-            { prompt },
-        );
+            prompt,
+        });
         return {
             status: 'ok',
             results: result,
