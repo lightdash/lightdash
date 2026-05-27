@@ -1215,6 +1215,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     this.formatWarehouseErrorMessage(customErrorMessage);
                 return new WarehouseQueryError(formattedMessage);
             }
+            // Append the warehouse configured on the connection so admins can
+            // tell apart "warehouse was set but Snowflake rejected the
+            // selection" from "no warehouse was configured at all" — the
+            // latter usually means the credentials are missing the field.
+            const configured = this.connectionOptions.warehouse;
+            const detail = configured
+                ? ` (configured warehouse: "${configured}")`
+                : ' (no warehouse was configured on the connection — credentials may be missing this field)';
+            return new WarehouseQueryError(`${originalMessage}${detail}`);
         }
 
         // pull error type from data object
