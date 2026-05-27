@@ -4543,9 +4543,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 projectUuid,
                                 slug,
                                 patchedContent as typeof currentContent.content,
-                                undefined,
-                                undefined,
-                                true,
+                                { force: true },
                             );
                             break;
                         case 'chart':
@@ -4554,9 +4552,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 projectUuid,
                                 slug,
                                 patchedContent as typeof currentContent.content,
-                                undefined,
-                                undefined,
-                                true,
+                                { force: true },
                             );
                             break;
                         default:

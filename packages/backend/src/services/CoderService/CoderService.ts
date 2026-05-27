@@ -75,6 +75,14 @@ type CoderServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
 };
 
+type UpsertContentAsCodeOptions = {
+    skipSpaceCreate?: boolean;
+    publicSpaceCreate?: boolean;
+    force?: boolean;
+    spaceNames?: Record<string, string>;
+    mode?: 'upsert' | 'create';
+};
+
 const normalizeFilterGroupItem = (
     item: FilterGroupItemInput,
 ): FilterGroupItem => {
@@ -1135,11 +1143,17 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         chartAsCode: ChartAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: UpsertContentAsCodeOptions = {},
     ) {
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            mode = 'upsert',
+        } = options;
+        const shouldUpdateExistingContent = mode === 'upsert';
+        const shouldUseExactSlug = mode === 'upsert';
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1166,12 +1180,16 @@ export class CoderService extends BaseService {
             },
         };
 
-        const [chart] = await this.savedChartModel.find({
-            slug,
-            projectUuid,
-            excludeChartsSavedInDashboard: false,
-            includeOrphanChartsWithinDashboard: true,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating content that already owns it.
+        const [chart] = shouldUpdateExistingContent
+            ? await this.savedChartModel.find({
+                  slug,
+                  projectUuid,
+                  excludeChartsSavedInDashboard: false,
+                  includeOrphanChartsWithinDashboard: true,
+              })
+            : [undefined];
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -1217,7 +1235,7 @@ export class CoderService extends BaseService {
                             name: friendlyName(chartWithDefaults.dashboardSlug),
                             tiles: [],
                             slug: chartWithDefaults.dashboardSlug,
-                            forceSlug: true,
+                            forceSlug: shouldUseExactSlug,
                             tabs: [],
                         },
                         user,
@@ -1231,7 +1249,7 @@ export class CoderService extends BaseService {
                     spaceUuid: null,
                     dashboardUuid,
                     updatedByUser: user,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                 };
             } else {
                 createChart = {
@@ -1239,7 +1257,7 @@ export class CoderService extends BaseService {
                     spaceUuid: space.uuid,
                     dashboardUuid: null,
                     updatedByUser: user,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                 };
             }
 
@@ -1645,11 +1663,17 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         dashboardAsCode: DashboardAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: UpsertContentAsCodeOptions = {},
     ): Promise<PromotionChanges> {
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            mode = 'upsert',
+        } = options;
+        const shouldUpdateExistingContent = mode === 'upsert';
+        const shouldUseExactSlug = mode === 'upsert';
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1677,10 +1701,14 @@ export class CoderService extends BaseService {
             },
         };
 
-        const [dashboardSummary] = await this.dashboardModel.find({
-            slug,
-            projectUuid,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating content that already owns it.
+        const [dashboardSummary] = shouldUpdateExistingContent
+            ? await this.dashboardModel.find({
+                  slug,
+                  projectUuid,
+              })
+            : [undefined];
         const tilesWithUuids = await this.convertTileWithSlugsToUuids(
             projectUuid,
             dashboardWithDefaults.tiles,
@@ -1708,7 +1736,7 @@ export class CoderService extends BaseService {
                 {
                     ...dashboardWithDefaults,
                     tiles: tilesWithUuids,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
                 },
                 user,
