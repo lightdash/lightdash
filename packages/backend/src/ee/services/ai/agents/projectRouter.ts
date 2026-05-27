@@ -14,16 +14,14 @@ const ProjectRoutingSchema = z.object({
 });
 
 /**
- * A lightweight, project-agnostic routing pass for the Slack system agent.
- *
- * Given the user's message and the projects they can access, decides whether
- * the message already names exactly one project (e.g. "in the eu project" ->
- * "Jaffle Shop EU"). Returns that project's UUID so the caller can bind the
- * system agent to it directly; returns null when the message doesn't clearly
- * identify one project, so the caller can fall back to the project picker.
+ * A lightweight routing pass for the Slack system agent: does the user's
+ * message already name exactly one of their projects (e.g. "in the eu project"
+ * -> "Jaffle Shop EU")? Returns that project's UUID so the caller can bind the
+ * thread to it directly; returns null when no single project is clearly
+ * identified, so the caller can ask the user to pick one.
  *
  * Biases hard towards precision: when unsure it returns null (ask the user)
- * rather than guessing, because acting on the wrong project is costly.
+ * rather than guessing, because binding the wrong project is costly.
  */
 export async function routeProjectForSlack(
     model: LanguageModel,

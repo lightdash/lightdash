@@ -5073,6 +5073,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid: project.projectUuid,
                         name: project.name,
                         type: project.type,
+                        isActive: project.projectUuid === projectUuid,
                     }));
             });
 
@@ -6803,9 +6804,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return resolveAgentForProject(candidateProjects[0].projectUuid);
         }
 
-        // Multiple accessible projects. First let a lightweight routing pass
-        // see if the user already named a project ("...in the eu project"); if
-        // so, bind to it and let the real agent run the original request.
+        // Multiple accessible projects. The system agent must work within one
+        // project before it can answer, so if the message clearly names a
+        // project, bind to it; otherwise ask the user to pick. The selection
+        // sets the project for this thread and all subsequent messages.
         if (promptText.trim().length > 0) {
             try {
                 const { model } = getModel(this.lightdashConfig.ai.copilot);

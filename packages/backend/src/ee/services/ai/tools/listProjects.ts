@@ -28,7 +28,10 @@ export const getListProjects = ({ listProjects }: Dependencies) =>
 
                 const lines = [
                     `You have access to ${projects.length} project(s):`,
-                    ...projects.map((p) => `• ${p.name}`),
+                    ...projects.map(
+                        (p) =>
+                            `• ${p.name}${p.isActive ? ' (the project you are currently working in)' : ''}`,
+                    ),
                 ];
 
                 return {

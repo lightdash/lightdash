@@ -279,5 +279,6 @@ export type ListProjectsFn = () => Promise<
         projectUuid: string;
         name: string;
         type: ProjectType;
+        isActive: boolean;
     }[]
 >;
