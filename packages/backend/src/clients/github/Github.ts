@@ -368,6 +368,41 @@ export const createPullRequest = async ({
     }
 };
 
+export const updatePullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    title,
+    body,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    title: string;
+    body: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            title,
+            body,
+            headers,
+        });
+
+        return response.data;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const checkFileDoesNotExist = async ({
     owner,
     repo,

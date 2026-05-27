@@ -334,6 +334,8 @@ import {
     AiThreadTableName,
     AiWebAppPromptTable,
     AiWebAppPromptTableName,
+    AiWritebackThreadTable,
+    AiWritebackThreadTableName,
 } from '../ee/database/entities/ai';
 import {
     AiAgentGroupAccessTable,
@@ -504,6 +506,7 @@ declare module 'knex/types/tables' {
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
+        [AiWritebackThreadTableName]: AiWritebackThreadTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
