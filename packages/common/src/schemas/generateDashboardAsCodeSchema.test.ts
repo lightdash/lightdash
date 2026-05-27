@@ -387,7 +387,7 @@ describe('generateDashboardAsCodeSchema', () => {
                     },
                     DashboardTabAsCode: {
                         type: 'object',
-                        required: ['uuid', 'name', 'order', 'hidden'],
+                        required: ['uuid', 'name', 'order'],
                         properties: {
                             uuid: {
                                 type: 'string',
