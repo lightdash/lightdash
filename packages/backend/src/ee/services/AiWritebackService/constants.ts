@@ -24,3 +24,34 @@ export const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 // How long an E2B sandbox stays alive before E2B reaps it. Used both when
 // creating a sandbox and when connecting to a paused one to keep it warm.
 export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
+
+// Temporary copy of `profiles.yml` with Jinja env_var(...) expressions
+// stripped, so `lightdash compile --skip-warehouse-catalog` can parse it
+// without any runtime variables set. Kept off the repo tree so it can't
+// leak into the PR.
+export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
+
+// Fine-grained tool permissions for the Claude Code CLI — used in place of
+// `--dangerously-skip-permissions`. Follows Claude Code's `--allowedTools`
+// syntax: `Tool(specifier)`, where `//path` denotes an absolute filesystem
+// path. The agent only needs:
+//   - read/edit/write/glob/grep over the cloned repo at CWD
+//   - read/write/edit under TMP_PROFILES_DIR (the patched profiles copy)
+//   - write to the two PR metadata files the host reads after the run
+//   - bash scoped to `lightdash compile` and the file ops needed to set up
+//     the temporary profiles dir
+export const ALLOWED_TOOLS = [
+    `Read(/${CWD}/**)`,
+    `Glob(/${CWD}/**)`,
+    `Grep(/${CWD}/**)`,
+    `Edit(/${CWD}/**)`,
+    `Write(/${CWD}/**)`,
+    `Read(/${TMP_PROFILES_DIR}/**)`,
+    `Write(/${TMP_PROFILES_DIR}/**)`,
+    `Edit(/${TMP_PROFILES_DIR}/**)`,
+    `Write(/${PR_TITLE_PATH})`,
+    `Write(/${PR_DESCRIPTION_PATH})`,
+    'Bash(lightdash compile:*)',
+    'Bash(mkdir:*)',
+    'Bash(cp:*)',
+].join(',');
