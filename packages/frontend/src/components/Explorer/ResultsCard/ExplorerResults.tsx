@@ -123,6 +123,21 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         // The main query has a different row structure (pivoted) that would cause
         // the first column to show "-" because the pivot dimension key is missing.
         if (needsUnpivotedData && !hasUnpivotedQuery) {
+            // If the create-query call itself failed (e.g. table calculation
+            // references an unknown field), neither query will ever produce a
+            // queryUuid. Surface the error instead of waiting forever.
+            const createQueryError = query.error ?? unpivotedQuery.error;
+            if (createQueryError) {
+                return {
+                    rows: [],
+                    totalResults: undefined,
+                    isFetchingRows: false,
+                    fetchMoreRows: () => {},
+                    status: 'error' as const,
+                    apiError: createQueryError,
+                    queryStatus: unpivotedQueryResults.queryStatus,
+                };
+            }
             return {
                 rows: [],
                 totalResults: undefined,
@@ -385,6 +400,18 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
     // Render grouped view content
     const renderGroupedView = () => {
+        // Surface query errors (e.g. table calculation references an unknown
+        // field) before any loading checks, so the user isn't stuck on a
+        // spinner when the query will never produce results.
+        if (groupedResultsData?.apiError) {
+            return (
+                <Text c="red" ta="center">
+                    {groupedResultsData.apiError.error?.message ||
+                        'Error loading grouped results'}
+                </Text>
+            );
+        }
+
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
                 <Box
