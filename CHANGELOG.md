@@ -1,3 +1,10 @@
+## [0.3025.1](https://github.com/lightdash/lightdash/compare/0.3025.0...0.3025.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* **ai-agents:** batch AI stream updates ([#23545](https://github.com/lightdash/lightdash/issues/23545)) ([22cc3a3](https://github.com/lightdash/lightdash/commit/22cc3a3b51d76d8ef727db1b741306be04ac6df6))
+
 # [0.3025.0](https://github.com/lightdash/lightdash/compare/0.3024.4...0.3025.0) (2026-05-27)
 
 
