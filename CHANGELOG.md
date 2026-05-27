@@ -1,3 +1,10 @@
+## [0.3024.4](https://github.com/lightdash/lightdash/compare/0.3024.3...0.3024.4) (2026-05-27)
+
+
+### Bug Fixes
+
+* make sql runner search behave like explores ([#23533](https://github.com/lightdash/lightdash/issues/23533)) ([88d2cb8](https://github.com/lightdash/lightdash/commit/88d2cb89be54f104bcee1ca885bfd89febac7bd8))
+
 ## [0.3024.3](https://github.com/lightdash/lightdash/compare/0.3024.2...0.3024.3) (2026-05-27)
 
 
