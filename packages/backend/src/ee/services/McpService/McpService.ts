@@ -165,6 +165,14 @@ export type ExtraContext = {
     headerProjectUuid?: string;
 };
 
+export const getProjectUuidForAgentList = ({
+    requestedProjectUuid,
+    activeProjectUuid,
+}: {
+    requestedProjectUuid?: string;
+    activeProjectUuid?: string;
+}) => requestedProjectUuid ?? activeProjectUuid;
+
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
 // McpService methods expect. The MCP router (mcpRouter.ts) populates
 // `authInfo.extra` with ExtraContext before the SDK invokes any tool
@@ -824,7 +832,7 @@ export class McpService extends BaseService {
             McpToolName.LIST_AGENTS,
             {
                 description:
-                    'List all accessible AI agents. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.',
+                    'List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.',
                 inputSchema: {
                     projectUuid: z.string().optional(),
                 },
@@ -843,9 +851,15 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(ctx, McpToolName.LIST_AGENTS);
 
+                const projectUuid = getProjectUuidForAgentList({
+                    requestedProjectUuid: args.projectUuid,
+                    activeProjectUuid:
+                        await this.getProjectUuidFromContext(ctx),
+                });
+
                 const agents = await this.aiAgentService.listAgents(
                     user,
-                    args.projectUuid,
+                    projectUuid,
                 );
 
                 const agentList = agents.map((agent) => ({
@@ -871,7 +885,7 @@ export class McpService extends BaseService {
             McpToolName.SET_AGENT,
             {
                 description:
-                    "Set the active AI agent. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+                    "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
                 inputSchema: {
                     agentUuid: z.string(),
                 },
@@ -894,11 +908,13 @@ export class McpService extends BaseService {
                     throw new ParameterError('Agent UUID is required');
                 }
 
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
                 // Validates copilot enabled, agent exists, user has access, and returns summary context
                 const agent = await this.aiAgentService.getAgent(
                     user,
                     args.agentUuid,
-                    undefined,
+                    projectUuid,
                     { includeSummaryContext: true },
                 );
 
@@ -911,9 +927,13 @@ export class McpService extends BaseService {
                     userUuid: user.userUuid,
                     organizationUuid,
                     context: {
-                        projectUuid: existingContext?.context.projectUuid ?? '',
+                        projectUuid:
+                            existingContext?.context.projectUuid ?? projectUuid,
                         projectName: existingContext?.context.projectName ?? '',
-                        tags: existingContext?.context.tags || null,
+                        tags:
+                            agent.tags && agent.tags.length > 0
+                                ? agent.tags
+                                : null,
                         agentUuid: agent.uuid,
                         agentName: agent.name,
                     },
