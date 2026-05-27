@@ -220,6 +220,7 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              maxQueryLimit: args.runSqlMaxLimit,
           })
         : null;
 

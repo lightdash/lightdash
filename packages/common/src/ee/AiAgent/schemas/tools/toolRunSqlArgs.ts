@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_RUN_SQL_DESCRIPTION = `Tool: run_sql
+export const DEFAULT_RUN_SQL_LIMIT = 500;
+export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
+
+const buildDescription = (
+    defaultLimit: number,
+    maxLimit: number,
+) => `Tool: run_sql
 
 Purpose:
 Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
@@ -13,7 +19,7 @@ The query is executed directly against the warehouse, so use the SQL dialect app
 
 Parameters:
 - sql: The SQL query to execute. Must be a valid SELECT statement.
-- limit: Maximum number of rows to return (default 500, max 5000).
+- limit: Maximum number of rows to return (default ${defaultLimit}, max ${maxLimit}).
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
@@ -35,24 +41,37 @@ Notes:
 - On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 `;
 
-export const toolRunSqlArgsSchema = createToolSchema({
-    description: TOOL_RUN_SQL_DESCRIPTION,
-})
-    .extend({
-        sql: z
-            .string()
-            .describe('The SQL query to execute against the data warehouse.'),
-        limit: z
-            .number()
-            .int()
-            .positive()
-            .max(5000)
-            .default(500)
-            .describe(
-                'Maximum number of rows to return. Defaults to 500, max 5000.',
-            ),
+type CreateToolRunSqlArgsSchemaOptions = {
+    maxLimit?: number;
+    defaultLimit?: number;
+};
+
+export const createToolRunSqlArgsSchema = ({
+    maxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
+    defaultLimit = DEFAULT_RUN_SQL_LIMIT,
+}: CreateToolRunSqlArgsSchemaOptions = {}) =>
+    createToolSchema({
+        description: buildDescription(defaultLimit, maxLimit),
     })
-    .build();
+        .extend({
+            sql: z
+                .string()
+                .describe(
+                    'The SQL query to execute against the data warehouse.',
+                ),
+            limit: z
+                .number()
+                .int()
+                .positive()
+                .max(maxLimit)
+                .default(defaultLimit)
+                .describe(
+                    `Maximum number of rows to return. Defaults to ${defaultLimit}, max ${maxLimit}.`,
+                ),
+        })
+        .build();
+
+export const toolRunSqlArgsSchema = createToolRunSqlArgsSchema();
 
 export const toolRunSqlOutputSchema = z.object({
     result: z.string(),

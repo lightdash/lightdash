@@ -976,6 +976,10 @@ export const getAiConfig = () => ({
     maxQueryLimit:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
         AI_DEFAULT_MAX_QUERY_LIMIT,
+    runSqlMaxLimit:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_RUN_SQL_MAX_LIMIT') ||
+        getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
+        AI_DEFAULT_MAX_QUERY_LIMIT,
     verifiedAnswerSimilarityThreshold:
         getFloatFromEnvironmentVariable(
             'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
@@ -1248,6 +1252,7 @@ export type LightdashConfig = {
     };
     mcp: {
         enabled: boolean;
+        runSqlMaxLimit: number;
     };
     customRoles: {
         enabled: boolean;
@@ -2304,6 +2309,9 @@ export const parseConfig = (): LightdashConfig => {
         updateSetup: getUpdateSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
+            runSqlMaxLimit:
+                getIntegerFromEnvironmentVariable('MCP_RUN_SQL_MAX_LIMIT') ||
+                AI_DEFAULT_MAX_QUERY_LIMIT,
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',

@@ -113,6 +113,7 @@ export const aiCopilotConfigSchema = z
         askAiButtonEnabled: z.boolean(),
         embeddingEnabled: z.boolean(),
         maxQueryLimit: z.number().positive(),
+        runSqlMaxLimit: z.number().positive(),
         verifiedAnswerSimilarityThreshold: z
             .number()
             .min(0)

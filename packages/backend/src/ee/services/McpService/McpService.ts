@@ -6,6 +6,7 @@ import {
     CatalogType,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
+    createToolRunSqlArgsSchema,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -33,7 +34,6 @@ import {
     toolFindFieldsArgsSchema,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
-    toolRunSqlArgsSchema,
     ToolSearchFieldValuesArgs,
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
@@ -1487,11 +1487,14 @@ export class McpService extends BaseService {
             },
         );
 
+        const runSqlArgsSchema = createToolRunSqlArgsSchema({
+            maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
+        });
         this.mcpServer.registerTool(
             McpToolName.RUN_SQL,
             {
-                description: toolRunSqlArgsSchema.description,
-                inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
+                description: runSqlArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(runSqlArgsSchema),
                 outputSchema: {
                     rows: z
                         .array(z.record(z.unknown()))
