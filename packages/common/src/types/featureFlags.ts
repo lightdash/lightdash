@@ -203,6 +203,11 @@ export enum FeatureFlags {
     AiContextCompaction = 'ai-context-compaction',
 
     /**
+     * Enable AI agent review classifier experiments.
+     */
+    AiAgentReviewClassifier = 'ai-agent-review-classifier',
+
+    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */

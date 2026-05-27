@@ -168,6 +168,19 @@ export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     threadUuid: string;
 };
 
+export type AiAgentReviewClassifierEventType =
+    | 'response_saved'
+    | 'feedback_changed';
+
+export type AiAgentReviewClassifierJobPayload = TraceTaskBase & {
+    eventType: AiAgentReviewClassifierEventType;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+};
+
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {
     artifactVersionUuid: string;
     title: string | null;

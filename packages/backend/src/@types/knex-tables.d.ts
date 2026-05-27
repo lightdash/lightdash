@@ -360,6 +360,12 @@ import {
     AiAgentDocumentTableName,
 } from '../ee/database/entities/aiAgentDocument';
 import {
+    AiAgentReviewClassifierRunTable,
+    AiAgentReviewClassifierRunTableName,
+    AiAgentTurnSignalTable,
+    AiAgentTurnSignalTableName,
+} from '../ee/database/entities/aiAgentReviewClassifier';
+import {
     AiAgentUserPreferencesTable,
     AiAgentUserPreferencesTableName,
 } from '../ee/database/entities/aiAgentUserPreferences';
@@ -507,6 +513,8 @@ declare module 'knex/types/tables' {
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
+        [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
+        [AiAgentTurnSignalTableName]: AiAgentTurnSignalTable;
         [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
