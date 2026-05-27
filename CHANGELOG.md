@@ -1,3 +1,10 @@
+# [0.3024.0](https://github.com/lightdash/lightdash/compare/0.3023.0...0.3024.0) (2026-05-27)
+
+
+### Features
+
+* add per-org OIDC account-linking toggles with organization_settings table and admin panel ([#23509](https://github.com/lightdash/lightdash/issues/23509)) ([fa92dc1](https://github.com/lightdash/lightdash/commit/fa92dc16a2ee926951d79392d2520f1cc8d7d508))
+
 # [0.3023.0](https://github.com/lightdash/lightdash/compare/0.3022.2...0.3023.0) (2026-05-27)
 
 
