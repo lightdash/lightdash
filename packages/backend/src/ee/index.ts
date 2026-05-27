@@ -441,6 +441,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     aiAgentService: repository.getAiAgentService(),
+                    aiWritebackService: repository.getAiWritebackService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({

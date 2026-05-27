@@ -7,6 +7,7 @@ import {
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     Explore,
+    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getItemLabelWithoutTableName,
@@ -14,6 +15,7 @@ import {
     getValidAiQueryLimit,
     isExploreError,
     JobPollTimeoutError,
+    mcpRunAiWritebackArgsSchema,
     mcpToolListExploresArgsSchema,
     MissingConfigError,
     NotFoundError,
@@ -110,6 +112,7 @@ import {
 import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
+import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import {
     registerAppResource,
     registerAppTool,
@@ -134,6 +137,7 @@ export enum McpToolName {
     RUN_SQL = 'run_sql',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
+    RUN_AI_WRITEBACK = 'run_ai_writeback',
 }
 
 type McpServiceArguments = {
@@ -154,6 +158,7 @@ type McpServiceArguments = {
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiAgentService: AiAgentService;
+    aiWritebackService: AiWritebackService;
 };
 
 export type ExtraContext = {
@@ -240,6 +245,8 @@ export class McpService extends BaseService {
 
     private aiAgentService: AiAgentService;
 
+    private aiWritebackService: AiWritebackService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -262,6 +269,7 @@ export class McpService extends BaseService {
         featureFlagService,
         aiOrganizationSettingsService,
         aiAgentService,
+        aiWritebackService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -281,6 +289,7 @@ export class McpService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.aiAgentService = aiAgentService;
+        this.aiWritebackService = aiWritebackService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
@@ -362,8 +371,94 @@ export class McpService extends BaseService {
         return this.mcpCompatLayer.processZodType(schema).shape;
     }
 
+    /**
+     * Registers the run_ai_writeback tool on the current server. Kept separate
+     * so setupHandlers can register it conditionally (dark launch — see the
+     * AiWriteback gate in setupHandlers).
+     */
+    private registerRunAiWritebackTool(): void {
+        this.mcpServer.registerTool(
+            McpToolName.RUN_AI_WRITEBACK,
+            {
+                description: mcpRunAiWritebackArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpRunAiWritebackArgsSchema,
+                ),
+                outputSchema: {
+                    output: z
+                        .string()
+                        .describe('The text output produced by the agent.'),
+                    exitCode: z
+                        .number()
+                        .int()
+                        .describe("The sandbox command's exit status."),
+                    prUrl: z
+                        .string()
+                        .nullable()
+                        .describe(
+                            'URL of the pull request opened from the agent changes, or null when the agent made no file changes.',
+                        ),
+                },
+                annotations: {
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: false,
+                },
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.RUN_AI_WRITEBACK,
+                    projectUuid,
+                );
+
+                try {
+                    const result = await this.aiWritebackService.run(
+                        user,
+                        projectUuid,
+                        { prompt: args.prompt },
+                    );
+
+                    const summary = result.prUrl
+                        ? `AI writeback complete. Pull request opened: ${result.prUrl}`
+                        : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        `${summary}\n\n${result.output}`,
+                        {
+                            output: result.output,
+                            exitCode: result.exitCode,
+                            prUrl: result.prUrl,
+                        },
+                    );
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error running AI writeback: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+    }
+
     setupHandlers(
-        options: { projectPinned: boolean } = { projectPinned: false },
+        options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
+            projectPinned: false,
+            aiWritebackEnabled: false,
+        },
     ): void {
         this.mcpServer.registerTool(
             McpToolName.GET_LIGHTDASH_VERSION,
@@ -1522,6 +1617,15 @@ export class McpService extends BaseService {
             },
         );
 
+        // Dark-launched: this tool is only registered — and therefore only
+        // advertised in tools/list and invocable — when the AiWriteback
+        // feature flag is enabled for the caller. Clients without the flag
+        // never see it. The flag is resolved per-request in the MCP router
+        // (mcpRouter.ts) and passed through createServer.
+        if (options.aiWritebackEnabled) {
+            this.registerRunAiWritebackTool();
+        }
+
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
             {
@@ -2275,7 +2379,10 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public createServer(options?: { projectPinned?: boolean }): McpServer {
+    public createServer(options?: {
+        projectPinned?: boolean;
+        aiWritebackEnabled?: boolean;
+    }): McpServer {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2303,7 +2410,10 @@ export class McpService extends BaseService {
         // Temporarily swap the server to register handlers on the new instance
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
-        this.setupHandlers({ projectPinned: options?.projectPinned ?? false });
+        this.setupHandlers({
+            projectPinned: options?.projectPinned ?? false,
+            aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+        });
         this.mcpServer = originalServer;
 
         return newServer;
@@ -2374,6 +2484,22 @@ export class McpService extends BaseService {
             aiCopilotFlag.enabled,
             user.organizationUuid,
         );
+    }
+
+    /**
+     * Whether the run_ai_writeback tool should be exposed to this caller.
+     * Gated behind the AiWriteback feature flag (off by default) so the tool
+     * can be dark launched — clients without the flag never see it in
+     * tools/list. Resolved per-request and passed into createServer.
+     */
+    public async isAiWritebackEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiWriteback,
+        });
+        return flag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
