@@ -237,6 +237,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runQuery',
     'runSql',
     'runSavedChart',
+    'runSavedChartV2',
     'generateDashboard',
 ]);
 

@@ -27,7 +27,7 @@ import { getProposeChange } from '../tools/proposeChange';
 import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
 import { getRunQuery } from '../tools/runQuery';
-import { getRunSavedChart } from '../tools/runSavedChart';
+import { getRunSavedChart, getRunSavedChartV2 } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
@@ -210,6 +210,13 @@ const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
+    const runSavedChartV2 = getRunSavedChartV2({
+        updateProgress: dependencies.updateProgress,
+        runSavedChartQuery: dependencies.runSavedChartQuery,
+        getSavedChart: dependencies.getSavedChart,
+        enableDataAccess: args.enableDataAccess,
+    });
+
     const runSql = args.canRunSql
         ? getRunSql({
               updateProgress: dependencies.updateProgress,
@@ -285,12 +292,13 @@ const getAgentTools = (
             ? {
                   readContent,
                   editContent,
+                  runSavedChartV2,
               }
             : {
                   getDashboardCharts,
+                  runSavedChart,
               }),
         runQuery,
-        runSavedChart,
         generateDashboard,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),

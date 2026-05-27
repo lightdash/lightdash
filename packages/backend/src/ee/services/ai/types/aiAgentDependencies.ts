@@ -143,7 +143,17 @@ export type RunAsyncQueryFn = (
     fields: ItemsMap;
 }>;
 
-export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
+export type RunSavedChartQueryFn = (args: {
+    chartUuid: string;
+    dashboardSlug: string | null;
+    limit: number | null;
+}) => Promise<{
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+}>;
+
+export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 

@@ -46,6 +46,8 @@ import {
     followUpToolsText,
     ForbiddenError,
     getItemId,
+    getValidAiQueryLimit,
+    isDashboardChartTileType,
     isExploreError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -138,6 +140,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -204,6 +207,7 @@ import {
     ProposeWritebackFn,
     ReadContentFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -279,6 +283,7 @@ type AiAgentServiceDependencies = {
     spaceService: SpaceService;
     projectModel: ProjectModel;
     coderService: CoderService;
+    dashboardService: DashboardService;
     savedChartService: SavedChartService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
@@ -455,6 +460,8 @@ export class AiAgentService extends BaseService {
 
     private readonly coderService: CoderService;
 
+    private readonly dashboardService: DashboardService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -516,6 +523,7 @@ export class AiAgentService extends BaseService {
         this.spaceService = dependencies.spaceService;
         this.projectModel = dependencies.projectModel;
         this.coderService = dependencies.coderService;
+        this.dashboardService = dependencies.dashboardService;
         this.savedChartService = dependencies.savedChartService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
@@ -4448,8 +4456,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return webOrSlackPrompt;
         };
 
-        const getSavedChart: GetSavedChartFn = (chartUuid) =>
-            this.savedChartService.get(chartUuid, fromSession(user), {
+        const getSavedChart: GetSavedChartFn = (chartUuidOrSlug) =>
+            this.savedChartService.get(chartUuidOrSlug, fromSession(user), {
                 projectUuid,
             });
 
@@ -4608,6 +4616,62 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     explore,
                                 ),
                             },
+                            context: QueryExecutionContext.AI,
+                        },
+                    );
+                },
+            );
+
+        const runSavedChartQuery: RunSavedChartQueryFn = (args) =>
+            wrapSentryTransaction(
+                'AiAgent.runSavedChartQuery',
+                args,
+                async () => {
+                    const account = fromSession(user);
+                    const limit = getValidAiQueryLimit(
+                        args.limit,
+                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    );
+                    if (!args.dashboardSlug) {
+                        return this.asyncQueryService.executeSavedChartQueryAndGetResults(
+                            {
+                                account,
+                                projectUuid,
+                                chartUuid: args.chartUuid,
+                                limit,
+                                context: QueryExecutionContext.AI,
+                            },
+                        );
+                    }
+
+                    const dashboard = await this.dashboardService.getByIdOrSlug(
+                        user,
+                        args.dashboardSlug,
+                        { projectUuid },
+                    );
+                    const tile = dashboard.tiles.find(
+                        (dashboardTile) =>
+                            isDashboardChartTileType(dashboardTile) &&
+                            dashboardTile.properties.savedChartUuid ===
+                                args.chartUuid,
+                    );
+
+                    if (!tile) {
+                        throw new NotFoundError(
+                            `Chart ${args.chartUuid} not found on dashboard ${args.dashboardSlug}`,
+                        );
+                    }
+
+                    return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                        {
+                            account,
+                            projectUuid,
+                            chartUuid: args.chartUuid,
+                            dashboardUuid: dashboard.uuid,
+                            tileUuid: tile.uuid,
+                            dashboardFilters: dashboard.filters,
+                            dashboardSorts: [],
+                            limit,
                             context: QueryExecutionContext.AI,
                         },
                     );
@@ -5042,6 +5106,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
@@ -5143,6 +5208,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
@@ -5317,6 +5383,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields,
             findExplores,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,

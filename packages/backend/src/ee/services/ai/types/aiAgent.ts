@@ -33,6 +33,7 @@ import {
     ReadContentFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -116,6 +117,7 @@ export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;

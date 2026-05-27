@@ -2,6 +2,8 @@ import {
     getValidAiQueryLimit,
     toolRunSavedChartArgsSchema,
     toolRunSavedChartOutputSchema,
+    toolRunSavedChartV2ArgsSchema,
+    toolRunSavedChartV2OutputSchema,
     type AiMetricQueryWithFilters,
     type MetricQuery,
 } from '@lightdash/common';
@@ -10,6 +12,7 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
@@ -23,6 +26,10 @@ type Dependencies = {
     getSavedChart: GetSavedChartFn;
     maxLimit: number;
     enableDataAccess: boolean;
+};
+
+type V2Dependencies = Omit<Dependencies, 'runAsyncQuery' | 'maxLimit'> & {
+    runSavedChartQuery: RunSavedChartQueryFn;
 };
 
 /**
@@ -136,6 +143,62 @@ export const getRunSavedChart = ({
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
                     result: `${buildHeader(chartUuid, name, metricQuery, {
+                        includeFullSpec: true,
+                    })}${serializeData(csv, 'csv')}`,
+                    metadata: { status: 'success' },
+                };
+            } catch (e) {
+                return {
+                    result: toolErrorHandler(e, 'Error running saved chart.'),
+                    metadata: { status: 'error' },
+                };
+            }
+        },
+        toModelOutput: ({ output }) => toModelOutput(output),
+    });
+
+export const getRunSavedChartV2 = ({
+    updateProgress,
+    runSavedChartQuery,
+    getSavedChart,
+    enableDataAccess,
+}: V2Dependencies) =>
+    tool({
+        description: toolRunSavedChartV2ArgsSchema.description,
+        inputSchema: toolRunSavedChartV2ArgsSchema,
+        outputSchema: toolRunSavedChartV2OutputSchema,
+        execute: async ({ chartSlug, dashboardSlug, limit }) => {
+            try {
+                await updateProgress('Running saved chart...');
+
+                const savedChart = await getSavedChart(chartSlug);
+                const { metricQuery, name, uuid } = savedChart;
+
+                if (!enableDataAccess) {
+                    return {
+                        result: `${buildHeader(uuid, name, metricQuery, {
+                            includeFullSpec: false,
+                        })}Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.`,
+                        metadata: { status: 'success' },
+                    };
+                }
+
+                const queryResults = await runSavedChartQuery({
+                    chartUuid: uuid,
+                    dashboardSlug,
+                    limit,
+                });
+
+                if (queryResults.rows.length === 0) {
+                    return {
+                        result: NO_RESULTS_RETRY_PROMPT,
+                        metadata: { status: 'success' },
+                    };
+                }
+
+                const csv = convertQueryResultsToCsv(queryResults);
+                return {
+                    result: `${buildHeader(uuid, name, metricQuery, {
                         includeFullSpec: true,
                     })}${serializeData(csv, 'csv')}`,
                     metadata: { status: 'success' },

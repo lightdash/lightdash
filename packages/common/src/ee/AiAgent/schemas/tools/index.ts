@@ -16,6 +16,7 @@ export * from './toolProposeChangeArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
 export * from './toolRunSavedChartArgs';
+export * from './toolRunSavedChartV2Args';
 export * from './toolRunSqlArgs';
 export * from './toolSearchFieldValuesArgs';
 export * from './toolTableVizArgs';
