@@ -77,7 +77,7 @@ interface AgentChatInputProps {
     threadUuid?: string;
     latestAssistantMessageUuid?: string;
     agents?: Agent[];
-    selectedAgent?: Agent;
+    selectedAgent?: Agent | 'auto';
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
