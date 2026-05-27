@@ -49,8 +49,11 @@ export const ALLOWED_TOOLS = [
     `Read(/${TMP_PROFILES_DIR}/**)`,
     `Write(/${TMP_PROFILES_DIR}/**)`,
     `Edit(/${TMP_PROFILES_DIR}/**)`,
-    `Write(/${PR_TITLE_PATH})`,
-    `Write(/${PR_DESCRIPTION_PATH})`,
+    // PR metadata files live directly in /tmp. Use a directory glob (matching
+    // the working `/**` rules above) rather than exact file paths — an
+    // exact-path match can silently fail and push the agent into writing these
+    // into the repo, where `git add --all` would commit them.
+    `Write(//tmp/**)`,
     'Bash(lightdash compile:*)',
     'Bash(mkdir:*)',
     'Bash(cp:*)',
