@@ -156,6 +156,15 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'agent.uuid': payload.agentUuid,
+        'thread.uuid': payload.threadUuid,
+        'prompt.uuid': payload.promptUuid,
+        'ai_agent_review.event_type': payload.eventType,
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
