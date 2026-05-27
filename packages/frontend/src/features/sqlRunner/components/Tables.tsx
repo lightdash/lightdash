@@ -319,6 +319,7 @@ export const Tables: FC = () => {
                 const fuse = new Fuse(tableNames, {
                     threshold: 0.3,
                     isCaseSensitive: false,
+                    ignoreLocation: true,
                 });
 
                 const fuseResult = fuse

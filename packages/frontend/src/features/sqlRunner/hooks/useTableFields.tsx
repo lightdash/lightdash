@@ -74,6 +74,7 @@ export const useTableFields = ({
             const fuse = new Fuse(fields, {
                 threshold: 0.3,
                 isCaseSensitive: false,
+                ignoreLocation: true,
                 keys: ['name'],
             });
 
