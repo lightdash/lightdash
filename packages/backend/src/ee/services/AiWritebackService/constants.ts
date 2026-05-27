@@ -55,3 +55,8 @@ export const ALLOWED_TOOLS = [
     'Bash(mkdir:*)',
     'Bash(cp:*)',
 ].join(',');
+
+// Anthropic model used for the writeback agent. Pinned to a specific Sonnet
+// snapshot rather than the CLI default so runs stay deterministic across
+// Claude Code releases.
+export const CLAUDE_MODEL = 'claude-sonnet-4-6';
