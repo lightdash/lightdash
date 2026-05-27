@@ -3,7 +3,10 @@ import { IconX } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
-import { MinimalDashboardView } from '../../../../../pages/MinimalDashboard';
+import {
+    InteractiveDashboardShell,
+    MinimalDashboardView,
+} from '../../../../../pages/MinimalDashboard';
 import DashboardAiAgentContextBridge from '../../../../../providers/Dashboard/DashboardAiAgentContextBridge';
 import { DashboardInMemoryProvider } from '../../../../../providers/Dashboard/DashboardInMemoryProvider';
 import { clearPreview } from '../../store/aiPreviewSlice';
@@ -22,6 +25,7 @@ type Props = {
 export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
     const dispatch = useAiAgentStoreDispatch();
     const rootRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { data: dashboardData } = useDashboardQuery({
         uuidOrSlug: dashboard.dashboardUuid,
         projectUuid: dashboard.projectUuid,
@@ -105,12 +109,11 @@ export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
                 </Group>
             </Box>
             <Box
+                ref={scrollContainerRef}
                 flex={1}
                 style={{
-                    overflowY: 'auto',
                     minHeight: 0,
                     minWidth: 0,
-                    scrollbarGutter: 'stable',
                 }}
             >
                 <DashboardInMemoryProvider
@@ -120,11 +123,36 @@ export const AiDashboardPreviewPanel: FC<Props> = ({ dashboard }) => {
                     <Box
                         px={0}
                         style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            height: '100%',
                             minWidth: 0,
                             boxSizing: 'border-box',
                         }}
                     >
                         <MinimalDashboardView
+                            shell={InteractiveDashboardShell}
+                            renderLayout={({ shell, body }) => (
+                                <>
+                                    {shell}
+                                    <Box
+                                        ref={scrollContainerRef}
+                                        flex={1}
+                                        style={{
+                                            overflowY: 'auto',
+                                            minHeight: 0,
+                                            minWidth: 0,
+                                            position: 'relative',
+                                            scrollbarGutter: 'stable',
+                                        }}
+                                    >
+                                        {body}
+                                    </Box>
+                                </>
+                            )}
+                            shellProps={{
+                                scrollContainer: scrollContainerRef.current,
+                            }}
                             dashboardContextBridge={
                                 <DashboardAiAgentContextBridge
                                     threadUuid={dashboard.threadUuid}

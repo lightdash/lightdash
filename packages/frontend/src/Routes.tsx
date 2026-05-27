@@ -26,7 +26,7 @@ import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
 import MinimalApp from './pages/MinimalApp';
-import MinimalDashboard from './pages/MinimalDashboard';
+import { MinimalDashboard } from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import MinimalSqlChart from './pages/MinimalSqlChart';
 import PasswordRecovery from './pages/PasswordRecovery';

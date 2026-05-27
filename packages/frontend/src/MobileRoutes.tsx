@@ -44,7 +44,7 @@ import AuthPopupResult, {
     SuccessAuthPopupResult,
 } from './pages/AuthPopupResult';
 import Login from './pages/Login';
-import MinimalDashboard from './pages/MinimalDashboard';
+import { MinimalDashboard } from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import MinimalSqlChart from './pages/MinimalSqlChart';
 import MobileCharts from './pages/MobileCharts';
