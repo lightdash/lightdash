@@ -20,6 +20,13 @@ export type DbAiAgent = {
      * Column kept on the table (DB default `false`); drop in a follow-up migration.
      */
     enable_reasoning?: boolean;
+    /**
+     * Built-in fallback agent used when an organization has no configured
+     * agents. Hidden from normal agent listings (so it never counts as "an
+     * agent configured") but usable as a Slack fallback. At most one per
+     * (organization, project).
+     */
+    is_system: boolean;
     version: number;
     created_at: Date;
     updated_at: Date;

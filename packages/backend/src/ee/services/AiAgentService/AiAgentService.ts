@@ -319,6 +319,18 @@ const CLARIFYING_QUESTION_RE =
 const REFUSAL_RE =
     /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
 
+/**
+ * The built-in "system" agent used as a fallback when an organization has no
+ * configured agents (gated behind the AiWriteback feature flag). It answers
+ * data questions with the normal query/find tools, and — because the run path
+ * attaches the `proposeWriteback` tool whenever AiWriteback is enabled — it
+ * routes dbt/semantic-layer change requests to the AI writeback flow.
+ */
+const SYSTEM_AGENT_NAME = 'Lightdash Assistant';
+const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help the user explore their data by using your query and find tools to answer questions about metrics, dimensions, charts, and dashboards.
+
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.`;
+
 function detectClarifyingQuestion(text: string): boolean {
     return CLARIFYING_QUESTION_RE.test(text);
 }
@@ -6587,6 +6599,79 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
      *
      * @returns The selected agent and a flag indicating whether to skip forwarding the query, or undefined if selection is pending (UI shown) or no agents available
      */
+    /**
+     * Resolve the built-in system agent to use when no agents are configured.
+     * Gated behind the AiWriteback feature flag.
+     *
+     * Returns:
+     *  - an `AiAgentWithContext` to use as the fallback agent;
+     *  - `'handled'` when it has already replied to the user (e.g. asking which
+     *    project to use) and the caller should stop;
+     *  - `undefined` when the fallback does not apply (flag off) and the caller
+     *    should keep its existing behaviour.
+     */
+    private async resolveSystemAgentForSlack({
+        organizationUuid,
+        userUuid,
+        projectUuids,
+        say,
+        threadTs,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        // Optional restriction (e.g. the multi-agent channel's project filter).
+        // When omitted, all of the organization's projects are candidates.
+        projectUuids: string[] | null | undefined;
+        say: Function;
+        threadTs: string | undefined;
+    }): Promise<AiAgentWithContext | 'handled' | undefined> {
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiWriteback,
+        });
+        if (!enabled) {
+            return undefined;
+        }
+
+        // Candidate projects: the org's projects, optionally restricted to the
+        // channel's configured project filter (dropping any stale/deleted ones).
+        const orgProjects =
+            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
+        let candidateProjectUuids = orgProjects.map((p) => p.projectUuid);
+        if (projectUuids && projectUuids.length > 0) {
+            const allowed = new Set(projectUuids);
+            candidateProjectUuids = candidateProjectUuids.filter((uuid) =>
+                allowed.has(uuid),
+            );
+        }
+
+        if (candidateProjectUuids.length !== 1) {
+            await say({
+                text:
+                    candidateProjectUuids.length === 0
+                        ? "⚠️ I couldn't find a project to work with. Ask an admin to set one up in Lightdash."
+                        : "⚠️ This organization has multiple projects, so I'm not sure which one to use. Configure an AI agent for this channel (or restrict the channel to a single project) and I'll use that.",
+                thread_ts: threadTs,
+            });
+            return 'handled';
+        }
+
+        const agent = await this.aiAgentModel.getOrCreateSystemAgent({
+            organizationUuid,
+            projectUuid: candidateProjectUuids[0],
+            name: SYSTEM_AGENT_NAME,
+            instruction: SYSTEM_AGENT_INSTRUCTION,
+        });
+
+        const context = await this.getAgentSummaryContext(user, agent);
+        return { ...agent, context };
+    }
+
     private async selectAgentForSlack({
         availableAgents,
         messageText,
@@ -6596,6 +6681,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         botUserId,
         client,
         isMultiAgentChannel,
+        organizationUuid,
+        userUuid,
+        multiAgentProjectUuids,
     }: {
         availableAgents: AiAgentWithContext[];
         messageText: string;
@@ -6605,6 +6693,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         botUserId: string | undefined;
         client: WebClient;
         isMultiAgentChannel: boolean;
+        organizationUuid: string;
+        userUuid: string;
+        multiAgentProjectUuids: string[] | null | undefined;
     }): Promise<
         | { agent: AiAgentWithContext; shouldSkipForwardingQuery: boolean }
         | undefined
@@ -6621,6 +6712,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             '⚠️ No AI agents are available. Please contact your administrator to configure agents.';
 
         if (availableAgents.length === 0) {
+            // No configured agents — fall back to the built-in system agent
+            // (gated behind AiWriteback). If the flag is off, keep the
+            // original "no agents" message.
+            const fallback = await this.resolveSystemAgentForSlack({
+                organizationUuid,
+                userUuid,
+                projectUuids: multiAgentProjectUuids,
+                say,
+                threadTs,
+            });
+            if (fallback === 'handled') {
+                return undefined;
+            }
+            if (fallback) {
+                return { agent: fallback, shouldSkipForwardingQuery: false };
+            }
             await say({
                 text: noAgentsMessage,
                 thread_ts: threadTs,
@@ -6945,6 +7052,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 botUserId: context.botUserId,
                 client,
                 isMultiAgentChannel,
+                organizationUuid,
+                userUuid,
+                multiAgentProjectUuids: slackSettings.aiMultiAgentProjectUuids,
             });
 
             if (!selectionResult) {
@@ -7817,6 +7927,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     botUserId: context.botUserId,
                     client,
                     isMultiAgentChannel,
+                    organizationUuid,
+                    userUuid,
+                    multiAgentProjectUuids:
+                        slackSettings.aiMultiAgentProjectUuids,
                 });
 
                 if (!selectionResult) {
@@ -7881,6 +7995,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         botUserId: context.botUserId,
                         client,
                         isMultiAgentChannel,
+                        organizationUuid,
+                        userUuid,
+                        multiAgentProjectUuids:
+                            slackSettings.aiMultiAgentProjectUuids,
                     });
 
                     if (!selectionResult) {
@@ -7903,10 +8021,35 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             if (!isMultiAgentChannel) {
                 // Regular channel: Use existing agent routing by channel ID
-                agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
-                    organizationUuid,
-                    slackChannelId: event.channel,
-                });
+                try {
+                    agentConfig =
+                        await this.aiAgentModel.getAgentBySlackChannelId({
+                            organizationUuid,
+                            slackChannelId: event.channel,
+                        });
+                } catch (e) {
+                    // No agent mapped to this channel — fall back to the
+                    // built-in system agent (gated behind AiWriteback). If the
+                    // flag is off, rethrow so the existing "no agent
+                    // configured" message is shown.
+                    if (!(e instanceof AiAgentNotFoundError)) {
+                        throw e;
+                    }
+                    const fallback = await this.resolveSystemAgentForSlack({
+                        organizationUuid,
+                        userUuid,
+                        projectUuids: undefined,
+                        say,
+                        threadTs: event.thread_ts,
+                    });
+                    if (fallback === 'handled') {
+                        return;
+                    }
+                    if (!fallback) {
+                        throw e;
+                    }
+                    agentConfig = fallback;
+                }
             }
 
             // At this point, we should have a selected agent
