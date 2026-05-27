@@ -918,10 +918,13 @@ export class TableCalculationFunctionCompiler {
     /**
      * Compiles a pivot_offset function call to a guarded SQL window function.
      * Converts pivot_offset(expression, n) to LAG or LEAD with adjacency checks.
-     * Returns NULL if the offset row is not exactly n time periods away.
+     * Walks across pivot columns within the same row (Looker semantics): negative
+     * n looks at the pivot column n positions to the left, positive n to the right.
+     * Returns NULL if the adjacent pivot column at the offset position is not exactly
+     * n columns away (i.e. when the offset would skip over missing pivot columns).
      * @param expression - The SQL expression inside pivot_offset
-     * @param columnOffset - The offset value (negative for LAG/previous, positive for LEAD/next)
-     * @returns Compiled SQL with CASE statement checking for adjacent time periods
+     * @param columnOffset - The offset value (negative for LAG/previous pivot column, positive for LEAD/next pivot column)
+     * @returns Compiled SQL with CASE statement checking for adjacent pivot columns on the same row
      */
     private compilePivotOffset(
         expression: string,
@@ -937,16 +940,14 @@ export class TableCalculationFunctionCompiler {
         const windowFunction = columnOffset < 0 ? 'LAG' : 'LEAD';
         const offsetValue = Math.abs(columnOffset);
 
-        // The window partitions by column_index (pivot dimension like status)
-        // and orders by row_index
-        const windowClause = `OVER (PARTITION BY ${q}column_index${q} ORDER BY ${q}row_index${q})`;
+        // Partition by row_index so the window walks across pivot columns within a row,
+        // ordered by column_index (the pivoted dimension position).
+        const windowClause = `OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q})`;
 
-        // For offset of 1, check if the previous/next row_index is exactly 1 away
-        // For offset of n, check if the nth row_index is exactly n away
-        const expectedDiff = columnOffset < 0 ? -offsetValue : offsetValue;
-
-        // Build the guarded expression that returns NULL for non-adjacent time periods
-        return `CASE WHEN ${windowFunction}(${q}row_index${q}, ${offsetValue}) ${windowClause} = ${q}row_index${q} + (${expectedDiff}) THEN ${windowFunction}(${expression}, ${offsetValue}) ${windowClause} ELSE NULL END`;
+        // Guard: only return the value if the column_index at the offset position
+        // is exactly columnOffset away, otherwise return NULL. This prevents
+        // skipping over missing pivot columns (e.g. jumping from column 2 to column 5).
+        return `CASE WHEN ${windowFunction}(${q}column_index${q}, ${offsetValue}) ${windowClause} = ${q}column_index${q} + (${columnOffset}) THEN ${windowFunction}(${expression}, ${offsetValue}) ${windowClause} ELSE NULL END`;
     }
 
     /**
