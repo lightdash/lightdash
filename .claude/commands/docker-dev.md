@@ -5,7 +5,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 ## Arguments
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
-- **`start`**: Auto-detect state and run what's needed (fresh setup, migrations, or just start PM2). Uses shared base snapshot to bootstrap new instances fast.
+- **`start`**: Bring this instance up. Runs the deterministic `scripts/dev-fast-start.sh` first (idempotent, non-interactive — no agentic step-by-step); only falls back to agentic setup + **self-repair** if the script fails. Uses the shared base snapshot to bootstrap new instances fast.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): Same as `start`, but provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`) and runs the EE migration/seed pass. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
@@ -276,6 +276,40 @@ Expect `Enterprise license for <site> is valid.` and no `no factory or provider`
 ---
 
 ## `start`: Auto-detect and Setup
+
+**ALWAYS try the deterministic fast path first.** Only fall back to the agentic steps when the script fails — this is what keeps worktree iteration fast.
+
+### Fast path (do this first, every time)
+
+`scripts/dev-fast-start.sh` encodes the entire happy path of this section as one idempotent, non-interactive run. Run it directly instead of executing the steps below one at a time:
+
+```bash
+./scripts/dev-fast-start.sh          # core
+./scripts/dev-fast-start.sh --ee     # EE mode (or if .env.development.local already has a license)
+```
+
+Interpreting the result:
+
+- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Spotlight URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
+- **Non-zero exit with a `FAIL: <step> -- <reason>` line** → enter **self-repair** (next section). Do NOT blindly re-run the script; diagnose first.
+
+The script prints `STEP:`/`OK:`/`SKIP:` markers so you can see exactly how far it got. Steady-state runs (everything cached) finish in well under a minute; a fresh worktree pays for `pnpm install` + builds once.
+
+### Self-repair protocol (when the script fails)
+
+The `FAIL: <step> -- <reason>` line names the failing phase and usually the exact log command to inspect. Repair the **root cause**, then **patch the script so the same failure cannot recur** — that is how the fast path stays reliable as the codebase drifts.
+
+1. **Identify the failing step** from the `FAIL:` line (e.g. `health`, `migrate`, `deps`, `pm2`, `bootstrap`, `ee-migrate`).
+2. **Run the matching agentic step(s) below** to understand and fix the underlying problem (read logs, apply migrations, rebuild a package, free a port, etc.). The detailed steps in this file remain the source of truth for each phase.
+3. **Patch `scripts/dev-fast-start.sh`** so the fix is baked in for next time — e.g. add a reconciling command, widen a readiness wait, handle a new required build artifact. Keep the script's contract intact: `STEP:`/`OK:`/`SKIP:`/`FAIL:` markers, idempotent, exit 0 only after `/api/v1/health` returns 200.
+4. **Re-run `./scripts/dev-fast-start.sh`** to confirm it now reaches `READY:`.
+5. Mention the script change in your summary so it can be committed — repairs are version-controlled and shared across worktrees, not re-derived per machine.
+
+> Example: a stale shared base snapshot caused `FAIL: health -- ... Database has not been migrated yet`. The repair was an idempotent "Apply pending migrations" step after bootstrap; the script now reconciles drift automatically.
+
+If the script is **missing** (e.g. an older checkout) or you suspect its logic is stale relative to this document, regenerate it from these agentic steps and the script contract above, then commit it.
+
+### Agentic steps (fallback + first-instance reference)
 
 Run State Detection first. For each `NEED:`, run the corresponding setup step below. If all checks show `OK:`, just start PM2.
 
@@ -581,7 +615,7 @@ fi
 If PM2 shows `MISMATCH`, delete this instance's processes first:
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
 ```
 
 Then start:
@@ -651,7 +685,7 @@ If a monitor fires, investigate the error. Common responses:
 Stop this instance's services. Shared services and other instances are not affected.
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
 
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
 
@@ -669,7 +703,7 @@ Stop ALL instances, shared services, and release all port slots.
 for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-formula-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
 done
 
 for f in ~/.lightdash/dev-instances/*.json; do
