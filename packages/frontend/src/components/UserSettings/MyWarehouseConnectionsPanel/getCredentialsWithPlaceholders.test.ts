@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { getCredentialsWithPlaceholders } from './EditCredentialsModal';
+import { getCredentialsWithPlaceholders } from './getCredentialsWithPlaceholders';
 
 describe('getCredentialsWithPlaceholders', () => {
     test('should return placeholders for Athena credentials', () => {
