@@ -1,3 +1,10 @@
+## [0.3024.3](https://github.com/lightdash/lightdash/compare/0.3024.2...0.3024.3) (2026-05-27)
+
+
+### Bug Fixes
+
+* bump qs arrayLimit to 1000 to support dashboards with 100+ tiles ([#23531](https://github.com/lightdash/lightdash/issues/23531)) ([1c581bd](https://github.com/lightdash/lightdash/commit/1c581bd68c8e37938ba128b91b716d8fa0f80129))
+
 ## [0.3024.2](https://github.com/lightdash/lightdash/compare/0.3024.1...0.3024.2) (2026-05-27)
 
 
