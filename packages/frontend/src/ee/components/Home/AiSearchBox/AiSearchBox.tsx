@@ -79,16 +79,17 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         },
     });
 
-    const { mutateAsync: createAgentThread } = useCreateAgentThreadMutation(
-        selectedAgent?.uuid,
-        projectUuid,
-    );
+    const { mutateAsync: createAgentThread } =
+        useCreateAgentThreadMutation(projectUuid);
 
     const handleSubmit = form.onSubmit(async (values) => {
         if (!selectedAgent) {
             void navigate(`/projects/${projectUuid}/ai-agents`);
         } else {
-            await createAgentThread({ prompt: values.prompt.trim() });
+            await createAgentThread({
+                agentUuid: selectedAgent.uuid,
+                prompt: values.prompt.trim(),
+            });
         }
     });
 

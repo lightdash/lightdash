@@ -50,7 +50,7 @@ const AiAgentNewThreadPage: FC = () => {
     const dispatch = useAiAgentStoreDispatch();
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(agentUuid, projectUuid!, {
+        useCreateAgentThreadMutation(projectUuid!, {
             // Seed the per-thread slice with the user's choice so subsequent
             // prompts in this thread default to the same state. Navigation
             // still happens (we only override the slice, not the routing).
@@ -108,8 +108,10 @@ const AiAgentNewThreadPage: FC = () => {
 
     const onSubmit = useCallback(
         ({ message, toolHints }: { message: string; toolHints: string[] }) => {
+            if (!agentUuid) return;
             setPendingPrompt('');
             void createAgentThread({
+                agentUuid,
                 prompt: message,
                 context: contextInput.length > 0 ? contextInput : undefined,
                 optimisticContext:
@@ -128,6 +130,7 @@ const AiAgentNewThreadPage: FC = () => {
             });
         },
         [
+            agentUuid,
             setPendingPrompt,
             createAgentThread,
             contextInput,

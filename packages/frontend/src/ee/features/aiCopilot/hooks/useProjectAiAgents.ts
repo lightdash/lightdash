@@ -531,19 +531,16 @@ const generateAgentThreadTitle = async (
         body: JSON.stringify({}),
     });
 
-const useGenerateAgentThreadTitleMutation = (
-    projectUuid: string,
-    agentUuid: string,
-) => {
+const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     return useMutation<
         ApiAiAgentThreadGenerateTitleResponse['results'],
         ApiError,
-        { threadUuid: string }
+        { agentUuid: string; threadUuid: string }
     >({
-        mutationFn: ({ threadUuid }) =>
+        mutationFn: ({ agentUuid, threadUuid }) =>
             generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
-        onSuccess: (data, { threadUuid }) => {
+        onSuccess: (data, { agentUuid, threadUuid }) => {
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', 'user'],
                 (
@@ -579,7 +576,6 @@ const createAgentThread = async (
     });
 
 export const useCreateAgentThreadMutation = (
-    agentUuid: string | undefined,
     projectUuid: string,
     options?: {
         onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
@@ -592,48 +588,51 @@ export const useCreateAgentThreadMutation = (
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const { user } = useApp();
-    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
     const { streamMessage } = useAiAgentThreadStreamMutation();
     const { mutateAsync: generateThreadTitle } =
-        useGenerateAgentThreadTitleMutation(projectUuid!, agentUuid!);
+        useGenerateAgentThreadTitleMutation(projectUuid);
 
     return useMutation<
         ApiAiAgentThreadCreateResponse['results'],
         ApiError,
         ApiAiAgentThreadCreateRequest & {
+            agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
             toolHints?: string[];
         }
     >({
         mutationFn: ({
+            agentUuid,
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
             toolHints: _toolHints,
             ...data
-        }) =>
-            agentUuid
-                ? createAgentThread(projectUuid, agentUuid, data)
-                : Promise.reject(),
+        }) => createAgentThread(projectUuid, agentUuid, data),
         onSuccess: async (thread, variables) => {
+            const { agentUuid } = variables;
             // Invalidate both user-specific and all-users thread queries
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
             });
 
-            void generateThreadTitle({ threadUuid: thread.uuid });
+            void generateThreadTitle({ agentUuid, threadUuid: thread.uuid });
+
+            // The agent is loaded by whichever page kicked off this mutation —
+            // read it from the cache instead of re-fetching here.
+            const agent = queryClient.getQueryData<
+                ApiAiAgentResponse['results']
+            >([PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid]);
 
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', thread.uuid],
                 () => {
-                    if (!agentUuid) {
-                        return undefined;
-                    }
+                    if (!agent) return undefined;
 
                     return {
                         createdFrom: 'web_app',
                         firstMessage: thread.firstMessage,
-                        agentUuid: agentUuid,
+                        agentUuid,
                         uuid: thread.uuid,
                         title: null,
                         titleGeneratedAt: null,
@@ -643,7 +642,7 @@ export const useCreateAgentThreadMutation = (
                             thread.firstMessage.uuid,
                             thread.firstMessage.message,
                             user!.data!,
-                            agent!,
+                            agent,
                             // Prefer the caller's resolved metadata (name,
                             // chartKind) if provided so the pinned card
                             // renders correctly in the optimistic state.
