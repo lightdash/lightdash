@@ -165,14 +165,6 @@ export type ExtraContext = {
     headerProjectUuid?: string;
 };
 
-export const getProjectUuidForAgentList = ({
-    requestedProjectUuid,
-    activeProjectUuid,
-}: {
-    requestedProjectUuid?: string;
-    activeProjectUuid?: string;
-}) => requestedProjectUuid ?? activeProjectUuid;
-
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
 // McpService methods expect. The MCP router (mcpRouter.ts) populates
 // `authInfo.extra` with ExtraContext before the SDK invokes any tool
@@ -851,11 +843,9 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(ctx, McpToolName.LIST_AGENTS);
 
-                const projectUuid = getProjectUuidForAgentList({
-                    requestedProjectUuid: args.projectUuid,
-                    activeProjectUuid:
-                        await this.getProjectUuidFromContext(ctx),
-                });
+                const projectUuid =
+                    args.projectUuid ??
+                    (await this.getProjectUuidFromContext(ctx));
 
                 const agents = await this.aiAgentService.listAgents(
                     user,
@@ -927,13 +917,9 @@ export class McpService extends BaseService {
                     userUuid: user.userUuid,
                     organizationUuid,
                     context: {
-                        projectUuid:
-                            existingContext?.context.projectUuid ?? projectUuid,
+                        projectUuid: existingContext?.context.projectUuid ?? '',
                         projectName: existingContext?.context.projectName ?? '',
-                        tags:
-                            agent.tags && agent.tags.length > 0
-                                ? agent.tags
-                                : null,
+                        tags: existingContext?.context.tags || null,
                         agentUuid: agent.uuid,
                         agentName: agent.name,
                     },
