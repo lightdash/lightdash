@@ -150,6 +150,8 @@ query_executed AS (
     left join ${SpaceTableName} s on s.space_id  = sq.space_id
     left join projects on projects.project_id = s.project_id
   WHERE  projects.project_uuid = '${projectUuid}'
+    AND acv.timestamp >= CURRENT_DATE - interval '42 days'
+    AND acv.user_uuid in ('${userUuids.join(`','`)}')
   GROUP BY 1, 2
 ),
 stg AS (
