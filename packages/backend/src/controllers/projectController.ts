@@ -1382,10 +1382,12 @@ export class ProjectController extends BaseController {
                     ...chart,
                     description: chart.description ?? undefined,
                 },
-                chart.skipSpaceCreate,
-                chart.publicSpaceCreate,
-                chart.force,
-                chart.spaceNames,
+                {
+                    skipSpaceCreate: chart.skipSpaceCreate,
+                    publicSpaceCreate: chart.publicSpaceCreate,
+                    force: chart.force,
+                    spaceNames: chart.spaceNames,
+                },
             ),
         };
     }
@@ -1495,10 +1497,12 @@ export class ProjectController extends BaseController {
                     ...dashboard,
                     description: dashboard.description ?? undefined,
                 },
-                dashboard.skipSpaceCreate,
-                dashboard.publicSpaceCreate,
-                dashboard.force,
-                dashboard.spaceNames,
+                {
+                    skipSpaceCreate: dashboard.skipSpaceCreate,
+                    publicSpaceCreate: dashboard.publicSpaceCreate,
+                    force: dashboard.force,
+                    spaceNames: dashboard.spaceNames,
+                },
             ),
         };
     }
