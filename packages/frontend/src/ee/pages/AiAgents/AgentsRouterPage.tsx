@@ -14,7 +14,7 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,7 +40,12 @@ import {
 type Phase =
     | { kind: 'idle' }
     | { kind: 'routing' }
-    | { kind: 'picker'; decision: AiRouterRouteResponseResult }
+    | {
+          kind: 'picker';
+          decision: AiRouterRouteResponseResult;
+          prompt: string;
+          toolHints: string[];
+      }
     | { kind: 'creating' };
 
 const AgentsRouterPage = () => {
@@ -102,10 +107,6 @@ const AgentsRouterPage = () => {
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
     const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
-    const [decisionUuid, setDecisionUuid] = useState<string | null>(null);
-    const [chosenAgentUuid, setChosenAgentUuid] = useState<string | null>(null);
-    const [routedPrompt, setRoutedPrompt] = useState<string>('');
-    const [routedToolHints, setRoutedToolHints] = useState<string[]>([]);
 
     const agentsByUuid = useMemo(() => {
         const m = new Map<string, AiAgentSummary>();
@@ -116,46 +117,30 @@ const AgentsRouterPage = () => {
     const route = useAiRouterRoute();
     const { mutate: commitDecisionMutate } = useAiRouterCommit();
     const { mutateAsync: createThread } = useCreateAgentThreadMutation(
-        chosenAgentUuid ?? undefined,
         projectUuid!,
     );
 
-    const startedDecisionRef = useRef<string | null>(null);
-
-    // Once the router (or the user via picker) has chosen an agent and we've
-    // re-rendered with that agentUuid, fire the thread creation. The mutation
-    // hook is keyed on agentUuid so we have to wait a render before calling it.
-    useEffect(() => {
-        if (
-            phase.kind !== 'creating' ||
-            !chosenAgentUuid ||
-            !decisionUuid ||
-            !routedPrompt
-        ) {
-            return;
-        }
-        if (startedDecisionRef.current === decisionUuid) return;
-        startedDecisionRef.current = decisionUuid;
-
-        void createThread({
-            prompt: routedPrompt,
-            toolHints: routedToolHints,
-        }).then((thread) => {
+    const startThreadForDecision = useCallback(
+        async (args: {
+            agentUuid: string;
+            decisionUuid: string;
+            prompt: string;
+            toolHints: string[];
+        }) => {
+            const thread = await createThread({
+                agentUuid: args.agentUuid,
+                prompt: args.prompt,
+                toolHints: args.toolHints,
+            });
+            // Fire-and-forget telemetry — the user is already navigating away.
             commitDecisionMutate({
-                decisionUuid,
-                chosenAgentUuid,
+                decisionUuid: args.decisionUuid,
+                chosenAgentUuid: args.agentUuid,
                 threadUuid: thread.uuid,
             });
-        });
-    }, [
-        phase.kind,
-        chosenAgentUuid,
-        decisionUuid,
-        routedPrompt,
-        routedToolHints,
-        createThread,
-        commitDecisionMutate,
-    ]);
+        },
+        [createThread, commitDecisionMutate],
+    );
 
     const handleSubmit = useCallback(
         async ({
@@ -167,8 +152,6 @@ const AgentsRouterPage = () => {
         }) => {
             if (!projectUuid) return;
             setPhase({ kind: 'routing' });
-            setRoutedPrompt(message);
-            setRoutedToolHints(toolHints);
             setPendingPrompt('');
 
             try {
@@ -176,13 +159,22 @@ const AgentsRouterPage = () => {
                     prompt: message,
                     projectUuid,
                 });
-                setDecisionUuid(result.decision.decisionUuid);
 
                 if (result.nextAction === 'create_thread') {
-                    setChosenAgentUuid(result.decision.suggestedAgentUuid);
                     setPhase({ kind: 'creating' });
+                    await startThreadForDecision({
+                        agentUuid: result.decision.suggestedAgentUuid,
+                        decisionUuid: result.decision.decisionUuid,
+                        prompt: message,
+                        toolHints,
+                    });
                 } else {
-                    setPhase({ kind: 'picker', decision: result });
+                    setPhase({
+                        kind: 'picker',
+                        decision: result,
+                        prompt: message,
+                        toolHints,
+                    });
                 }
             } catch {
                 // Router unreachable — fall back to the first accessible
@@ -190,8 +182,6 @@ const AgentsRouterPage = () => {
                 // which the new-thread page reads on mount.
                 setPhase({ kind: 'idle' });
                 setPendingPrompt(message);
-                setRoutedPrompt('');
-                setRoutedToolHints([]);
                 const fallback = agents?.[0];
                 if (fallback && projectUuid) {
                     void navigate(
@@ -200,13 +190,30 @@ const AgentsRouterPage = () => {
                 }
             }
         },
-        [agents, navigate, projectUuid, route, setPendingPrompt],
+        [
+            agents,
+            navigate,
+            projectUuid,
+            route,
+            setPendingPrompt,
+            startThreadForDecision,
+        ],
     );
 
-    const confirmPick = useCallback((agentUuid: string) => {
-        setChosenAgentUuid(agentUuid);
-        setPhase({ kind: 'creating' });
-    }, []);
+    const confirmPick = useCallback(
+        async (agentUuid: string) => {
+            if (phase.kind !== 'picker') return;
+            const { decision, prompt, toolHints } = phase;
+            setPhase({ kind: 'creating' });
+            await startThreadForDecision({
+                agentUuid,
+                decisionUuid: decision.decision.decisionUuid,
+                prompt,
+                toolHints,
+            });
+        },
+        [phase, startThreadForDecision],
+    );
 
     const isLocked = phase.kind !== 'idle';
 
