@@ -11,6 +11,7 @@ type MakeToolOptions = {
     autoApproveSqlUserUuid?: string | null;
     waitForSqlApproval?: jest.Mock;
     recordSqlApproval?: jest.Mock;
+    maxQueryLimit?: number;
 };
 
 const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
@@ -46,6 +47,7 @@ const makeTool = ({
     autoApproveSqlUserUuid = null,
     waitForSqlApproval = jest.fn().mockResolvedValue('approved'),
     recordSqlApproval = jest.fn().mockResolvedValue(true),
+    maxQueryLimit = 5000,
 }: MakeToolOptions = {}) => {
     const dependencies = {
         updateProgress: jest.fn().mockResolvedValue(undefined),
@@ -62,6 +64,7 @@ const makeTool = ({
         recordSqlApproval,
         autoApproveSql,
         autoApproveSqlUserUuid,
+        maxQueryLimit,
     };
 
     return {
@@ -108,6 +111,30 @@ describe('getRunSql', () => {
             'Awaiting approval to run SQL...',
         );
         expect(output.metadata?.status).toBe('success');
+    });
+
+    it('clamps a requested limit above maxQueryLimit when calling runSqlJob', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            autoApproveSqlUserUuid: 'user-uuid',
+            maxQueryLimit: 2000,
+        });
+
+        await tool.execute!(
+            {
+                sql: 'select 1 as answer',
+                limit: 5000,
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+            },
+        );
+
+        expect(dependencies.runSqlJob).toHaveBeenCalledWith({
+            sql: 'select 1 as answer',
+            limit: 2000,
+        });
     });
 
     it('does not open another approval wait after approval times out', async () => {

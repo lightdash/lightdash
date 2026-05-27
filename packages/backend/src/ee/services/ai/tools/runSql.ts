@@ -1,6 +1,6 @@
 import {
+    createToolRunSqlArgsSchema,
     isSlackPrompt,
-    toolRunSqlArgsSchema,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -28,6 +28,7 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    maxQueryLimit: number;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
 };
@@ -75,14 +76,19 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    maxQueryLimit,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
 }: Dependencies) => {
     let sqlApprovalTimedOut = false;
 
+    const inputSchema = createToolRunSqlArgsSchema({
+        maxLimit: maxQueryLimit,
+    });
+
     return tool({
-        description: toolRunSqlArgsSchema.description,
-        inputSchema: toolRunSqlArgsSchema,
+        description: inputSchema.description,
+        inputSchema,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {
@@ -171,7 +177,7 @@ export const getRunSql = ({
 
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
-                    limit,
+                    limit: Math.min(limit, maxQueryLimit),
                 });
 
                 if (rowCount === 0) {

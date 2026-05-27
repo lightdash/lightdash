@@ -227,6 +227,7 @@ export const lightdashConfigMock: LightdashConfig = {
             enabled: false,
             debugLoggingEnabled: false,
             maxQueryLimit: 10000,
+            runSqlMaxLimit: 5000,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
@@ -310,6 +311,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     mcp: {
         enabled: true,
+        runSqlMaxLimit: 5000,
     },
     customRoles: {
         enabled: false,

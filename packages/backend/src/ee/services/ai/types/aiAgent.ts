@@ -89,6 +89,7 @@ export type AiAgentArgs = AnyAiModel & {
     findFieldsPageSize: number;
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
+    runSqlMaxLimit: number;
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];

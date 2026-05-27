@@ -5309,6 +5309,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFieldsPageSize: 30,
             getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            runSqlMaxLimit: this.lightdashConfig.ai.copilot.runSqlMaxLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
