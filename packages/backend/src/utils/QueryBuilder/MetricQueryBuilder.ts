@@ -356,15 +356,24 @@ export class MetricQueryBuilder {
             ),
         };
 
-        const selectedPopAdditionalMetrics = (
+        const metricFilterIds = new Set(
+            getFilterRulesFromGroup(compiledMetricQuery.filters.metrics).map(
+                (filter) => filter.target.fieldId,
+            ),
+        );
+        const selectedOrFilteredPopAdditionalMetrics = (
             compiledMetricQuery.additionalMetrics ?? []
         )
             .filter(isPeriodOverPeriodAdditionalMetric)
-            .filter((am) =>
-                compiledMetricQuery.metrics.includes(getItemId(am)),
-            );
+            .filter((am) => {
+                const popMetricId = getItemId(am);
+                return (
+                    compiledMetricQuery.metrics.includes(popMetricId) ||
+                    metricFilterIds.has(popMetricId)
+                );
+            });
 
-        if (selectedPopAdditionalMetrics.length > 0) {
+        if (selectedOrFilteredPopAdditionalMetrics.length > 0) {
             const configsByKey = new Map<
                 string,
                 {
@@ -375,7 +384,7 @@ export class MetricQueryBuilder {
                 }
             >();
 
-            selectedPopAdditionalMetrics.forEach((am) => {
+            selectedOrFilteredPopAdditionalMetrics.forEach((am) => {
                 const configKey = getPopComparisonConfigKey({
                     timeDimensionId: am.timeDimensionId,
                     granularity: am.granularity,
@@ -938,10 +947,13 @@ export class MetricQueryBuilder {
             metrics.filter((metricId) => !this.isPopMetricId(metricId)),
         );
 
-        // Add metrics from filters
-        getFilterRulesFromGroup(filters.metrics).forEach((filter) =>
-            referencedMetricIds.add(filter.target.fieldId),
-        );
+        // Add regular metrics from filters. PoP filter metrics are materialized
+        // by shifted comparison CTEs instead of the raw metric SELECT.
+        getFilterRulesFromGroup(filters.metrics).forEach((filter) => {
+            if (!this.isPopMetricId(filter.target.fieldId)) {
+                referencedMetricIds.add(filter.target.fieldId);
+            }
+        });
 
         // Add metrics referenced in PostCalculation metrics
         this.getPostCalculationMetricReferences(
@@ -1956,8 +1968,33 @@ export class MetricQueryBuilder {
             .map((filter) => filter.target.fieldId)
             .filter((metricId) => !metrics.includes(metricId));
 
-        // Include both selected metrics AND filter-only metrics for fanout protection
-        const allMetricsToProcess = [...metrics, ...filterOnlyMetricIds];
+        const selectedOrFilteredMetricIds = new Set([
+            ...metrics,
+            ...filterOnlyMetricIds,
+        ]);
+        const popMetricIds = new Set(
+            (compiledMetricQuery.additionalMetrics ?? [])
+                .filter(isPeriodOverPeriodAdditionalMetric)
+                .map((metric) => getItemId(metric)),
+        );
+        const selectedOrFilteredPopBaseMetricIds = (
+            compiledMetricQuery.additionalMetrics ?? []
+        )
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .filter((metric) =>
+                selectedOrFilteredMetricIds.has(getItemId(metric)),
+            )
+            .map((metric) => metric.baseMetricId);
+
+        // Include both selected metrics AND filter-only metrics for fanout protection.
+        // Selected PoP metrics also need their base metrics materialized in shifted CTEs.
+        const allMetricsToProcess = Array.from(
+            new Set([
+                ...metrics,
+                ...filterOnlyMetricIds,
+                ...selectedOrFilteredPopBaseMetricIds,
+            ]),
+        );
         const metricsObjects = allMetricsToProcess.map((field) =>
             this.getMetricFromId(field),
         );
@@ -2103,6 +2140,9 @@ export class MetricQueryBuilder {
             }
 
             metricsFromTable.forEach((metric) => {
+                if (popMetricIds.has(getItemId(metric))) {
+                    return;
+                }
                 // Nested aggregate outer metrics are materialized by the
                 // nested_agg CTE flow and must not also be emitted here.
                 if (nestedAggOuterIds.has(getItemId(metric))) {
@@ -2402,6 +2442,7 @@ export class MetricQueryBuilder {
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
+                    !popMetricIds.has(getItemId(metric)) &&
                     notSumDistinct &&
                     notNonAggReferencingDd &&
                     !nestedAggOuterIds.has(getItemId(metric))
@@ -2582,7 +2623,7 @@ export class MetricQueryBuilder {
                     metricCte.metrics
                         // excludes metrics only used for references
                         .filter((metric) =>
-                            metricsObjects.find((m) => metric === getItemId(m)),
+                            selectedOrFilteredMetricIds.has(metric),
                         )
                         .map(
                             (metricName) =>
@@ -2593,7 +2634,7 @@ export class MetricQueryBuilder {
                     metricCte.metrics
                         // excludes metrics only used for references
                         .filter((metricId) =>
-                            compiledMetricQuery.metrics.includes(metricId),
+                            selectedOrFilteredMetricIds.has(metricId),
                         )
                         .map(
                             (metricName) =>
