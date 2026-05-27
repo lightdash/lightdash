@@ -21,6 +21,9 @@ import { type ToolCallSummary } from './types';
 
 type ContentEditorToolArgs = {
     slug?: string;
+    content?: {
+        slug?: string;
+    };
 };
 
 /**
@@ -102,6 +105,10 @@ export const getToolCallChipLabel = (
         case 'editContent': {
             const args = toolArgs as ContentEditorToolArgs;
             return args.slug ?? null;
+        }
+        case 'createContent': {
+            const args = toolArgs as ContentEditorToolArgs;
+            return args.content?.slug ?? null;
         }
         case 'runSql':
         case 'runSavedChart':

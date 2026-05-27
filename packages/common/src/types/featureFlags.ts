@@ -108,7 +108,7 @@ export enum FeatureFlags {
 
     /**
      * Enable AI agent revamp features including built-in skills, the
-     * loadSkill tool, and content editing tools like readContent/editContent.
+     * loadSkill tool, and content tools like readContent/editContent/createContent.
      * When enabled, these replace older dashboard-specific content lookup
      * tools in the agent tool surface.
      */

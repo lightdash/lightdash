@@ -42,6 +42,9 @@ import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ContentEditorToolArgs = {
     slug?: string;
+    content?: {
+        slug?: string;
+    };
     type?: 'dashboard' | 'chart';
 };
 
@@ -173,12 +176,23 @@ export const ToolCallDescription: FC<{
             );
         case 'readContent':
         case 'editContent':
+        case 'createContent':
             const contentEditorToolArgs =
                 toolCall.toolArgs as ContentEditorToolArgs;
-            return contentEditorToolArgs.slug && contentEditorToolArgs.type ? (
+            const contentSlug =
+                toolName === 'createContent'
+                    ? contentEditorToolArgs.content?.slug
+                    : contentEditorToolArgs.slug;
+            return contentSlug && contentEditorToolArgs.type ? (
                 <ContentEditorToolCallDescription
-                    action={toolName === 'readContent' ? 'read' : 'edit'}
-                    slug={contentEditorToolArgs.slug}
+                    action={
+                        toolName === 'readContent'
+                            ? 'read'
+                            : toolName === 'editContent'
+                              ? 'edit'
+                              : 'create'
+                    }
+                    slug={contentSlug}
                     type={contentEditorToolArgs.type}
                 />
             ) : (

@@ -3,7 +3,7 @@ import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 
 type Props = {
-    action: 'read' | 'edit';
+    action: 'read' | 'edit' | 'create';
     slug: string;
     type: 'dashboard' | 'chart';
 };
@@ -14,7 +14,7 @@ export const ContentEditorToolCallDescription: FC<Props> = ({
     type,
 }) => (
     <Text c="dimmed" size="xs">
-        {action === 'read' ? 'Read' : 'Edited'} {type}{' '}
-        <ToolCallChip mx={rem(2)}>{slug}</ToolCallChip>
+        {action === 'read' ? 'Read' : action === 'edit' ? 'Edited' : 'Created'}{' '}
+        {type} <ToolCallChip mx={rem(2)}>{slug}</ToolCallChip>
     </Text>
 );

@@ -130,6 +130,27 @@ export type EditContentFn = (args: {
       }
 >;
 
+type CreateContentArgs =
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+      };
+
+export type CreateContentFn = (args: CreateContentArgs) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+      }
+>;
+
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
