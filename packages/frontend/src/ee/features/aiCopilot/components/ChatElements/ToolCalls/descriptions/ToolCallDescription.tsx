@@ -220,6 +220,7 @@ export const ToolCallDescription: FC<{
         case 'improveContext':
         case 'loadSkill':
         case 'proposeChange':
+        case 'proposeWriteback':
         case 'runSavedChart':
             return <> </>;
         default:
