@@ -1602,10 +1602,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
     ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
-    // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
-    // translating to enabledFeatureFlags ensures both existing and new cloud
-    // instances pick up the DB-backed flag as enabled without needing per-DB
-    // bootstrapping.
     ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
