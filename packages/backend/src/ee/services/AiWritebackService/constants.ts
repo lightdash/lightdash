@@ -25,6 +25,12 @@ export const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 // creating a sandbox and when connecting to a paused one to keep it warm.
 export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
 
+// Ceiling for git operations (clone/commit/push) inside the sandbox. Without
+// an explicit value the E2B SDK applies a 60s default, which a slow clone can
+// exceed and fail with `deadline_exceeded`. Generous, but bounded well under
+// RUN_TIMEOUT_MS.
+export const GIT_TIMEOUT_MS = 5 * 60 * 1000;
+
 // Temporary copy of `profiles.yml` with Jinja env_var(...) expressions
 // stripped, so `lightdash compile --skip-warehouse-catalog` can parse it
 // without any runtime variables set. Kept off the repo tree so it can't
@@ -49,10 +55,11 @@ export const ALLOWED_TOOLS = [
     `Read(/${TMP_PROFILES_DIR}/**)`,
     `Write(/${TMP_PROFILES_DIR}/**)`,
     `Edit(/${TMP_PROFILES_DIR}/**)`,
-    // PR metadata files live directly in /tmp. Use a directory glob (matching
-    // the working `/**` rules above) rather than exact file paths — an
-    // exact-path match can silently fail and push the agent into writing these
-    // into the repo, where `git add --all` would commit them.
+    // PR metadata files live directly in /tmp. This permission alone is not
+    // enough: Claude Code also confines Write/Edit to the cwd workspace, so
+    // /tmp must additionally be passed via `--add-dir /tmp` (see
+    // runAgentInSandbox). Without that the agent's /tmp write is refused and it
+    // falls back to the repo root, where the host has to scrub it.
     `Write(//tmp/**)`,
     'Bash(lightdash compile:*)',
     'Bash(mkdir:*)',

@@ -35,6 +35,7 @@ import {
     COMMIT_AUTHOR_EMAIL,
     COMMIT_AUTHOR_NAME,
     CWD,
+    GIT_TIMEOUT_MS,
     GIT_USERNAME,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
@@ -260,14 +261,17 @@ export class AiWritebackService extends BaseService {
      * and (b) lets `git add --all` sweep the scratch file into the PR. So we
      * also accept a repo-root copy as a fallback, and ALWAYS delete that copy
      * so it can never reach the commit. Returns `fallback` if neither source
-     * has content.
+     * has content. Logs which source won so the leak fix is provable from the
+     * logs alone (tmp = agent wrote correctly; repo = fallback recovered it and
+     * the stray file was scrubbed; default = agent wrote nothing usable).
      */
-    private static async resolvePrMetadata(
+    private async resolvePrMetadata(
         sandbox: Sandbox,
         tmpPath: string,
         fallback: string,
     ): Promise<string> {
-        const repoPath = `${CWD}/${tmpPath.split('/').pop() ?? ''}`;
+        const fileName = tmpPath.split('/').pop() ?? '';
+        const repoPath = `${CWD}/${fileName}`;
         const [fromTmp, fromRepo] = await Promise.all([
             AiWritebackService.readFileOrNull(sandbox, tmpPath),
             AiWritebackService.readFileOrNull(sandbox, repoPath),
@@ -275,7 +279,23 @@ export class AiWritebackService extends BaseService {
         if (fromRepo !== null) {
             await sandbox.files.remove(repoPath).catch(() => {});
         }
-        const resolved = (fromTmp ?? fromRepo ?? '').trim();
+        const fromTmpTrimmed = (fromTmp ?? '').trim();
+        const fromRepoTrimmed = (fromRepo ?? '').trim();
+        let source: 'tmp' | 'repo-fallback' | 'default' = 'default';
+        if (fromTmpTrimmed.length > 0) {
+            source = 'tmp';
+        } else if (fromRepoTrimmed.length > 0) {
+            source = 'repo-fallback';
+        }
+        this.logger.info(
+            `AiWriteback: resolved PR metadata '${fileName}' from ${source}` +
+                `${
+                    source === 'repo-fallback'
+                        ? ' (scrubbed stray repo copy so it cannot be committed)'
+                        : ''
+                } (sandboxId=${sandbox.sandboxId})`,
+        );
+        const resolved = fromTmpTrimmed || fromRepoTrimmed;
         return resolved.length > 0 ? resolved : fallback;
     }
 
@@ -311,8 +331,20 @@ export class AiWritebackService extends BaseService {
         const tracker = this.startTracking({ user, projectUuid, turn });
 
         let failureStage: AiWritebackFailureStage = 'install';
+        let stageStartedAt = Date.now();
         const setStage: SetStage = (stage) => {
+            const now = Date.now();
+            // Log every transition so a run reads as a timeline in the logs and
+            // a stall is immediately attributable to the stage it happened in.
+            this.logger.info(
+                `AiWriteback: stage '${failureStage}' done in ${
+                    now - stageStartedAt
+                }ms → entering '${stage}' (aiThreadUuid=${
+                    aiThreadUuid ?? 'none'
+                })`,
+            );
             failureStage = stage;
+            stageStartedAt = now;
         };
 
         let sandbox: Sandbox | undefined;
@@ -390,6 +422,11 @@ export class AiWritebackService extends BaseService {
                 repository,
             };
         } catch (error) {
+            this.logger.error(
+                `AiWriteback: failed during stage '${failureStage}' (sandboxId=${
+                    sandbox?.sandboxId ?? 'none'
+                }): ${getErrorMessage(error)}`,
+            );
             tracker.failed(failureStage, error);
             throw error;
         } finally {
@@ -553,13 +590,24 @@ export class AiWritebackService extends BaseService {
 
         setStage('clone');
         // Clone over HTTPS using the installation token as the password.
+        // `depth: 1` keeps the clone shallow (we only need the tip to branch
+        // off) and `timeoutMs` overrides the E2B SDK's 60s default, which a
+        // slow clone was exceeding with `deadline_exceeded`.
+        const cloneStartedAt = Date.now();
         await sandbox.git.clone(
             `https://github.com/${githubConnection.owner}/${githubConnection.repo}.git`,
             {
                 path: CWD,
                 username: GIT_USERNAME,
                 password: token,
+                depth: 1,
+                timeoutMs: GIT_TIMEOUT_MS,
             },
+        );
+        this.logger.info(
+            `AiWriteback: repo cloned (sandboxId=${sandbox.sandboxId}, ${
+                Date.now() - cloneStartedAt
+            }ms)`,
         );
         return sandbox;
     }
@@ -601,6 +649,10 @@ export class AiWritebackService extends BaseService {
                 `--model ${CLAUDE_MODEL} ` +
                 `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
                 '--output-format text ' +
+                // Claude Code confines Write/Edit to the cwd workspace, so the
+                // agent cannot write the PR metadata to /tmp (it silently falls
+                // back to the repo root) unless /tmp is an added directory.
+                '--add-dir /tmp ' +
                 `--allowedTools "${ALLOWED_TOOLS}"`,
             {
                 cwd: CWD,
@@ -658,7 +710,7 @@ export class AiWritebackService extends BaseService {
         }
 
         if (turn.existingRow) {
-            await AiWritebackService.updateExistingPullRequest({
+            await this.updateExistingPullRequest({
                 sandbox,
                 existingRow: turn.existingRow,
                 githubConnection: turn.githubConnection,
@@ -676,7 +728,7 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        const prUrl = await AiWritebackService.openInitialPullRequest({
+        const prUrl = await this.openInitialPullRequest({
             sandbox,
             githubConnection: turn.githubConnection,
             token: github.token,
@@ -707,7 +759,7 @@ export class AiWritebackService extends BaseService {
      * agent's chosen PR title/description, create a feature branch, commit,
      * push, and open a new pull request. Returns the new PR's URL.
      */
-    private static async openInitialPullRequest({
+    private async openInitialPullRequest({
         sandbox,
         githubConnection,
         token,
@@ -725,12 +777,12 @@ export class AiWritebackService extends BaseService {
         const baseBranch =
             (await sandbox.git.status(CWD)).currentBranch ?? 'main';
 
-        const title = await AiWritebackService.resolvePrMetadata(
+        const title = await this.resolvePrMetadata(
             sandbox,
             PR_TITLE_PATH,
             'AI writeback changes',
         );
-        const description = await AiWritebackService.resolvePrMetadata(
+        const description = await this.resolvePrMetadata(
             sandbox,
             PR_DESCRIPTION_PATH,
             'Changes generated by the Lightdash AI writeback agent.',
@@ -775,7 +827,7 @@ export class AiWritebackService extends BaseService {
      * the commits automatically), then patch the PR's title and body so the
      * GitHub view stays in sync with the latest agent output.
      */
-    private static async updateExistingPullRequest({
+    private async updateExistingPullRequest({
         sandbox,
         existingRow,
         githubConnection,
@@ -790,12 +842,12 @@ export class AiWritebackService extends BaseService {
         token: string;
         setStage: SetStage;
     }): Promise<void> {
-        const title = await AiWritebackService.resolvePrMetadata(
+        const title = await this.resolvePrMetadata(
             sandbox,
             PR_TITLE_PATH,
             'AI writeback follow-up',
         );
-        const description = await AiWritebackService.resolvePrMetadata(
+        const description = await this.resolvePrMetadata(
             sandbox,
             PR_DESCRIPTION_PATH,
             'Follow-up changes from the Lightdash AI writeback agent.',
