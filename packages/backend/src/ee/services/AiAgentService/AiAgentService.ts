@@ -47,6 +47,7 @@ import {
     ForbiddenError,
     getItemId,
     isExploreError,
+    isGitProjectType,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
@@ -200,6 +201,7 @@ import {
     FindFieldFn,
     GetDashboardChartsFn,
     GetExploreFn,
+    GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
@@ -334,6 +336,8 @@ const REFUSAL_RE =
  */
 const SYSTEM_AGENT_NAME = 'Lightdash Assistant';
 const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help the user explore their data by using your query and find tools to answer questions about metrics, dimensions, charts, and dashboards.
+
+If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
 If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
 
@@ -5078,6 +5082,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }));
             });
 
+        const getProjectInfo: GetProjectInfoFn = () =>
+            wrapSentryTransaction('AiAgent.getProjectInfo', {}, async () => {
+                // projectModel.get() already strips sensitive dbt/warehouse
+                // credentials. We still whitelist fields explicitly so we never
+                // surface anything that isn't scrubbed (e.g. installation_id or
+                // dbt environment variables).
+                const project = await this.projectModel.get(projectUuid);
+                const { dbtConnection } = project;
+
+                return {
+                    projectName: project.name,
+                    projectType: project.type,
+                    dbtConnectionType: dbtConnection.type,
+                    dbtVersion: project.dbtVersion,
+                    warehouseType: project.warehouseConnection?.type ?? null,
+                    git: isGitProjectType(dbtConnection)
+                        ? {
+                              repository: dbtConnection.repository,
+                              branch: dbtConnection.branch,
+                              projectSubPath: dbtConnection.project_sub_path,
+                              hostDomain: dbtConnection.host_domain ?? null,
+                          }
+                        : null,
+                };
+            });
+
         return {
             listExplores,
             getExplore,
@@ -5106,6 +5136,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             createChange,
             proposeWriteback,
             listProjects,
+            getProjectInfo,
             getExploreCompiler,
         };
     }
@@ -5209,6 +5240,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             createChange,
             proposeWriteback,
             listProjects,
+            getProjectInfo,
         } = this.getAiAgentDependencies(user, prompt);
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -5386,6 +5418,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             createChange,
             proposeWriteback,
             listProjects,
+            getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,

@@ -23,6 +23,7 @@ import {
     GetExploreCompilerFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
+    GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
@@ -139,6 +140,7 @@ export type AiAgentDependencies = {
     createChange: CreateChangeFn;
     proposeWriteback: ProposeWritebackFn;
     listProjects: ListProjectsFn;
+    getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     loadSkill: LoadAgentSkillFn;

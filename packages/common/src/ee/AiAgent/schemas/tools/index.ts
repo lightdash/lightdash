@@ -8,6 +8,7 @@ export * from './toolListKnowledgeDocumentsArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
 export * from './toolGetDashboardChartsArgs';
+export * from './toolGetProjectInfoArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolImproveContextArgs';

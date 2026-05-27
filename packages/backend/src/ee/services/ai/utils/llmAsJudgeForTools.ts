@@ -9,6 +9,7 @@ import {
     toolFindFieldsArgsSchema,
     toolGetDashboardChartsArgsSchema,
     toolGetKnowledgeDocumentContentArgsSchema,
+    toolGetProjectInfoArgsSchema,
     toolImproveContextArgsSchema,
     toolListKnowledgeDocumentsArgsSchema,
     toolListProjectsArgsSchema,
@@ -89,6 +90,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     listProjects: 'list_projects',
+    getProjectInfo: 'get_project_info',
     proposeChange: 'propose_change',
     proposeWriteback: 'propose_writeback',
 } satisfies Record<ToolName, string>;
@@ -112,6 +114,7 @@ const TOOL_SCHEMAS = {
     editContent: toolEditContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
     listProjects: toolListProjectsArgsSchema,
+    getProjectInfo: toolGetProjectInfoArgsSchema,
     loadSkill: toolLoadSkillArgsSchema,
     generateUuids: toolGenerateUuidsArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
