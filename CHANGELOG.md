@@ -1,3 +1,10 @@
+## [0.3022.2](https://github.com/lightdash/lightdash/compare/0.3022.1...0.3022.2) (2026-05-27)
+
+
+### Bug Fixes
+
+* linter error in hidden tabs ([#23503](https://github.com/lightdash/lightdash/issues/23503)) ([53fb68f](https://github.com/lightdash/lightdash/commit/53fb68f5e4bb2e2ceab56d1b775d6849b3bdba0c))
+
 ## [0.3022.1](https://github.com/lightdash/lightdash/compare/0.3022.0...0.3022.1) (2026-05-26)
 
 
