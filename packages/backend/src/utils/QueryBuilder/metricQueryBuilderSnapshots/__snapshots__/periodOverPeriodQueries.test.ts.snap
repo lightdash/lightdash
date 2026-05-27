@@ -20,8 +20,7 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
   cte_metrics_table2 AS (
     SELECT
       cte_keys_table2."table2_order_date_year",
-      SUM("table2".amount) AS "table2_metric_amount",
-      SUM("table2".amount) AS "table2_metric_amount__pop__year_1__fanout"
+      SUM("table2".amount) AS "table2_metric_amount"
     FROM
       cte_keys_table2
       LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_id" = "table2".id
@@ -77,7 +76,6 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
 SELECT
   cte_unaffected.*,
   cte_metrics_table2."table2_metric_amount" AS "table2_metric_amount",
-  cte_metrics_table2."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout",
   cte_pop_metrics_table2__year_1__00355f4s."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout"
 FROM
   cte_unaffected
@@ -114,8 +112,7 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
       cte_keys_country_orders."country_orders_order_date_year",
       cte_keys_country_orders."country_orders_country",
       cte_keys_country_orders."order_currencies_currency",
-      SUM("country_orders".amount) AS "country_orders_total_order_amount",
-      SUM("country_orders".amount) AS "country_orders_total_order_amount__pop__year_1__country"
+      SUM("country_orders".amount) AS "country_orders_total_order_amount"
     FROM
       cte_keys_country_orders
       LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_keys_country_orders."pk_order_id" = "country_orders".order_id
@@ -179,7 +176,6 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
 SELECT
   cte_unaffected.*,
   cte_metrics_country_orders."country_orders_total_order_amount" AS "country_orders_total_order_amount",
-  cte_metrics_country_orders."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country",
   cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
 FROM
   cte_unaffected
@@ -392,4 +388,274 @@ ORDER BY
   "orders_order_date_year" DESC
 LIMIT
   500"
+`;
+
+exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for filter-only period-over-period metric with fanout CTEs 1`] = `
+"WITH
+  cte_keys_country_orders AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+  ),
+  cte_metrics_country_orders AS (
+    SELECT
+      cte_keys_country_orders."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount"
+    FROM
+      cte_keys_country_orders
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_keys_country_orders."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_pop_min_max_country_orders__year_1__00rp9exa AS (
+    SELECT
+      MIN(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as min_date,
+      MAX(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as max_date
+    FROM
+      cte_keys_country_orders
+  ),
+  cte_pop_keys_country_orders__year_1__00rp9exa AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+      LEFT JOIN cte_pop_min_max_country_orders__year_1__00rp9exa ON TRUE
+    WHERE
+      DATE_TRUNC('YEAR', "country_orders".order_date) >= cte_pop_min_max_country_orders__year_1__00rp9exa.min_date - INTERVAL '1 YEAR'
+      AND DATE_TRUNC('YEAR', "country_orders".order_date) <= cte_pop_min_max_country_orders__year_1__00rp9exa.max_date - INTERVAL '1 YEAR'
+  ),
+  cte_pop_metrics_country_orders__year_1__00rp9exa AS (
+    SELECT
+      cte_pop_keys_country_orders__year_1__00rp9exa."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount__pop__year_1__country"
+    FROM
+      cte_pop_keys_country_orders__year_1__00rp9exa
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_pop_keys_country_orders__year_1__00rp9exa."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      SUM("order_currencies".converted_amount) AS "order_currencies_total_converted_amount"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+    GROUP BY
+      1
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_country_orders."country_orders_total_order_amount" AS "country_orders_total_order_amount",
+      cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_country_orders ON (
+        cte_unaffected."country_orders_order_date_year" = cte_metrics_country_orders."country_orders_order_date_year"
+        OR (
+          cte_unaffected."country_orders_order_date_year" IS NULL
+          AND cte_metrics_country_orders."country_orders_order_date_year" IS NULL
+        )
+      )
+      LEFT JOIN cte_pop_metrics_country_orders__year_1__00rp9exa ON (
+        cte_unaffected."country_orders_order_date_year" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_order_date_year" + INTERVAL '1 YEAR'
+      )
+  )
+SELECT
+  "country_orders_order_date_year",
+  "country_orders_total_order_amount",
+  "order_currencies_total_converted_amount"
+FROM
+  metrics
+WHERE
+  (
+    (
+      (
+        "country_orders_total_order_amount__pop__year_1__country"
+      ) > (100)
+    )
+  )
+ORDER BY
+  "country_orders_order_date_year" DESC
+LIMIT
+  100"
+`;
+
+exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for period-over-period fanout query without selecting the base metric 1`] = `
+"WITH
+  cte_keys_country_orders AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+  ),
+  cte_metrics_country_orders AS (
+    SELECT
+      cte_keys_country_orders."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount"
+    FROM
+      cte_keys_country_orders
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_keys_country_orders."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_pop_min_max_country_orders__year_1__00rp9exa AS (
+    SELECT
+      MIN(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as min_date,
+      MAX(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as max_date
+    FROM
+      cte_keys_country_orders
+  ),
+  cte_pop_keys_country_orders__year_1__00rp9exa AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+      LEFT JOIN cte_pop_min_max_country_orders__year_1__00rp9exa ON TRUE
+    WHERE
+      DATE_TRUNC('YEAR', "country_orders".order_date) >= cte_pop_min_max_country_orders__year_1__00rp9exa.min_date - INTERVAL '1 YEAR'
+      AND DATE_TRUNC('YEAR', "country_orders".order_date) <= cte_pop_min_max_country_orders__year_1__00rp9exa.max_date - INTERVAL '1 YEAR'
+  ),
+  cte_pop_metrics_country_orders__year_1__00rp9exa AS (
+    SELECT
+      cte_pop_keys_country_orders__year_1__00rp9exa."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount__pop__year_1__country"
+    FROM
+      cte_pop_keys_country_orders__year_1__00rp9exa
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_pop_keys_country_orders__year_1__00rp9exa."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      SUM("order_currencies".converted_amount) AS "order_currencies_total_converted_amount"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+    GROUP BY
+      1
+  )
+SELECT
+  cte_unaffected.*,
+  cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
+FROM
+  cte_unaffected
+  INNER JOIN cte_metrics_country_orders ON (
+    cte_unaffected."country_orders_order_date_year" = cte_metrics_country_orders."country_orders_order_date_year"
+    OR (
+      cte_unaffected."country_orders_order_date_year" IS NULL
+      AND cte_metrics_country_orders."country_orders_order_date_year" IS NULL
+    )
+  )
+  LEFT JOIN cte_pop_metrics_country_orders__year_1__00rp9exa ON (
+    cte_unaffected."country_orders_order_date_year" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_order_date_year" + INTERVAL '1 YEAR'
+  )
+ORDER BY
+  "country_orders_order_date_year" DESC
+LIMIT
+  100"
+`;
+
+exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for period-over-period query combined with fanout metric CTEs 1`] = `
+"WITH
+  cte_keys_country_orders AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+  ),
+  cte_metrics_country_orders AS (
+    SELECT
+      cte_keys_country_orders."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount"
+    FROM
+      cte_keys_country_orders
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_keys_country_orders."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_pop_min_max_country_orders__year_1__00rp9exa AS (
+    SELECT
+      MIN(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as min_date,
+      MAX(
+        cte_keys_country_orders."country_orders_order_date_year"
+      ) as max_date
+    FROM
+      cte_keys_country_orders
+  ),
+  cte_pop_keys_country_orders__year_1__00rp9exa AS (
+    SELECT DISTINCT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      "country_orders".order_id AS "pk_order_id"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+      LEFT JOIN cte_pop_min_max_country_orders__year_1__00rp9exa ON TRUE
+    WHERE
+      DATE_TRUNC('YEAR', "country_orders".order_date) >= cte_pop_min_max_country_orders__year_1__00rp9exa.min_date - INTERVAL '1 YEAR'
+      AND DATE_TRUNC('YEAR', "country_orders".order_date) <= cte_pop_min_max_country_orders__year_1__00rp9exa.max_date - INTERVAL '1 YEAR'
+  ),
+  cte_pop_metrics_country_orders__year_1__00rp9exa AS (
+    SELECT
+      cte_pop_keys_country_orders__year_1__00rp9exa."country_orders_order_date_year",
+      SUM("country_orders".amount) AS "country_orders_total_order_amount__pop__year_1__country"
+    FROM
+      cte_pop_keys_country_orders__year_1__00rp9exa
+      LEFT JOIN "postgres"."jaffle"."country_orders" AS "country_orders" ON cte_pop_keys_country_orders__year_1__00rp9exa."pk_order_id" = "country_orders".order_id
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      DATE_TRUNC('YEAR', "country_orders".order_date) AS "country_orders_order_date_year",
+      SUM("order_currencies".converted_amount) AS "order_currencies_total_converted_amount"
+    FROM
+      "postgres"."jaffle"."country_orders" AS "country_orders"
+      LEFT OUTER JOIN "postgres"."jaffle"."order_currencies" AS "order_currencies" ON ("country_orders".order_id) = ("order_currencies".order_id)
+    GROUP BY
+      1
+  )
+SELECT
+  cte_unaffected.*,
+  cte_metrics_country_orders."country_orders_total_order_amount" AS "country_orders_total_order_amount",
+  cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
+FROM
+  cte_unaffected
+  INNER JOIN cte_metrics_country_orders ON (
+    cte_unaffected."country_orders_order_date_year" = cte_metrics_country_orders."country_orders_order_date_year"
+    OR (
+      cte_unaffected."country_orders_order_date_year" IS NULL
+      AND cte_metrics_country_orders."country_orders_order_date_year" IS NULL
+    )
+  )
+  LEFT JOIN cte_pop_metrics_country_orders__year_1__00rp9exa ON (
+    cte_unaffected."country_orders_order_date_year" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_order_date_year" + INTERVAL '1 YEAR'
+  )
+ORDER BY
+  "country_orders_order_date_year" DESC
+LIMIT
+  100"
 `;
