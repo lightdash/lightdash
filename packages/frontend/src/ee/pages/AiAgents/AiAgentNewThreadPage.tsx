@@ -31,6 +31,8 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
+import { type AiAgentToolOutput } from '../../features/aiCopilot/types';
+import { getDashboardUrlFromContentToolOutput } from '../../features/aiCopilot/utils/getDashboardSlugFromContentToolOutput';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage: FC = () => {
@@ -49,6 +51,22 @@ const AiAgentNewThreadPage: FC = () => {
     const [sqlMode, setSqlMode] = useState(false);
     const dispatch = useAiAgentStoreDispatch();
 
+    const { agent, agents, navigateFromAgentChat } =
+        useOutletContext<AgentContext>();
+    const handleToolOutput = useCallback(
+        (toolOutput: AiAgentToolOutput) => {
+            if (!projectUuid) return;
+
+            const dashboardUrl = getDashboardUrlFromContentToolOutput(
+                projectUuid,
+                toolOutput,
+            );
+            if (!dashboardUrl) return;
+
+            navigateFromAgentChat(dashboardUrl);
+        },
+        [navigateFromAgentChat, projectUuid],
+    );
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid!, {
             // Seed the per-thread slice with the user's choice so subsequent
@@ -61,8 +79,8 @@ const AiAgentNewThreadPage: FC = () => {
                         enabled: sqlModeAvailable && sqlMode,
                     }),
                 ),
+            onToolOutput: handleToolOutput,
         });
-    const { agent, agents } = useOutletContext<AgentContext>();
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
         agentUuid,

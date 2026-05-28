@@ -1,4 +1,5 @@
 import { Center, Loader } from '@mantine-8/core';
+import { useCallback } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -21,6 +22,8 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../features/aiCopilot/store/hooks';
+import { type AiAgentToolOutput } from '../../features/aiCopilot/types';
+import { getDashboardUrlFromContentToolOutput } from '../../features/aiCopilot/utils/getDashboardSlugFromContentToolOutput';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -44,12 +47,33 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
     const agentQuery = useAiAgent(projectUuid!, agentUuid!);
-    const { agent } = useOutletContext<AgentContext>();
+    const { agent, navigateFromAgentChat } = useOutletContext<AgentContext>();
 
     const canManage = useAiAgentPermission({
         action: 'manage',
         projectUuid,
     });
+
+    const handleToolOutput = useCallback(
+        (toolOutput: AiAgentToolOutput) => {
+            if (!projectUuid) return;
+
+            const dashboardUrl = getDashboardUrlFromContentToolOutput(
+                projectUuid,
+                toolOutput,
+            );
+            if (!dashboardUrl) return;
+
+            navigateFromAgentChat(dashboardUrl);
+        },
+        [navigateFromAgentChat, projectUuid],
+    );
+    const handleInternalLinkClick = useCallback(
+        (href: string) => {
+            navigateFromAgentChat(href);
+        },
+        [navigateFromAgentChat],
+    );
 
     const {
         mutateAsync: createAgentThreadMessage,
@@ -58,6 +82,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid!,
         agentUuid,
         threadUuid,
+        { onToolOutput: handleToolOutput },
     );
 
     const { isStreaming, isPending } = usePendingThreadRefetch(
@@ -144,6 +169,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             showAddToEvalsButton={canManage}
+            onInternalLinkClick={handleInternalLinkClick}
         >
             <AgentChatInput
                 disabled={inputDisabled}

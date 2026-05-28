@@ -15,6 +15,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { getInternalNavigationUrl } from '../../utils/isSamePageNavigation';
 import styles from './ContentLink.module.css';
 
 export type SqlRunnerLinkState = {
@@ -30,6 +31,7 @@ type ContentLinkProps = {
     projectUuid: string;
     agentUuid: string;
     sqlRunnerLinkState?: SqlRunnerLinkState | null;
+    onInternalLinkClick?: (href: string) => void;
 };
 
 export const ContentLink: FC<ContentLinkProps> = ({
@@ -40,6 +42,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     projectUuid,
     agentUuid,
     sqlRunnerLinkState,
+    onInternalLinkClick,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
@@ -47,12 +50,25 @@ export const ContentLink: FC<ContentLinkProps> = ({
     );
 
     switch (contentType) {
-        case 'dashboard-link':
+        case 'dashboard-link': {
+            const href = getInternalNavigationUrl(props.href);
+
             return (
                 <Anchor
                     {...props}
+                    href={href}
                     data-content-link="true"
-                    target="_blank"
+                    target={onInternalLinkClick ? undefined : '_blank'}
+                    onClick={(e) => {
+                        if (
+                            onInternalLinkClick &&
+                            typeof href === 'string' &&
+                            href.length > 0
+                        ) {
+                            e.preventDefault();
+                            onInternalLinkClick(href);
+                        }
+                    }}
                     fz="xs"
                     fw={500}
                     c="ldGray.8"
@@ -83,8 +99,10 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     />
                 </Anchor>
             );
+        }
 
         case 'chart-link': {
+            const href = getInternalNavigationUrl(props.href);
             const chartType =
                 'data-chart-type' in props &&
                 typeof props['data-chart-type'] === 'string'
@@ -100,8 +118,19 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <Anchor
                     {...props}
+                    href={href}
                     data-content-link="true"
-                    target="_blank"
+                    target={onInternalLinkClick ? undefined : '_blank'}
+                    onClick={(e) => {
+                        if (
+                            onInternalLinkClick &&
+                            typeof href === 'string' &&
+                            href.length > 0
+                        ) {
+                            e.preventDefault();
+                            onInternalLinkClick(href);
+                        }
+                    }}
                     fz="xs"
                     fw={500}
                     c="ldGray.8"

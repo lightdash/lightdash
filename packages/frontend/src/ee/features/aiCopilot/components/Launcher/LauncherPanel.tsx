@@ -1,6 +1,7 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
-import { useState, type CSSProperties, type FC } from 'react';
+import { useCallback, useState, type CSSProperties, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
@@ -20,6 +21,12 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { type AiAgentToolOutput } from '../../types';
+import { getDashboardUrlFromContentToolOutput } from '../../utils/getDashboardSlugFromContentToolOutput';
+import {
+    getInternalNavigationUrl,
+    isSamePageNavigation,
+} from '../../utils/isSamePageNavigation';
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
@@ -34,6 +41,28 @@ type Props = {
     agents: AiAgentSummary[];
     activeThreadId: string | null;
     style?: CSSProperties;
+};
+
+const useNavigateToDashboardToolOutput = (
+    projectUuid: string,
+): ((toolOutput: AiAgentToolOutput) => void) => {
+    const navigate = useNavigate();
+
+    return useCallback(
+        (toolOutput: AiAgentToolOutput) => {
+            const dashboardUrl = getDashboardUrlFromContentToolOutput(
+                projectUuid,
+                toolOutput,
+            );
+            if (!dashboardUrl) return;
+            if (isSamePageNavigation(dashboardUrl, window.location)) return;
+
+            void navigate(getInternalNavigationUrl(dashboardUrl), {
+                viewTransition: true,
+            });
+        },
+        [navigate, projectUuid],
+    );
 };
 
 export const LauncherPanel: FC<Props> = ({
@@ -100,6 +129,13 @@ const NewThreadPanel: FC<{
         dashboardUuid,
     });
 
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    // New threads have no uuid yet — keep the toggle in local state and seed
+    // the per-thread slice entry once the thread is created.
+    const [sqlMode, setSqlMode] = useState(false);
+    const dispatchToStore = useAiAgentStoreDispatch();
+    const handleToolOutput = useNavigateToDashboardToolOutput(projectUuid);
+
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid, {
             // Launcher does its own routing via panels/dock — skip the default
@@ -126,13 +162,8 @@ const NewThreadPanel: FC<{
                     }),
                 );
             },
+            onToolOutput: handleToolOutput,
         });
-
-    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    // New threads have no uuid yet — keep the toggle in local state and seed
-    // the per-thread slice entry once the thread is created.
-    const [sqlMode, setSqlMode] = useState(false);
-    const dispatchToStore = useAiAgentStoreDispatch();
 
     const handleSubmit = ({
         message,
@@ -232,6 +263,7 @@ const ExistingThreadPanel: FC<{
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
     const { user } = useApp();
+    const navigate = useNavigate();
     const {
         data: thread,
         isLoading: isLoadingThread,
@@ -244,10 +276,24 @@ const ExistingThreadPanel: FC<{
         refetch,
     );
 
+    const handleToolOutput = useNavigateToDashboardToolOutput(projectUuid);
+    const handleInternalLinkClick = useCallback(
+        (href: string) => {
+            if (isSamePageNavigation(href, window.location)) return;
+
+            void navigate(getInternalNavigationUrl(href), {
+                viewTransition: true,
+            });
+        },
+        [navigate],
+    );
+
     const {
         mutateAsync: createAgentThreadMessage,
         isLoading: isCreatingMessage,
-    } = useCreateAgentThreadMessageMutation(projectUuid, agent.uuid, threadId);
+    } = useCreateAgentThreadMessageMutation(projectUuid, agent.uuid, threadId, {
+        onToolOutput: handleToolOutput,
+    });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
@@ -311,6 +357,7 @@ const ExistingThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agent.uuid}
                     renderArtifactsInline
+                    onInternalLinkClick={handleInternalLinkClick}
                 >
                     <AgentChatInput
                         disabled={

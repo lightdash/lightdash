@@ -1,6 +1,6 @@
 import { type AiAgent } from '@lightdash/common';
 import { Box, Loader } from '@mantine-8/core';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     Navigate,
     Outlet,
@@ -25,6 +25,10 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import {
+    getInternalNavigationUrl,
+    isSamePageNavigation,
+} from '../../features/aiCopilot/utils/isSamePageNavigation';
 
 const AgentPage = () => {
     const { agentUuid, threadUuid, projectUuid } = useParams();
@@ -58,57 +62,76 @@ const AgentPage = () => {
     const { track } = useTracking();
     const { user } = useApp();
 
-    const handleMinimize = () => {
-        if (!agent || !projectUuid) return;
-        track({
-            name: EventName.AI_AGENT_CHAT_MINIMIZED,
-            properties: {
-                userId: user?.data?.userUuid,
-                organizationId: user?.data?.organizationUuid,
-                projectId: projectUuid,
-                agentUuid: agent.uuid,
-                threadUuid,
-            },
-        });
-        if (threadUuid) {
-            const dockTitle =
-                thread?.title ||
-                thread?.firstMessage?.message ||
-                'Conversation';
-            addDockItem({
-                threadId: threadUuid,
-                agentUuid: agent.uuid,
-                title: dockTitle,
+    const handleMinimize = useCallback(
+        (targetUrl?: string) => {
+            if (!agent || !projectUuid) return;
+            track({
+                name: EventName.AI_AGENT_CHAT_MINIMIZED,
+                properties: {
+                    userId: user?.data?.userUuid,
+                    organizationId: user?.data?.organizationUuid,
+                    projectId: projectUuid,
+                    agentUuid: agent.uuid,
+                    threadUuid,
+                },
             });
-            aiAgentStore.dispatch(
-                openPanel({
+            if (threadUuid) {
+                const dockTitle =
+                    thread?.title ||
+                    thread?.firstMessage?.message ||
+                    'Conversation';
+                addDockItem({
                     threadId: threadUuid,
                     agentUuid: agent.uuid,
-                }),
-            );
-        } else {
-            const chartUuid = searchParams.get('chartUuid');
-            const dashboardUuid = searchParams.get('dashboardUuid');
-            const pendingContext =
-                chartUuid || dashboardUuid
-                    ? {
-                          chartUuid: chartUuid ?? undefined,
-                          dashboardUuid: dashboardUuid ?? undefined,
-                      }
-                    : null;
-            aiAgentStore.dispatch(
-                openPanel({
-                    threadId: null,
-                    agentUuid: agent.uuid,
-                    pendingContext,
-                }),
-            );
-        }
-        void navigate(
-            launcherSession.consumeLastNonAgentUrl() ??
-                `/projects/${projectUuid}/home`,
-        );
-    };
+                    title: dockTitle,
+                });
+                aiAgentStore.dispatch(
+                    openPanel({
+                        threadId: threadUuid,
+                        agentUuid: agent.uuid,
+                    }),
+                );
+            } else {
+                const chartUuid = searchParams.get('chartUuid');
+                const dashboardUuid = searchParams.get('dashboardUuid');
+                const pendingContext =
+                    chartUuid || dashboardUuid
+                        ? {
+                              chartUuid: chartUuid ?? undefined,
+                              dashboardUuid: dashboardUuid ?? undefined,
+                          }
+                        : null;
+                aiAgentStore.dispatch(
+                    openPanel({
+                        threadId: null,
+                        agentUuid: agent.uuid,
+                        pendingContext,
+                    }),
+                );
+            }
+            const restoreUrl =
+                targetUrl ??
+                launcherSession.consumeLastNonAgentUrl() ??
+                `/projects/${projectUuid}/home`;
+            if (!isSamePageNavigation(restoreUrl, window.location)) {
+                void navigate(getInternalNavigationUrl(restoreUrl), {
+                    viewTransition: true,
+                });
+            }
+        },
+        [
+            addDockItem,
+            agent,
+            navigate,
+            projectUuid,
+            searchParams,
+            thread,
+            threadUuid,
+            track,
+            user?.data?.organizationUuid,
+            user?.data?.userUuid,
+        ],
+    );
 
     if (isLoadingAgent) {
         return (
@@ -161,7 +184,15 @@ const AgentPage = () => {
                 />
             }
         >
-            <Outlet context={{ agent, agents: agentsList ?? [] }} />
+            <Outlet
+                context={{
+                    agent,
+                    agents: agentsList ?? [],
+                    isAgentChatMinimized: false,
+                    minimizeAgentChat: handleMinimize,
+                    navigateFromAgentChat: handleMinimize,
+                }}
+            />
         </AiAgentPageLayout>
     );
 };
@@ -169,6 +200,9 @@ const AgentPage = () => {
 export interface AgentContext {
     agent: AiAgent;
     agents: AiAgent[];
+    isAgentChatMinimized: boolean;
+    minimizeAgentChat: (targetUrl?: string) => void;
+    navigateFromAgentChat: (targetUrl: string) => void;
 }
 
 export default AgentPage;

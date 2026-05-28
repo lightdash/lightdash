@@ -38,6 +38,7 @@ type Props = {
     agentUuid?: string;
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
+    onInternalLinkClick?: (href: string) => void;
 };
 
 const CompactionDivider = () => (
@@ -96,6 +97,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     agentUuid,
     renderArtifactsInline = false,
     showAddToEvalsButton = false,
+    onInternalLinkClick,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
@@ -172,6 +174,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                     showAddToEvalsButton
                                                 }
                                                 mcpServers={mcpServers}
+                                                onInternalLinkClick={
+                                                    onInternalLinkClick
+                                                }
                                                 renderArtifactsInline={
                                                     renderArtifactsInline
                                                 }

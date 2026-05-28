@@ -41,6 +41,7 @@ import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
+import { type AiAgentToolOutput } from '../types';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
     PROJECT_AI_MCP_SERVERS_KEY,
@@ -579,6 +580,7 @@ export const useCreateAgentThreadMutation = (
     projectUuid: string,
     options?: {
         onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+        onToolOutput?: (toolOutput: AiAgentToolOutput) => void;
         // Skip the default `navigate(...)` to the thread page. The launcher
         // uses this because it routes via its own panel/dock instead.
         skipNavigation?: boolean;
@@ -718,6 +720,7 @@ export const useCreateAgentThreadMutation = (
                             thread.uuid,
                         ],
                     }),
+                onToolOutput: options?.onToolOutput,
             });
 
             options?.onCreated?.(thread);
@@ -760,6 +763,9 @@ export const useCreateAgentThreadMessageMutation = (
     projectUuid: string,
     agentUuid: string | undefined,
     threadUuid: string | undefined,
+    options?: {
+        onToolOutput?: (toolOutput: AiAgentToolOutput) => void;
+    },
 ) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -909,6 +915,7 @@ export const useCreateAgentThreadMessageMutation = (
                             threadUuid,
                         ],
                     }),
+                onToolOutput: options?.onToolOutput,
             });
         },
         onError: ({ error }) => {

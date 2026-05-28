@@ -27,6 +27,7 @@ import {
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../store/hooks';
+import { type AiAgentToolOutput } from '../types';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 
 export interface AiAgentThreadStreamOptions {
@@ -38,8 +39,21 @@ export interface AiAgentThreadStreamOptions {
     toolHints?: string[];
     onFinish?: () => void;
     onError?: (error: string) => void;
+    onToolOutput?: (toolOutput: AiAgentToolOutput) => void;
     refetchThread?: () => void;
 }
+
+type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
+
+type StreamToolPart = {
+    type: string;
+    toolName?: string;
+    toolCallId: string;
+    input?: unknown;
+    output?: unknown;
+    preliminary?: boolean;
+    state: string;
+};
 
 type McpUnavailableNoticeChunk = UIMessageChunk & {
     type: 'data-mcp-unavailable';
@@ -101,6 +115,49 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
     }
 };
 
+const getStreamToolPart = (
+    part: UIMessage['parts'][number],
+): StreamToolPart | null => {
+    if (!part.type.startsWith('tool-') && part.type !== 'dynamic-tool') {
+        return null;
+    }
+
+    const toolPart = part as StreamToolPart;
+    return {
+        ...toolPart,
+        toolName:
+            toolPart.type === 'dynamic-tool'
+                ? toolPart.toolName
+                : toolPart.type.slice(5),
+    };
+};
+
+const getStreamToolCallPart = (
+    part: UIMessage['parts'][number],
+): StreamToolCallPart | null => {
+    const toolPart = getStreamToolPart(part);
+    if (
+        !toolPart ||
+        !toolPart.toolName ||
+        !isAiAgentToolName(toolPart.toolName) ||
+        (toolPart.state !== 'input-available' &&
+            toolPart.state !== 'output-available' &&
+            toolPart.state !== 'output-error')
+    ) {
+        return null;
+    }
+
+    const hasOutput = toolPart.state === 'output-available';
+    return {
+        type: 'toolCall',
+        toolCallId: toolPart.toolCallId,
+        toolName: toolPart.toolName,
+        toolArgs: toolPart.input,
+        toolOutput: hasOutput ? toolPart.output : undefined,
+        isPreliminary: hasOutput ? (toolPart.preliminary ?? false) : undefined,
+    };
+};
+
 export const getMcpUnavailableNoticeFromChunk = (
     chunk: UIMessageChunk,
 ): McpUnavailableNoticeChunk['data'] | null => {
@@ -139,6 +196,7 @@ export function useAiAgentThreadStreamMutation() {
             toolHints = [],
             onFinish,
             onError,
+            onToolOutput,
             refetchThread,
         }: AiAgentThreadStreamOptions) => {
             const abortController = new AbortController();
@@ -170,6 +228,7 @@ export function useAiAgentThreadStreamMutation() {
                 const handledToolInputIds = new Set<string>();
                 const handledToolDecisionIds = new Set<string>();
                 const handledToolOutputIds = new Set<string>();
+                const notifiedToolOutputIds = new Set<string>();
 
                 const consumeRawChunks = (async () => {
                     while (true) {
@@ -218,45 +277,10 @@ export function useAiAgentThreadStreamMutation() {
                                 type: 'text',
                                 text: part.text,
                             });
-                        } else if (
-                            part.type.startsWith('tool-') ||
-                            part.type === 'dynamic-tool'
-                        ) {
-                            const toolPart = part as {
-                                type: string;
-                                toolName?: string;
-                                toolCallId: string;
-                                input?: unknown;
-                                output?: unknown;
-                                preliminary?: boolean;
-                                state: string;
-                            };
-                            if (
-                                toolPart.state === 'input-available' ||
-                                toolPart.state === 'output-available' ||
-                                toolPart.state === 'output-error'
-                            ) {
-                                const toolName =
-                                    toolPart.type === 'dynamic-tool'
-                                        ? toolPart.toolName
-                                        : toolPart.type.slice(5);
-
-                                if (toolName && isAiAgentToolName(toolName)) {
-                                    const hasOutput =
-                                        toolPart.state === 'output-available';
-                                    orderedParts.push({
-                                        type: 'toolCall',
-                                        toolCallId: toolPart.toolCallId,
-                                        toolName,
-                                        toolArgs: toolPart.input,
-                                        toolOutput: hasOutput
-                                            ? toolPart.output
-                                            : undefined,
-                                        isPreliminary: hasOutput
-                                            ? (toolPart.preliminary ?? false)
-                                            : undefined,
-                                    });
-                                }
+                        } else {
+                            const toolCallPart = getStreamToolCallPart(part);
+                            if (toolCallPart) {
+                                orderedParts.push(toolCallPart);
                             }
                         }
                     }
@@ -265,6 +289,27 @@ export function useAiAgentThreadStreamMutation() {
                     // Process tool calls from the complete message
                     for (const part of uiMessage.parts) {
                         if (abortController.signal.aborted) return;
+
+                        const toolCallPart = getStreamToolCallPart(part);
+
+                        if (
+                            toolCallPart?.toolOutput !== undefined &&
+                            toolCallPart.isPreliminary !== undefined
+                        ) {
+                            const outputKey = `${toolCallPart.toolCallId}:${String(
+                                toolCallPart.isPreliminary,
+                            )}`;
+                            if (!notifiedToolOutputIds.has(outputKey)) {
+                                notifiedToolOutputIds.add(outputKey);
+                                onToolOutput?.({
+                                    toolName: toolCallPart.toolName,
+                                    toolArgs: toolCallPart.toolArgs,
+                                    toolOutput: toolCallPart.toolOutput,
+                                    isPreliminary: toolCallPart.isPreliminary,
+                                });
+                            }
+                        }
+
                         switch (part.type) {
                             // TODO: this is a temporary solution
                             // there should be a way of leveraging ToolUIPart based on the tools available
