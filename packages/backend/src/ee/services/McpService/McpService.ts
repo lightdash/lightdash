@@ -113,6 +113,7 @@ import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
 import {
     registerAppResource,
     registerAppTool,
@@ -1344,36 +1345,12 @@ export class McpService extends BaseService {
                         : null;
 
                     // Build "Explore from here" URL
-                    const exploreConfigState = {
-                        tableName: queryTool.queryConfig.exploreName,
-                        metricQuery: {
-                            exploreName: queryTool.queryConfig.exploreName,
-                            dimensions: queryTool.queryConfig.dimensions,
-                            metrics: query.metrics,
-                            sorts: queryTool.queryConfig.sorts,
-                            limit: query.limit,
-                            filters: queryTool.filters ?? {},
-                            additionalMetrics,
-                            tableCalculations: query.tableCalculations,
-                        },
-                        tableConfig: {
-                            columnOrder: Object.keys(results.rows[0] ?? {}),
-                        },
-                        chartConfig: {
-                            type: 'table' as const,
-                            config: {
-                                showColumnCalculation: false,
-                                showRowCalculation: false,
-                                showTableNames: true,
-                                showResultsTotal: false,
-                                showSubtotals: false,
-                                columns: {},
-                                hideRowNumbers: false,
-                                conditionalFormattings: [],
-                                metricsAsRows: false,
-                            },
-                        },
-                    };
+                    const exploreConfigState = buildMcpExploreConfigState({
+                        queryTool,
+                        metricQuery: query,
+                        fieldsMap: results.fields,
+                        columnOrder: Object.keys(results.rows[0] ?? {}),
+                    });
                     const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
                     const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
                         JSON.stringify(exploreConfigState),
