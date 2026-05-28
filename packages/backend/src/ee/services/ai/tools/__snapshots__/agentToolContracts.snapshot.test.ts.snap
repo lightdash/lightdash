@@ -44,7 +44,6 @@ Parameters:
       "type": "object",
     },
     "name": "describeWarehouseTable",
-    "outputSchema": null,
   },
   {
     "description": "Tool: discoverFields
@@ -84,7 +83,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "discoverFields",
-    "outputSchema": null,
   },
   {
     "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
@@ -294,7 +292,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "editContent",
-    "outputSchema": null,
   },
   {
     "description": "Tool: "findContent"
@@ -337,7 +334,6 @@ Usage tips:
       "type": "object",
     },
     "name": "findContent",
-    "outputSchema": null,
   },
   {
     "description": "Tool: findExplores
@@ -369,7 +365,6 @@ Output:
       "type": "object",
     },
     "name": "findExplores",
-    "outputSchema": null,
   },
   {
     "description": "Tool: "findFields"
@@ -430,7 +425,6 @@ Usage tips:
       "type": "object",
     },
     "name": "findFields",
-    "outputSchema": null,
   },
   {
     "description": "
@@ -2029,7 +2023,6 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateDashboard",
-    "outputSchema": null,
   },
   {
     "description": "Generate one or more UUIDs to use as stable identifiers when creating new objects.",
@@ -2050,7 +2043,6 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateUuids",
-    "outputSchema": null,
   },
   {
     "description": "Tool: "getDashboardCharts"
@@ -2094,7 +2086,6 @@ Usage tips:
       "type": "object",
     },
     "name": "getDashboardCharts",
-    "outputSchema": null,
   },
   {
     "description": "Tool: get_knowledge_document_content
@@ -2129,7 +2120,6 @@ Parameters:
       "type": "object",
     },
     "name": "getKnowledgeDocumentContent",
-    "outputSchema": null,
   },
   {
     "description": "
@@ -2199,7 +2189,6 @@ Captures learnings from user corrections, clarifications, and guidance to improv
       "type": "object",
     },
     "name": "improveContext",
-    "outputSchema": null,
   },
   {
     "description": "Tool: "listContent"
@@ -2309,7 +2298,6 @@ Parameters:
       "type": "object",
     },
     "name": "listKnowledgeDocuments",
-    "outputSchema": null,
   },
   {
     "description": "Tool: list_warehouse_tables
@@ -2356,7 +2344,6 @@ Parameters:
       "type": "object",
     },
     "name": "listWarehouseTables",
-    "outputSchema": null,
   },
   {
     "description": "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
@@ -2389,7 +2376,6 @@ Parameters:
       "type": "object",
     },
     "name": "loadSkill",
-    "outputSchema": null,
   },
   {
     "description": "
@@ -3423,7 +3409,6 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "proposeChange",
-    "outputSchema": null,
   },
   {
     "description": "Open a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes.",
@@ -3522,7 +3507,6 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "readContent",
-    "outputSchema": null,
   },
   {
     "description": "Tool: runQuery
@@ -5110,7 +5094,6 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "runQuery",
-    "outputSchema": null,
   },
   {
     "description": "
@@ -5142,7 +5125,6 @@ custom metrics are applied automatically.
       "type": "object",
     },
     "name": "runSavedChart",
-    "outputSchema": null,
   },
   {
     "description": "Tool: run_sql
@@ -5200,7 +5182,6 @@ Notes:
       "type": "object",
     },
     "name": "runSql",
-    "outputSchema": null,
   },
   {
     "description": "Tool: searchFieldValues
@@ -5899,7 +5880,6 @@ Usage Tips:
       "type": "object",
     },
     "name": "searchFieldValues",
-    "outputSchema": null,
   },
 ]
 `;

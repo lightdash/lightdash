@@ -87,7 +87,6 @@ Use table calculations for:
         "type": "object",
       },
       "name": "get_lightdash_version",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -109,7 +108,6 @@ Usage Tips:
         "type": "object",
       },
       "name": "list_explores",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -142,7 +140,6 @@ Output:
         "type": "object",
       },
       "name": "find_explores",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -196,7 +193,6 @@ Usage tips:
         "type": "object",
       },
       "name": "find_fields",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -240,7 +236,6 @@ Usage tips:
         "type": "object",
       },
       "name": "find_content",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -252,7 +247,6 @@ Usage tips:
         "type": "object",
       },
       "name": "list_projects",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -277,7 +271,6 @@ Usage tips:
         "type": "object",
       },
       "name": "set_project",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -289,7 +282,6 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_project",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -305,7 +297,6 @@ Usage tips:
         "type": "object",
       },
       "name": "list_agents",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -324,7 +315,6 @@ Usage tips:
         "type": "object",
       },
       "name": "set_agent",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -336,7 +326,6 @@ Usage tips:
         "type": "object",
       },
       "name": "clear_agent",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -348,7 +337,6 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_agent",
-      "outputSchema": null,
     },
     {
       "agentName": "runQuery",
@@ -6771,7 +6759,6 @@ Usage Tips:
         "type": "object",
       },
       "name": "search_field_values",
-      "outputSchema": null,
     },
     {
       "agentName": null,
@@ -6873,7 +6860,6 @@ Notes:
         "type": "object",
       },
       "name": "list_verified_content",
-      "outputSchema": null,
     },
     {
       "agentName": null,

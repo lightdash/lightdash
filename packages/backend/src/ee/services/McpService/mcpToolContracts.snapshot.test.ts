@@ -128,7 +128,9 @@ describe('MCP tool contracts', () => {
                     name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
                 description: config.description,
                 inputSchema: schemaToJson(config.inputSchema),
-                outputSchema: schemaToJson(config.outputSchema),
+                ...(config.outputSchema
+                    ? { outputSchema: schemaToJson(config.outputSchema) }
+                    : {}),
             })),
         }).toMatchSnapshot();
     });
