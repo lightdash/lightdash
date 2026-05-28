@@ -1,3 +1,16 @@
+# [0.3041.0](https://github.com/lightdash/lightdash/compare/0.3040.0...0.3041.0) (2026-05-28)
+
+
+### Bug Fixes
+
+* **ee:** suppress user-error noise and surface timeout context in AI writeback Sentry events ([#23606](https://github.com/lightdash/lightdash/issues/23606)) ([78a792a](https://github.com/lightdash/lightdash/commit/78a792a34704db52b0f4e866c765fa60cfe10f3d))
+* **prod-7445:** drop malformed empty dashboard filters on CLI upload + warn in lint ([#23613](https://github.com/lightdash/lightdash/issues/23613)) ([0c1aa49](https://github.com/lightdash/lightdash/commit/0c1aa49658abc0738c4c5dcae31ea76947b8fa08))
+
+
+### Features
+
+* **ee:** stream AI writeback progress into the Slack "Thinking…" message ([#23612](https://github.com/lightdash/lightdash/issues/23612)) ([255887b](https://github.com/lightdash/lightdash/commit/255887b90f844c508f6a0870c4a9603dfb73d74f))
+
 # [0.3040.0](https://github.com/lightdash/lightdash/compare/0.3039.0...0.3040.0) (2026-05-28)
 
 
