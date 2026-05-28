@@ -304,7 +304,7 @@ const AgentsRouterPage = () => {
                     />
 
                     {phase.kind === 'picker' && (
-                        <Stack gap="xs">
+                        <Stack gap="xs" className={classes.pickerStack}>
                             <div className={classes.pickerHeader}>
                                 <Text size="sm" fw={600}>
                                     Which agent should answer?
