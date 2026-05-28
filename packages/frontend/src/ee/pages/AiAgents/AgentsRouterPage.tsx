@@ -3,17 +3,22 @@ import {
     type AiRouterRouteResponseResult,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Avatar,
-    Card,
+    Badge,
     Center,
     Group,
-    SimpleGrid,
+    Popover,
     Stack,
     Text,
     Title,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconSparkles } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconInfoCircle,
+    IconSparkles,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
@@ -36,6 +41,7 @@ import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import classes from './AgentsRouterPage.module.css';
 
 type Phase =
     | { kind: 'idle' }
@@ -215,6 +221,16 @@ const AgentsRouterPage = () => {
         [phase, startThreadForDecision],
     );
 
+    const sortedCandidates = useMemo(() => {
+        if (phase.kind !== 'picker') return [];
+        const { candidates, suggestedAgentUuid } = phase.decision.decision;
+        return [...candidates].sort((a, b) => {
+            if (a.agentUuid === suggestedAgentUuid) return -1;
+            if (b.agentUuid === suggestedAgentUuid) return 1;
+            return 0;
+        });
+    }, [phase]);
+
     const isLocked = phase.kind !== 'idle';
 
     const placeholder =
@@ -288,72 +304,108 @@ const AgentsRouterPage = () => {
                     />
 
                     {phase.kind === 'picker' && (
-                        <Stack gap="sm">
-                            <Stack align="center" gap={4}>
-                                <Title order={5}>Pick the right agent</Title>
-                                <Text size="sm" c="dimmed" ta="center">
-                                    {phase.decision.decision.reasoning}
+                        <Stack gap="xs">
+                            <div className={classes.pickerHeader}>
+                                <Text size="sm" fw={600}>
+                                    Which agent should answer?
                                 </Text>
-                            </Stack>
-                            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                                {phase.decision.decision.candidates.map((c) => {
-                                    const agent = agentsByUuid.get(c.agentUuid);
-                                    return (
-                                        <UnstyledButton
-                                            key={c.agentUuid}
-                                            onClick={() =>
-                                                confirmPick(c.agentUuid)
-                                            }
-                                        >
-                                            <Card
-                                                withBorder
-                                                radius="md"
-                                                p="sm"
-                                                styles={(theme) => ({
-                                                    root: {
-                                                        borderColor:
-                                                            theme.colors
-                                                                .ldGray[2],
-                                                    },
-                                                })}
+                                {phase.decision.decision.reasoning && (
+                                    <Popover
+                                        width={280}
+                                        position="bottom-end"
+                                        withArrow
+                                        shadow="md"
+                                    >
+                                        <Popover.Target>
+                                            <ActionIcon
+                                                size="sm"
+                                                variant="subtle"
+                                                color="gray"
+                                                aria-label="Why these agents?"
                                             >
-                                                <Group
-                                                    gap="sm"
-                                                    wrap="nowrap"
-                                                    align="flex-start"
-                                                >
-                                                    <LightdashUserAvatar
-                                                        size={32}
-                                                        name={c.name}
-                                                        src={agent?.imageUrl}
-                                                    />
-                                                    <Stack
-                                                        gap={2}
-                                                        miw={0}
-                                                        flex={1}
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size={14}
+                                                />
+                                            </ActionIcon>
+                                        </Popover.Target>
+                                        <Popover.Dropdown>
+                                            <Text size="xs" c="dimmed">
+                                                {
+                                                    phase.decision.decision
+                                                        .reasoning
+                                                }
+                                            </Text>
+                                        </Popover.Dropdown>
+                                    </Popover>
+                                )}
+                            </div>
+
+                            {sortedCandidates.map((c) => {
+                                const agent = agentsByUuid.get(c.agentUuid);
+                                const isRecommended =
+                                    c.agentUuid ===
+                                    phase.decision.decision.suggestedAgentUuid;
+                                return (
+                                    <UnstyledButton
+                                        key={c.agentUuid}
+                                        onClick={() => confirmPick(c.agentUuid)}
+                                        className={`${classes.candidateButton} ${
+                                            isRecommended
+                                                ? classes.recommended
+                                                : ''
+                                        }`}
+                                        aria-label={`Send to ${c.name}`}
+                                    >
+                                        <Group
+                                            gap="sm"
+                                            wrap="nowrap"
+                                            align="center"
+                                        >
+                                            <LightdashUserAvatar
+                                                size={32}
+                                                name={c.name}
+                                                src={agent?.imageUrl}
+                                            />
+                                            <Stack gap={2} miw={0} flex={1}>
+                                                <Group gap="xs" wrap="nowrap">
+                                                    <Text
+                                                        size="sm"
+                                                        fw={600}
+                                                        truncate="end"
                                                     >
-                                                        <Text
-                                                            size="sm"
-                                                            fw={600}
+                                                        {c.name}
+                                                    </Text>
+                                                    {isRecommended && (
+                                                        <Badge
+                                                            size="xs"
+                                                            color="violet"
+                                                            variant="light"
+                                                            radius="sm"
                                                         >
-                                                            {c.name}
-                                                        </Text>
-                                                        {c.description && (
-                                                            <Text
-                                                                size="xs"
-                                                                c="dimmed"
-                                                                truncate="end"
-                                                            >
-                                                                {c.description}
-                                                            </Text>
-                                                        )}
-                                                    </Stack>
+                                                            Recommended
+                                                        </Badge>
+                                                    )}
                                                 </Group>
-                                            </Card>
-                                        </UnstyledButton>
-                                    );
-                                })}
-                            </SimpleGrid>
+                                                {c.description && (
+                                                    <Text
+                                                        size="xs"
+                                                        c="dimmed"
+                                                        truncate="end"
+                                                    >
+                                                        {c.description}
+                                                    </Text>
+                                                )}
+                                            </Stack>
+                                            <MantineIcon
+                                                icon={IconChevronRight}
+                                                size={16}
+                                                className={classes.chevron}
+                                            />
+                                        </Group>
+                                    </UnstyledButton>
+                                );
+                            })}
                         </Stack>
                     )}
                 </Stack>
