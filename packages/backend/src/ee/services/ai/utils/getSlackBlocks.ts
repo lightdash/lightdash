@@ -239,6 +239,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runSql',
     'runSavedChart',
     'generateDashboard',
+    'proposeWriteback',
 ]);
 
 // One compact footer: small "How did I do?" header + a single row with
