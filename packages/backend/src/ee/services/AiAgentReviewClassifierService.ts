@@ -506,6 +506,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             },
             modelMetadata: candidate.modelMetadata,
         };
+        const promotableImplicitSignalSources =
+            judgeOutput.implicitSignalSources.filter(
+                (source) => source !== 'output_shape_correction',
+            );
 
         Logger.info('AI agent review agent judged turn', {
             runPromptUuid: candidate.subject.assistantPromptUuid,
@@ -516,6 +520,14 @@ export class AiAgentReviewClassifierService extends BaseService {
             primaryRootCause: judgeOutput.primaryRootCause,
             promotedToFinding: judgeOutput.promotedToFinding,
             confidence: judgeOutput.confidence,
+            judgePromptHash: JUDGE_PROMPT_HASH,
+            implicitSignalSources: judgeOutput.implicitSignalSources,
+            hasImplicitSignal: judgeOutput.implicitSignalSources.length > 0,
+            hasPromotableImplicitSignal:
+                promotableImplicitSignalSources.length > 0,
+            droppedImplicitSignal:
+                promotableImplicitSignalSources.length > 0 &&
+                !judgeOutput.promotedToFinding,
         });
         this.debugLog('TurnJudged', {
             promptUuid: candidate.subject.assistantPromptUuid,
