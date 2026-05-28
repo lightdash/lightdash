@@ -1,3 +1,10 @@
+# [0.3043.0](https://github.com/lightdash/lightdash/compare/0.3042.0...0.3043.0) (2026-05-28)
+
+
+### Features
+
+* add option to place legend outside of chart ([#23625](https://github.com/lightdash/lightdash/issues/23625)) ([67e0fee](https://github.com/lightdash/lightdash/commit/67e0fee062f1c68845fd0c4976ae2cb69c239cad))
+
 # [0.3042.0](https://github.com/lightdash/lightdash/compare/0.3041.1...0.3042.0) (2026-05-28)
 
 
