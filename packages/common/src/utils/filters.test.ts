@@ -19,6 +19,7 @@ import {
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
+    isMalformedEmptyDashboardFilter,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
@@ -1527,5 +1528,87 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
+    });
+});
+
+describe('isMalformedEmptyDashboardFilter', () => {
+    test('flags disabled:false + empty values + value-requiring operator', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('flags missing values (treated as empty)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+            }),
+        ).toBe(true);
+    });
+
+    test('flags omitted disabled (defaults to active)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('treats null values (YAML `values: ~`) as empty', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: null,
+            }),
+        ).toBe(true);
+    });
+
+    test('does NOT flag disabled filters', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: true,
+                values: [],
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag operators that legitimately take no values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NULL,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NOT_NULL,
+                disabled: false,
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.IN_PERIOD_TO_DATE,
+                disabled: false,
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag filters with values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: ['some-value'],
+            }),
+        ).toBe(false);
     });
 });

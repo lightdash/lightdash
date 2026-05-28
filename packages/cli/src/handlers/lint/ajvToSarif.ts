@@ -5,6 +5,7 @@ type LocationMap = Map<string, { line: number; column: number }>;
 type FileValidationResult = {
     filePath: string;
     errors: ErrorObject[];
+    warnings?: ErrorObject[];
     fileContent: string;
     locationMap?: LocationMap;
     schemaType: 'chart' | 'dashboard' | 'model';
@@ -216,84 +217,95 @@ export function createSarifReport(results: FileValidationResult[]): SarifLog {
     const sarifResults: SarifResult[] = [];
     const rules = new Map<string, SarifRule>();
 
-    for (const result of results) {
-        for (const error of result.errors) {
-            // For additionalProperties errors, append the property name to the path
-            // Handle root-level errors carefully to avoid double slashes (//propertyName)
-            let dataPath = error.instancePath || '/';
-            if (
-                error.keyword === 'additionalProperties' &&
-                error.params.additionalProperty
-            ) {
-                dataPath =
-                    dataPath === '/'
-                        ? `/${error.params.additionalProperty}`
-                        : `${dataPath}/${error.params.additionalProperty}`;
-            }
+    const pushResult = (
+        result: FileValidationResult,
+        error: ErrorObject,
+        level: 'error' | 'warning',
+    ) => {
+        // For additionalProperties errors, append the property name to the path
+        // Handle root-level errors carefully to avoid double slashes (//propertyName)
+        let dataPath = error.instancePath || '/';
+        if (
+            error.keyword === 'additionalProperties' &&
+            error.params.additionalProperty
+        ) {
+            dataPath =
+                dataPath === '/'
+                    ? `/${error.params.additionalProperty}`
+                    : `${dataPath}/${error.params.additionalProperty}`;
+        }
 
-            // Determine error location using a two-strategy approach:
-            // 1. PRIMARY: Use locationMap (built from YAML AST during parsing)
-            //    - Fast O(1) lookup for ~95% of cases
-            //    - Works for: additional properties, type errors, enum errors, nested errors, array items
-            //    - Works for: nested missing required fields (e.g., missing 'exploreName' in 'metricQuery')
-            //
-            // 2. FALLBACK: Use regex-based search when locationMap lookup fails
-            //    - Needed for: root-level missing required properties (e.g., missing 'name', 'version')
-            //      These have dataPath='/' which doesn't exist in locationMap since it stores actual YAML keys
-            //    - Also provides defensive error handling if AST traversal misses any edge cases
-            let location: { line: number; column: number } | null = null;
-            if (result.locationMap) {
-                location = result.locationMap.get(dataPath) || null;
-            }
-            if (!location) {
-                // Fallback to regex search - primarily for root-level missing required properties
-                location = findLocationForPath(result.fileContent, dataPath);
-            }
+        // Determine error location using a two-strategy approach:
+        // 1. PRIMARY: Use locationMap (built from YAML AST during parsing)
+        //    - Fast O(1) lookup for ~95% of cases
+        //    - Works for: additional properties, type errors, enum errors, nested errors, array items
+        //    - Works for: nested missing required fields (e.g., missing 'exploreName' in 'metricQuery')
+        //
+        // 2. FALLBACK: Use regex-based search when locationMap lookup fails
+        //    - Needed for: root-level missing required properties (e.g., missing 'name', 'version')
+        //      These have dataPath='/' which doesn't exist in locationMap since it stores actual YAML keys
+        //    - Also provides defensive error handling if AST traversal misses any edge cases
+        let location: { line: number; column: number } | null = null;
+        if (result.locationMap) {
+            location = result.locationMap.get(dataPath) || null;
+        }
+        if (!location) {
+            // Fallback to regex search - primarily for root-level missing required properties
+            location = findLocationForPath(result.fileContent, dataPath);
+        }
 
-            const message = getFriendlyMessage(error);
-            const ruleId = `${result.schemaType}/${error.keyword}`;
+        const message = getFriendlyMessage(error);
+        const ruleId = `${result.schemaType}/${error.keyword}`;
 
-            // Add rule if we haven't seen it before
-            if (!rules.has(ruleId)) {
-                rules.set(ruleId, {
-                    id: ruleId,
-                    shortDescription: {
-                        text: `${error.keyword} validation error`,
-                    },
-                });
-            }
-
-            const sarifResult: SarifResult = {
-                ruleId,
-                level: 'error',
-                message: {
-                    text: message,
+        // Add rule if we haven't seen it before
+        if (!rules.has(ruleId)) {
+            rules.set(ruleId, {
+                id: ruleId,
+                shortDescription: {
+                    text: `${error.keyword} validation ${level}`,
                 },
-                locations: [
-                    {
-                        physicalLocation: {
-                            artifactLocation: {
-                                uri: result.filePath,
-                            },
-                            region: {
-                                startLine: location?.line || 1,
-                                startColumn: location?.column || 1,
-                            },
+            });
+        }
+
+        const sarifResult: SarifResult = {
+            ruleId,
+            level,
+            message: {
+                text: message,
+            },
+            locations: [
+                {
+                    physicalLocation: {
+                        artifactLocation: {
+                            uri: result.filePath,
+                        },
+                        region: {
+                            startLine: location?.line || 1,
+                            startColumn: location?.column || 1,
                         },
                     },
-                ],
-            };
+                },
+            ],
+        };
 
-            // Add additional context
-            if (error.params) {
-                const properties: Record<string, unknown> = {};
-                Object.entries(error.params).forEach(([key, value]) => {
-                    properties[key] = value;
-                });
-                sarifResult.properties = { errorParams: properties };
-            }
+        // Add additional context
+        if (error.params) {
+            const properties: Record<string, unknown> = {};
+            Object.entries(error.params).forEach(([key, value]) => {
+                properties[key] = value;
+            });
+            sarifResult.properties = { errorParams: properties };
+        }
 
-            sarifResults.push(sarifResult);
+        sarifResults.push(sarifResult);
+    };
+
+    for (const result of results) {
+        for (const error of result.errors) {
+            pushResult(result, error, 'error');
+        }
+        for (const warning of result.warnings ?? []) {
+            pushResult(result, warning, 'warning');
         }
     }
 
