@@ -20,6 +20,7 @@ import {
     useMantineTheme,
 } from '@mantine-8/core';
 import {
+    IconArrowRight,
     IconBox,
     IconCircleCheck,
     IconCircleDashed,
@@ -324,6 +325,25 @@ const ExpandableText = ({
     );
 };
 
+const SuggestedStep = ({ children }: { children: string }) => (
+    <Tooltip
+        label={`Suggested next step: ${children}`}
+        withArrow
+        openDelay={300}
+    >
+        <Group gap={4} wrap="nowrap" className={styles.suggestedStep}>
+            <MantineIcon
+                icon={IconArrowRight}
+                size="xs"
+                className={styles.suggestedStepArrow}
+            />
+            <Text fz="xs" c="ldGray.7" lineClamp={1}>
+                {children}
+            </Text>
+        </Group>
+    </Tooltip>
+);
+
 const ReviewConceptHelp = () => (
     <Tooltip
         label="Turn: one user prompt and assistant response. Signal: the judge's per-turn assessment. Finding: a promoted signal that needs admin review."
@@ -438,11 +458,11 @@ const AiAgentAdminReviewItemsTable = ({
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
                     return (
-                        <Stack gap="two">
+                        <Stack gap={2}>
                             <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
                                 {getIssueTitle(reviewItem)}
                             </Text>
-                            <ExpandableText lineClamp={2}>
+                            <ExpandableText lineClamp={1}>
                                 {getWhatHappened(reviewItem)}
                             </ExpandableText>
                         </Stack>
@@ -453,7 +473,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'primaryRootCause',
                 header: 'Review note',
                 enableSorting: false,
-                size: 430,
+                size: 380,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
@@ -465,8 +485,8 @@ const AiAgentAdminReviewItemsTable = ({
                     const subcategory =
                         reviewItem.latestFinding?.subcategories[0];
                     return (
-                        <Stack gap="xs">
-                            <Group gap="two">
+                        <Stack gap={4}>
+                            <Group gap={4} wrap="nowrap">
                                 <CategoryToken>
                                     {
                                         rootCauseLabels[
@@ -479,14 +499,13 @@ const AiAgentAdminReviewItemsTable = ({
                                         {subcategory.replaceAll('_', ' ')}
                                     </CategoryToken>
                                 )}
+                                <SuggestedStep>
+                                    {getSuggestedNextStep(reviewItem)}
+                                </SuggestedStep>
                             </Group>
-                            <ExpandableText lineClamp={2}>
+                            <ExpandableText lineClamp={1}>
                                 {getWhyText(reviewItem)}
                             </ExpandableText>
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                Suggested next step:{' '}
-                                {getSuggestedNextStep(reviewItem)}
-                            </Text>
                         </Stack>
                     );
                 },
@@ -495,7 +514,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 220,
+                size: 180,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -517,9 +536,13 @@ const AiAgentAdminReviewItemsTable = ({
                         ? projectsMap.get(projectUuid)
                         : undefined;
 
-                    return (
-                        <Stack gap="two">
-                            {agent ? (
+                    if (agent) {
+                        return (
+                            <Tooltip
+                                label={project?.name ?? 'Organization'}
+                                withArrow
+                                disabled={!project}
+                            >
                                 <Paper px="xs" w="fit-content" maw="100%">
                                     <Group gap="two" wrap="nowrap">
                                         <LightdashUserAvatar
@@ -537,24 +560,21 @@ const AiAgentAdminReviewItemsTable = ({
                                         </Text>
                                     </Group>
                                 </Paper>
-                            ) : (
-                                <Group gap="two" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconBox}
-                                        color="ldGray.6"
-                                        size="sm"
-                                    />
-                                    <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                        {project?.name ?? 'Organization'}
-                                    </Text>
-                                </Group>
-                            )}
-                            {agent && project && (
-                                <Text fz="xs" c="ldGray.6" lineClamp={1}>
-                                    Project: {project.name}
-                                </Text>
-                            )}
-                        </Stack>
+                            </Tooltip>
+                        );
+                    }
+
+                    return (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon
+                                icon={IconBox}
+                                color="ldGray.6"
+                                size="sm"
+                            />
+                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
+                                {project?.name ?? 'Organization'}
+                            </Text>
+                        </Group>
                     );
                 },
             },
@@ -562,7 +582,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'lastSeenAt',
                 header: 'Last seen',
                 enableSorting: true,
-                size: 140,
+                size: 110,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconClock} color="ldGray.6" />
@@ -570,17 +590,9 @@ const AiAgentAdminReviewItemsTable = ({
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Stack gap={0}>
-                        <Text fz="xs" c="ldGray.7" fw={500}>
-                            {formatLastSeenDate(row.original.lastSeenAt)}
-                        </Text>
-                        <Text fz="xs" c="ldGray.6">
-                            {row.original.findingCount}{' '}
-                            {row.original.findingCount === 1
-                                ? 'finding'
-                                : 'findings'}
-                        </Text>
-                    </Stack>
+                    <Text fz="xs" c="ldGray.7" fw={500}>
+                        {formatLastSeenDate(row.original.lastSeenAt)}
+                    </Text>
                 ),
             },
             {
@@ -637,30 +649,23 @@ const AiAgentAdminReviewItemsTable = ({
                     const signal = row.original;
                     const ConfidenceIcon = getConfidenceIcon(signal.confidence);
                     return (
-                        <Stack gap="two">
-                            <Group gap="xs" wrap="nowrap">
-                                <CategoryToken>
-                                    {getSignalResultLabel(signal)}
-                                </CategoryToken>
-                                <Tooltip
-                                    label={`${signal.confidence} confidence`}
-                                    withArrow
-                                >
-                                    <Box className={styles.confidenceIcon}>
-                                        <MantineIcon
-                                            icon={ConfidenceIcon}
-                                            color="ldGray.6"
-                                            size="sm"
-                                        />
-                                    </Box>
-                                </Tooltip>
-                            </Group>
-                            <Text fz="xs" c="ldGray.6">
-                                {signal.finding
-                                    ? 'Promoted by judge'
-                                    : 'Not promoted'}
-                            </Text>
-                        </Stack>
+                        <Group gap={4} wrap="nowrap">
+                            <CategoryToken>
+                                {getSignalResultLabel(signal)}
+                            </CategoryToken>
+                            <Tooltip
+                                label={`${signal.confidence} confidence`}
+                                withArrow
+                            >
+                                <Box className={styles.confidenceIcon}>
+                                    <MantineIcon
+                                        icon={ConfidenceIcon}
+                                        color="ldGray.6"
+                                        size="xs"
+                                    />
+                                </Box>
+                            </Tooltip>
+                        </Group>
                     );
                 },
             },
@@ -668,7 +673,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'signal',
                 header: 'Signal',
                 enableSorting: false,
-                size: 260,
+                size: 340,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
@@ -680,8 +685,8 @@ const AiAgentAdminReviewItemsTable = ({
                     const subcategory = signal.finding?.subcategories[0];
 
                     return (
-                        <Stack gap="xs">
-                            <Group gap="two">
+                        <Stack gap={4}>
+                            <Group gap={4} wrap="nowrap">
                                 <CategoryToken>
                                     {signalLabels[signal.signal]}
                                 </CategoryToken>
@@ -690,14 +695,13 @@ const AiAgentAdminReviewItemsTable = ({
                                         {subcategory.replaceAll('_', ' ')}
                                     </CategoryToken>
                                 )}
+                                <SuggestedStep>
+                                    {getSignalActionText(signal)}
+                                </SuggestedStep>
                             </Group>
-                            <ExpandableText lineClamp={2}>
+                            <ExpandableText lineClamp={1}>
                                 {getSignalWhyText(signal)}
                             </ExpandableText>
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                Suggested next step:{' '}
-                                {getSignalActionText(signal)}
-                            </Text>
                         </Stack>
                     );
                 },
@@ -706,7 +710,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'prompt',
                 header: 'Turn',
                 enableSorting: false,
-                size: 380,
+                size: 300,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconListCheck} color="ldGray.6" />
@@ -716,11 +720,11 @@ const AiAgentAdminReviewItemsTable = ({
                 Cell: ({ row }) => {
                     const signal = row.original;
                     return (
-                        <Stack gap="two">
+                        <Stack gap={2}>
                             <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
                                 {signal.prompt}
                             </Text>
-                            <ExpandableText lineClamp={2}>
+                            <ExpandableText lineClamp={1}>
                                 {signal.errorMessage ??
                                     signal.responsePreview ??
                                     'No response captured'}
@@ -733,7 +737,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 220,
+                size: 180,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -745,9 +749,13 @@ const AiAgentAdminReviewItemsTable = ({
                     const agent = agentsMap.get(signal.agentUuid);
                     const project = projectsMap.get(signal.projectUuid);
 
-                    return (
-                        <Stack gap="two">
-                            {agent ? (
+                    if (agent) {
+                        return (
+                            <Tooltip
+                                label={project?.name ?? 'Unknown project'}
+                                withArrow
+                                disabled={!project}
+                            >
                                 <Paper px="xs" w="fit-content" maw="100%">
                                     <Group gap="two" wrap="nowrap">
                                         <LightdashUserAvatar
@@ -765,24 +773,21 @@ const AiAgentAdminReviewItemsTable = ({
                                         </Text>
                                     </Group>
                                 </Paper>
-                            ) : (
-                                <Group gap="two" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconBox}
-                                        color="ldGray.6"
-                                        size="sm"
-                                    />
-                                    <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                        {project?.name ?? 'Unknown agent'}
-                                    </Text>
-                                </Group>
-                            )}
-                            {project && (
-                                <Text fz="xs" c="ldGray.6" lineClamp={1}>
-                                    Project: {project.name}
-                                </Text>
-                            )}
-                        </Stack>
+                            </Tooltip>
+                        );
+                    }
+
+                    return (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon
+                                icon={IconBox}
+                                color="ldGray.6"
+                                size="sm"
+                            />
+                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
+                                {project?.name ?? 'Unknown agent'}
+                            </Text>
+                        </Group>
                     );
                 },
             },
@@ -790,36 +795,17 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'createdAt',
                 header: 'Reviewed',
                 enableSorting: true,
-                size: 130,
+                size: 110,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
-                        <Tooltip
-                            label="Signal means the judge reviewed the turn. Finding means the judge promoted the signal for admin review."
-                            withArrow
-                            multiline
-                            maw={260}
-                        >
-                            <Box className={styles.headerHelpIcon}>
-                                <MantineIcon
-                                    icon={IconHelpCircle}
-                                    color="ldGray.5"
-                                    size="sm"
-                                />
-                            </Box>
-                        </Tooltip>
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Stack gap={0}>
-                        <Text fz="xs" c="ldGray.7" fw={500}>
-                            {formatLastSeenDate(row.original.createdAt)}
-                        </Text>
-                        <Text fz="xs" c="ldGray.6">
-                            {row.original.finding ? 'finding' : 'signal'}
-                        </Text>
-                    </Stack>
+                    <Text fz="xs" c="ldGray.7" fw={500}>
+                        {formatLastSeenDate(row.original.createdAt)}
+                    </Text>
                 ),
             },
             {
@@ -894,9 +880,8 @@ const AiAgentAdminReviewItemsTable = ({
             },
         },
         mantineTableBodyCellProps: {
-            h: 86,
             style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 borderRight: 'none',
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
@@ -1029,9 +1014,8 @@ const AiAgentAdminReviewItemsTable = ({
             },
         },
         mantineTableBodyCellProps: {
-            h: 92,
             style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 borderRight: 'none',
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
