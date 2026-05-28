@@ -15,6 +15,7 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
 import { getProposeChange } from './proposeChange';
+import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
 import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
@@ -122,6 +123,9 @@ const makeAgentTools = () => {
         proposeChange: getProposeChange({
             createChange: noop,
             getExploreCompiler: noop,
+        }),
+        proposeWriteback: getProposeWriteback({
+            proposeWriteback: noop,
         }),
         readContent: getReadContent({ readContent: noop }),
         runQuery: getRunQuery({
