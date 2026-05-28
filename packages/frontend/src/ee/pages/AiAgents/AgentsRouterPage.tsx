@@ -232,13 +232,15 @@ const AgentsRouterPage = () => {
     }, [phase]);
 
     const isLocked = phase.kind !== 'idle';
-
-    const placeholder =
+    const isWorking = phase.kind === 'routing' || phase.kind === 'creating';
+    const workingLabel =
         phase.kind === 'routing'
-            ? 'Finding the best agent…'
+            ? 'Finding the right agent…'
             : phase.kind === 'creating'
-              ? 'Sending…'
-              : 'Ask anything about your data...';
+              ? 'Opening the conversation…'
+              : null;
+
+    const placeholder = 'Ask anything about your data...';
 
     return (
         <AiAgentPageLayout
@@ -266,11 +268,19 @@ const AgentsRouterPage = () => {
                     py="xl"
                 >
                     <Stack align="center" gap="xxs">
-                        <Avatar size="lg" color="violet" radius="xl">
+                        <Avatar
+                            size="lg"
+                            color="violet"
+                            radius="xl"
+                            className={`${classes.heroAvatar} ${
+                                isWorking ? classes.heroAvatarWorking : ''
+                            }`}
+                        >
                             <MantineIcon
                                 icon={IconSparkles}
                                 size="xl"
                                 color="violet.6"
+                                className={classes.heroSparkles}
                             />
                         </Avatar>
                         <Title order={2}>Ask AI</Title>
@@ -300,8 +310,27 @@ const AgentsRouterPage = () => {
                         onSqlModeChange={
                             sqlModeAvailable ? setSqlMode : undefined
                         }
+                        clearOnSubmit={false}
                         fullWidth
                     />
+
+                    {isWorking && workingLabel && (
+                        <Group
+                            gap={8}
+                            justify="center"
+                            className={classes.routingStatus}
+                            aria-live="polite"
+                        >
+                            <span className={classes.routingDots}>
+                                <span />
+                                <span />
+                                <span />
+                            </span>
+                            <Text size="xs" c="dimmed">
+                                {workingLabel}
+                            </Text>
+                        </Group>
+                    )}
 
                     {phase.kind === 'picker' && (
                         <Stack gap="xs" className={classes.pickerStack}>

@@ -1,3 +1,103 @@
+.heroAvatar {
+    position: relative;
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.heroAvatar::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid var(--mantine-color-violet-4);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.heroAvatarWorking {
+    transform: scale(1.04);
+}
+
+.heroAvatarWorking::after {
+    animation: heroHaloPulse 1600ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.heroAvatarWorking .heroSparkles {
+    animation: heroSparkleSpin 3200ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes heroHaloPulse {
+    0% {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    35% {
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(1.45);
+        opacity: 0;
+    }
+}
+
+@keyframes heroSparkleSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.routingStatus {
+    animation: routingFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.routingDots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.routingDots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-violet-5);
+    animation: routingDotBlink 1100ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.routingDots span:nth-child(2) {
+    animation-delay: 160ms;
+}
+
+.routingDots span:nth-child(3) {
+    animation-delay: 320ms;
+}
+
+@keyframes routingFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes routingDotBlink {
+    0%,
+    80%,
+    100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
 .pickerStack {
     animation: pickerStackIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -144,7 +244,14 @@
     .pickerStack,
     .pickerHeader,
     .candidateButton,
-    .candidateButton.recommended {
+    .candidateButton.recommended,
+    .heroAvatar,
+    .heroAvatarWorking,
+    .heroAvatarWorking::after,
+    .heroAvatarWorking .heroSparkles,
+    .routingStatus,
+    .routingDots span {
         animation: none;
+        transform: none;
     }
 }
