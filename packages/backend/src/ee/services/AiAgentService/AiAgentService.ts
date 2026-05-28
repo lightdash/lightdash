@@ -8356,6 +8356,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs) {
         Logger.info(`Got app_mention event ${event.text}`);
 
+        // Best-effort ack reaction — gives the user immediate visual feedback
+        // that the bot saw their @mention, before any auth / agent resolution.
+        // Fire-and-forget: installs that haven't re-authorized to grant
+        // `reactions:write` silently skip the reaction without breaking the
+        // mention flow.
+        void client.reactions
+            .add({
+                channel: event.channel,
+                timestamp: event.ts,
+                name: 'eyes',
+            })
+            .catch((err) => {
+                Logger.debug('Failed to add :eyes: reaction to mention:', err);
+            });
+
         const { teamId } = context;
         if (!teamId || !event.user) {
             return;

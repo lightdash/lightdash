@@ -227,6 +227,11 @@ export class SlackClient {
             'app_mentions:read',
             'files:write',
             'files:read',
+            // Used to react with :eyes: on a user's @mention so they get an
+            // immediate visual ack the bot saw their message. Best-effort —
+            // installs that haven't re-authorized for this scope silently
+            // skip the reaction (see AiAgentService.handleAppMention).
+            'reactions:write',
             // 'channels:join', - Made optional since users can manually add the app to channels
         ];
     }
