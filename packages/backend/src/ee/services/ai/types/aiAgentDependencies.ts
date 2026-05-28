@@ -15,11 +15,13 @@ import {
     CreateChangeParams,
     DashboardAsCode,
     DashboardSearchResult,
+    DbtProjectType,
     Explore,
     ExploreCompiler,
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    ProjectType,
     SavedChart,
     SlackPrompt,
     ToolFindContentArgs,
@@ -27,6 +29,7 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
@@ -272,3 +275,29 @@ export type LoadAgentSkillFn = (
 export type ProposeWritebackFn = (args: {
     prompt: string;
 }) => Promise<AiWritebackRunResult>;
+
+export type ListProjectsFn = () => Promise<
+    {
+        projectUuid: string;
+        name: string;
+        type: ProjectType;
+        isActive: boolean;
+    }[]
+>;
+
+// Safe, non-sensitive snapshot of the active project's dbt + warehouse setup.
+// Deliberately excludes any credentials (tokens, keys, installation ids) and
+// dbt environment variables, which can hold secrets.
+export type GetProjectInfoFn = () => Promise<{
+    projectName: string;
+    projectType: ProjectType;
+    dbtConnectionType: DbtProjectType;
+    dbtVersion: string;
+    warehouseType: WarehouseTypes | null;
+    git: {
+        repository: string;
+        branch: string;
+        projectSubPath: string;
+        hostDomain: string | null;
+    } | null;
+}>;

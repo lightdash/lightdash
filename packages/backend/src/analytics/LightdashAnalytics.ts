@@ -2098,6 +2098,15 @@ export type AiAgentSuggestionSubmitEvent = BaseTrack & {
     };
 };
 
+export type AiAgentPullRequestViewedEvent = BaseTrack & {
+    event: 'ai_agent.pull_request_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        prUrl: string | null;
+    };
+};
+
 export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     event: 'scheduler.ownership_reassigned';
     properties: {
@@ -2243,6 +2252,7 @@ type TypedEvent =
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | AiAgentSuggestionSubmitEvent
+    | AiAgentPullRequestViewedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;

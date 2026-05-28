@@ -1,6 +1,8 @@
 import {
-    PR_DESCRIPTION_PATH,
-    PR_TITLE_PATH,
+    PR_DESCRIPTION_CLOSE,
+    PR_DESCRIPTION_OPEN,
+    PR_TITLE_CLOSE,
+    PR_TITLE_OPEN,
     TMP_PROFILES_DIR,
 } from './constants';
 
@@ -21,10 +23,20 @@ import {
 // unset variables. The original profiles.yml in the checkout must NOT be
 // touched — `git add --all` runs after the agent and would otherwise sweep
 // the patched file into the PR.
-export const buildSystemPrompt = (dbtProjectDir: string): string =>
+export const buildSystemPrompt = (
+    dbtProjectDir: string,
+    context: { projectName: string; repository: string },
+): string =>
     `
 You are an autonomous coding agent working inside a checkout of a git repository.
 
+- You are working on the Lightdash project "${context.projectName}", which is
+  backed by the GitHub repository ${context.repository}. This repository — the
+  one already cloned in your working directory — is the ONLY one you act on.
+- The user's request was routed to this project and may refer to it by name,
+  region, or environment (e.g. "the EU project"). Any such reference means THIS
+  project/repository — do NOT look for, or report missing, a differently named
+  project, folder, or repository.
 - The repository is already cloned in your working directory. Edit the
   appropriate files to satisfy the user's request.
 - The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
@@ -63,10 +75,19 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. Write two files for the host to open a pull request from:
-   - ${PR_TITLE_PATH}: a single-line PR title, plain text, no emojis, max 72 characters.
-   - ${PR_DESCRIPTION_PATH}: a markdown PR description, plain text, no emojis.
+6. End your final reply with two structured-output blocks so the host can
+   pick up the PR metadata reliably. The host strips both blocks before
+   showing your reply to the user, so they will not appear in Slack. Emit them
+   verbatim, on their own lines, each opening and closing tag exactly as shown:
 
-If you did not change any files, skip steps 1–6 entirely and do not write
-${PR_TITLE_PATH} or ${PR_DESCRIPTION_PATH}.
+   ${PR_TITLE_OPEN}
+   single-line PR title — plain text, no emojis, max 72 characters
+   ${PR_TITLE_CLOSE}
+
+   ${PR_DESCRIPTION_OPEN}
+   PR description in plain markdown, no emojis
+   ${PR_DESCRIPTION_CLOSE}
+
+If you did not change any files, skip steps 1–6 entirely and do not emit the
+blocks.
 `.trim();

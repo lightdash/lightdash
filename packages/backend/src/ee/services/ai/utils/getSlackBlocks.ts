@@ -6,6 +6,7 @@ import {
     FollowUpTools,
     followUpToolsText,
     isToolProposeChangeResult,
+    isToolProposeWritebackResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
@@ -466,6 +467,44 @@ export function getProposeChangeBlocks(
     ];
 }
 
+export function getProposeWritebackBlocks(
+    toolResults?: AiAgentToolResult[],
+): (Block | KnownBlock)[] {
+    if (!toolResults || toolResults.length === 0) {
+        return [];
+    }
+
+    const prUrls = toolResults
+        .filter(isToolProposeWritebackResult)
+        .map((result) =>
+            result.metadata.status === 'success' ? result.metadata.prUrl : null,
+        )
+        .filter((prUrl): prUrl is string => Boolean(prUrl));
+
+    if (prUrls.length === 0) {
+        return [];
+    }
+
+    return [
+        {
+            type: 'divider',
+        },
+        {
+            type: 'actions',
+            elements: prUrls.map((prUrl, index) => ({
+                type: 'button',
+                url: prUrl,
+                style: 'primary',
+                action_id: `actions.view_pull_request_button_click.${index}`,
+                text: {
+                    type: 'plain_text',
+                    text: 'View pull request',
+                },
+            })),
+        },
+    ];
+}
+
 export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
@@ -586,6 +625,83 @@ export function getAgentSelectionBlocks(
                             agentUuid: agent.uuid,
                             channelId,
                             shouldSkipForwardingQuery,
+                        }),
+                    })),
+                },
+            ],
+        },
+    ];
+}
+
+// At or below this many projects we render quick-tap buttons; above it we fall
+// back to a dropdown to avoid a wall of buttons.
+const PROJECT_SELECTION_BUTTON_THRESHOLD = 3;
+
+export function getProjectSelectionBlocks(
+    projects: { projectUuid: string; name: string }[],
+    channelId: string,
+): (Block | KnownBlock)[] {
+    const truncateText = (text: string, maxLength: number): string => {
+        if (text.length <= maxLength) return text;
+        return `${text.substring(0, maxLength - 3)}...`;
+    };
+
+    const promptBlock: Block | KnownBlock = {
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: ':open_file_folder: *Which project would you like to use?*\n\nThis organization has multiple projects, so pick the one I should work in.',
+        },
+    };
+
+    // Few projects: one button each for a single tap.
+    if (projects.length <= PROJECT_SELECTION_BUTTON_THRESHOLD) {
+        return [
+            promptBlock,
+            {
+                type: 'actions',
+                block_id: 'project_selection',
+                elements: projects.map((project, index) => ({
+                    type: 'button',
+                    // Unique per button; handler matches the select_project prefix.
+                    action_id: `select_project:${index}`,
+                    // Slack caps button text at 75 characters.
+                    text: {
+                        type: 'plain_text',
+                        text: truncateText(project.name, 75),
+                    },
+                    value: JSON.stringify({
+                        projectUuid: project.projectUuid,
+                        channelId,
+                    }),
+                })),
+            },
+        ];
+    }
+
+    // Many projects: a dropdown keeps the message compact.
+    return [
+        promptBlock,
+        {
+            type: 'actions',
+            block_id: 'project_selection',
+            elements: [
+                {
+                    type: 'static_select',
+                    action_id: 'select_project',
+                    placeholder: {
+                        type: 'plain_text',
+                        text: 'Choose a project...',
+                    },
+                    // Slack caps option text at 75 characters.
+                    options: projects.map((project) => ({
+                        text: {
+                            type: 'plain_text',
+                            text: truncateText(project.name, 75),
+                        },
+                        value: JSON.stringify({
+                            projectUuid: project.projectUuid,
+                            channelId,
                         }),
                     })),
                 },

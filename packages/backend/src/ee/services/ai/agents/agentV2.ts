@@ -19,8 +19,10 @@ import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
+import { getGetProjectInfo } from '../tools/getProjectInfo';
 import { getImproveContext } from '../tools/improveContext';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
+import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
@@ -277,9 +279,19 @@ const getAgentTools = (
             : null;
     const generateUuids = getGenerateUuids();
 
+    const listProjects = getListProjects({
+        listProjects: dependencies.listProjects,
+    });
+
+    const getProjectInfo = getGetProjectInfo({
+        getProjectInfo: dependencies.getProjectInfo,
+    });
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
+        listProjects,
+        getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
         ...(args.enableAgentRevamp

@@ -21,11 +21,15 @@ export type AiWritebackRequestBody = {
  * - `exitCode` is the sandbox command's exit status.
  * - `prUrl` is the URL of the pull request opened from the agent's changes, or
  *   `null` when the agent made no file changes (nothing to raise a PR for).
+ * - `projectName` is the Lightdash project the run targeted.
+ * - `repository` is the GitHub repository (`owner/repo`) the run targeted.
  */
 export type AiWritebackRunResult = {
     output: string;
     exitCode: number;
     prUrl: string | null;
+    projectName: string;
+    repository: string;
 };
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;
