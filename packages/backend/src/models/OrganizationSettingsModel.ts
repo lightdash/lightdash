@@ -44,6 +44,8 @@ export class OrganizationSettingsModel {
             oidcLinkingEnabled: row?.oidc_linking_enabled ?? null,
             oidcToEmailLinkingEnabled:
                 row?.oidc_to_email_linking_enabled ?? null,
+            supportImpersonationEnabled:
+                row?.support_impersonation_enabled ?? null,
         };
     }
 
@@ -59,6 +61,7 @@ export class OrganizationSettingsModel {
         const columns: SettingsColumnPatch = {
             oidc_linking_enabled: patch.oidcLinkingEnabled,
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
+            support_impersonation_enabled: patch.supportImpersonationEnabled,
         };
         const toWrite = omitBy(
             columns,

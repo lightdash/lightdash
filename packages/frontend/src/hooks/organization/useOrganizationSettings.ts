@@ -40,11 +40,11 @@ export const useUpdateOrganizationSettings = () => {
         mutationKey: ['organization_settings', 'update'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(QUERY_KEY);
-            showToastSuccess({ title: 'Account linking settings saved' });
+            showToastSuccess({ title: 'Organization settings saved' });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save account linking settings',
+                title: 'Failed to save organization settings',
                 apiError: error,
             });
         },
