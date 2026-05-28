@@ -14,12 +14,14 @@ import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    applyLegendPlacementToGrid,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
     getStackTotalSeries,
+    mergeLegendSettings,
     padDatasetForContinuousAxis,
     selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
@@ -1290,5 +1292,187 @@ describe('getStackTotalSeries', () => {
             baseArgs.isStack100,
         );
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('mergeLegendSettings', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+
+    test('returns defaults when config is undefined', () => {
+        const result = mergeLegendSettings(undefined, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
+    test('passes through user orient/position when placement is unset', () => {
+        const result = mergeLegendSettings(
+            { orient: 'vertical', right: '10', top: '20' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '10',
+            top: '20',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideRight overrides orient/position, forces scroll, and truncates labels', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                type: 'plain', // should be overridden to 'scroll'
+                orient: 'horizontal', // should be overridden
+                left: '50', // should be wiped
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideLeft mirrors outsideRight and forces scroll', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideLeft', type: 'plain' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            left: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.right).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outside placement margins always use defaults, ignoring stale user values', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                // User has stale positional values from a prior Chart Area
+                // session; outside placement should ignore them and apply
+                // the canonical defaults.
+                top: '20%',
+                bottom: '5%',
+                right: '8%',
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            top: 'middle',
+            height: '80%',
+            right: '2%',
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+    });
+
+    test("placement 'custom' is treated as no override", () => {
+        const result = mergeLegendSettings(
+            { placement: 'custom', orient: 'vertical', right: '5' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '5',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+});
+
+describe('applyLegendPlacementToGrid', () => {
+    const baseGrid = {
+        containLabel: true,
+        left: '10px',
+        right: '10px',
+        top: '10px',
+        bottom: '10px',
+    };
+
+    test('returns the grid unchanged when legend is not shown', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            false,
+        );
+        expect(result).toEqual(baseGrid);
+    });
+
+    test('returns the grid unchanged when placement is custom/unset', () => {
+        expect(applyLegendPlacementToGrid(baseGrid, undefined, true)).toEqual(
+            baseGrid,
+        );
+        expect(
+            applyLegendPlacementToGrid(baseGrid, { placement: 'custom' }, true),
+        ).toEqual(baseGrid);
+    });
+
+    test('reserves 25% on the right when placement is outsideRight', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, right: '25%' });
+    });
+
+    test('reserves 25% on the left when placement is outsideLeft', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, left: '25%' });
+    });
+
+    test('user-set grid values override the default 25% reservation', () => {
+        const outsideRight = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+            { right: '40%' },
+        );
+        expect(outsideRight).toEqual({ ...baseGrid, right: '40%' });
+
+        const outsideLeft = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+            { left: '15%' },
+        );
+        expect(outsideLeft).toEqual({ ...baseGrid, left: '15%' });
     });
 });

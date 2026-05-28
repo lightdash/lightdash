@@ -57,6 +57,7 @@ import {
     type CartesianChart,
     type CustomDimension,
     type EChartsSeries,
+    type EchartsLegend,
     type Field,
     type Item,
     type ItemsMap,
@@ -356,22 +357,28 @@ const convertPivotValuesColumnsIntoMap = (
     );
 };
 
-const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
+const removeEmptyProperties = <
+    T extends Record<string, any> = Record<any, any>,
+>(
+    obj: T | undefined,
+): Partial<T> | undefined => {
     if (!obj) return undefined;
-    return Object.entries(obj).reduce(
+    return Object.entries(obj).reduce<Partial<T>>(
         (sum, [key, value]) =>
             value !== undefined && value !== ''
-                ? { ...sum, [key]: value }
+                ? { ...sum, [key as keyof T]: value }
                 : sum,
         {},
     );
 };
 
-const mergeLegendSettings = <T = Record<any, any>>(
+export const mergeLegendSettings = <
+    T extends Record<string, any> = Record<any, any>,
+>(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
     series: EChartsSeries[],
-) => {
+): Record<string, unknown> => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
     if (!normalizedConfig) {
         return {
@@ -382,15 +389,88 @@ const mergeLegendSettings = <T = Record<any, any>>(
             selected: legendsSelected,
         };
     }
+
+    const { placement, ...rest } = normalizedConfig;
+
+    // Truncate long series labels so they don't bleed into the plot area
+    // when the legend column is narrower than the label width. Hover shows
+    // the full label via the legend's built-in tooltip.
+    const outsideLegendOverflow = {
+        textStyle: {
+            overflow: 'truncate',
+            width: 150,
+        },
+        tooltip: { show: true },
+    };
+
+    if (placement === 'outsideRight') {
+        return {
+            ...rest,
+            // Force scroll: 'plain' wraps items into a grid that overruns the
+            // reserved grid.right margin when there are many series or long labels.
+            type: 'scroll',
+            orient: 'vertical',
+            // Center vertically: top 'middle' aligns the legend's centre with
+            // the canvas middle; height caps the bounding box so scroll
+            // pagination still works for legends with many series.
+            top: 'middle',
+            height: '80%',
+            right: '2%',
+            left: undefined,
+            bottom: undefined,
+            ...outsideLegendOverflow,
+            selected: legendsSelected,
+        };
+    }
+
+    if (placement === 'outsideLeft') {
+        return {
+            ...rest,
+            type: 'scroll',
+            orient: 'vertical',
+            top: 'middle',
+            height: '80%',
+            left: '2%',
+            right: undefined,
+            bottom: undefined,
+            ...outsideLegendOverflow,
+            selected: legendsSelected,
+        };
+    }
+
     return {
         orient: 'horizontal',
         // After echarts v6, the new default legend is positioned at bottom. We need to keep old behavior in placeholders
         // so we only define top 0 if there is no 'bottom' configuration.
-        // spreading `normalizedConfig` will overwrite top value if needed
-        top: 'bottom' in normalizedConfig ? undefined : 0,
-        ...normalizedConfig,
+        // spreading `rest` will overwrite top value if needed
+        top: 'bottom' in rest ? undefined : 0,
+        ...rest,
         selected: legendsSelected,
     };
+};
+
+type GridLike = {
+    containLabel: boolean;
+    left: string;
+    right: string;
+    top: string;
+    bottom: string;
+};
+
+export const applyLegendPlacementToGrid = (
+    grid: GridLike,
+    legendConfig: Pick<EchartsLegend, 'placement'> | undefined,
+    isLegendShown: boolean,
+    userGrid?: { left?: string; right?: string },
+): GridLike => {
+    if (!isLegendShown) return grid;
+    if (legendConfig?.placement === 'outsideRight') {
+        return { ...grid, right: userGrid?.right ?? '25%' };
+    }
+    if (legendConfig?.placement === 'outsideLeft') {
+        return { ...grid, left: userGrid?.left ?? '25%' };
+    }
+    return grid;
 };
 
 const minDate = (a: number | string, b: string) => {
@@ -3327,6 +3407,15 @@ const useEchartsCartesianConfig = (
         if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
             grid.top = addPx(grid.top, legendTopSpacing);
         }
+
+        const gridWithPlacement = applyLegendPlacementToGrid(
+            grid,
+            legendConfig,
+            isLegendShown,
+            validCartesianConfig?.eChartsConfig.grid,
+        );
+        grid.left = gridWithPlacement.left;
+        grid.right = gridWithPlacement.right;
 
         const gridLeft = grid.left;
         const gridRight = grid.right;

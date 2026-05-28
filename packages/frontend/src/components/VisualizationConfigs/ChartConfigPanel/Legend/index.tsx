@@ -6,6 +6,7 @@ import {
     type CustomDimension,
     type EchartsLegend,
     type Field,
+    type LegendPlacement,
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
@@ -17,9 +18,11 @@ import {
     Stack,
     Switch,
 } from '@mantine/core';
-import { lazy, Suspense, useMemo, type FC } from 'react';
+import { useDebouncedCallback } from '@mantine-8/hooks';
+import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
+import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
@@ -44,6 +47,37 @@ enum Positions {
 type MarginConfigurationProps = {
     legendConfig: EchartsLegend;
     handleChange: (prop: string, newValue: string | undefined) => void;
+};
+
+type LegendAreaWidthInputProps = {
+    /** Initial value from the chart's grid config. */
+    initialValue: string;
+    /** Called with the debounced value so the chart re-renders less often. */
+    onCommit: (value: string) => void;
+};
+
+const LegendAreaWidthInput: FC<LegendAreaWidthInputProps> = ({
+    initialValue,
+    onCommit,
+}) => {
+    const [value, setValue] = useState(initialValue);
+    const debouncedOnCommit = useDebouncedCallback(onCommit, 300);
+
+    return (
+        <UnitInput
+            size="xs"
+            w={80}
+            name="legendAreaWidth"
+            units={['%', 'px']}
+            value={value}
+            defaultValue={initialValue}
+            onChange={(next) => {
+                const v = next ?? '';
+                setValue(v);
+                if (v) debouncedOnCommit(v);
+            }}
+        />
+    );
 };
 
 const PositionConfiguration: FC<MarginConfigurationProps> = ({
@@ -153,7 +187,8 @@ export const Legend: FC<Props> = ({ items }) => {
     }, [visualizationConfig, items]);
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
-    const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
+    const { dirtyEchartsConfig, setLegend, setGrid } =
+        visualizationConfig.chartConfig;
 
     const legendConfig = dirtyEchartsConfig?.legend ?? {};
 
@@ -184,45 +219,119 @@ export const Legend: FC<Props> = ({ items }) => {
                     <Collapse in={legendConfig.show ?? showDefault}>
                         <Stack spacing="xs">
                             <Group spacing="xs">
-                                <Config.Label>Scroll behavior</Config.Label>
+                                <Config.Label>Placement</Config.Label>
                                 <SegmentedControl
-                                    value={
-                                        dirtyEchartsConfig?.legend?.type ??
-                                        'scroll'
-                                    }
-                                    data={[
-                                        { label: 'Scroll', value: 'scroll' },
-                                        { label: 'Wrap', value: 'plain' },
-                                    ]}
-                                    onChange={(value) =>
-                                        handleChange('type', value)
-                                    }
-                                />
-                            </Group>
-                            <Group spacing="xs">
-                                <Config.Label>Orientation</Config.Label>
-                                <SegmentedControl
-                                    name="orient"
-                                    value={legendConfig.orient ?? 'horizontal'}
+                                    name="placement"
+                                    value={legendConfig.placement ?? 'custom'}
                                     onChange={(val) =>
-                                        handleChange('orient', val)
+                                        handleChange(
+                                            'placement',
+                                            val as LegendPlacement,
+                                        )
                                     }
                                     data={[
                                         {
-                                            label: 'Horizontal',
-                                            value: 'horizontal',
+                                            label: 'Chart area',
+                                            value: 'custom',
                                         },
                                         {
-                                            label: 'Vertical',
-                                            value: 'vertical',
+                                            label: 'Outside right',
+                                            value: 'outsideRight',
+                                        },
+                                        {
+                                            label: 'Outside left',
+                                            value: 'outsideLeft',
                                         },
                                     ]}
                                 />
                             </Group>
-                            <PositionConfiguration
-                                legendConfig={legendConfig}
-                                handleChange={handleChange}
-                            />
+                            {(legendConfig.placement ?? 'custom') ===
+                                'custom' && (
+                                <>
+                                    <Group spacing="xs">
+                                        <Config.Label>
+                                            Scroll behavior
+                                        </Config.Label>
+                                        <SegmentedControl
+                                            value={
+                                                dirtyEchartsConfig?.legend
+                                                    ?.type ?? 'scroll'
+                                            }
+                                            data={[
+                                                {
+                                                    label: 'Scroll',
+                                                    value: 'scroll',
+                                                },
+                                                {
+                                                    label: 'Wrap',
+                                                    value: 'plain',
+                                                },
+                                            ]}
+                                            onChange={(value) =>
+                                                handleChange('type', value)
+                                            }
+                                        />
+                                    </Group>
+                                    <Group spacing="xs">
+                                        <Config.Label>Orientation</Config.Label>
+                                        <SegmentedControl
+                                            name="orient"
+                                            value={
+                                                legendConfig.orient ??
+                                                'horizontal'
+                                            }
+                                            onChange={(val) =>
+                                                handleChange('orient', val)
+                                            }
+                                            data={[
+                                                {
+                                                    label: 'Horizontal',
+                                                    value: 'horizontal',
+                                                },
+                                                {
+                                                    label: 'Vertical',
+                                                    value: 'vertical',
+                                                },
+                                            ]}
+                                        />
+                                    </Group>
+                                    <PositionConfiguration
+                                        legendConfig={legendConfig}
+                                        handleChange={handleChange}
+                                    />
+                                </>
+                            )}
+                            {(legendConfig.placement === 'outsideRight' ||
+                                legendConfig.placement === 'outsideLeft') && (
+                                <Group spacing="xs">
+                                    <Config.Label>
+                                        Legend area width
+                                    </Config.Label>
+                                    <LegendAreaWidthInput
+                                        key={legendConfig.placement}
+                                        initialValue={
+                                            (legendConfig.placement ===
+                                            'outsideRight'
+                                                ? dirtyEchartsConfig?.grid
+                                                      ?.right
+                                                : dirtyEchartsConfig?.grid
+                                                      ?.left) || '25%'
+                                        }
+                                        onCommit={(value) => {
+                                            const gridSide =
+                                                legendConfig.placement ===
+                                                'outsideRight'
+                                                    ? 'right'
+                                                    : 'left';
+                                            setGrid({
+                                                ...(dirtyEchartsConfig?.grid ??
+                                                    {}),
+                                                [gridSide]: value,
+                                            });
+                                        }}
+                                    />
+                                </Group>
+                            )}
                         </Stack>
                     </Collapse>
                 </Config.Section>
