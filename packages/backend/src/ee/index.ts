@@ -17,6 +17,7 @@ import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
+import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -32,6 +33,7 @@ import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
+import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiService } from './services/AiService/AiService';
@@ -201,6 +203,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    lightdashConfig: context.lightdashConfig,
+                }),
+            aiAgentReviewClassifierService: ({ models, repository, context }) =>
+                new AiAgentReviewClassifierService({
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    catalogModel: models.getCatalogModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
@@ -502,6 +513,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
+            aiAgentReviewClassifierModel: ({ database }) =>
+                new AiAgentReviewClassifierModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
