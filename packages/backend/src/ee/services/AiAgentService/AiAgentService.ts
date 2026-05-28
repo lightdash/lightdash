@@ -5084,6 +5084,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const getProjectInfo: GetProjectInfoFn = () =>
             wrapSentryTransaction('AiAgent.getProjectInfo', {}, async () => {
+                // Re-check view permission on every call (matches listProjects)
+                // so a user who lost access mid-session can't still pull the
+                // project's dbt/git/warehouse details.
+                const auditedAbility = this.createAuditedAbility(user);
+                if (
+                    auditedAbility.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You do not have permission to view this project',
+                    );
+                }
+
                 // projectModel.get() already strips sensitive dbt/warehouse
                 // credentials. We still whitelist fields explicitly so we never
                 // surface anything that isn't scrubbed (e.g. installation_id or
