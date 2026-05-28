@@ -13,7 +13,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
-import { Sandbox } from 'e2b';
+import { CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -858,6 +858,16 @@ export class AiWritebackService extends BaseService {
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
 
+        // Rolling tail of stderr so a non-zero exit / timeout can carry the
+        // actual error text into the Sentry event. The full stderr is already
+        // streamed through the per-chunk debug log; we keep only the last
+        // STDERR_TAIL_BYTES so we never inflate a Sentry payload.
+        const STDERR_TAIL_BYTES = 4096;
+        let stderrTail = '';
+        const appendStderrTail = (chunk: string) => {
+            stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
+        };
+
         const summarizeToolInput = (input: unknown): string => {
             if (input && typeof input === 'object') {
                 const i = input as Record<string, unknown>;
@@ -940,35 +950,84 @@ export class AiWritebackService extends BaseService {
         };
 
         const continueFlag = isResume ? '--continue ' : '';
-        const result = await sandbox.commands.run(
-            `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
-                `--model ${CLAUDE_MODEL} ` +
-                `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
-                // stream-json emits one event per line on stdout (assistant
-                // messages, tool_use blocks, tool_results, final cost summary).
-                // --verbose is required by the CLI when combining -p with
-                // stream-json output.
-                '--output-format stream-json --verbose ' +
-                // Claude Code confines Write/Edit to the cwd workspace, so the
-                // agent cannot write the PR metadata to /tmp (it silently falls
-                // back to the repo root) unless /tmp is an added directory.
-                '--add-dir /tmp ' +
-                `--allowedTools "${ALLOWED_TOOLS}"`,
-            {
-                cwd: CWD,
-                timeoutMs: RUN_TIMEOUT_MS,
-                envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
-                onStdout: (chunk) => {
-                    buffer += chunk;
-                    flushBuffer();
+        let result;
+        try {
+            result = await sandbox.commands.run(
+                `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
+                    `--model ${CLAUDE_MODEL} ` +
+                    `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
+                    // stream-json emits one event per line on stdout (assistant
+                    // messages, tool_use blocks, tool_results, final cost summary).
+                    // --verbose is required by the CLI when combining -p with
+                    // stream-json output.
+                    '--output-format stream-json --verbose ' +
+                    // Claude Code confines Write/Edit to the cwd workspace, so the
+                    // agent cannot write the PR metadata to /tmp (it silently falls
+                    // back to the repo root) unless /tmp is an added directory.
+                    '--add-dir /tmp ' +
+                    `--allowedTools "${ALLOWED_TOOLS}"`,
+                {
+                    cwd: CWD,
+                    timeoutMs: RUN_TIMEOUT_MS,
+                    envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
+                    onStdout: (chunk) => {
+                        buffer += chunk;
+                        flushBuffer();
+                    },
+                    onStderr: (chunk) => {
+                        appendStderrTail(chunk);
+                        this.logger.debug(
+                            `AiWriteback: claude stderr: ${chunk.trimEnd()}`,
+                        );
+                    },
                 },
-                onStderr: (chunk) => {
-                    this.logger.debug(
-                        `AiWriteback: claude stderr: ${chunk.trimEnd()}`,
-                    );
+            );
+        } catch (error) {
+            // e2b throws TimeoutError when RUN_TIMEOUT_MS fires, and
+            // CommandExitError when the claude subprocess returns a non-zero
+            // exit code. Both reach Sentry as the bare message ("exit status
+            // 1") with no stderr — useless for debugging. Capture here so the
+            // rich context (timeout flag, exit code, stderr tail) is attached
+            // before the error bubbles up to the outer wrapSentryTransaction
+            // catch (Sentry's Dedupe integration collapses the two events).
+            const timedOut = error instanceof TimeoutError;
+            const exitCode =
+                error instanceof CommandExitError ? error.exitCode : null;
+            // Prefer the error's stderr (e2b accumulates it server-side and
+            // attaches it to CommandExitError) and fall back to our streamed
+            // tail; both are clipped to STDERR_TAIL_BYTES so the payload stays
+            // small.
+            const errStderr =
+                error instanceof CommandExitError ? (error.stderr ?? '') : '';
+            const stderrSnippet = (errStderr || stderrTail).slice(
+                -STDERR_TAIL_BYTES,
+            );
+            this.logger.error('AI writeback agent subprocess failed', {
+                event: 'ai_writeback.run.agent_failed',
+                sandboxId: sandbox.sandboxId,
+                isResume,
+                timedOut,
+                runTimeoutMs: RUN_TIMEOUT_MS,
+                exitCode,
+                errorMessage: getErrorMessage(error),
+                stderrTail: stderrSnippet || null,
+            });
+            Sentry.captureException(error, {
+                tags: {
+                    errorType: 'AiWritebackAgentSubprocessFailed',
+                    timedOut: String(timedOut),
                 },
-            },
-        );
+                extra: {
+                    sandboxId: sandbox.sandboxId,
+                    isResume,
+                    runTimeoutMs: RUN_TIMEOUT_MS,
+                    exitCode,
+                    stderrTail: stderrSnippet,
+                    toolCounts,
+                },
+            });
+            throw error;
+        }
         // A final line may remain in the buffer if the command output didn't
         // end with a newline (common on timeouts/aborts) — try to parse it but
         // don't fail the run if it's truncated.
