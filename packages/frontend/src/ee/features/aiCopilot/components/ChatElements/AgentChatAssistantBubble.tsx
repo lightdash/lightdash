@@ -1173,6 +1173,7 @@ export const AssistantBubble: FC<Props> = memo(
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
                             modelConfig={message.modelConfig}
+                            totalTokens={message.tokenUsage?.totalTokens}
                         />
                     </Group>
                 )}

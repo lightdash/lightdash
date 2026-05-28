@@ -2841,6 +2841,7 @@ export class AiAgentModel {
                     | 'human_feedback'
                     | 'saved_query_uuid'
                     | 'model_config'
+                    | 'token_usage'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -2862,6 +2863,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
+                `${AiPromptTableName}.token_usage`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -2953,6 +2955,7 @@ export class AiAgentModel {
                 artifacts: artifacts ?? null,
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
+                tokenUsage: row.token_usage,
                 toolCalls: toolCalls
                     .filter((tc) => isAiAgentToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -3528,6 +3531,7 @@ export class AiAgentModel {
                     | 'human_feedback'
                     | 'saved_query_uuid'
                     | 'model_config'
+                    | 'token_usage'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -3549,6 +3553,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
+                `${AiPromptTableName}.token_usage`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -3677,6 +3682,7 @@ export class AiAgentModel {
                     artifacts: artifacts.length > 0 ? artifacts : null,
                     referencedArtifacts,
                     modelConfig: row.model_config,
+                    tokenUsage: row.token_usage,
                     toolCalls: toolCalls
                         .filter((tc) => isAiAgentToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),

@@ -19,6 +19,7 @@ import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import {
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptTokenUsage,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { ToolNameSchema } from './schemas/visualizations';
@@ -248,6 +249,7 @@ export type AiAgentMessageAssistant = {
         modelProvider: string;
         reasoning?: boolean;
     } | null;
+    tokenUsage: AiPromptTokenUsage | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
