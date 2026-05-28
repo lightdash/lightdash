@@ -1,7 +1,6 @@
 import {
     DashboardSearchResult,
-    toolGetDashboardChartsArgsSchema,
-    toolGetDashboardChartsOutputSchema,
+    getDashboardChartsToolDefinition,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
@@ -15,6 +14,8 @@ type Dependencies = {
     siteUrl: string;
     pageSize: number;
 };
+
+const toolDefinition = getDashboardChartsToolDefinition.for('agent');
 
 const renderChart = (chart: DashboardSearchResult['charts'][number]) => (
     <chart
@@ -39,9 +40,8 @@ export const getGetDashboardCharts = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolGetDashboardChartsArgsSchema.description,
-        inputSchema: toolGetDashboardChartsArgsSchema,
-        outputSchema: toolGetDashboardChartsOutputSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         execute: async (args) => {
             try {
                 const page = args.page ?? 1;

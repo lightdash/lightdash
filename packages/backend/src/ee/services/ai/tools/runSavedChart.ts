@@ -1,7 +1,6 @@
 import {
     getValidAiQueryLimit,
-    toolRunSavedChartArgsSchema,
-    toolRunSavedChartOutputSchema,
+    runSavedChartToolDefinition,
     type AiMetricQueryWithFilters,
     type MetricQuery,
 } from '@lightdash/common';
@@ -24,6 +23,8 @@ type Dependencies = {
     maxLimit: number;
     enableDataAccess: boolean;
 };
+
+const toolDefinition = runSavedChartToolDefinition.for('agent');
 
 /**
  * Builds a structural summary the LLM can read to understand what the saved
@@ -94,9 +95,8 @@ export const getRunSavedChart = ({
     enableDataAccess,
 }: Dependencies) =>
     tool({
-        description: toolRunSavedChartArgsSchema.description,
-        inputSchema: toolRunSavedChartArgsSchema,
-        outputSchema: toolRunSavedChartOutputSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         execute: async ({ chartUuid }) => {
             try {
                 await updateProgress('Running saved chart...');

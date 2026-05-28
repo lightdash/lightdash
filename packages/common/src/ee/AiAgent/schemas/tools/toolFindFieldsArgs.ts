@@ -16,9 +16,7 @@ Usage tips:
 - Results are paginated — use the next page token to get more results if needed.
 `;
 
-export const toolFindFieldsArgsSchema = createToolSchema({
-    description: TOOL_FIND_FIELDS_DESCRIPTION,
-})
+export const toolFindFieldsArgsSchema = createToolSchema()
     .extend({
         table: z.string().describe('The table to search in.'),
         fieldSearchQueries: z.array(

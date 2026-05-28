@@ -44,7 +44,9 @@ const agentToolSnapshot = (name: string, toolDefinition: SnapshotTool) => ({
     name,
     description: toolDefinition.description,
     inputSchema: schemaToJson(toolDefinition.inputSchema),
-    outputSchema: schemaToJson(toolDefinition.outputSchema),
+    ...(toolDefinition.outputSchema
+        ? { outputSchema: schemaToJson(toolDefinition.outputSchema) }
+        : {}),
 });
 
 const makeAgentTools = () => {

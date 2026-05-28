@@ -7,9 +7,8 @@ import {
     getTotalFilterRules,
     getValidAiQueryLimit,
     isSlackPrompt,
-    toolRunQueryArgsSchema,
+    runQueryToolDefinition,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryOutputSchema,
     type Explore,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
@@ -57,6 +56,8 @@ type Dependencies = {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
 };
+
+const toolDefinition = runQueryToolDefinition.for('agent');
 
 export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
@@ -175,9 +176,8 @@ export const getRunQuery = ({
     enableSelfImprovement,
 }: Dependencies) =>
     tool({
-        description: toolRunQueryArgsSchema.description,
-        inputSchema: toolRunQueryArgsSchema,
-        outputSchema: toolRunQueryOutputSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');

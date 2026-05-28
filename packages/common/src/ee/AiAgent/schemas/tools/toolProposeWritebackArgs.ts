@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+export const TOOL_PROPOSE_WRITEBACK_DESCRIPTION = [
+    'Open a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
+    'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
+    'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those).',
+    'The writeback agent runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes.',
+].join(' ');
+
+export const toolProposeWritebackArgsSchema = z.object({
+    prompt: z
+        .string()
+        .min(1)
+        .describe(
+            'A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.',
+        ),
+});
+
 export const toolProposeWritebackOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
@@ -12,6 +28,10 @@ export const toolProposeWritebackOutputSchema = z.object({
         }),
     ]),
 });
+
+export type ToolProposeWritebackArgs = z.infer<
+    typeof toolProposeWritebackArgsSchema
+>;
 
 export type ToolProposeWritebackOutput = z.infer<
     typeof toolProposeWritebackOutputSchema

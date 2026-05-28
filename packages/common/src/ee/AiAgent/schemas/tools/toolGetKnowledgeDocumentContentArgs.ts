@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION = `Tool: get_knowledge_document_content
+export const TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION = `Tool: get_knowledge_document_content
 
 Purpose:
 Read the full text content of a single knowledge document by its uuid. Use this after list_knowledge_documents has surfaced a document whose summary looks relevant to the current task.
@@ -18,9 +18,7 @@ Parameters:
 - documentUuid: The uuid of the document to read, taken from a previous list_knowledge_documents result.
 `;
 
-export const toolGetKnowledgeDocumentContentArgsSchema = createToolSchema({
-    description: TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
-})
+export const toolGetKnowledgeDocumentContentArgsSchema = createToolSchema()
     .extend({
         documentUuid: z
             .string()

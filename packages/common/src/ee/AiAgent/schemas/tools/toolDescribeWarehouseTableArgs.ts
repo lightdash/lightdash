@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Tool: describe_warehouse_table
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Tool: describe_warehouse_table
 
 Purpose:
 Return the column names + types of a single raw warehouse table. Use this to learn the exact schema of a raw / staging / seed table that is NOT exposed via an explore, so you can write correct runSql on the first attempt.
@@ -23,9 +23,7 @@ Parameters:
 - schema: Optional. The schema name (e.g. "jaffle"). If omitted, the project's default schema is used.
 `;
 
-export const toolDescribeWarehouseTableArgsSchema = createToolSchema({
-    description: TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
-})
+export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
     .extend({
         table: z
             .string()
@@ -44,4 +42,15 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema({
 
 export type ToolDescribeWarehouseTableArgs = z.infer<
     typeof toolDescribeWarehouseTableArgsSchema
+>;
+
+export const toolDescribeWarehouseTableOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.object({
+        status: z.enum(['success', 'not_found', 'error']),
+    }),
+});
+
+export type ToolDescribeWarehouseTableOutput = z.infer<
+    typeof toolDescribeWarehouseTableOutputSchema
 >;

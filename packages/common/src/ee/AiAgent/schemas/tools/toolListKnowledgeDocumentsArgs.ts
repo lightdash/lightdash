@@ -1,7 +1,8 @@
-import { type z } from 'zod';
+import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION = `Tool: list_knowledge_documents
+export const TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION = `Tool: list_knowledge_documents
 
 Purpose:
 List the knowledge documents that have been curated for this AI agent by the organization. These are short, user-written reference notes (business rules, glossaries, definitions, policies, runbooks, domain background) intended to extend the agent's understanding of the project beyond what the semantic layer and warehouse schema describe.
@@ -21,10 +22,17 @@ Parameters:
 - (no parameters)
 `;
 
-export const toolListKnowledgeDocumentsArgsSchema = createToolSchema({
-    description: TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
-}).build();
+export const toolListKnowledgeDocumentsArgsSchema = createToolSchema().build();
+
+export const toolListKnowledgeDocumentsOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
 
 export type ToolListKnowledgeDocumentsArgs = z.infer<
     typeof toolListKnowledgeDocumentsArgsSchema
+>;
+
+export type ToolListKnowledgeDocumentsOutput = z.infer<
+    typeof toolListKnowledgeDocumentsOutputSchema
 >;

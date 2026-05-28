@@ -1,6 +1,6 @@
 import {
     ContentType,
-    toolListContentArgsSchema,
+    listContentToolDefinition,
     toolListContentOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -12,6 +12,8 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     listContent: ListContentFn;
 };
+
+const toolDefinition = listContentToolDefinition.for('agent');
 
 const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
     <contentList
@@ -46,8 +48,8 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
 
 export const getListContent = ({ listContent }: Dependencies) =>
     tool({
-        description: toolListContentArgsSchema.description,
-        inputSchema: toolListContentArgsSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         outputSchema: toolListContentOutputSchema,
         execute: async (args) => {
             try {

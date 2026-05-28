@@ -27,27 +27,6 @@ Parameters:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: describe_warehouse_table
-
-Purpose:
-Return the column names + types of a single raw warehouse table. Use this to learn the exact schema of a raw / staging / seed table that is NOT exposed via an explore, so you can write correct runSql on the first attempt.
-
-Returns: { columns: [{ name, type }, ...] }. Pulled from cached metadata, fast, NO user approval required.
-
-When to use:
-- You're about to write runSql against a raw table and need its columns (e.g. to confirm a join key exists).
-- A previous runSql failed with "column does not exist" or similar. Use this to recover, then retry the SQL ONCE.
-- The user asked about a raw table that isn't part of any explore.
-
-Do NOT use:
-- For columns of explore-backed tables — use findFields instead.
-- As a substitute for runSql — this returns schema only, not data.
-- For schema-wide listings — use listWarehouseTables to find table names first.
-
-Parameters:
-- table: Required. The unqualified table name (e.g. "raw_parts", not "jaffle.raw_parts").
-- schema: Optional. The schema name (e.g. "jaffle"). If omitted, the project's default schema is used.
-",
       "properties": {
         "schema": {
           "description": "Optional schema name. Defaults to the project's default schema if omitted.",
@@ -65,7 +44,6 @@ Parameters:
       "type": "object",
     },
     "name": "describeWarehouseTable",
-    "outputSchema": null,
   },
   {
     "description": "Tool: discoverFields
@@ -105,14 +83,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "discoverFields",
-    "outputSchema": null,
   },
   {
     "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
       "properties": {
         "content": {
           "anyOf": [
@@ -290,7 +266,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.",
       "properties": {
         "patch": {
           "description": "RFC6902 Patch to apply to the current dashboard or chart JSON.",
@@ -316,36 +291,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "editContent",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: "findContent"
@@ -364,19 +309,6 @@ Usage tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: "findContent"
-Purpose:
-Finds charts or dashboards by name or description within a project, returning detailed information about each.
-
-Usage tips:
-- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
-- The search engine understands natural language and context — more descriptive queries yield better results.
-- You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
-- If results aren't relevant, retry with the full user query or more specific terms.
-- Dashboards with validation errors will be deprioritized.
-- Returns chart and dashboard URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
-- It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
       "properties": {
         "searchQueries": {
           "items": {
@@ -401,36 +333,6 @@ Usage tips:
       "type": "object",
     },
     "name": "findContent",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: findExplores
@@ -450,20 +352,6 @@ Output:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: findExplores
-
-Purpose:
-Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.
-IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
-
-Parameters:
-- searchQuery: Full user query for finding relevant explores
-
-Output:
-- Selected explore with all fields and metadata (including fields from joined tables)
-- Alternative explores (if multiple matches) with searchRank scores
-- Top matching fields with their explore names and searchRank scores
-",
       "properties": {
         "searchQuery": {
           "description": "The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.",
@@ -476,131 +364,6 @@ Output:
       "type": "object",
     },
     "name": "findExplores",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "ranking": {
-              "additionalProperties": false,
-              "properties": {
-                "exploreSearchResults": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "joinedTables": {
-                        "anyOf": [
-                          {
-                            "items": {
-                              "type": "string",
-                            },
-                            "type": "array",
-                          },
-                          {
-                            "type": "null",
-                          },
-                        ],
-                      },
-                      "label": {
-                        "type": "string",
-                      },
-                      "name": {
-                        "type": "string",
-                      },
-                      "searchRank": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                    },
-                    "required": [
-                      "name",
-                      "label",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-                "searchQuery": {
-                  "type": "string",
-                },
-                "topMatchingFields": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "chartUsage": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "fieldType": {
-                        "type": "string",
-                      },
-                      "label": {
-                        "type": "string",
-                      },
-                      "name": {
-                        "type": "string",
-                      },
-                      "searchRank": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "tableName": {
-                        "type": "string",
-                      },
-                      "verifiedChartUsage": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                    },
-                    "required": [
-                      "name",
-                      "label",
-                      "tableName",
-                      "fieldType",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "searchQuery",
-              ],
-              "type": "object",
-            },
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: "findFields"
@@ -619,19 +382,6 @@ Usage tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: "findFields"
-
-Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
-
-Usage tips:
-- Use "findExplores" first to discover available Explores and their field labels.
-- Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
-- Pass all needed fields in one request.
-- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
-- If results aren't relevant, retry with clearer or more specific terms.
-- Results are paginated — use the next page token to get more results if needed.
-",
       "properties": {
         "fieldSearchQueries": {
           "items": {
@@ -674,130 +424,6 @@ Usage tips:
       "type": "object",
     },
     "name": "findFields",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "ranking": {
-              "additionalProperties": false,
-              "properties": {
-                "searchQueries": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "label": {
-                        "type": "string",
-                      },
-                      "pagination": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "page": {
-                            "type": "number",
-                          },
-                          "pageSize": {
-                            "type": "number",
-                          },
-                          "totalPageCount": {
-                            "type": "number",
-                          },
-                          "totalResults": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "page",
-                          "pageSize",
-                          "totalResults",
-                          "totalPageCount",
-                        ],
-                        "type": "object",
-                      },
-                      "results": {
-                        "items": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "chartUsage": {
-                              "type": [
-                                "number",
-                                "null",
-                              ],
-                            },
-                            "fieldType": {
-                              "type": "string",
-                            },
-                            "label": {
-                              "type": "string",
-                            },
-                            "name": {
-                              "type": "string",
-                            },
-                            "searchRank": {
-                              "type": [
-                                "number",
-                                "null",
-                              ],
-                            },
-                            "tableName": {
-                              "type": "string",
-                            },
-                            "verifiedChartUsage": {
-                              "type": [
-                                "number",
-                                "null",
-                              ],
-                            },
-                          },
-                          "required": [
-                            "name",
-                            "label",
-                            "tableName",
-                            "fieldType",
-                          ],
-                          "type": "object",
-                        },
-                        "type": "array",
-                      },
-                    },
-                    "required": [
-                      "label",
-                      "results",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "searchQueries",
-              ],
-              "type": "object",
-            },
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "
@@ -821,24 +447,6 @@ Recommended Dashboard Structure:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "
-
-Use this tool to generate multiple visualizations for a dashboard based on a specific theme.
-
-Instead of making multiple parallel tool calls for individual visualizations, this tool takes an array of visualization configurations and generates them all at once, ensuring thematic consistency and better performance.
-
-Dashboard Design Philosophy:
-Create "summary" or "executive" level dashboards that provide high-level overviews of specific topics (e.g., Support Dashboard, Revenue Performance, Sales Operations). These dashboards should be designed to monitor trends and key metric performance at a glance.
-
-Recommended Dashboard Structure:
-1. **Summary Metrics at the Top**: Start with key performance indicators (KPIs) as tables showing overall summary metrics
-2. **Time-Series Analysis**: Include time-series charts (line or area charts) to show how metrics trend over time
-3. **Categorical Comparisons**: Use bar or horizontal bar charts to compare metrics across categories
-4. **Proportional Analysis**: Use pie charts to show part-to-whole relationships (e.g., market share, revenue by segment)
-5. **Correlation Analysis**: Use scatter plots to explore relationships between two metrics
-6. **Conversion Flows**: Use funnel charts to visualize sequential conversion processes (e.g., sales funnel, user onboarding)
-7. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
-",
       "properties": {
         "description": {
           "description": "A descriptive summary or explanation for the dashboard.",
@@ -852,38 +460,6 @@ Recommended Dashboard Structure:
           "description": "Array of visualization configurations to generate for this dashboard. Each should contribute to the overall theme and leverage the available chart types (table, bar, horizontal, line, scatter, pie, funnel).",
           "items": {
             "additionalProperties": false,
-            "description": "Tool: runQuery
-
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
-
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
-
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
-- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
-",
             "properties": {
               "chartConfig": {
                 "anyOf": [
@@ -2446,43 +2022,12 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateDashboard",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Generate one or more UUIDs to use as stable identifiers when creating new objects.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Generate one or more UUIDs to use as stable identifiers when creating new objects.",
       "properties": {
         "count": {
           "description": "Number of UUIDs to generate.",
@@ -2497,36 +2042,6 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateUuids",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: "getDashboardCharts"
@@ -2541,15 +2056,6 @@ Usage tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: "getDashboardCharts"
-Purpose:
-Retrieves the list of charts within a specific dashboard, with pagination support.
-
-Usage tips:
-- Use this tool after "findContent" to drill into a specific dashboard's charts.
-- Requires a dashboardUuid, which you can get from "findContent" results. Also pass the dashboardName for display purposes.
-- Results are paginated — use the page parameter to get more results if needed.
-- Each chart includes its name, description, type, and view count.",
       "properties": {
         "dashboardName": {
           "description": "The name of the dashboard (for display purposes). Obtained from findContent results.",
@@ -2579,36 +2085,6 @@ Usage tips:
       "type": "object",
     },
     "name": "getDashboardCharts",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: get_knowledge_document_content
@@ -2630,22 +2106,6 @@ Parameters:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: get_knowledge_document_content
-
-Purpose:
-Read the full text content of a single knowledge document by its uuid. Use this after list_knowledge_documents has surfaced a document whose summary looks relevant to the current task.
-
-When to use:
-- A summary from list_knowledge_documents indicates the document contains information you need.
-- The user explicitly asks you to read a specific document.
-
-Do NOT use:
-- Before calling list_knowledge_documents — you need a uuid first.
-- Repeatedly for the same uuid in one turn — the content does not change between calls.
-
-Parameters:
-- documentUuid: The uuid of the document to read, taken from a previous list_knowledge_documents result.
-",
       "properties": {
         "documentUuid": {
           "description": "Uuid of the document to read.",
@@ -2659,58 +2119,6 @@ Parameters:
       "type": "object",
     },
     "name": "getKnowledgeDocumentContent",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "properties": {
-                "contentSizeBytes": {
-                  "type": "number",
-                },
-                "name": {
-                  "type": "string",
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "name",
-                "contentSizeBytes",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "error",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "
@@ -2734,24 +2142,6 @@ Captures learnings from user corrections, clarifications, and guidance to improv
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "
-Captures learnings from user corrections, clarifications, and guidance to improve future responses.
-
-**Supported Learning Categories:**
-- explore_selection: Which tables/explores to use for specific types of queries
-- field_selection: Which fields to use for specific metrics or dimensions
-- filter_logic: How to apply filters for calculations
-- calculation: How to perform specific calculations or aggregations
-- other: General preferences, formatting, or methodologies
-
-**Technical Requirements:**
-- Must provide original query context that led to the learning
-- Must capture what was incorrect and what the correct approach is
-- Must categorize the learning into one of the supported categories
-- Must provide a confidence score (0-1) indicating if this is a learnable pattern
-- Must generate a clear, actionable instruction to append to agent settings
-- Instructions should be specific and context-aware (not overly generic)
-",
       "properties": {
         "category": {
           "description": "Category of the learning",
@@ -2798,36 +2188,6 @@ Captures learnings from user corrections, clarifications, and guidance to improv
       "type": "object",
     },
     "name": "improveContext",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: "listContent"
@@ -2842,15 +2202,6 @@ Usage tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: "listContent"
-Purpose:
-Lists accessible Lightdash content in a project as a browsable hierarchy.
-
-Usage tips:
-- By default, lists root-level spaces.
-- Pass a spaceSlug to list direct children and content inside that space.
-- Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, and space content counts.",
       "properties": {
         "page": {
           "anyOf": [
@@ -2933,30 +2284,10 @@ Parameters:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: list_knowledge_documents
-
-Purpose:
-List the knowledge documents that have been curated for this AI agent by the organization. These are short, user-written reference notes (business rules, glossaries, definitions, policies, runbooks, domain background) intended to extend the agent's understanding of the project beyond what the semantic layer and warehouse schema describe.
-
-Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with get_knowledge_document_content.
-
-When to use:
-- At the start of a task, to discover what curated knowledge exists that might be relevant.
-- When the user references a concept that might be defined in business documentation (e.g. "what counts as an active user", "how do we classify a refund").
-- When you need background or policy context that the data warehouse alone cannot provide.
-
-Do NOT use:
-- For data queries — use runQuery / runSql / findFields instead.
-- For schema or table discovery — use findExplores / listWarehouseTables instead.
-
-Parameters:
-- (no parameters)
-",
       "properties": {},
       "type": "object",
     },
     "name": "listKnowledgeDocuments",
-    "outputSchema": null,
   },
   {
     "description": "Tool: list_warehouse_tables
@@ -2983,27 +2314,6 @@ Parameters:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: list_warehouse_tables
-
-Purpose:
-List physical tables available in the connected data warehouse. Use this BEFORE writing a runSql call when you need to discover the correct schema or table name for a table that isn't already exposed via an explore.
-
-Returns a list of fully-qualified tables (database, schema, table). Results come from a cached metadata catalog, so this is fast and does NOT require user approval.
-
-When to use:
-- You want to write raw SQL and need the qualified table name (database.schema.table) on the first try.
-- You're looking for a raw / staging / seed table that isn't surfaced by findExplores.
-- You're trying to confirm a schema name before writing SQL.
-
-Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
-- To run ad-hoc queries — use runSql.
-
-Parameters:
-- schema: Optional. Filter results to a specific schema name (e.g. "jaffle", "public", "raw").
-- search: Optional. Case-insensitive substring filter on table name (e.g. "work_order").
-- limit: Optional. Maximum number of tables to return. Defaults to 100.
-",
       "properties": {
         "limit": {
           "default": 100,
@@ -3024,14 +2334,12 @@ Parameters:
       "type": "object",
     },
     "name": "listWarehouseTables",
-    "outputSchema": null,
   },
   {
     "description": "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
       "properties": {
         "name": {
           "description": "Exact name of the built-in skill to load.",
@@ -3058,36 +2366,6 @@ Parameters:
       "type": "object",
     },
     "name": "loadSkill",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "
@@ -3110,23 +2388,6 @@ Creates a change proposal for tables, metrics, and dimensions. Changes are appli
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "
-Creates a change proposal for tables, metrics, and dimensions. Changes are applied immediately but can be reviewed and rejected afterward.
-
-**Supported Operations:**
-- Update table descriptions and labels
-- Update metric/dimension descriptions and labels
-- Create new metrics
-
-**Technical Requirements:**
-- When updating descriptions or labels, must preserve as much original content as possible
-- Descriptions should maintain their original format (preserve complete value and formatting)
-- Must provide entity table name, rationale, and change details
-- Changes are tracked with proposer information and timestamp
-- For updates: use "replace" operation with complete updated value (not partial)
-- For adding new properties: use "add" operation (creates property if it does not exist)
-- For new metrics: use "create" operation with full metric definition
-",
       "properties": {
         "change": {
           "anyOf": [
@@ -4138,69 +3399,12 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "proposeChange",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "properties": {
-                "changeUuid": {
-                  "type": "string",
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-                "userFeedback": {
-                  "default": "accepted",
-                  "enum": [
-                    "accepted",
-                    "rejected",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "changeUuid",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "error",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Open a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Open a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes.",
       "properties": {
         "prompt": {
           "description": "A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.",
@@ -4271,7 +3475,6 @@ Even if only the part is being changed, make sure to pass the entire value with 
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
       "properties": {
         "slug": {
           "description": "Slug of the dashboard or chart to read.",
@@ -4294,36 +3497,6 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "readContent",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: runQuery
@@ -4361,38 +3534,6 @@ Configuration Tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: runQuery
-
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
-
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
-
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
-- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
-",
       "properties": {
         "chartConfig": {
           "anyOf": [
@@ -5943,36 +5084,6 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "runQuery",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "
@@ -5992,20 +5103,6 @@ custom metrics are applied automatically.
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "
-Run an existing saved chart by its UUID and return the rows it produces.
-
-When to use this tool:
-- The user has pinned a chart (you'll see it listed in the prompt context as
-  "Chart \\"...\\" (chartUuid: ...)") and you need to inspect its data to answer
-  their question.
-- You discovered a relevant chart via findContent / findCharts and want to read
-  its results without rebuilding the query from scratch.
-
-Prefer this over runQuery when a saved chart already exists for the data the
-user is asking about. The chart's saved metric query, filters, sorts, and
-custom metrics are applied automatically.
-",
       "properties": {
         "chartUuid": {
           "description": "UUID of the saved chart to execute. Use the chartUuid from the prompt context or from a prior findContent / findCharts result.",
@@ -6018,36 +5115,6 @@ custom metrics are applied automatically.
       "type": "object",
     },
     "name": "runSavedChart",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
   {
     "description": "Tool: run_sql
@@ -6086,39 +5153,6 @@ Notes:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: run_sql
-
-Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
-
-Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
-This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
-
-The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
-
-Parameters:
-- sql: The SQL query to execute. Must be a valid SELECT statement.
-- limit: Maximum number of rows to return (default 500, max 500).
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
-- structuredContent: {
-    rows:     Array<Record<string, unknown>>,  // each row keyed by column name
-    columns:  string[],                        // column names in order
-    rowCount: number                           // total rows returned
-  }
-
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.rows over parsing the CSV. Example:
-
-  const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.columns;  // ['status', 'n', 'total_amount']
-
-Notes:
-- Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent with { rows: [], columns, rowCount: 0 } — distinct from a parse failure.
-- On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
-",
       "properties": {
         "limit": {
           "default": 500,
@@ -6138,7 +5172,6 @@ Notes:
       "type": "object",
     },
     "name": "runSql",
-    "outputSchema": null,
   },
   {
     "description": "Tool: searchFieldValues
@@ -6155,17 +5188,6 @@ Usage Tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: searchFieldValues
-
-Purpose:
-Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
-
-Usage Tips:
-- Specify the table and field you want to search values for
-- Query parameter: use it to narrow down the search to matching values
-- Optionally add filters to further restrict the results
-- Results are returned as a list of unique field values (limited to 100)
-",
       "properties": {
         "fieldId": {
           "description": "The ID of the field to search values for "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
@@ -6848,36 +5870,6 @@ Usage Tips:
       "type": "object",
     },
     "name": "searchFieldValues",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
   },
 ]
 `;

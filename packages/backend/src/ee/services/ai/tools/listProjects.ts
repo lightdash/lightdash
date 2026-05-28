@@ -1,5 +1,5 @@
 import {
-    toolListProjectsArgsSchema,
+    listProjectsToolDefinition,
     toolListProjectsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -10,10 +10,12 @@ type Dependencies = {
     listProjects: ListProjectsFn;
 };
 
+const toolDefinition = listProjectsToolDefinition.for('agent');
+
 export const getListProjects = ({ listProjects }: Dependencies) =>
     tool({
-        description: toolListProjectsArgsSchema.description,
-        inputSchema: toolListProjectsArgsSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         outputSchema: toolListProjectsOutputSchema,
         execute: async () => {
             try {
