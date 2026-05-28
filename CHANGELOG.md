@@ -1,3 +1,10 @@
+## [0.3041.1](https://github.com/lightdash/lightdash/compare/0.3041.0...0.3041.1) (2026-05-28)
+
+
+### Bug Fixes
+
+* **ai-agents:** wire implicit signals to finding promotion in review judge ([#23617](https://github.com/lightdash/lightdash/issues/23617)) ([5dc5110](https://github.com/lightdash/lightdash/commit/5dc5110390b29a36432ddb24cae7dc9fe48d47b7))
+
 # [0.3041.0](https://github.com/lightdash/lightdash/compare/0.3040.0...0.3041.0) (2026-05-28)
 
 
