@@ -727,12 +727,103 @@ export class AiWritebackService extends BaseService {
         );
         await sandbox.files.write(PROMPT_PATH, prompt);
 
+        // Parse Claude Code's stream-json output line-by-line so the agent
+        // stage stops being a black box: we log every tool the agent uses
+        // (Read/Edit/Write/Bash/...) as it happens, plus a final summary with
+        // cost + tool-call counts. The Slack reply text and PR-metadata blocks
+        // are reconstituted by overwriting `assistantText` on each new
+        // assistant message — the final message wins, which is the one that
+        // carries the user-facing reply and the structured PR_TITLE/PR_DESCRIPTION
+        // tags (see extractPrMetadata).
+        let buffer = '';
+        let assistantText = '';
+        const toolCounts: Record<string, number> = {};
+
+        const summarizeToolInput = (input: unknown): string => {
+            if (input && typeof input === 'object') {
+                const i = input as Record<string, unknown>;
+                if (typeof i.file_path === 'string') return i.file_path;
+                if (typeof i.command === 'string')
+                    return i.command.slice(0, 120);
+                if (typeof i.pattern === 'string') return i.pattern;
+            }
+            try {
+                return JSON.stringify(input ?? null).slice(0, 120);
+            } catch {
+                return '<unserializable>';
+            }
+        };
+
+        const handleEvent = (event: unknown): void => {
+            if (!event || typeof event !== 'object') return;
+            const e = event as {
+                type?: string;
+                message?: { content?: unknown };
+                total_cost_usd?: number;
+            };
+            if (e.type === 'assistant') {
+                const content = e.message?.content;
+                if (!Array.isArray(content)) return;
+                let messageText = '';
+                for (const c of content) {
+                    if (c && typeof c === 'object') {
+                        const block = c as {
+                            type?: string;
+                            text?: string;
+                            name?: string;
+                            input?: unknown;
+                        };
+                        if (
+                            block.type === 'text' &&
+                            typeof block.text === 'string'
+                        ) {
+                            messageText += block.text;
+                        } else if (
+                            block.type === 'tool_use' &&
+                            typeof block.name === 'string'
+                        ) {
+                            toolCounts[block.name] =
+                                (toolCounts[block.name] ?? 0) + 1;
+                            this.logger.info(
+                                `AiWriteback: tool ${block.name} ${summarizeToolInput(block.input)} (sandboxId=${sandbox.sandboxId})`,
+                            );
+                        }
+                    }
+                }
+                if (messageText) assistantText = messageText;
+            } else if (e.type === 'result') {
+                this.logger.info(
+                    `AiWriteback: agent run summary (sandboxId=${sandbox.sandboxId}, cost_usd=${e.total_cost_usd ?? 'n/a'}, tools=${JSON.stringify(toolCounts)})`,
+                );
+            }
+        };
+
+        const flushBuffer = (): void => {
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        handleEvent(JSON.parse(line));
+                    } catch {
+                        this.logger.debug(
+                            `AiWriteback: unparseable claude line: ${line.slice(0, 200)}`,
+                        );
+                    }
+                }
+            }
+        };
+
         const continueFlag = isResume ? '--continue ' : '';
         const result = await sandbox.commands.run(
             `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
                 `--model ${CLAUDE_MODEL} ` +
                 `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
-                '--output-format text ' +
+                // stream-json emits one event per line on stdout (assistant
+                // messages, tool_use blocks, tool_results, final cost summary).
+                // --verbose is required by the CLI when combining -p with
+                // stream-json output.
+                '--output-format stream-json --verbose ' +
                 // Claude Code confines Write/Edit to the cwd workspace, so the
                 // agent cannot write the PR metadata to /tmp (it silently falls
                 // back to the repo root) unless /tmp is an added directory.
@@ -742,6 +833,10 @@ export class AiWritebackService extends BaseService {
                 cwd: CWD,
                 timeoutMs: RUN_TIMEOUT_MS,
                 envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
+                onStdout: (chunk) => {
+                    buffer += chunk;
+                    flushBuffer();
+                },
                 onStderr: (chunk) => {
                     this.logger.debug(
                         `AiWriteback: claude stderr: ${chunk.trimEnd()}`,
@@ -749,10 +844,23 @@ export class AiWritebackService extends BaseService {
                 },
             },
         );
+        // A final line may remain in the buffer if the command output didn't
+        // end with a newline (common on timeouts/aborts) — try to parse it but
+        // don't fail the run if it's truncated.
+        if (buffer.trim()) {
+            try {
+                handleEvent(JSON.parse(buffer));
+            } catch {
+                this.logger.debug(
+                    `AiWriteback: unparseable trailing claude line: ${buffer.slice(0, 200)}`,
+                );
+            }
+            buffer = '';
+        }
         this.logger.info(
             `AiWriteback: agent run completed (sandboxId=${sandbox.sandboxId}, exit=${result.exitCode}, isResume=${isResume})`,
         );
-        return { stdout: result.stdout, exitCode: result.exitCode };
+        return { stdout: assistantText, exitCode: result.exitCode };
     }
 
     /**
