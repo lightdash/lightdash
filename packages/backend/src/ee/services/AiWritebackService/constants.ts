@@ -80,3 +80,8 @@ export const ALLOWED_TOOLS = [
 // snapshot rather than the CLI default so runs stay deterministic across
 // Claude Code releases.
 export const CLAUDE_MODEL = 'claude-sonnet-4-6';
+
+// Ceiling on the gather pass itself. The shell pipeline is sub-second on
+// typical repos; this guards against an unusually large checkout taking long
+// enough to eat into the agent budget.
+export const REPO_CONTEXT_TIMEOUT_MS = 30 * 1000;

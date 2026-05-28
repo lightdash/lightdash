@@ -25,7 +25,11 @@ import {
 // the patched file into the PR.
 export const buildSystemPrompt = (
     dbtProjectDir: string,
-    context: { projectName: string; repository: string },
+    context: {
+        projectName: string;
+        repository: string;
+        repoContext: string | null;
+    },
 ): string =>
     `
 You are an autonomous coding agent working inside a checkout of a git repository.
@@ -42,7 +46,24 @@ You are an autonomous coding agent working inside a checkout of a git repository
 - The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
   is your working directory).
 - Do NOT commit, push, or run any git commands — the host handles git.
+${
+    context.repoContext
+        ? `
+## Repo context (pre-computed)
 
+The block below is the full sorted listing of every \`.sql\`/\`.yml\`/\`.yaml\`
+file under the dbt project. Treat it as the authoritative inventory.
+
+- Consult this block FIRST when you need to find a model or schema file.
+- Do NOT run \`find\`, \`ls\`, or \`Glob\` to re-discover paths that already
+  appear here. \`Read\` files directly when you need their contents.
+
+<repo_context>
+${context.repoContext}
+</repo_context>
+`
+        : ''
+}
 If you made any file changes, perform ALL of these follow-up steps before you
 finish:
 
