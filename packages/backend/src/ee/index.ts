@@ -584,6 +584,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 appGenerateService:
                     context.serviceRepository.getAppGenerateService(),
                 workerHealth: context.workerHealth,
+                aiAgentReviewClassifierService:
+                    context.serviceRepository.getAiAgentReviewClassifierService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

@@ -8,6 +8,7 @@ import {
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
     AiAgentNotFoundError,
+    AiAgentReviewClassifierEventType,
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -551,6 +552,53 @@ export class AiAgentService extends BaseService {
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
         });
+    }
+
+    private enqueueReviewClassifierEvent(args: {
+        eventType: AiAgentReviewClassifierEventType;
+        organizationUuid: string | null | undefined;
+        projectUuid: string | null | undefined;
+        agentUuid: string | null | undefined;
+        threadUuid: string | null | undefined;
+        promptUuid: string;
+        userUuid?: string | null;
+    }) {
+        const { organizationUuid, projectUuid, agentUuid, threadUuid } = args;
+        if (!organizationUuid || !projectUuid || !agentUuid || !threadUuid) {
+            return;
+        }
+
+        const userUuid = args.userUuid ?? 'system';
+
+        void this.featureFlagService
+            .get({
+                featureFlagId: FeatureFlags.AiAgentReviewClassifier,
+                user: {
+                    userUuid,
+                    organizationUuid,
+                    organizationName: '',
+                },
+            })
+            .then((flag) => {
+                if (!flag.enabled) {
+                    return undefined;
+                }
+                return this.schedulerClient.aiAgentReviewClassifier({
+                    eventType: args.eventType,
+                    organizationUuid,
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    promptUuid: args.promptUuid,
+                    userUuid,
+                });
+            })
+            .catch((error) => {
+                Logger.error(
+                    'Failed to enqueue AI agent review classifier job',
+                    error,
+                );
+            });
     }
 
     private getIsVerifiedArtifactsEnabled(): boolean {
@@ -3394,6 +3442,16 @@ export class AiAgentService extends BaseService {
             humanScore,
             humanFeedback,
         });
+
+        this.enqueueReviewClassifierEvent({
+            eventType: 'feedback_changed',
+            organizationUuid,
+            projectUuid: message.projectUuid,
+            agentUuid: message.agentUuid,
+            threadUuid: message.threadUuid,
+            promptUuid: threadMessage.uuid,
+            userUuid: user.userUuid,
+        });
     }
 
     async updateMessageSavedQuery(
@@ -5465,7 +5523,36 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
-            ) => this.aiAgentModel.updateModelResponse(update),
+            ) => {
+                const updatePromise =
+                    this.aiAgentModel.updateModelResponse(update);
+
+                if (
+                    update.errorMessage !== undefined ||
+                    update.tokenUsage !== undefined
+                ) {
+                    void updatePromise
+                        .then(() => {
+                            this.enqueueReviewClassifierEvent({
+                                eventType: 'response_saved',
+                                organizationUuid: user.organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                agentUuid: agentSettings.uuid,
+                                threadUuid: prompt.threadUuid,
+                                promptUuid: update.promptUuid,
+                                userUuid: user.userUuid,
+                            });
+                        })
+                        .catch((error) => {
+                            Logger.error(
+                                'Failed to enqueue AI agent review classifier after response save',
+                                error,
+                            );
+                        });
+                }
+
+                return updatePromise;
+            },
             trackEvent: (
                 event:
                     | AiAgentResponseStreamed
@@ -5575,6 +5662,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptUuid,
             humanScore,
             humanFeedback,
+        });
+
+        const promptContext =
+            await this.aiAgentModel.findPromptContext(promptUuid);
+
+        this.enqueueReviewClassifierEvent({
+            eventType: 'feedback_changed',
+            organizationUuid: promptContext?.organizationUuid,
+            projectUuid: promptContext?.projectUuid,
+            agentUuid: promptContext?.agentUuid,
+            threadUuid: promptContext?.threadUuid,
+            promptUuid,
+            userUuid: userId,
         });
     }
 
@@ -6557,6 +6657,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     promptUuid,
                     humanScore: -1,
                     humanFeedback: feedbackValue,
+                });
+
+                const promptContext =
+                    await this.aiAgentModel.findPromptContext(promptUuid);
+
+                this.enqueueReviewClassifierEvent({
+                    eventType: 'feedback_changed',
+                    organizationUuid: promptContext?.organizationUuid,
+                    projectUuid: promptContext?.projectUuid,
+                    agentUuid: promptContext?.agentUuid,
+                    threadUuid: promptContext?.threadUuid,
+                    promptUuid,
+                    userUuid: body.user.id,
                 });
             }
         });

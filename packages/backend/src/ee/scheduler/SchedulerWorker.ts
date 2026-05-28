@@ -14,16 +14,19 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
     appGenerateService: AppGenerateService;
@@ -31,6 +34,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
     protected readonly embedService: EmbedService;
 
@@ -41,6 +46,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiAgentReviewClassifierService =
+            args.aiAgentReviewClassifierService;
         this.embedService = args.embedService;
         this.managedAgentService = args.managedAgentService;
         this.appGenerateService = args.appGenerateService;
@@ -129,6 +136,46 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 agentUuid: payload.agentUuid,
                                 evalRunUuid: payload.evalRunUuid,
                                 evalRunResultUuid: payload.evalRunResultUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentReviewClassifierService.runLiveEvent(
+                                {
+                                    ...payload,
+                                    requestedByUserUuid: payload.userUuid,
+                                },
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                agentUuid: payload.agentUuid,
+                                threadUuid: payload.threadUuid,
+                                promptUuid: payload.promptUuid,
+                                eventType: payload.eventType,
                             },
                         });
                     },

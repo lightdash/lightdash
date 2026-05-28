@@ -1,5 +1,6 @@
 import {
     AiAgentEvalRunJobPayload,
+    AiAgentReviewClassifierJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
@@ -32,6 +33,21 @@ export class CommercialSchedulerClient extends SchedulerClient {
             {
                 runAt: now, // now
                 maxAttempts: 1,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentReviewClassifier(payload: AiAgentReviewClassifierJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
+            payload,
+            {
+                runAt: now,
+                maxAttempts: 1,
+                jobKey: `ai-agent-review:${payload.eventType}:${payload.promptUuid}`,
             },
         );
         return { jobId };
