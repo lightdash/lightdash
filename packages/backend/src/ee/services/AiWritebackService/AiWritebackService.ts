@@ -132,10 +132,10 @@ export class AiWritebackService extends BaseService {
     }
 
     private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey;
+        const key = this.lightdashConfig.aiWriteback.anthropicApiKey;
         if (!key) {
             throw new MissingConfigError(
-                'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
+                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
             );
         }
         return key;

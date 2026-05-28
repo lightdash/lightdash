@@ -1197,6 +1197,9 @@ export type LightdashConfig = {
         schedule: string;
         sessionTimeoutMs: number;
     };
+    aiWriteback: {
+        anthropicApiKey: string | null;
+    };
 
     initialSetup?: {
         organization: {
@@ -2313,6 +2316,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
                 10,
             ), // 10 minutes default
+        },
+        aiWriteback: {
+            anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
