@@ -44,10 +44,12 @@ import {
     PR_TITLE_OPEN,
     PR_TITLE_PATH,
     PROMPT_PATH,
+    REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     SYSTEM_PROMPT_PATH,
 } from './constants';
+import { buildGatherRepoContextScript } from './scripts';
 import { buildSystemPrompt } from './templates';
 import type {
     AiWritebackRunArgs,
@@ -59,6 +61,8 @@ import type {
 } from './types';
 
 export type { AiWritebackRunArgs } from './types';
+
+const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -703,6 +707,47 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Pre-compute a dbt project snapshot (project file, file tree, models/
+     * YAML) so the agent doesn't burn turns rediscovering them. Returns null
+     * on any failure — the run continues without the context block.
+     */
+    private async gatherRepoContext(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<string | null> {
+        const start = performance.now();
+        try {
+            await sandbox.files.write(
+                GATHER_REPO_CONTEXT_SANDBOX_PATH,
+                buildGatherRepoContextScript(projectSubPath),
+            );
+            const result = await sandbox.commands.run(
+                `bash ${GATHER_REPO_CONTEXT_SANDBOX_PATH}`,
+                {
+                    cwd: CWD,
+                    timeoutMs: REPO_CONTEXT_TIMEOUT_MS,
+                },
+            );
+            if (result.exitCode !== 0) {
+                this.logger.warn(
+                    `AiWriteback: gatherRepoContext exited non-zero (exit=${result.exitCode}) — running without context`,
+                );
+                return null;
+            }
+            const bytes = Buffer.byteLength(result.stdout, 'utf8');
+            this.logger.info(
+                `AiWriteback: repo context gathered (sandboxId=${sandbox.sandboxId}, bytes=${bytes}, ${AiWritebackService.elapsed(start)}ms)`,
+            );
+            return result.stdout;
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: gatherRepoContext failed — running without context: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
+    /**
      * Write the system + user prompts to disk and pipe the user prompt into
      * the Claude Code CLI. On resume, `--continue` picks up the most recent
      * Claude session in `CWD` (preserved across pause/resume on the sandbox
@@ -727,9 +772,17 @@ export class AiWritebackService extends BaseService {
         repository: string;
         isResume: boolean;
     }): Promise<{ stdout: string; exitCode: number }> {
+        const repoContext = await this.gatherRepoContext(
+            sandbox,
+            projectSubPath,
+        );
         await sandbox.files.write(
             SYSTEM_PROMPT_PATH,
-            buildSystemPrompt(projectSubPath, { projectName, repository }),
+            buildSystemPrompt(projectSubPath, {
+                projectName,
+                repository,
+                repoContext,
+            }),
         );
         await sandbox.files.write(PROMPT_PATH, prompt);
 
