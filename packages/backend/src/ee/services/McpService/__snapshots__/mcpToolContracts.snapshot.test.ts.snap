@@ -6863,7 +6863,7 @@ Notes:
         ],
         "type": "object",
       },
-      "title": undefined,
+      "title": "Run SQL",
     },
     {
       "agentName": null,

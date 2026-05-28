@@ -1452,6 +1452,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpRunSqlTool.name,
             {
+                title: mcpRunSqlTool.title,
                 description: buildRunSqlDescription(
                     500,
                     this.lightdashConfig.mcp.runSqlMaxLimit,
