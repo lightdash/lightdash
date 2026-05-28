@@ -21,6 +21,7 @@ import {
     IconHistory,
     IconIdBadge2,
     IconKey,
+    IconListCheck,
     IconLock,
     IconBrush,
     IconPalette,
@@ -85,6 +86,7 @@ import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel'
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
+import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
 import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -120,6 +122,12 @@ const Settings: FC = () => {
         aiOrganizationSettingsQuery.isSuccess &&
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
             aiOrganizationSettingsQuery.data.isTrial);
+
+    const { data: aiAgentReviewClassifierFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentReviewClassifier,
+    );
+    const isAiAgentReviewClassifierEnabled =
+        aiAgentReviewClassifierFlag?.enabled === true;
 
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
@@ -589,6 +597,16 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
+            if (isAiAgentReviewClassifierEnabled) {
+                allowedRoutes.push({
+                    path: '/ai/reviews',
+                    element: (
+                        <AiSettingsProviders>
+                            <AiReviewsSettingsPage />
+                        </AiSettingsProviders>
+                    ),
+                });
+            }
         }
 
         if (
@@ -628,6 +646,7 @@ const Settings: FC = () => {
         isSsoOrganizationSettingsEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
+        isAiAgentReviewClassifierEnabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -713,6 +732,10 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 { path: '/generalSettings/ai/agents' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/reviews' },
                 location.pathname,
             )
         );
@@ -1102,6 +1125,18 @@ const Settings: FC = () => {
                                                     />
                                                 }
                                             />
+                                            {isAiAgentReviewClassifierEnabled && (
+                                                <RouterNavLink
+                                                    label="Reviews"
+                                                    exact
+                                                    to="/generalSettings/ai/reviews"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconListCheck}
+                                                        />
+                                                    }
+                                                />
+                                            )}
                                         </RouterNavLink>
                                     )}
                             </Box>

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import LinkButton from '../../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../../components/common/MantineModal';
+import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import useHealth from '../../../../../../hooks/health/useHealth';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
@@ -13,6 +14,7 @@ import AiAgentAdminThreadsTable from '../AiAgentAdminThreadsTable';
 import { AnalyticsEmbedDashboard } from '../AnalyticsEmbedDashboard';
 import { ThreadPreviewSidebar } from '../ThreadPreviewSidebar';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
+import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiThreadsSettingsPage = () => {
     const { data: health } = useHealth();
@@ -86,6 +88,13 @@ export const AiThreadsSettingsPage = () => {
                 size="lg"
                 withCloseButton={false}
                 padding={0}
+                classNames={{
+                    inner: drawerClasses.inner,
+                    overlay: drawerClasses.overlay,
+                }}
+                __vars={{
+                    '--drawer-top-offset': `${NAVBAR_HEIGHT}px`,
+                }}
             >
                 {!!selectedThread && (
                     <ThreadPreviewSidebar
