@@ -108,6 +108,184 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     "outputSchema": null,
   },
   {
+    "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "description": "Full Dashboard JSON to create.",
+              "properties": {
+                "config": {},
+                "contentType": {
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "downloadedAt": {},
+                "filters": {},
+                "name": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "parameters": {},
+                "slug": {
+                  "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "spaceSlug": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "tabs": {
+                  "items": {},
+                  "type": "array",
+                },
+                "tiles": {
+                  "items": {},
+                  "type": "array",
+                },
+                "updatedAt": {},
+                "verification": {},
+                "verified": {
+                  "type": "boolean",
+                },
+                "version": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "slug",
+                "name",
+                "description",
+                "spaceSlug",
+                "version",
+                "contentType",
+                "verified",
+                "tiles",
+                "tabs",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": true,
+              "description": "Full Chart JSON to create.",
+              "properties": {
+                "chartConfig": {},
+                "contentType": {
+                  "$ref": "#/properties/content/anyOf/0/properties/contentType",
+                },
+                "dashboardSlug": {
+                  "type": "string",
+                },
+                "description": {
+                  "$ref": "#/properties/content/anyOf/0/properties/description",
+                },
+                "downloadedAt": {
+                  "$ref": "#/properties/content/anyOf/0/properties/downloadedAt",
+                },
+                "metricQuery": {},
+                "name": {
+                  "$ref": "#/properties/content/anyOf/0/properties/name",
+                },
+                "parameters": {},
+                "pivotConfig": {},
+                "slug": {
+                  "$ref": "#/properties/content/anyOf/0/properties/slug",
+                },
+                "spaceSlug": {
+                  "$ref": "#/properties/content/anyOf/0/properties/spaceSlug",
+                },
+                "tableConfig": {},
+                "tableName": {
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "updatedAt": {
+                  "$ref": "#/properties/content/anyOf/0/properties/updatedAt",
+                },
+                "verification": {
+                  "$ref": "#/properties/content/anyOf/0/properties/verification",
+                },
+                "verified": {
+                  "$ref": "#/properties/content/anyOf/0/properties/verified",
+                },
+                "version": {
+                  "$ref": "#/properties/content/anyOf/0/properties/version",
+                },
+              },
+              "required": [
+                "slug",
+                "name",
+                "description",
+                "spaceSlug",
+                "version",
+                "contentType",
+                "verified",
+                "tableName",
+                "dashboardSlug",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "type": {
+          "description": "Type of Lightdash content to create.",
+          "enum": [
+            "dashboard",
+            "chart",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "type",
+        "content",
+      ],
+      "type": "object",
+    },
+    "name": "createContent",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -2620,6 +2798,87 @@ Captures learnings from user corrections, clarifications, and guidance to improv
       "type": "object",
     },
     "name": "improveContext",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+      "properties": {
+        "page": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number",
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "description": "Use this to paginate through the results. Starts at 1.",
+        },
+        "spaceSlug": {
+          "description": "Optional space slug/path to list. Use null to list root-level content.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "spaceSlug",
+        "page",
+      ],
+      "type": "object",
+    },
+    "name": "listContent",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,

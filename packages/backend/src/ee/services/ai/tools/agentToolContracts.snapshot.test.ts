@@ -1,6 +1,7 @@
 import type { ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
+import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getEditContent } from './editContent';
 import { getFindContent } from './findContent';
@@ -11,6 +12,7 @@ import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getImproveContext } from './improveContext';
+import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
@@ -82,6 +84,7 @@ const makeAgentTools = () => {
                 updateProgress: noopAsync,
             } as never,
         ),
+        createContent: getCreateContent({ createContent: noop }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,
@@ -113,6 +116,7 @@ const makeAgentTools = () => {
             getKnowledgeDocumentContent: noop,
         }),
         improveContext: getImproveContext(),
+        listContent: getListContent({ listContent: noop }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),
