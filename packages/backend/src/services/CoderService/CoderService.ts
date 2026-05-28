@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
+    assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
     ChartSummary,
@@ -932,6 +933,74 @@ export class CoderService extends BaseService {
             total: chartsTotal,
             offset: newOffset,
         };
+    }
+
+    async getCurrentContentVersionBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        type: 'dashboard' | 'chart',
+        slug: string,
+    ): Promise<{ contentUuid: string; versionUuid: string | null }> {
+        const { name: projectName, organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName, type, slug },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (type) {
+            case 'dashboard': {
+                const [dashboard] = await this.dashboardModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                });
+                if (!dashboard) {
+                    throw new NotFoundError(
+                        `Dashboard with slug "${slug}" not found`,
+                    );
+                }
+
+                const currentDashboard =
+                    await this.dashboardModel.getByIdOrSlug(dashboard.uuid);
+                return {
+                    contentUuid: dashboard.uuid,
+                    versionUuid: currentDashboard.versionUuid,
+                };
+            }
+            case 'chart': {
+                const [chart] = await this.savedChartModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                    excludeChartsSavedInDashboard: false,
+                    includeOrphanChartsWithinDashboard: true,
+                });
+                if (!chart) {
+                    throw new NotFoundError(
+                        `Chart with slug "${slug}" not found`,
+                    );
+                }
+
+                const version =
+                    await this.savedChartModel.getLatestVersionSummary(
+                        chart.uuid,
+                    );
+                return {
+                    contentUuid: chart.uuid,
+                    versionUuid: version?.versionUuid ?? null,
+                };
+            }
+            default:
+                return assertUnreachable(type, 'Invalid content type');
+        }
     }
 
     async getSqlCharts(

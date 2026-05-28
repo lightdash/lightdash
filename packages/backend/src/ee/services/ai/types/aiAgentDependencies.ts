@@ -163,12 +163,20 @@ export type EditContentFn = (args: {
           content: DashboardAsCode;
           uuid: string;
           href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
       }
     | {
           type: 'chart';
           content: ChartAsCode;
           uuid: string;
           href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
       }
 >;
 

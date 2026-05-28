@@ -142,7 +142,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 chartType &&
                 Object.values(ChartKind).includes(chartType as ChartKind)
                     ? (chartType as ChartKind)
-                    : undefined;
+                    : ChartKind.VERTICAL_BAR;
 
             return (
                 <Anchor
