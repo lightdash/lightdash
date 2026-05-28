@@ -76,6 +76,7 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import UserScheduledDeliveriesPanel from '../components/UserSettings/ScheduledDeliveriesPanel';
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
+import SupportImpersonationPanel from '../components/UserSettings/SupportImpersonationPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
@@ -337,6 +338,11 @@ const Settings: FC = () => {
                                 <ImpersonationPanel />
                             </SettingsGridCard>
                         )}
+
+                        <SettingsGridCard>
+                            <Title order={4}>Lightdash support access</Title>
+                            <SupportImpersonationPanel />
+                        </SettingsGridCard>
 
                         {(isLeaveOrganizationEnabled ||
                             user.ability?.can('delete', 'Organization')) && (

@@ -43,6 +43,7 @@ describe('OrganizationSettingsModel', () => {
             expect(await model.get(ORG)).toEqual({
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
+                supportImpersonationEnabled: null,
             });
         });
 
@@ -51,10 +52,25 @@ describe('OrganizationSettingsModel', () => {
             const { model } = createModel({
                 oidc_linking_enabled: true,
                 oidc_to_email_linking_enabled: null,
+                support_impersonation_enabled: null,
             });
             expect(await model.get(ORG)).toEqual({
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: null,
+                supportImpersonationEnabled: null,
+            });
+        });
+
+        test('maps the support impersonation column', async () => {
+            const { model } = createModel({
+                oidc_linking_enabled: null,
+                oidc_to_email_linking_enabled: null,
+                support_impersonation_enabled: true,
+            });
+            expect(await model.get(ORG)).toEqual({
+                oidcLinkingEnabled: null,
+                oidcToEmailLinkingEnabled: null,
+                supportImpersonationEnabled: true,
             });
         });
     });
@@ -89,7 +105,26 @@ describe('OrganizationSettingsModel', () => {
             expect(result).toEqual({
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
+                supportImpersonationEnabled: null,
             });
+        });
+
+        test('writes the support impersonation column when provided', async () => {
+            const { model, captured } = createModel({
+                support_impersonation_enabled: true,
+            });
+
+            await model.update(ORG, { supportImpersonationEnabled: true });
+
+            expect(captured.insert).toEqual({
+                organization_uuid: ORG,
+                support_impersonation_enabled: true,
+            });
+            expect(captured.merge).toHaveProperty(
+                'support_impersonation_enabled',
+                true,
+            );
+            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
         });
 
         test('updating multiple settings writes all provided columns', async () => {
@@ -120,6 +155,9 @@ describe('OrganizationSettingsModel', () => {
             expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
             expect(captured.merge).not.toHaveProperty(
                 'oidc_to_email_linking_enabled',
+            );
+            expect(captured.merge).not.toHaveProperty(
+                'support_impersonation_enabled',
             );
             expect(captured.merge?.updated_at).toBeInstanceOf(Date);
             expect(captured.insert).toEqual({ organization_uuid: ORG });

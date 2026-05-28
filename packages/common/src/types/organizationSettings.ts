@@ -21,6 +21,13 @@ export type OrganizationSettings = {
      * `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`; `null` inherits it).
      */
     oidcToEmailLinkingEnabled: boolean | null;
+    /**
+     * Per-org consent for the Lightdash support team to impersonate users in
+     * the org while helping with a support request. Unlike the OIDC toggles
+     * this has no instance/env default — it's opt-in only, so `null` (or no
+     * stored row) resolves to `false`.
+     */
+    supportImpersonationEnabled: boolean | null;
 };
 
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
@@ -51,4 +58,6 @@ export const resolveEffectiveOrganizationSettings = (
     oidcToEmailLinkingEnabled:
         raw.oidcToEmailLinkingEnabled ??
         instanceDefaults.enableOidcToEmailLinking,
+    // Opt-in only — no instance default, so an unset value resolves to false.
+    supportImpersonationEnabled: raw.supportImpersonationEnabled ?? false,
 });

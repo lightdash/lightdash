@@ -13,6 +13,9 @@ export type DbOrganizationSettings = {
     // Nullable: NULL means "not set — inherit the instance default".
     oidc_linking_enabled: boolean | null;
     oidc_to_email_linking_enabled: boolean | null;
+    // Per-org consent for the Lightdash support team to impersonate users.
+    // Opt-in only, no env default: NULL/absent is treated as false.
+    support_impersonation_enabled: boolean | null;
     created_at: Date;
     updated_at: Date;
 };
