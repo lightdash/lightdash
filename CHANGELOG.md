@@ -1,3 +1,12 @@
+# [0.3032.0](https://github.com/lightdash/lightdash/compare/0.3031.0...0.3032.0) (2026-05-28)
+
+
+### Features
+
+* **ai-agents:** add review classifier contract ([#23548](https://github.com/lightdash/lightdash/issues/23548)) ([369782a](https://github.com/lightdash/lightdash/commit/369782a959f12efebe19a923ce51cea67d72dc58))
+* **ai-agents:** display token usage tooltip on message model indicator ([#23580](https://github.com/lightdash/lightdash/issues/23580)) ([053848b](https://github.com/lightdash/lightdash/commit/053848b32bbb53e53c35eeec9bb1b6052eba998b))
+* **ee:** Slack bot reactions on agent ack and writeback PR success ([#23587](https://github.com/lightdash/lightdash/issues/23587)) ([a0d1cb5](https://github.com/lightdash/lightdash/commit/a0d1cb5b3414050a7904c98e2e797497ea1bc365)), closes [#12](https://github.com/lightdash/lightdash/issues/12)
+
 # [0.3031.0](https://github.com/lightdash/lightdash/compare/0.3030.0...0.3031.0) (2026-05-28)
 
 
