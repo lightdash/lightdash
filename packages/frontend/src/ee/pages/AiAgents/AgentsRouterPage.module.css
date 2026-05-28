@@ -1,8 +1,13 @@
+.pickerStack {
+    animation: pickerStackIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .pickerHeader {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--mantine-spacing-sm);
+    animation: pickerItemIn 360ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both;
 }
 
 .candidateButton {
@@ -21,6 +26,23 @@
         background-color 120ms ease-out,
         transform 120ms ease-out;
     text-align: left;
+    animation: pickerItemIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.candidateButton:nth-of-type(1) {
+    animation-delay: 120ms;
+}
+.candidateButton:nth-of-type(2) {
+    animation-delay: 200ms;
+}
+.candidateButton:nth-of-type(3) {
+    animation-delay: 260ms;
+}
+.candidateButton:nth-of-type(4) {
+    animation-delay: 310ms;
+}
+.candidateButton:nth-of-type(5) {
+    animation-delay: 350ms;
 }
 
 .candidateButton:hover {
@@ -47,6 +69,9 @@
         var(--mantine-color-violet-0),
         rgba(118, 65, 232, 0.12)
     );
+    animation:
+        pickerItemIn 380ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both,
+        recommendedSettle 900ms cubic-bezier(0.16, 1, 0.3, 1) 460ms 1 both;
 }
 
 .candidateButton.recommended:hover {
@@ -81,4 +106,45 @@
 
 .candidateButton.recommended .chevron {
     color: var(--mantine-color-violet-6);
+}
+
+@keyframes pickerStackIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pickerItemIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes recommendedSettle {
+    0% {
+        box-shadow: 0 0 0 0 rgba(118, 65, 232, 0);
+    }
+    45% {
+        box-shadow: 0 0 0 5px rgba(118, 65, 232, 0.14);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(118, 65, 232, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pickerStack,
+    .pickerHeader,
+    .candidateButton,
+    .candidateButton.recommended {
+        animation: none;
+    }
 }
