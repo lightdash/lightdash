@@ -21,8 +21,12 @@ import { useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
 import {
+    useAzureAdSsoConfig,
     useDeleteGoogleSsoConfig,
+    useGenericOidcSsoConfig,
     useGoogleSsoConfig,
+    useOktaSsoConfig,
+    useOneLoginSsoConfig,
     useUpsertGoogleSsoConfig,
 } from '../../../hooks/organization/useOrganizationSso';
 import Callout from '../../common/Callout';
@@ -44,15 +48,28 @@ type FormValues = {
 const GoogleSsoPanel: FC = () => {
     const { data: existing, isLoading } = useGoogleSsoConfig();
     const { data: health } = useHealth();
+    const { data: oktaConfig } = useOktaSsoConfig();
+    const { data: oneLoginConfig } = useOneLoginSsoConfig();
+    const { data: azureConfig } = useAzureAdSsoConfig();
+    const { data: oidcConfig } = useGenericOidcSsoConfig();
     const upsert = useUpsertGoogleSsoConfig();
     const deleteConfig = useDeleteGoogleSsoConfig();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isOpen, toggleOpen] = useToggle(false);
 
     const isConfigured = !!existing;
-    // Google sign-in is only live on the main login page when the shared
-    // instance OAuth app is configured (AUTH_GOOGLE_ENABLED + client id/secret).
+    // Google is only usable when the shared instance OAuth app is configured
+    // (AUTH_GOOGLE_ENABLED + client id/secret).
     const googleEnabledInstanceWide = !!health?.auth.google.enabled;
+    // Only *enabled* per-org providers route the org's domains to themselves
+    // and suppress Google during sign-in — a disabled config is ignored by
+    // discovery (see OrganizationSsoMethodFlags.enabled). When one is enabled
+    // the "on by default" reassurance would be misleading.
+    const hasOtherProviderEnabled =
+        !!oktaConfig?.enabled ||
+        !!oneLoginConfig?.enabled ||
+        !!azureConfig?.enabled ||
+        !!oidcConfig?.enabled;
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -161,16 +178,15 @@ const GoogleSsoPanel: FC = () => {
                     {!isConfigured && googleEnabledInstanceWide && (
                         <Callout
                             variant="info"
-                            title="Google sign-in is on by default"
+                            title={
+                                hasOtherProviderEnabled
+                                    ? 'Google is hidden during sign-in'
+                                    : 'Google sign-in is on by default'
+                            }
                         >
-                            Everyone in your org can sign in with Google from
-                            the main login page, using Lightdash's shared Google
-                            app. Set up a configuration here to restrict it to
-                            specific email domains or to disable password
-                            sign-in. If another provider (e.g. Okta) is
-                            configured for your domain, it takes over the
-                            post-email sign-in step and Google is hidden there
-                            unless you enable it here.
+                            {hasOtherProviderEnabled
+                                ? "You've configured other SSO providers for your organization, so they take over sign-in for your domains and Google isn't shown. Set up Google here if you also want to offer it alongside them."
+                                : "Google sign-in is available by default using Lightdash's shared Google app. Set up a configuration here to restrict it to specific email domains or to disable password sign-in."}
                         </Callout>
                     )}
 
