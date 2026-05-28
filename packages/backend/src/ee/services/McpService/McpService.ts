@@ -410,6 +410,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpRunAiWritebackTool.name,
             {
+                title: mcpRunAiWritebackTool.title,
                 description: mcpRunAiWritebackTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpRunAiWritebackTool.inputSchema,
@@ -475,6 +476,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpGetLightdashVersionTool.name,
             {
+                title: mcpGetLightdashVersionTool.title,
                 description: mcpGetLightdashVersionTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpGetLightdashVersionTool.inputSchema,
@@ -499,6 +501,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpListExploresTool.name,
             {
+                title: mcpListExploresTool.title,
                 description: mcpListExploresTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpListExploresTool.inputSchema,
@@ -561,6 +564,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpFindExploresTool.name,
             {
+                title: mcpFindExploresTool.title,
                 description: mcpFindExploresTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpFindExploresTool.inputSchema,
@@ -617,6 +621,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpFindFieldsTool.name,
             {
+                title: mcpFindFieldsTool.title,
                 description: mcpFindFieldsTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpFindFieldsTool.inputSchema,
@@ -655,6 +660,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpFindContentTool.name,
             {
+                title: mcpFindContentTool.title,
                 description: mcpFindContentTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpFindContentTool.inputSchema,
@@ -695,6 +701,7 @@ export class McpService extends BaseService {
             this.mcpServer.registerTool(
                 mcpListProjectsTool.name,
                 {
+                    title: mcpListProjectsTool.title,
                     description: mcpListProjectsTool.description,
                     inputSchema: this.getMcpCompatibleSchema(
                         mcpListProjectsTool.inputSchema,
@@ -753,6 +760,7 @@ export class McpService extends BaseService {
             this.mcpServer.registerTool(
                 mcpSetProjectTool.name,
                 {
+                    title: mcpSetProjectTool.title,
                     description: mcpSetProjectTool.description,
                     inputSchema: this.getMcpCompatibleSchema(
                         mcpSetProjectTool.inputSchema,
@@ -841,6 +849,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpGetCurrentProjectTool.name,
             {
+                title: mcpGetCurrentProjectTool.title,
                 description: mcpGetCurrentProjectTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpGetCurrentProjectTool.inputSchema,
@@ -900,6 +909,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpListAgentsTool.name,
             {
+                title: mcpListAgentsTool.title,
                 description: mcpListAgentsTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpListAgentsTool.inputSchema,
@@ -946,6 +956,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpSetAgentTool.name,
             {
+                title: mcpSetAgentTool.title,
                 description: mcpSetAgentTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpSetAgentTool.inputSchema,
@@ -1020,6 +1031,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpClearAgentTool.name,
             {
+                title: mcpClearAgentTool.title,
                 description: mcpClearAgentTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpClearAgentTool.inputSchema,
@@ -1071,6 +1083,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpGetCurrentAgentTool.name,
             {
+                title: mcpGetCurrentAgentTool.title,
                 description: mcpGetCurrentAgentTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpGetCurrentAgentTool.inputSchema,
@@ -1171,6 +1184,7 @@ export class McpService extends BaseService {
             this.mcpServer,
             mcpRunMetricQueryTool.name,
             {
+                title: mcpRunMetricQueryTool.title,
                 description: mcpRunMetricQueryTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpRunMetricQueryTool.inputSchema,
@@ -1386,6 +1400,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpSearchFieldValuesTool.name,
             {
+                title: mcpSearchFieldValuesTool.title,
                 description: mcpSearchFieldValuesTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpSearchFieldValuesTool.inputSchema,
@@ -1517,6 +1532,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             mcpListVerifiedContentTool.name,
             {
+                title: mcpListVerifiedContentTool.title,
                 description: mcpListVerifiedContentTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpListVerifiedContentTool.inputSchema,
