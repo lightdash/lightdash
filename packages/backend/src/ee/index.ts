@@ -178,9 +178,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
+                    spaceModel: models.getSpaceModel(),
                     projectModel: models.getProjectModel(),
                     coderService: repository.getCoderService(),
                     savedChartService: repository.getSavedChartService(),
+                    contentService: repository.getContentService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),

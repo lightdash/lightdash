@@ -19,6 +19,7 @@ const SEARCH_TOOLS = new Set([
     'discoverFields',
     'searchFieldValues',
     'findContent',
+    'listContent',
     'findDashboards',
     'findCharts',
     'getDashboardCharts',

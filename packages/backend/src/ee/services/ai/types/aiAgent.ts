@@ -26,6 +26,7 @@ import {
     GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -110,6 +111,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;
     editContent: EditContentFn;

@@ -26,6 +26,7 @@ import {
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
+    ToolListContentArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
@@ -87,6 +88,38 @@ export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
 }) => Promise<{
     content: (AllChartsSearchResult | DashboardSearchResult)[];
+}>;
+
+export type ListContentFn = (args: {
+    spaceSlug: string | null;
+    page: NonNullable<ToolListContentArgs['page']>;
+}) => Promise<{
+    spaceSlug: string | null;
+    items: Array<
+        | {
+              contentType: 'chart' | 'dashboard' | 'data_app';
+              name: string;
+              slug: string;
+          }
+        | {
+              contentType: 'space';
+              name: string;
+              slug: string;
+              chartCount: number;
+              dashboardCount: number;
+              childSpaceCount: number;
+              appCount: number;
+              directAccess: boolean;
+          }
+    >;
+    pagination:
+        | {
+              page: number;
+              pageSize: number;
+              totalResults: number;
+              totalPageCount: number;
+          }
+        | undefined;
 }>;
 
 export type GetDashboardChartsFn = (args: {
