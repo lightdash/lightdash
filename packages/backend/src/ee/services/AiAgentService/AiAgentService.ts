@@ -169,7 +169,7 @@ import {
 } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
+import { selectAgent } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
@@ -5351,6 +5351,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         const proposeWriteback: ProposeWritebackFn = async (args) => {
+            // Stream coarse progress back into the agent's "Thinking…" Slack
+            // message so the user can see what the writeback is doing
+            // (Starting sandbox → Cloning project → Discovering models →
+            // Editing models → Compiling project → Committing → …). Web/MCP
+            // callers don't have a message to update, so the callback is
+            // wired only for Slack prompts. Fire-and-forget — a Slack update
+            // failure (rate limit, message deleted, etc.) must never take
+            // down the writeback itself.
+            const slackProgressCallback = isSlackPrompt(prompt)
+                ? (message: string) => {
+                      void this.updateSlackResponseWithProgress(
+                          prompt,
+                          message,
+                      ).catch((err) => {
+                          Logger.debug(
+                              `Failed to update Slack progress for writeback (${message}):`,
+                              err,
+                          );
+                      });
+                  }
+                : undefined;
+
             const result = await wrapSentryTransaction(
                 'AiAgent.proposeWriteback',
                 {},
@@ -5360,6 +5382,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: args.prompt,
                         aiThreadUuid: prompt.threadUuid,
+                        onProgress: slackProgressCallback,
                     }),
             );
             // On a successful PR open/update, add a green-tick reaction to the
@@ -7028,7 +7051,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Get available agents for a user with their full context, filtered by access if OAuth is required
      */
-    private async getAvailableAgents(
+    public async getAvailableAgents(
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
@@ -7364,34 +7387,36 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         }
 
-        // Multiple agents - use LLM to select the best one
         const { model } = getModel(this.lightdashConfig.ai.copilot);
 
-        const { agent: selectedAgent, selection } =
-            await selectBestAgentWithContext(
-                model,
-                availableAgents,
-                messageText,
-            );
+        const decision = await selectAgent({
+            model,
+            candidates: availableAgents,
+            prompt: messageText,
+        });
+
+        const selectedAgent =
+            availableAgents.find(
+                (a) => a.uuid === decision.selectedAgentUuid,
+            ) ?? availableAgents[0];
 
         Logger.info(
             `Agent selected by LLM ${JSON.stringify({
                 agentUuid: selectedAgent.uuid,
                 agentName: selectedAgent.name,
-                reasoning: selection.reasoning,
-                confidence: selection.confidence,
-                shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+                reasoning: decision.reasoning,
+                confidence: decision.confidence,
+                shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
             })}`,
         );
 
-        // If confidence is low, show selection UI instead
-        if (selection.confidence === 'low') {
+        if (decision.confidence === 'low') {
             Logger.info(
                 `Low confidence in agent selection - showing manual selection UI,
                 ${JSON.stringify({
-                    reasoning: selection.reasoning,
+                    reasoning: decision.reasoning,
                     shouldSkipForwardingQuery:
-                        selection.shouldSkipForwardingQuery,
+                        decision.shouldSkipForwardingQuery,
                 })},`,
             );
             await this.showAgentSelectionUI(
@@ -7399,7 +7424,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 channelId,
                 threadTs,
                 say,
-                selection.shouldSkipForwardingQuery,
+                decision.shouldSkipForwardingQuery,
             );
             return undefined;
         }
@@ -7419,7 +7444,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return {
             agent: selectedAgent,
-            shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+            shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
         };
     }
 
@@ -8161,10 +8186,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                 try {
                     // The action value is user-controlled (it round-trips
-                    // through Slack), so validate its shape before trusting it.
+                    // through Slack), so validate its shape before trusting
+                    // it. `projectName` round-trips so the confirmation
+                    // message can name the project without an extra lookup.
                     const projectSelectionSchema = z.object({
                         projectUuid: z.string().uuid(),
                         channelId: z.string().min(1),
+                        projectName: z.string().min(1),
                     });
                     const parseResult = projectSelectionSchema.safeParse(
                         JSON.parse(rawValue),
@@ -8176,7 +8204,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                         return;
                     }
-                    const { projectUuid, channelId } = parseResult.data;
+                    const { projectUuid, channelId, projectName } =
+                        parseResult.data;
 
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -8279,19 +8308,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             instruction: SYSTEM_AGENT_INSTRUCTION,
                         });
 
-                    // Replace the picker with a confirmation.
+                    // Replace the picker with a confirmation that names the
+                    // selected project, so the user has a record of which
+                    // project this conversation is bound to.
                     if (body.message?.ts) {
                         try {
                             await client.chat.update({
                                 channel: channelId,
                                 ts: body.message.ts,
-                                text: '✅ Project selected',
+                                text: `✅ Project selected: ${projectName}`,
                                 blocks: [
                                     {
                                         type: 'section',
                                         text: {
                                             type: 'mrkdwn',
-                                            text: ':white_check_mark: Working in the project you selected.',
+                                            text: `:white_check_mark: Working in *${projectName}*.`,
                                         },
                                     },
                                 ],

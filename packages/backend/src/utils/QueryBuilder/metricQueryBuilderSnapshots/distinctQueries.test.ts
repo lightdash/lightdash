@@ -1,6 +1,7 @@
 import {
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_SUM_DISTINCT,
+    EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE,
@@ -8,6 +9,9 @@ import {
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE,
 } from '../MetricQueryBuilder.mock';
 import { buildQuery } from './helpers';
 
@@ -89,6 +93,37 @@ describe('MetricQueryBuilder snapshot: distinct queries', () => {
             buildQuery({
                 explore: EXPLORE_WITH_AVERAGE_DISTINCT,
                 compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: wrapper resolves to dd CTE refs, not raw SUM(...).
+    test('matches snapshot for a type:number metric that wraps two sum_distinct metrics', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: transitive rate (rate -> wrapper -> sum_distinct) resolves to dd CTE refs.
+    test('matches snapshot for a type:number metric that transitively references sum_distinct metrics through another type:number wrapper', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery:
+                    METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: both wrappers selected — exercises topo ordering.
+    test('matches snapshot for both wrapper and transitive-rate metrics selected together', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED,
             }),
         ).toMatchSnapshot();
     });

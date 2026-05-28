@@ -7,8 +7,6 @@ import {
     ActionIcon,
     Anchor,
     Box,
-    Button,
-    Divider,
     Group,
     Paper,
     Switch,
@@ -16,7 +14,12 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
-import { IconArrowUp, IconBrain, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconArrowUp,
+    IconBulb,
+    IconBulbFilled,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -30,6 +33,8 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { AgentSelector } from '../AgentSelector';
+import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import { getAgentSuggestionModes } from './suggestionModes';
@@ -74,6 +79,8 @@ interface AgentChatInputProps {
     agentUuid?: string;
     threadUuid?: string;
     latestAssistantMessageUuid?: string;
+    agents?: Agent[];
+    selectedAgent?: Agent | 'auto';
     models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
@@ -84,6 +91,7 @@ interface AgentChatInputProps {
     defaultValue?: string;
     onValueChange?: (value: string) => void;
     fullWidth?: boolean;
+    clearOnSubmit?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -111,6 +119,8 @@ export const AgentChatInput = ({
     agentUuid,
     threadUuid,
     latestAssistantMessageUuid,
+    agents,
+    selectedAgent,
     models,
     selectedModelId,
     onModelChange,
@@ -121,6 +131,7 @@ export const AgentChatInput = ({
     defaultValue,
     onValueChange,
     fullWidth = false,
+    clearOnSubmit = true,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -135,6 +146,8 @@ export const AgentChatInput = ({
     loadingRef.current = loading;
     const disabledRef = useRef(disabled);
     disabledRef.current = disabled;
+    const clearOnSubmitRef = useRef(clearOnSubmit);
+    clearOnSubmitRef.current = clearOnSubmit;
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -186,7 +199,13 @@ export const AgentChatInput = ({
 
     const showModelSelector =
         models && models.length > 1 && onModelChange !== undefined;
-    const isMinimalMode = !showModelSelector;
+    const showAgentSelector = !!(
+        agents &&
+        selectedAgent &&
+        projectUuid &&
+        agents.length > 0
+    );
+    const isMinimalMode = !showModelSelector && !showAgentSelector;
 
     const suggestionsFlag = useServerFeatureFlag(
         FeatureFlags.AiAgentSuggestions,
@@ -265,8 +284,10 @@ export const AgentChatInput = ({
                         message: text,
                         toolHints: extractToolHints(ed),
                     });
-                    ed.commands.clearContent();
-                    setValueState('');
+                    if (clearOnSubmitRef.current) {
+                        ed.commands.clearContent();
+                        setValueState('');
+                    }
                     return true;
                 }
                 return false;
@@ -333,8 +354,10 @@ export const AgentChatInput = ({
                 message: chip.label,
                 toolHints: [chip.tool],
             });
-            editor?.commands.clearContent();
-            setValueState('');
+            if (clearOnSubmitRef.current) {
+                editor?.commands.clearContent();
+                setValueState('');
+            }
             trackClick();
         },
         [
@@ -384,8 +407,10 @@ export const AgentChatInput = ({
             message: text,
             toolHints: extractToolHints(ed),
         });
-        ed.commands.clearContent();
-        setValueState('');
+        if (clearOnSubmitRef.current) {
+            ed.commands.clearContent();
+            setValueState('');
+        }
     };
 
     const chipRow = useMemo(() => {
@@ -572,46 +597,80 @@ export const AgentChatInput = ({
 
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
-                        {showModelSelector && (
-                            <ModelSelector
-                                models={models}
-                                value={selectedModelId ?? null}
-                                onChange={onModelChange}
-                            />
-                        )}
+                        {(showModelSelector || onExtendedThinkingChange) && (
+                            <Box className={styles.modelGroup}>
+                                {showModelSelector && (
+                                    <ModelSelector
+                                        models={models}
+                                        value={selectedModelId ?? null}
+                                        onChange={onModelChange}
+                                        variant="subtle"
+                                        color="gray"
+                                        size="xs"
+                                    />
+                                )}
 
-                        {onExtendedThinkingChange && (
-                            <Group>
-                                <Divider orientation="vertical" />
-                                <Button
-                                    variant="subtle"
-                                    size="compact-sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconBrain}
+                                {showModelSelector &&
+                                    onExtendedThinkingChange && (
+                                        <div
+                                            className={styles.modelGroupDivider}
+                                        />
+                                    )}
+
+                                {onExtendedThinkingChange && (
+                                    <Tooltip
+                                        multiline
+                                        w={240}
+                                        withArrow
+                                        position="top"
+                                        label="Let the model spend extra reasoning time before answering. Slower but better on complex questions."
+                                    >
+                                        <ActionIcon
+                                            variant={
+                                                extendedThinking
+                                                    ? 'light'
+                                                    : 'subtle'
+                                            }
                                             color={
                                                 extendedThinking
-                                                    ? 'indigo.5'
-                                                    : 'ldGray.7'
+                                                    ? 'indigo'
+                                                    : 'gray'
                                             }
-                                        />
-                                    }
-                                    className={
-                                        styles.thinkingButton +
-                                        ' ' +
-                                        (extendedThinking
-                                            ? styles.thinkingButtonOn
-                                            : '')
-                                    }
-                                    onClick={() =>
-                                        onExtendedThinkingChange(
-                                            !extendedThinking,
-                                        )
-                                    }
-                                >
-                                    Thinking
-                                </Button>
-                            </Group>
+                                            size={30}
+                                            onClick={() =>
+                                                onExtendedThinkingChange(
+                                                    !extendedThinking,
+                                                )
+                                            }
+                                            aria-label="Toggle extended thinking"
+                                            aria-pressed={extendedThinking}
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    extendedThinking
+                                                        ? IconBulbFilled
+                                                        : IconBulb
+                                                }
+                                                size="sm"
+                                                color={
+                                                    extendedThinking
+                                                        ? 'indigo.5'
+                                                        : 'ldGray.6'
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
+                            </Box>
+                        )}
+
+                        {showAgentSelector && (
+                            <AgentSelector
+                                projectUuid={projectUuid!}
+                                agents={agents!}
+                                selectedAgent={selectedAgent!}
+                                compact
+                            />
                         )}
                     </Box>
 

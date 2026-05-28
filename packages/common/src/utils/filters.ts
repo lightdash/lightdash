@@ -210,6 +210,24 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NOT_NULL &&
     filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
+/**
+ * A dashboard filter is "malformed empty" when it is active (not disabled),
+ * uses an operator that requires values, and has no values. These filters
+ * look empty in the UI but still override chart-level filters at runtime,
+ * which is surprising. See PROD-7445.
+ *
+ * `values` is checked with Array.isArray to tolerate hand-authored YAML
+ * where `values:` or `values: ~` parses to JS `null` instead of `[]`.
+ */
+export const isMalformedEmptyDashboardFilter = (filter: {
+    operator: FilterOperator;
+    values?: unknown[] | null;
+    disabled?: boolean;
+}): boolean =>
+    filter.disabled !== true &&
+    isWithValueFilter(filter.operator) &&
+    (!Array.isArray(filter.values) || filter.values.length === 0);
+
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     filterType: FilterType,
     field: FilterableField | undefined,

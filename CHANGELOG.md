@@ -1,3 +1,42 @@
+# [0.3041.0](https://github.com/lightdash/lightdash/compare/0.3040.0...0.3041.0) (2026-05-28)
+
+
+### Bug Fixes
+
+* **ee:** suppress user-error noise and surface timeout context in AI writeback Sentry events ([#23606](https://github.com/lightdash/lightdash/issues/23606)) ([78a792a](https://github.com/lightdash/lightdash/commit/78a792a34704db52b0f4e866c765fa60cfe10f3d))
+* **prod-7445:** drop malformed empty dashboard filters on CLI upload + warn in lint ([#23613](https://github.com/lightdash/lightdash/issues/23613)) ([0c1aa49](https://github.com/lightdash/lightdash/commit/0c1aa49658abc0738c4c5dcae31ea76947b8fa08))
+
+
+### Features
+
+* **ee:** stream AI writeback progress into the Slack "Thinking…" message ([#23612](https://github.com/lightdash/lightdash/issues/23612)) ([255887b](https://github.com/lightdash/lightdash/commit/255887b90f844c508f6a0870c4a9603dfb73d74f))
+
+# [0.3040.0](https://github.com/lightdash/lightdash/compare/0.3039.0...0.3040.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** name the selected project in the Slack picker confirmation ([#23614](https://github.com/lightdash/lightdash/issues/23614)) ([ce2eff7](https://github.com/lightdash/lightdash/commit/ce2eff754baaea50b119ca451b247ee4e27608aa))
+
+# [0.3039.0](https://github.com/lightdash/lightdash/compare/0.3038.0...0.3039.0) (2026-05-28)
+
+
+### Bug Fixes
+
+* **explorer:** correct font size and line height in FiltersCard filter labels ([#23608](https://github.com/lightdash/lightdash/issues/23608)) ([7574c04](https://github.com/lightdash/lightdash/commit/7574c04f3e32c918a62da795cc7a71504d215a83))
+* route transitive type:number wrappers of sum_distinct through dedup CTE ([#23599](https://github.com/lightdash/lightdash/issues/23599)) ([024549a](https://github.com/lightdash/lightdash/commit/024549ac36f8da1150975cd8bcc9b81fb5296c30))
+* update Google SSO callout to reflect when other SSO providers are enabled ([#23604](https://github.com/lightdash/lightdash/issues/23604)) ([cd968f2](https://github.com/lightdash/lightdash/commit/cd968f23b0ac495a24fc63c2f5ec91f09042ed0e))
+
+
+### Features
+
+* **ai-router:** Ask AI router with low-confidence disambiguation ([#23536](https://github.com/lightdash/lightdash/issues/23536)) ([6298a6f](https://github.com/lightdash/lightdash/commit/6298a6f17d59a847925bf2c9db5ed5e9afd5a488))
+
+
+### Performance Improvements
+
+* **ai-writeback:** give agent a pre-computed file listing (PROD-7983) ([#23603](https://github.com/lightdash/lightdash/issues/23603)) ([746b68f](https://github.com/lightdash/lightdash/commit/746b68f0251dc7f494bec8ad3c30194ed7ad5be2))
+
 # [0.3038.0](https://github.com/lightdash/lightdash/compare/0.3037.0...0.3038.0) (2026-05-28)
 
 

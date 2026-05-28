@@ -141,6 +141,7 @@ export type ModelManifest = {
     aiWritebackThreadModel: unknown;
     aiWritebackPromptModel: unknown;
     aiAgentReviewClassifierModel: unknown;
+    aiRouterModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -746,6 +747,10 @@ export class ModelRepository
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentReviewClassifierModel');
+    }
+
+    public getAiRouterModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiRouterModel');
     }
 
     public getAiOrganizationSettingsModel<ModelImplT>(): ModelImplT {

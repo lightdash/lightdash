@@ -2616,6 +2616,171 @@ export const METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     compiledCustomDimensions: [],
 };
 
+// PROD-7893: type:number wrappers over sum_distinct metrics, plus a transitive rate.
+export const EXPLORE_WITH_SUM_DISTINCT_WRAPPER: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'transfers',
+    label: 'transfers',
+    baseTable: 'transfers',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        transfers: {
+            name: 'transfers',
+            label: 'transfers',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."transfers"',
+            primaryKey: ['client_id'],
+            dimensions: {
+                client_id: {
+                    type: DimensionType.STRING,
+                    name: 'client_id',
+                    label: 'Client ID',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.client_id',
+                    compiledSql: '"transfers".client_id',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                date: {
+                    type: DimensionType.DATE,
+                    name: 'date',
+                    label: 'Date',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.date',
+                    compiledSql: '"transfers".date',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_corridor_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_corridor_transfers',
+                    label: 'Total corridor transfers',
+                    sql: '${TABLE}.total_daily_corridor_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_corridor_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_corridor_transfers',
+                    compiledDistinctKeys: [
+                        '"transfers".client_id',
+                        '"transfers".date',
+                    ],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_residual_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_residual_transfers',
+                    label: 'Total residual transfers',
+                    sql: '${TABLE}.total_daily_residual_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_residual_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_residual_transfers',
+                    compiledDistinctKeys: ['"transfers".client_id'],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_inbound_contacts: {
+                    type: MetricType.COUNT_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_inbound_contacts',
+                    label: 'Total inbound contacts',
+                    sql: '${TABLE}.contact_id',
+                    compiledSql: 'COUNT(DISTINCT "transfers".contact_id)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_transfers: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_transfers',
+                    label: 'Total transfers',
+                    sql: '${total_corridor_transfers} + ${total_residual_transfers}',
+                    compiledSql:
+                        '(SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                transfer_inbound_contact_rate: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'transfer_inbound_contact_rate',
+                    label: 'Transfer inbound contact rate',
+                    sql: '${total_inbound_contacts} / nullif(${total_transfers}, 0)',
+                    compiledSql:
+                        '(COUNT(DISTINCT "transfers".contact_id)) / nullif(((SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))), 0)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: ['transfers_total_transfers'],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE: CompiledMetricQuery =
+    {
+        exploreName: 'transfers',
+        dimensions: ['transfers_date'],
+        metrics: ['transfers_transfer_inbound_contact_rate'],
+        filters: {},
+        sorts: [{ fieldId: 'transfers_date', descending: false }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: [
+        'transfers_total_transfers',
+        'transfers_transfer_inbound_contact_rate',
+    ],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
 // Expected: SELECT uses DATE_TRUNC (zoomed), but WHERE uses raw column
 export const METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL = `SELECT
   DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",

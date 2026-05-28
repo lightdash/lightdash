@@ -2,7 +2,6 @@ import type { AiModelOption } from '@lightdash/common';
 import {
     Button,
     Menu,
-    rem,
     ScrollArea,
     Stack,
     Text,
@@ -57,10 +56,7 @@ export const ModelSelector: FC<Props> = ({
         >
             <Menu.Target>
                 <Button
-                    variant="subtle"
-                    color="gray"
                     px="xs"
-                    h={rem(36)}
                     {...buttonProps}
                     rightSection={
                         <MantineIcon
@@ -70,7 +66,7 @@ export const ModelSelector: FC<Props> = ({
                         />
                     }
                 >
-                    <Text size="sm" fw={500}>
+                    <Text size="xs" fw={500} c="dimmed">
                         {selectedModel?.displayName ?? 'Select model'}
                     </Text>
                 </Button>

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
@@ -13,7 +14,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
-import { Sandbox } from 'e2b';
+import { CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -204,6 +205,38 @@ export class AiWritebackService extends BaseService {
 
     private static elapsed(start: number): number {
         return Math.round(performance.now() - start);
+    }
+
+    /**
+     * Map an internal lifecycle stage to the short progress string surfaced
+     * to the user (e.g. via the Slack bot's "Thinking…" message). One source
+     * of truth so the wording stays consistent if a stage is renamed later.
+     * Keep the strings short — Slack renders them in a single context line.
+     */
+    private static progressTextForStage(
+        stage: AiWritebackFailureStage,
+    ): string {
+        switch (stage) {
+            case 'install':
+                return 'Setting up';
+            case 'sandbox':
+                return 'Starting sandbox';
+            case 'clone':
+                return 'Cloning project';
+            case 'agent':
+                return 'Working on changes';
+            case 'commit':
+                return 'Committing changes';
+            case 'push':
+                return 'Pushing to GitHub';
+            case 'pull_request':
+                return 'Opening pull request';
+            default:
+                return assertUnreachable(
+                    stage,
+                    `Unknown AiWritebackFailureStage: ${String(stage)}`,
+                );
+        }
     }
 
     private async createSandbox(
@@ -422,8 +455,22 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
-        const { user, projectUuid, prompt, aiThreadUuid } = args;
+        const { user, projectUuid, prompt, aiThreadUuid, onProgress } = args;
         const runStartedAt = performance.now();
+
+        // Wrap the optional onProgress in a try/catch so a misbehaving caller
+        // (e.g. a Slack `chat.update` 429 that wasn't caught upstream) can
+        // never take down the writeback run itself. Progress is best-effort.
+        const reportProgress = (message: string): void => {
+            if (!onProgress) return;
+            try {
+                onProgress(message);
+            } catch (error) {
+                this.logger.debug(
+                    `AiWriteback: onProgress threw — ignoring: ${getErrorMessage(error)}`,
+                );
+            }
+        };
 
         const turn = await this.prepareTurn({
             user,
@@ -457,6 +504,7 @@ export class AiWritebackService extends BaseService {
             });
             failureStage = stage;
             stageStartedAt = now;
+            reportProgress(AiWritebackService.progressTextForStage(stage));
         };
 
         let sandbox: Sandbox | undefined;
@@ -505,6 +553,7 @@ export class AiWritebackService extends BaseService {
                 systemPrompt,
                 prompt,
                 isResume: turn.isResume,
+                reportProgress,
             });
 
             const {
@@ -853,11 +902,13 @@ export class AiWritebackService extends BaseService {
         systemPrompt,
         prompt,
         isResume,
+        reportProgress,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
         prompt: string;
         isResume: boolean;
+        reportProgress: (message: string) => void;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
@@ -873,6 +924,53 @@ export class AiWritebackService extends BaseService {
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
+
+        // Rolling tail of stderr so a non-zero exit / timeout can carry the
+        // actual error text into the Sentry event. The full stderr is already
+        // streamed through the per-chunk debug log; we keep only the last
+        // STDERR_TAIL_BYTES so we never inflate a Sentry payload.
+        const STDERR_TAIL_BYTES = 4096;
+        let stderrTail = '';
+        const appendStderrTail = (chunk: string) => {
+            stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
+        };
+
+        // Map a single agent tool call to a coarse "phase" so we can stream
+        // semantic progress to the user without firing once per tool. The
+        // ordering — discover → edit → compile — matches the order an
+        // attentive viewer would describe the work, but the agent itself
+        // is free to interleave; we just announce each phase the first time
+        // we see it.
+        type AgentPhase = 'discovering' | 'editing' | 'compiling';
+        const phaseProgressText: Record<AgentPhase, string> = {
+            discovering: 'Discovering models',
+            editing: 'Editing models',
+            compiling: 'Compiling project',
+        };
+        const classifyTool = (
+            name: string,
+            input: unknown,
+        ): AgentPhase | null => {
+            if (name === 'Bash') {
+                const command =
+                    input && typeof input === 'object'
+                        ? (input as { command?: unknown }).command
+                        : undefined;
+                if (
+                    typeof command === 'string' &&
+                    command.includes('lightdash compile')
+                ) {
+                    return 'compiling';
+                }
+                return null;
+            }
+            if (name === 'Edit' || name === 'Write') return 'editing';
+            if (name === 'Read' || name === 'Glob' || name === 'Grep') {
+                return 'discovering';
+            }
+            return null;
+        };
+        const seenPhases = new Set<AgentPhase>();
 
         const summarizeToolInput = (input: unknown): string => {
             if (input && typeof input === 'object') {
@@ -925,6 +1023,11 @@ export class AiWritebackService extends BaseService {
                                 toolName: block.name,
                                 summary: summarizeToolInput(block.input),
                             });
+                            const phase = classifyTool(block.name, block.input);
+                            if (phase && !seenPhases.has(phase)) {
+                                seenPhases.add(phase);
+                                reportProgress(phaseProgressText[phase]);
+                            }
                         }
                     }
                 }
@@ -956,35 +1059,84 @@ export class AiWritebackService extends BaseService {
         };
 
         const continueFlag = isResume ? '--continue ' : '';
-        const result = await sandbox.commands.run(
-            `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
-                `--model ${CLAUDE_MODEL} ` +
-                `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
-                // stream-json emits one event per line on stdout (assistant
-                // messages, tool_use blocks, tool_results, final cost summary).
-                // --verbose is required by the CLI when combining -p with
-                // stream-json output.
-                '--output-format stream-json --verbose ' +
-                // Claude Code confines Write/Edit to the cwd workspace, so the
-                // agent cannot write the PR metadata to /tmp (it silently falls
-                // back to the repo root) unless /tmp is an added directory.
-                '--add-dir /tmp ' +
-                `--allowedTools "${ALLOWED_TOOLS}"`,
-            {
-                cwd: CWD,
-                timeoutMs: RUN_TIMEOUT_MS,
-                envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
-                onStdout: (chunk) => {
-                    buffer += chunk;
-                    flushBuffer();
+        let result;
+        try {
+            result = await sandbox.commands.run(
+                `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
+                    `--model ${CLAUDE_MODEL} ` +
+                    `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
+                    // stream-json emits one event per line on stdout (assistant
+                    // messages, tool_use blocks, tool_results, final cost summary).
+                    // --verbose is required by the CLI when combining -p with
+                    // stream-json output.
+                    '--output-format stream-json --verbose ' +
+                    // Claude Code confines Write/Edit to the cwd workspace, so the
+                    // agent cannot write the PR metadata to /tmp (it silently falls
+                    // back to the repo root) unless /tmp is an added directory.
+                    '--add-dir /tmp ' +
+                    `--allowedTools "${ALLOWED_TOOLS}"`,
+                {
+                    cwd: CWD,
+                    timeoutMs: RUN_TIMEOUT_MS,
+                    envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
+                    onStdout: (chunk) => {
+                        buffer += chunk;
+                        flushBuffer();
+                    },
+                    onStderr: (chunk) => {
+                        appendStderrTail(chunk);
+                        this.logger.debug(
+                            `AiWriteback: claude stderr: ${chunk.trimEnd()}`,
+                        );
+                    },
                 },
-                onStderr: (chunk) => {
-                    this.logger.debug(
-                        `AiWriteback: claude stderr: ${chunk.trimEnd()}`,
-                    );
+            );
+        } catch (error) {
+            // e2b throws TimeoutError when RUN_TIMEOUT_MS fires, and
+            // CommandExitError when the claude subprocess returns a non-zero
+            // exit code. Both reach Sentry as the bare message ("exit status
+            // 1") with no stderr — useless for debugging. Capture here so the
+            // rich context (timeout flag, exit code, stderr tail) is attached
+            // before the error bubbles up to the outer wrapSentryTransaction
+            // catch (Sentry's Dedupe integration collapses the two events).
+            const timedOut = error instanceof TimeoutError;
+            const exitCode =
+                error instanceof CommandExitError ? error.exitCode : null;
+            // Prefer the error's stderr (e2b accumulates it server-side and
+            // attaches it to CommandExitError) and fall back to our streamed
+            // tail; both are clipped to STDERR_TAIL_BYTES so the payload stays
+            // small.
+            const errStderr =
+                error instanceof CommandExitError ? (error.stderr ?? '') : '';
+            const stderrSnippet = (errStderr || stderrTail).slice(
+                -STDERR_TAIL_BYTES,
+            );
+            this.logger.error('AI writeback agent subprocess failed', {
+                event: 'ai_writeback.run.agent_failed',
+                sandboxId: sandbox.sandboxId,
+                isResume,
+                timedOut,
+                runTimeoutMs: RUN_TIMEOUT_MS,
+                exitCode,
+                errorMessage: getErrorMessage(error),
+                stderrTail: stderrSnippet || null,
+            });
+            Sentry.captureException(error, {
+                tags: {
+                    errorType: 'AiWritebackAgentSubprocessFailed',
+                    timedOut: String(timedOut),
                 },
-            },
-        );
+                extra: {
+                    sandboxId: sandbox.sandboxId,
+                    isResume,
+                    runTimeoutMs: RUN_TIMEOUT_MS,
+                    exitCode,
+                    stderrTail: stderrSnippet,
+                    toolCounts,
+                },
+            });
+            throw error;
+        }
         // A final line may remain in the buffer if the command output didn't
         // end with a newline (common on timeouts/aborts) — try to parse it but
         // don't fail the run if it's truncated.

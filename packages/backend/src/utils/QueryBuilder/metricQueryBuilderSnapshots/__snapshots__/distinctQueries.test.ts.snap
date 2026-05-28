@@ -256,6 +256,173 @@ LIMIT
   10"
 `;
 
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a type:number metric that transitively references sum_distinct metrics through another type:number wrapper 1`] = `
+"WITH
+  dd_transfers_total_corridor_transfers AS (
+    SELECT
+      "transfers_date",
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_corridor_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".date AS "transfers_date",
+          "transfers".total_daily_corridor_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id,
+              "transfers".date
+            ORDER BY
+              "transfers".total_daily_corridor_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+    GROUP BY
+      1
+  ),
+  dd_transfers_total_residual_transfers AS (
+    SELECT
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_residual_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".total_daily_residual_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id
+            ORDER BY
+              "transfers".total_daily_residual_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+  ),
+  dd_base AS (
+    SELECT
+      "transfers".date AS "transfers_date",
+      COUNT(DISTINCT "transfers".contact_id) AS "transfers_total_inbound_contacts"
+    FROM
+      "db"."schema"."transfers" AS "transfers"
+    GROUP BY
+      1
+  )
+SELECT
+  dd_base.*,
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" AS "transfers_total_corridor_transfers",
+  dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_residual_transfers",
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" + dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_transfers",
+  dd_base."transfers_total_inbound_contacts" / nullif(
+    (
+      dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" + dd_transfers_total_residual_transfers."transfers_total_residual_transfers"
+    ),
+    0
+  ) AS "transfers_transfer_inbound_contact_rate"
+FROM
+  dd_base
+  INNER JOIN dd_transfers_total_corridor_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_corridor_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
+    )
+  )
+  CROSS JOIN dd_transfers_total_residual_transfers
+ORDER BY
+  "transfers_date"
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a type:number metric that wraps two sum_distinct metrics 1`] = `
+"WITH
+  dd_transfers_total_corridor_transfers AS (
+    SELECT
+      "transfers_date",
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_corridor_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".date AS "transfers_date",
+          "transfers".total_daily_corridor_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id,
+              "transfers".date
+            ORDER BY
+              "transfers".total_daily_corridor_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+    GROUP BY
+      1
+  ),
+  dd_transfers_total_residual_transfers AS (
+    SELECT
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_residual_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".total_daily_residual_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id
+            ORDER BY
+              "transfers".total_daily_residual_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+  ),
+  dd_base AS (
+    SELECT
+      "transfers".date AS "transfers_date"
+    FROM
+      "db"."schema"."transfers" AS "transfers"
+    GROUP BY
+      1
+  )
+SELECT
+  dd_base.*,
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" AS "transfers_total_corridor_transfers",
+  dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_residual_transfers",
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" + dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_transfers"
+FROM
+  dd_base
+  INNER JOIN dd_transfers_total_corridor_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_corridor_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
+    )
+  )
+  CROSS JOIN dd_transfers_total_residual_transfers
+ORDER BY
+  "transfers_date"
+LIMIT
+  10"
+`;
+
 exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an average-distinct query with dimensions not in distinct_keys 1`] = `
 "WITH
   dd_orders_avg_shipping_cost AS (
@@ -352,6 +519,93 @@ FROM
   dd_orders_avg_shipping_cost
 ORDER BY
   "orders_avg_shipping_cost" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for both wrapper and transitive-rate metrics selected together 1`] = `
+"WITH
+  dd_transfers_total_corridor_transfers AS (
+    SELECT
+      "transfers_date",
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_corridor_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".date AS "transfers_date",
+          "transfers".total_daily_corridor_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id,
+              "transfers".date
+            ORDER BY
+              "transfers".total_daily_corridor_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+    GROUP BY
+      1
+  ),
+  dd_transfers_total_residual_transfers AS (
+    SELECT
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "transfers_total_residual_transfers"
+    FROM
+      (
+        SELECT
+          "transfers".total_daily_residual_transfers AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "transfers".client_id
+            ORDER BY
+              "transfers".total_daily_residual_transfers
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."transfers" AS "transfers"
+      ) __dd_sub
+  ),
+  dd_base AS (
+    SELECT
+      "transfers".date AS "transfers_date",
+      COUNT(DISTINCT "transfers".contact_id) AS "transfers_total_inbound_contacts"
+    FROM
+      "db"."schema"."transfers" AS "transfers"
+    GROUP BY
+      1
+  )
+SELECT
+  dd_base.*,
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" AS "transfers_total_corridor_transfers",
+  dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_residual_transfers",
+  dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" + dd_transfers_total_residual_transfers."transfers_total_residual_transfers" AS "transfers_total_transfers",
+  dd_base."transfers_total_inbound_contacts" / nullif(
+    (
+      dd_transfers_total_corridor_transfers."transfers_total_corridor_transfers" + dd_transfers_total_residual_transfers."transfers_total_residual_transfers"
+    ),
+    0
+  ) AS "transfers_transfer_inbound_contact_rate"
+FROM
+  dd_base
+  INNER JOIN dd_transfers_total_corridor_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_corridor_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
+    )
+  )
+  CROSS JOIN dd_transfers_total_residual_transfers
+ORDER BY
+  "transfers_date"
 LIMIT
   10"
 `;
