@@ -33,6 +33,7 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
+    IconWorldCheck,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import {
@@ -77,6 +78,7 @@ import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
+import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
@@ -478,6 +480,16 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/oauthClients',
                 element: <OAuthClientsPanel />,
+            });
+        }
+
+        if (
+            user?.ability.can('manage', 'Organization') &&
+            isSsoOrganizationSettingsEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/verifiedDomains',
+                element: <VerifiedDomainsPanel />,
             });
         }
 
@@ -896,6 +908,20 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+
+                                {user.ability.can('manage', 'Organization') &&
+                                    isSsoOrganizationSettingsEnabled && (
+                                        <RouterNavLink
+                                            label="Verified domains"
+                                            exact
+                                            to="/generalSettings/verifiedDomains"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconWorldCheck}
+                                                />
+                                            }
+                                        />
+                                    )}
 
                                 {user.ability.can('manage', 'Organization') &&
                                     isSsoOrganizationSettingsEnabled && (

@@ -9,6 +9,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { OrganizationDomainVerificationsTableName } from '../database/entities/organizationDomainVerifications';
 import { OrganizationSsoConfigurationsTableName } from '../database/entities/organizationSsoConfigurations';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
@@ -44,7 +45,31 @@ export type OrganizationGoogleMethod = {
     allowPassword: boolean;
 };
 
-const ALLOWED_EMAIL_DOMAINS_TABLE = 'organization_allowed_email_domains';
+/**
+ * Restricts an SSO-config query to rows whose organization has verified the
+ * given (already-normalized) domain. Uses an EXISTS against
+ * {@link OrganizationDomainVerificationsTableName}, which has a partial unique
+ * index on `(domain) WHERE verified_at IS NOT NULL` — so this is an indexed
+ * lookup that resolves the domain to at most one owning organization.
+ */
+const verifiedDomainExists =
+    (database: Knex, normalized: string) => (builder: Knex.QueryBuilder) => {
+        void builder.whereExists((qb) => {
+            void qb
+                .select(database.raw('1'))
+                .from(OrganizationDomainVerificationsTableName)
+                .whereRaw(
+                    `${OrganizationDomainVerificationsTableName}.organization_uuid = ${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                )
+                .andWhere(
+                    `${OrganizationDomainVerificationsTableName}.domain`,
+                    normalized,
+                )
+                .whereNotNull(
+                    `${OrganizationDomainVerificationsTableName}.verified_at`,
+                );
+        });
+    };
 
 export class OrganizationSsoModel {
     private readonly database: Knex;
@@ -95,16 +120,21 @@ export class OrganizationSsoModel {
     }
 
     /**
-     * Restricts a query to rows whose effective whitelist includes the given
-     * (already-normalized) domain. The "effective whitelist" is the row's own
-     * `email_domains` when `override_email_domains = true`, else the org's
-     * `allowed_email_domains` list. Assumes the query has already left-joined
-     * {@link ALLOWED_EMAIL_DOMAINS_TABLE}.
+     * Restricts a query to rows that route the given (already-normalized,
+     * already-verified) domain. When `override_email_domains = false` the
+     * method routes ALL of the org's verified domains, so it matches; when
+     * `true` the domain must be in the method's own `email_domains` subset.
+     * Pair with {@link verifiedDomainExists}, which guarantees the domain is
+     * verified for the org in the first place.
      */
     private static emailDomainMatchClause(normalized: string) {
         return (builder: Knex.QueryBuilder) => {
             void builder
-                .where((subOverride) => {
+                .where(
+                    `${OrganizationSsoConfigurationsTableName}.override_email_domains`,
+                    false,
+                )
+                .orWhere((subOverride) => {
                     void subOverride
                         .where(
                             `${OrganizationSsoConfigurationsTableName}.override_email_domains`,
@@ -114,36 +144,22 @@ export class OrganizationSsoModel {
                             `? = ANY (${OrganizationSsoConfigurationsTableName}.email_domains)`,
                             [normalized],
                         );
-                })
-                .orWhere((subInherit) => {
-                    void subInherit
-                        .where(
-                            `${OrganizationSsoConfigurationsTableName}.override_email_domains`,
-                            false,
-                        )
-                        .whereRaw(
-                            `? = ANY (${ALLOWED_EMAIL_DOMAINS_TABLE}.email_domains)`,
-                            [normalized],
-                        );
                 });
         };
     }
 
     /**
-     * Finds all enabled SSO methods whose effective whitelist includes the
-     * email's domain.
+     * Finds all enabled SSO methods that route the email's domain — i.e. the
+     * domain is verified for the method's org and (for override methods) is in
+     * the method's subset.
      */
     async findEnabledMethodsForEmailDomain(
         emailDomain: string,
     ): Promise<OrganizationSsoMethod<OrganizationSsoProvider>[]> {
         const normalized = emailDomain.toLowerCase();
         const rows = await this.database(OrganizationSsoConfigurationsTableName)
-            .leftJoin(
-                ALLOWED_EMAIL_DOMAINS_TABLE,
-                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
-                `${ALLOWED_EMAIL_DOMAINS_TABLE}.organization_uuid`,
-            )
             .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .andWhere(verifiedDomainExists(this.database, normalized))
             .andWhere(OrganizationSsoModel.emailDomainMatchClause(normalized))
             .select(`${OrganizationSsoConfigurationsTableName}.*`);
 
@@ -171,15 +187,11 @@ export class OrganizationSsoModel {
     ): Promise<OrganizationGoogleMethod[]> {
         const normalized = emailDomain.toLowerCase();
         const rows = await this.database(OrganizationSsoConfigurationsTableName)
-            .leftJoin(
-                ALLOWED_EMAIL_DOMAINS_TABLE,
-                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
-                `${ALLOWED_EMAIL_DOMAINS_TABLE}.organization_uuid`,
-            )
             .where(
                 `${OrganizationSsoConfigurationsTableName}.provider`,
                 OrganizationSsoProvider.GOOGLE,
             )
+            .andWhere(verifiedDomainExists(this.database, normalized))
             .andWhere(OrganizationSsoModel.emailDomainMatchClause(normalized))
             .select(`${OrganizationSsoConfigurationsTableName}.*`);
 

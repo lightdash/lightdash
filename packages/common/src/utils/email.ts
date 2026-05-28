@@ -10,8 +10,24 @@ export const getEmailDomain = (email: string): string => {
     return domains[1].toLowerCase();
 };
 
-const EMAIL_PROVIDER_LIST = [
+/**
+ * Single source of truth for public / consumer email-provider domains that no
+ * single organization can legitimately own. Used to block these domains from
+ * being claimed as an organization email domain (auto-join) AND from being
+ * verified as an SSO routing domain — receiving an OTP at e.g. `gmail.com`
+ * proves nothing about owning the provider.
+ *
+ * Seeded from the previous `EMAIL_PROVIDER_LIST` here plus the corporate
+ * domains that `OrganizationSsoService` separately blocked. Can be expanded
+ * from a maintained list (e.g. Kickbox `free-email-domains`) if needed — keep
+ * it a vendored static set, never a runtime fetch.
+ */
+export const PUBLIC_EMAIL_PROVIDER_DOMAINS = new Set([
     'gmail.com',
+    'googlemail.com',
+    'google.com',
+    'microsoft.com',
+    'onmicrosoft.com',
     'yahoo.com',
     'hotmail.com',
     'aol.com',
@@ -42,7 +58,6 @@ const EMAIL_PROVIDER_LIST = [
     'live.fr',
     'verizon.net',
     'live.co.uk',
-    'googlemail.com',
     'yahoo.es',
     'ig.com.br',
     'live.nl',
@@ -59,10 +74,14 @@ const EMAIL_PROVIDER_LIST = [
     'sky.com',
     'blueyonder.co.uk',
     'icloud.com',
-];
+]);
 
-const isEmailProviderDomain = (domain: string): boolean =>
-    EMAIL_PROVIDER_LIST.includes(domain);
+/**
+ * Whether a domain is a public/consumer email provider that no single
+ * organization can own. Normalizes case before checking.
+ */
+export const isPublicEmailProviderDomain = (domain: string): boolean =>
+    PUBLIC_EMAIL_PROVIDER_DOMAINS.has(domain.trim().toLowerCase());
 
 const VALID_EMAIL_DOMAIN_REGEX = /^[a-zA-Z0-9][\w.-]+\.\w{2,4}/g;
 export const isValidEmailDomain = (value: string) =>
@@ -70,7 +89,7 @@ export const isValidEmailDomain = (value: string) =>
 
 export const validateOrganizationEmailDomains = (domains: string[]) => {
     const invalidDomains = domains.filter((domain) =>
-        isEmailProviderDomain(domain),
+        isPublicEmailProviderDomain(domain),
     );
 
     if (!invalidDomains.length) {

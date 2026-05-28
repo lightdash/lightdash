@@ -13294,6 +13294,7 @@
                     "editContent",
                     "improveContext",
                     "listProjects",
+                    "getProjectInfo",
                     "loadSkill",
                     "proposeWriteback",
                     "runSavedChart",
@@ -18229,6 +18230,158 @@
             "UpsertGoogleSsoConfig": {
                 "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
             },
+            "VerifiedDomain": {
+                "properties": {
+                    "verifiedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verifiedByUserUuid",
+                    "verifiedAt",
+                    "domain",
+                    "organizationUuid"
+                ],
+                "type": "object",
+                "description": "A domain an organization has proven it owns (via a one-time passcode sent to\nan address at the domain). Verified domains are globally unique — the first\norganization to verify a domain owns it."
+            },
+            "ApiVerifiedDomainsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/VerifiedDomain"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EmailOneTimePassword": {
+                "properties": {
+                    "numberOfAttempts": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of times the passcode has been attempted"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Time that the passcode was created"
+                    }
+                },
+                "required": ["numberOfAttempts", "createdAt"],
+                "type": "object"
+            },
+            "Pick_EmailStatusExpiring.otp_": {
+                "properties": {
+                    "otp": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EmailOneTimePassword"
+                            },
+                            {
+                                "properties": {
+                                    "isMaxAttempts": {
+                                        "type": "boolean"
+                                    },
+                                    "isExpired": {
+                                        "type": "boolean"
+                                    },
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                },
+                                "required": [
+                                    "isMaxAttempts",
+                                    "isExpired",
+                                    "expiresAt"
+                                ],
+                                "type": "object"
+                            }
+                        ],
+                        "description": "One time passcode information\nIf there is no active passcode, this will be undefined"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DomainVerificationStatus": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_EmailStatusExpiring.otp_"
+                    },
+                    {
+                        "properties": {
+                            "isVerified": {
+                                "type": "boolean"
+                            },
+                            "domain": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["isVerified", "domain"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Verification status of a single domain. Mirrors {@link EmailStatusExpiring}:\n`otp` is present only while a pending one-time passcode challenge exists."
+            },
+            "ApiDomainVerificationStatusResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DomainVerificationStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RequestDomainVerification": {
+                "properties": {
+                    "challengeEmail": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": ["challengeEmail", "domain"],
+                "type": "object",
+                "description": "Request to verify a domain. `challengeEmail` must be an address at `domain`;\na one-time passcode is sent there and confirmed via\n{@link ConfirmDomainVerification}."
+            },
+            "ConfirmDomainVerification": {
+                "properties": {
+                    "passcode": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": ["passcode", "domain"],
+                "type": "object"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -19351,22 +19504,6 @@
                         "$ref": "#/components/schemas/CreateUserArgs"
                     }
                 ]
-            },
-            "EmailOneTimePassword": {
-                "properties": {
-                    "numberOfAttempts": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of times the passcode has been attempted"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Time that the passcode was created"
-                    }
-                },
-                "required": ["numberOfAttempts", "createdAt"],
-                "type": "object"
             },
             "EmailStatus": {
                 "properties": {
@@ -35246,7 +35383,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3028.0",
+        "version": "0.3028.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -40620,6 +40757,163 @@
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/domains": {
+            "get": {
+                "operationId": "ListVerifiedDomains",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifiedDomainsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the domains the current organization has verified ownership of.",
+                "summary": "List verified domains",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/domains/verify": {
+            "post": {
+                "operationId": "RequestDomainVerification",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDomainVerificationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Sends a one-time passcode to an address at the domain to begin verifying\nownership. The domain must not be a public email provider and must not\nalready be verified by another organization.",
+                "summary": "Request domain verification",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestDomainVerification"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/domains/confirm": {
+            "post": {
+                "operationId": "ConfirmDomainVerification",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDomainVerificationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Confirms a domain verification passcode. On success the domain is marked\nverified for the organization.",
+                "summary": "Confirm domain verification",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmDomainVerification"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/domains/{domain}": {
+            "delete": {
+                "operationId": "DeleteVerifiedDomain",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes a verified domain and strips it from any SSO provider that routed\nto it.",
+                "summary": "Delete verified domain",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "domain",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/orgs/{orgUuid}/roles": {

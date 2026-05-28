@@ -7,7 +7,6 @@ import {
     Image,
     Stack,
     Switch,
-    TagsInput,
     Text,
     Title,
 } from '@mantine-8/core';
@@ -20,7 +19,6 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useAllowedEmailDomains } from '../../../hooks/organization/useAllowedDomains';
 import {
     useDeleteGoogleSsoConfig,
     useGoogleSsoConfig,
@@ -32,6 +30,7 @@ import MantineModal from '../../common/MantineModal';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { GOOGLE_LOGO } from '../../common/ThirdPartySignInButton/ssoProviderLogos';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
+import SsoMethodDomainsField from './SsoMethodDomainsField';
 
 type FormValues = {
     enabled: boolean;
@@ -42,7 +41,6 @@ type FormValues = {
 
 const GoogleSsoPanel: FC = () => {
     const { data: existing, isLoading } = useGoogleSsoConfig();
-    const { data: allowedEmailDomains } = useAllowedEmailDomains();
     const upsert = useUpsertGoogleSsoConfig();
     const deleteConfig = useDeleteGoogleSsoConfig();
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -80,8 +78,6 @@ const GoogleSsoPanel: FC = () => {
         existing?.emailDomains,
         existing?.allowPassword,
     ]);
-
-    const orgDomains = allowedEmailDomains?.emailDomains ?? [];
 
     const handleSubmit = form.onSubmit((values) => {
         upsert.mutate({
@@ -191,45 +187,26 @@ const GoogleSsoPanel: FC = () => {
                             <form onSubmit={handleSubmit}>
                                 <Stack>
                                     <Title order={6}>Discovery</Title>
-                                    <Checkbox
-                                        label="Override organization's allowed email domains"
-                                        description="When unchecked, users matching any of the organization's allowed email domains see this method."
-                                        checked={
+                                    <SsoMethodDomainsField
+                                        providerLabel="Google"
+                                        override={
                                             form.values.overrideEmailDomains
                                         }
-                                        onChange={(event) =>
+                                        onOverrideChange={(value) =>
                                             form.setFieldValue(
                                                 'overrideEmailDomains',
-                                                event.currentTarget.checked,
+                                                value,
                                             )
                                         }
+                                        domains={form.values.emailDomains}
+                                        onDomainsChange={(domains) =>
+                                            form.setFieldValue(
+                                                'emailDomains',
+                                                domains,
+                                            )
+                                        }
+                                        error={form.errors.emailDomains}
                                     />
-                                    {form.values.overrideEmailDomains ? (
-                                        <TagsInput
-                                            label="Email domains for this method"
-                                            description="Only users whose email domain matches one of these will see Google. Domains are case-insensitive."
-                                            placeholder="acme.com, acme.io"
-                                            value={form.values.emailDomains}
-                                            onChange={(domains) =>
-                                                form.setFieldValue(
-                                                    'emailDomains',
-                                                    domains,
-                                                )
-                                            }
-                                            error={form.errors.emailDomains}
-                                            clearable
-                                        />
-                                    ) : (
-                                        <Text size="sm" c="dimmed">
-                                            Using organization's allowed email
-                                            domains:{' '}
-                                            {orgDomains.length > 0 ? (
-                                                <b>{orgDomains.join(', ')}</b>
-                                            ) : (
-                                                <i>none configured</i>
-                                            )}
-                                        </Text>
-                                    )}
 
                                     <Title order={6} mt="md">
                                         Password sign-in
