@@ -1,3 +1,10 @@
+## [0.3028.1](https://github.com/lightdash/lightdash/compare/0.3028.0...0.3028.1) (2026-05-28)
+
+
+### Bug Fixes
+
+* **mcp:** preserve chart type ([#23577](https://github.com/lightdash/lightdash/issues/23577)) ([cc378c7](https://github.com/lightdash/lightdash/commit/cc378c792085b2009c17d3a9a49925ed570a461d))
+
 # [0.3028.0](https://github.com/lightdash/lightdash/compare/0.3027.1...0.3028.0) (2026-05-27)
 
 
