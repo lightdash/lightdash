@@ -1,6 +1,16 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
-import { Anchor, Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
+import {
+    Anchor,
+    ActionIcon,
+    Box,
+    Group,
+    ScrollArea,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconApps,
     IconAppWindow,
@@ -21,6 +31,8 @@ import {
     IconHistory,
     IconIdBadge2,
     IconKey,
+    IconLayoutSidebarLeftCollapse,
+    IconLayoutSidebarLeftExpand,
     IconListCheck,
     IconLock,
     IconMessageCircle,
@@ -41,7 +53,7 @@ import {
     IconVariable,
     IconWorldCheck,
 } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useState, useMemo, type FC } from 'react';
 import {
     matchPath,
     Navigate,
@@ -182,6 +194,8 @@ const Settings: FC = () => {
     );
     const isSsoOrganizationSettingsEnabled =
         ssoOrganizationSettingsFlag?.enabled ?? false;
+
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const { track } = useTracking();
     const {
@@ -814,15 +828,69 @@ const Settings: FC = () => {
             withFixedContent={isFixedContent}
             withPaddedContent
             title="Settings"
+            isSidebarCollapsed={isSidebarCollapsed}
+            isSidebarCollapsible
+            collapsedSidebarContent={
+                <Tooltip label="Pin sidebar" position="right" variant="xs">
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="lg"
+                        onClick={() => setIsSidebarCollapsed(false)}
+                        aria-label="Pin sidebar"
+                    >
+                        <MantineIcon icon={IconLayoutSidebarLeftExpand} />
+                    </ActionIcon>
+                </Tooltip>
+            }
             sidebar={
                 <Stack className={classes.sidebarStack}>
-                    <PageBreadcrumbs
-                        items={[{ title: 'Settings', active: true }]}
-                    />
+                    <Group
+                        justify="space-between"
+                        align="center"
+                        className={classes.sidebarHeader}
+                    >
+                        <PageBreadcrumbs
+                            items={[{ title: 'Settings', active: true }]}
+                        />
+                        <Tooltip
+                            label={
+                                isSidebarCollapsed
+                                    ? 'Pin sidebar'
+                                    : 'Unpin sidebar'
+                            }
+                            variant="xs"
+                        >
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="lg"
+                                onClick={() =>
+                                    setIsSidebarCollapsed(
+                                        (collapsed) => !collapsed,
+                                    )
+                                }
+                                aria-label={
+                                    isSidebarCollapsed
+                                        ? 'Pin sidebar'
+                                        : 'Unpin sidebar'
+                                }
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isSidebarCollapsed
+                                            ? IconLayoutSidebarLeftExpand
+                                            : IconLayoutSidebarLeftCollapse
+                                    }
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
                     <ScrollArea
                         variant="primary"
                         offsetScrollbars
                         scrollbarSize={8}
+                        className={classes.sidebarScroll}
                     >
                         <Stack gap="lg">
                             <Box>

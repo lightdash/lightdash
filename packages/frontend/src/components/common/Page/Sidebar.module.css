@@ -1,0 +1,89 @@
+.floatContainer {
+    --sidebar-ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+    --sidebar-ease-conceal: cubic-bezier(0.22, 1, 0.36, 1);
+    --sidebar-reveal-duration: 340ms;
+    --sidebar-conceal-duration: 300ms;
+
+    position: relative;
+    height: calc(100% - 1px);
+    max-height: 100%;
+    flex-shrink: 0;
+    z-index: var(--mantine-z-index-popover);
+    transition: width var(--sidebar-reveal-duration) var(--sidebar-ease-reveal);
+    top: 1px;
+}
+
+.floatingPanel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--mantine-z-index-popover);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    padding-bottom: 0;
+    /* Default = conceal: governs hide-on-leave and the unpin slide-out. */
+    transition: transform var(--sidebar-conceal-duration)
+        var(--sidebar-ease-conceal);
+}
+
+.floatingPanel[data-collapsed='false'] {
+    transform: translateX(0);
+    border-radius: 0;
+    transition: transform var(--sidebar-reveal-duration)
+        var(--sidebar-ease-reveal);
+}
+
+/* Off-screen at rest; the extra 24px clears the shadow and floating margin. */
+.floatingPanel[data-collapsed='true'] {
+    transform: translateX(calc(-100% - 24px));
+    margin: 8px;
+    border-radius: var(--mantine-radius-md);
+    will-change: transform;
+}
+
+.floatContainer:has(.edgeTrigger:hover) .floatingPanel[data-collapsed='true'],
+.floatContainer:has(.floatingPanel:hover)
+    .floatingPanel[data-collapsed='true'] {
+    transform: translateX(0);
+    /* Reveal: the panel glides in and decelerates into place. */
+    transition: transform var(--sidebar-reveal-duration)
+        var(--sidebar-ease-reveal);
+}
+
+/* Invisible full-height hover zone along the page's left edge — approaching it
+   reveals the sidebar. Its width matches the collapsed panel's 8px inset so the
+   zone meets the panel with no dead gap that would drop the hover mid-transit. */
+.edgeTrigger {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 8px;
+    z-index: 1;
+}
+
+.floatingPanelInner {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Sits below the panel so the revealed panel covers it cleanly instead of
+   doubling up with the panel's own header controls. */
+.trigger {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .floatContainer,
+    .floatingPanel {
+        transition: none !important;
+    }
+}

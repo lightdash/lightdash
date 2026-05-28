@@ -12,14 +12,19 @@ import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import {
+    SIDEBAR_ANIMATION_DURATION,
     SIDEBAR_DEFAULT_WIDTH,
     SIDEBAR_MIN_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
 } from './constants';
+import classes from './Sidebar.module.css';
 import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type Props = {
     isOpen?: boolean;
+    isCollapsed?: boolean;
+    collapsible?: boolean;
+    collapsedContent?: React.ReactNode;
     containerProps?: FlexProps;
     position?: SidebarPosition;
     widthProps?: SidebarWidthProps;
@@ -29,8 +34,53 @@ type Props = {
     onResizeEnd?: () => void;
 };
 
+const ResizeHandle: FC<{
+    position: SidebarPosition;
+    isResizing: boolean;
+    onMouseDown: (event: React.MouseEvent) => void;
+}> = ({ position, isResizing, onMouseDown }) => (
+    <Box
+        h="100%"
+        w={SIDEBAR_RESIZE_HANDLE_WIDTH}
+        pos="absolute"
+        top={0}
+        {...(position === SidebarPosition.LEFT
+            ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
+            : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
+        onMouseDown={onMouseDown}
+        sx={(theme) => ({
+            cursor: 'col-resize',
+            zIndex: getDefaultZIndex('app') + 1,
+            ...(isResizing
+                ? {
+                      background: theme.fn.linearGradient(
+                          90,
+                          theme.colorScheme === 'dark'
+                              ? theme.colors.blue[5]
+                              : theme.colors.blue[3],
+                          'transparent',
+                      ),
+                  }
+                : {
+                      ...theme.fn.hover({
+                          background: theme.fn.linearGradient(
+                              90,
+                              theme.colorScheme === 'dark'
+                                  ? theme.colors.blue[7]
+                                  : theme.colors.blue[1],
+                              'transparent',
+                          ),
+                      }),
+                  }),
+        })}
+    />
+);
+
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
+    isCollapsed = false,
+    collapsible = false,
+    collapsedContent,
     containerProps,
     position = SidebarPosition.LEFT,
     widthProps = {},
@@ -54,6 +104,57 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             onResizeEnd,
         });
 
+    // Collapsible sidebars drop out of the page flow when collapsed and
+    // reveal as a floating overlay when the edge trigger (or panel) is hovered.
+    if (collapsible) {
+        return (
+            <TrackSection name={SectionName.SIDEBAR}>
+                <Flex
+                    ref={sidebarRef}
+                    direction="column"
+                    className={classes.floatContainer}
+                    style={{ width: isCollapsed ? 0 : sidebarWidth }}
+                    {...containerProps}
+                >
+                    <Paper
+                        shadow="lg"
+                        radius={0}
+                        className={classes.floatingPanel}
+                        style={{ width: sidebarWidth }}
+                        data-collapsed={isCollapsed ? 'true' : 'false'}
+                        data-testid={
+                            isCollapsed
+                                ? 'common-sidebar-collapsed'
+                                : 'common-sidebar'
+                        }
+                    >
+                        <Box className={classes.floatingPanelInner}>
+                            {children}
+                        </Box>
+                    </Paper>
+
+                    {isCollapsed ? (
+                        <>
+                            <Box className={classes.edgeTrigger} />
+                            <Box className={classes.trigger}>
+                                {collapsedContent}
+                            </Box>
+                        </>
+                    ) : (
+                        <ResizeHandle
+                            position={position}
+                            isResizing={isResizing}
+                            onMouseDown={startResizing}
+                        />
+                    )}
+                </Flex>
+            </TrackSection>
+        );
+    }
+
+    const sidebarPadding = noSidebarPadding ? 0 : 16;
+    const contentWidth = sidebarWidth - sidebarPadding * 2;
+
     const transition: MantineTransition = {
         in: {
             opacity: 1,
@@ -67,8 +168,11 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 ? { marginLeft: -sidebarWidth }
                 : { marginRight: -sidebarWidth }),
         },
-        transitionProperty: 'opacity, margin',
+        transitionProperty: isResizing
+            ? 'opacity, margin'
+            : 'opacity, margin, width',
     };
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Flex
@@ -82,70 +186,45 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             >
                 <Transition
                     mounted={isOpen}
-                    duration={500}
+                    duration={SIDEBAR_ANIMATION_DURATION}
                     transition={transition}
                 >
                     {(style) => (
                         <>
                             <Paper
                                 shadow="lg"
-                                p={noSidebarPadding ? undefined : 'lg'}
-                                pb={0}
-                                w={sidebarWidth}
-                                style={style}
+                                style={{
+                                    ...style,
+                                    width: sidebarWidth,
+                                    padding: sidebarPadding,
+                                    paddingBottom: 0,
+                                }}
                                 radius={0}
                                 sx={{
                                     display: 'flex',
                                     flexGrow: 1,
                                     flexDirection: 'column',
-                                    overflowY: 'auto',
+                                    overflow: 'hidden',
                                 }}
                                 data-testid="common-sidebar"
                             >
-                                {children}
+                                <Box
+                                    sx={{
+                                        flexGrow: 1,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        width: contentWidth,
+                                        minHeight: 0,
+                                    }}
+                                >
+                                    {children}
+                                </Box>
                             </Paper>
 
-                            <Box
-                                h="100%"
-                                w={SIDEBAR_RESIZE_HANDLE_WIDTH}
-                                pos="absolute"
-                                top={0}
-                                {...(position === SidebarPosition.LEFT
-                                    ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
-                                    : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
+                            <ResizeHandle
+                                position={position}
+                                isResizing={isResizing}
                                 onMouseDown={startResizing}
-                                sx={(theme) => ({
-                                    cursor: 'col-resize',
-                                    zIndex: getDefaultZIndex('app') + 1,
-                                    ...(isResizing
-                                        ? {
-                                              background:
-                                                  theme.fn.linearGradient(
-                                                      90,
-                                                      theme.colorScheme ===
-                                                          'dark'
-                                                          ? theme.colors.blue[5]
-                                                          : theme.colors
-                                                                .blue[3],
-                                                      'transparent',
-                                                  ),
-                                          }
-                                        : {
-                                              ...theme.fn.hover({
-                                                  background:
-                                                      theme.fn.linearGradient(
-                                                          90,
-                                                          theme.colorScheme ===
-                                                              'dark'
-                                                              ? theme.colors
-                                                                    .blue[7]
-                                                              : theme.colors
-                                                                    .blue[1],
-                                                          'transparent',
-                                                      ),
-                                              }),
-                                          }),
-                                })}
                             />
                         </>
                     )}

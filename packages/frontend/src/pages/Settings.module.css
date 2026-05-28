@@ -1,4 +1,16 @@
 .sidebarStack {
     flex-grow: 1;
     overflow: hidden;
+    min-height: 0;
+}
+
+.sidebarHeader {
+    flex-wrap: nowrap;
+    gap: var(--mantine-spacing-xs);
+    flex-shrink: 0;
+}
+
+.sidebarScroll {
+    flex: 1 1 auto;
+    min-height: 0;
 }
