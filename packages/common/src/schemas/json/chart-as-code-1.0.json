@@ -1091,6 +1091,10 @@
                     "enum": ["horizontal", "vertical"],
                     "type": "string"
                 },
+                "placement": {
+                    "$ref": "#/$defs/LegendPlacement",
+                    "description": "High-level placement preset. Overrides orient/top/right/bottom/left\nwhen set to an outside value."
+                },
                 "right": {
                     "description": "Right position",
                     "type": "string"
@@ -1545,6 +1549,11 @@
             },
             "required": ["value", "matchType"],
             "type": "object"
+        },
+        "LegendPlacement": {
+            "description": "High-level legend placement preset. Set to 'outsideRight' or 'outsideLeft' to\nrender the legend beside the plot with reserved grid space. Undefined behaves\nlike 'custom' (no override of the existing legend position fields).",
+            "enum": ["custom", "outsideRight", "outsideLeft"],
+            "type": "string"
         },
         "MapChart": {
             "properties": {

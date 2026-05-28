@@ -572,6 +572,11 @@ export type Series = {
     isFilteredOut?: boolean;
 };
 
+/** High-level legend placement preset. Set to 'outsideRight' or 'outsideLeft' to
+ * render the legend beside the plot with reserved grid space. Undefined behaves
+ * like 'custom' (no override of the existing legend position fields). */
+export type LegendPlacement = 'custom' | 'outsideRight' | 'outsideLeft';
+
 export type EchartsLegend = {
     /** Show the legend */
     show?: boolean;
@@ -603,6 +608,9 @@ export type EchartsLegend = {
         | 'pin'
         | 'arrow'
         | 'none';
+    /** High-level placement preset. Overrides orient/top/right/bottom/left
+     * when set to an outside value. */
+    placement?: LegendPlacement;
 };
 
 export type EchartsGrid = {
