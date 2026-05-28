@@ -36,8 +36,8 @@
 
 .categoryTokenSecondaryText {
     color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-dark-2)
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-1)
     );
 }
 
@@ -86,4 +86,14 @@
     display: inline-flex;
     align-items: center;
     cursor: help;
+}
+
+.threadIcon {
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+}
+
+.bodyRow:hover .threadIcon,
+.threadIcon:focus-visible {
+    opacity: 1;
 }
