@@ -29,7 +29,7 @@ export const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';
 
 // Hard ceiling on a single synchronous run. The HTTP request is held open for
 // the duration, so keep this well under typical load-balancer/proxy timeouts.
-export const RUN_TIMEOUT_MS = 10 * 60 * 1000;
+export const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
 // How long an E2B sandbox stays alive before E2B reaps it. Used both when
 // creating a sandbox and when connecting to a paused one to keep it warm.
