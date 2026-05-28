@@ -115,10 +115,10 @@
     width: 100%;
     border-radius: var(--mantine-radius-md);
     border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-3));
     background-color: light-dark(
         var(--mantine-color-white),
-        var(--mantine-color-ldDark-6)
+        var(--mantine-color-ldDark-5)
     );
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
     transition:
@@ -148,11 +148,11 @@
 .candidateButton:hover {
     border-color: light-dark(
         var(--mantine-color-ldGray-4),
-        var(--mantine-color-ldDark-3)
+        var(--mantine-color-ldDark-2)
     );
     background-color: light-dark(
         var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-5)
+        var(--mantine-color-ldDark-4)
     );
 }
 
@@ -163,11 +163,15 @@
 .candidateButton.recommended {
     border-color: light-dark(
         var(--mantine-color-violet-3),
-        var(--mantine-color-violet-7)
+        var(--mantine-color-violet-6)
     );
     background-color: light-dark(
         var(--mantine-color-violet-0),
-        rgba(118, 65, 232, 0.12)
+        color-mix(
+            in oklab,
+            var(--mantine-color-violet-9) 42%,
+            var(--mantine-color-ldDark-5)
+        )
     );
     animation:
         pickerItemIn 380ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both,
@@ -177,18 +181,22 @@
 .candidateButton.recommended:hover {
     border-color: light-dark(
         var(--mantine-color-violet-5),
-        var(--mantine-color-violet-6)
+        var(--mantine-color-violet-5)
     );
     background-color: light-dark(
         var(--mantine-color-violet-1),
-        rgba(118, 65, 232, 0.18)
+        color-mix(
+            in oklab,
+            var(--mantine-color-violet-9) 55%,
+            var(--mantine-color-ldDark-5)
+        )
     );
 }
 
 .chevron {
     color: light-dark(
         var(--mantine-color-ldGray-5),
-        var(--mantine-color-ldGray-6)
+        var(--mantine-color-ldGray-4)
     );
     flex-shrink: 0;
     transition:
@@ -200,12 +208,15 @@
     transform: translateX(2px);
     color: light-dark(
         var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-4)
+        var(--mantine-color-ldGray-2)
     );
 }
 
 .candidateButton.recommended .chevron {
-    color: var(--mantine-color-violet-6);
+    color: light-dark(
+        var(--mantine-color-violet-6),
+        var(--mantine-color-violet-3)
+    );
 }
 
 @keyframes pickerStackIn {
