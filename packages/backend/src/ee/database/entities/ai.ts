@@ -80,6 +80,40 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     Pick<DbAiWritebackThread, 'sandbox_id'>
 >;
 
+export const AiWritebackPromptTableName = 'ai_writeback_prompt';
+
+export type DbAiWritebackPrompt = {
+    ai_writeback_prompt_uuid: string;
+    project_uuid: string;
+    organization_uuid: string;
+    ai_thread_uuid: string | null;
+    created_by_user_uuid: string | null;
+    sandbox_id: string;
+    is_resume: boolean;
+    system_prompt: string;
+    prompt: string;
+    response: string | null;
+    exit_code: number | null;
+    created_at: Date;
+    responded_at: Date | null;
+};
+
+export type AiWritebackPromptTable = Knex.CompositeTableType<
+    DbAiWritebackPrompt,
+    Pick<
+        DbAiWritebackPrompt,
+        | 'project_uuid'
+        | 'organization_uuid'
+        | 'ai_thread_uuid'
+        | 'created_by_user_uuid'
+        | 'sandbox_id'
+        | 'is_resume'
+        | 'system_prompt'
+        | 'prompt'
+    >,
+    Pick<DbAiWritebackPrompt, 'response' | 'exit_code' | 'responded_at'>
+>;
+
 export const AiPromptTableName = 'ai_prompt';
 
 export type DbAiPrompt = {
