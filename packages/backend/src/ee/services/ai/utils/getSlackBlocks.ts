@@ -655,6 +655,20 @@ export function getProjectSelectionBlocks(
         },
     };
 
+    // The project name is round-tripped through the action value so the
+    // handler can name the project in its confirmation message without an
+    // extra DB lookup. Truncated to match the visible label, and well within
+    // Slack's ~2000-char limit for `value`.
+    const buildSelectionValue = (project: {
+        projectUuid: string;
+        name: string;
+    }): string =>
+        JSON.stringify({
+            projectUuid: project.projectUuid,
+            channelId,
+            projectName: truncateText(project.name, 75),
+        });
+
     // Few projects: one button each for a single tap.
     if (projects.length <= PROJECT_SELECTION_BUTTON_THRESHOLD) {
         return [
@@ -671,10 +685,7 @@ export function getProjectSelectionBlocks(
                         type: 'plain_text',
                         text: truncateText(project.name, 75),
                     },
-                    value: JSON.stringify({
-                        projectUuid: project.projectUuid,
-                        channelId,
-                    }),
+                    value: buildSelectionValue(project),
                 })),
             },
         ];
@@ -700,10 +711,7 @@ export function getProjectSelectionBlocks(
                             type: 'plain_text',
                             text: truncateText(project.name, 75),
                         },
-                        value: JSON.stringify({
-                            projectUuid: project.projectUuid,
-                            channelId,
-                        }),
+                        value: buildSelectionValue(project),
                     })),
                 },
             ],

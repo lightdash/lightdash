@@ -8163,10 +8163,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                 try {
                     // The action value is user-controlled (it round-trips
-                    // through Slack), so validate its shape before trusting it.
+                    // through Slack), so validate its shape before trusting
+                    // it. `projectName` round-trips so the confirmation
+                    // message can name the project without an extra lookup.
                     const projectSelectionSchema = z.object({
                         projectUuid: z.string().uuid(),
                         channelId: z.string().min(1),
+                        projectName: z.string().min(1),
                     });
                     const parseResult = projectSelectionSchema.safeParse(
                         JSON.parse(rawValue),
@@ -8178,7 +8181,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                         return;
                     }
-                    const { projectUuid, channelId } = parseResult.data;
+                    const { projectUuid, channelId, projectName } =
+                        parseResult.data;
 
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -8281,19 +8285,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             instruction: SYSTEM_AGENT_INSTRUCTION,
                         });
 
-                    // Replace the picker with a confirmation.
+                    // Replace the picker with a confirmation that names the
+                    // selected project, so the user has a record of which
+                    // project this conversation is bound to.
                     if (body.message?.ts) {
                         try {
                             await client.chat.update({
                                 channel: channelId,
                                 ts: body.message.ts,
-                                text: '✅ Project selected',
+                                text: `✅ Project selected: ${projectName}`,
                                 blocks: [
                                     {
                                         type: 'section',
                                         text: {
                                             type: 'mrkdwn',
-                                            text: ':white_check_mark: Working in the project you selected.',
+                                            text: `:white_check_mark: Working in *${projectName}*.`,
                                         },
                                     },
                                 ],
