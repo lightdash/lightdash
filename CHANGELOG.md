@@ -1,3 +1,10 @@
+# [0.3042.0](https://github.com/lightdash/lightdash/compare/0.3041.1...0.3042.0) (2026-05-28)
+
+
+### Features
+
+* **ai-writeback:** log system + user prompts and responses to db ([#23609](https://github.com/lightdash/lightdash/issues/23609)) ([7fbc108](https://github.com/lightdash/lightdash/commit/7fbc108ac9ee392dc535f7654b4edf4ef538be39))
+
 ## [0.3041.1](https://github.com/lightdash/lightdash/compare/0.3041.0...0.3041.1) (2026-05-28)
 
 
