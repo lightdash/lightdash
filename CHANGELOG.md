@@ -1,3 +1,12 @@
+# [0.3035.0](https://github.com/lightdash/lightdash/compare/0.3034.0...0.3035.0) (2026-05-28)
+
+
+### Features
+
+* add agent content browser tool ([#23578](https://github.com/lightdash/lightdash/issues/23578)) ([d2caf99](https://github.com/lightdash/lightdash/commit/d2caf992c8de03c1c54ea638620822f0421d7d7b))
+* add Google SSO default-enabled callout and "Using defaults" badge in org SSO panel ([#23593](https://github.com/lightdash/lightdash/issues/23593)) ([2628b64](https://github.com/lightdash/lightdash/commit/2628b64959930a055e0d3f527c24a332e29721dd))
+* **ai-agents:** add `createContent` tool for creating dashboards and charts ([#23582](https://github.com/lightdash/lightdash/issues/23582)) ([f457336](https://github.com/lightdash/lightdash/commit/f45733649e1919273cc765b319b6aa9d1f7ec1b4))
+
 # [0.3034.0](https://github.com/lightdash/lightdash/compare/0.3033.0...0.3034.0) (2026-05-28)
 
 
