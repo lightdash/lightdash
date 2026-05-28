@@ -1037,28 +1037,101 @@ export class MetricQueryBuilder {
         );
         if (ddMetricIds.size === 0) return new Set();
 
-        const result = new Set<string>();
+        // Propagate transitively through chains like A -> B -> sum_distinct (PROD-7893).
+        const nonAggRefs = new Map<string, Set<string>>();
         for (const metricId of allMetricIds) {
             try {
                 const metric = this.getMetricFromId(metricId);
                 if (isNonAggregateMetric(metric)) {
-                    const refs = parseAllReferences(metric.sql, metric.table);
-                    for (const ref of refs) {
-                        const refId = getItemId({
-                            table: ref.refTable,
-                            name: ref.refName,
-                        });
-                        if (ddMetricIds.has(refId)) {
-                            result.add(metricId);
-                            break;
-                        }
+                    const refIds = new Set<string>();
+                    for (const ref of parseAllReferences(
+                        metric.sql,
+                        metric.table,
+                    )) {
+                        refIds.add(
+                            getItemId({
+                                table: ref.refTable,
+                                name: ref.refName,
+                            }),
+                        );
                     }
+                    nonAggRefs.set(metricId, refIds);
                 }
             } catch {
                 // skip
             }
         }
+
+        const result = new Set<string>();
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const [metricId, refIds] of nonAggRefs) {
+                if (!result.has(metricId)) {
+                    for (const refId of refIds) {
+                        if (ddMetricIds.has(refId) || result.has(refId)) {
+                            result.add(metricId);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         return result;
+    }
+
+    // Topo sort so wrappers are rewritten before metrics that reference them.
+    private topoSortNonAggDdMetrics(metricIds: Set<string>): string[] {
+        const ids = Array.from(metricIds);
+        const deps = new Map<string, Set<string>>();
+        for (const id of ids) {
+            const set = new Set<string>();
+            try {
+                const metric = this.getMetricFromId(id);
+                for (const ref of parseAllReferences(
+                    metric.sql,
+                    metric.table,
+                )) {
+                    const refId = getItemId({
+                        table: ref.refTable,
+                        name: ref.refName,
+                    });
+                    if (metricIds.has(refId) && refId !== id) {
+                        set.add(refId);
+                    }
+                }
+            } catch {
+                // skip
+            }
+            deps.set(id, set);
+        }
+        const ordered: string[] = [];
+        const remaining = new Set(ids);
+        while (remaining.size > 0) {
+            const ready = ids.filter(
+                (id) =>
+                    remaining.has(id) &&
+                    Array.from(deps.get(id) ?? []).every(
+                        (dep) => !remaining.has(dep),
+                    ),
+            );
+            if (ready.length === 0) {
+                // Cycle — emit the rest in input order.
+                for (const id of ids) {
+                    if (remaining.has(id)) {
+                        ordered.push(id);
+                        remaining.delete(id);
+                    }
+                }
+                break;
+            }
+            for (const id of ready) {
+                ordered.push(id);
+                remaining.delete(id);
+            }
+        }
+        return ordered;
     }
 
     private getMetricsSQL(): {
@@ -1841,6 +1914,7 @@ export class MetricQueryBuilder {
     private replaceMetricReferencesWithCteReferences(
         metric: CompiledMetric,
         metricCtes: Array<{ name: string; metrics: string[] }>,
+        nonAggRewriteMap?: Map<string, string>,
     ): string {
         const { explore, warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -1903,6 +1977,13 @@ export class MetricQueryBuilder {
                 );
                 if (containingCte) {
                     return `${containingCte.name}.${fieldQuoteChar}${itemId}${fieldQuoteChar}`;
+                }
+
+                // Inline another non-aggregate metric already rewritten in the same outer
+                // SELECT (PROD-7893). Parens preserve precedence in callers like nullif().
+                const inlinedNonAgg = nonAggRewriteMap?.get(itemId);
+                if (inlinedNonAgg) {
+                    return `(${inlinedNonAgg})`;
                 }
 
                 // Check if it's a dimension — resolve to CTE alias
@@ -4265,13 +4346,18 @@ export class MetricQueryBuilder {
             ];
             const ddFieldQuoteChar =
                 this.args.warehouseSqlBuilder.getFieldQuoteChar();
-            for (const metricId of nonAggDdMetricIds) {
+            const orderedNonAggDdIds =
+                this.topoSortNonAggDdMetrics(nonAggDdMetricIds);
+            const nonAggRewriteMap = new Map<string, string>();
+            for (const metricId of orderedNonAggDdIds) {
                 const metric = this.getMetricFromId(metricId);
                 const rewrittenSql =
                     this.replaceMetricReferencesWithCteReferences(
                         metric,
                         ddCteMap,
+                        nonAggRewriteMap,
                     );
+                nonAggRewriteMap.set(metricId, rewrittenSql);
                 nonAggDdSelects.push(
                     `  ${rewrittenSql} AS ${ddFieldQuoteChar}${metricId}${ddFieldQuoteChar}`,
                 );
