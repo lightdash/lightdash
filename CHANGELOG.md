@@ -1,3 +1,10 @@
+# [0.3037.0](https://github.com/lightdash/lightdash/compare/0.3036.0...0.3037.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** structured logs + Sentry capture for AI writeback runs ([#23600](https://github.com/lightdash/lightdash/issues/23600)) ([a9d16f8](https://github.com/lightdash/lightdash/commit/a9d16f86faf77fd7c79a95733536d9132d725f34))
+
 # [0.3036.0](https://github.com/lightdash/lightdash/compare/0.3035.0...0.3036.0) (2026-05-28)
 
 
