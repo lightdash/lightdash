@@ -15,6 +15,10 @@ import {
     mcpToolListExploresArgsSchema,
 } from './mcpToolListExploresArgs';
 import {
+    TOOL_CREATE_CONTENT_DESCRIPTION,
+    toolCreateContentArgsSchema,
+} from './toolCreateContentArgs';
+import {
     TOOL_DASHBOARD_DESCRIPTION,
     toolDashboardArgsSchema,
 } from './toolDashboardArgs';
@@ -74,6 +78,10 @@ import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
 } from './toolImproveContextArgs';
+import {
+    TOOL_LIST_CONTENT_DESCRIPTION,
+    toolListContentArgsSchema,
+} from './toolListContentArgs';
 import {
     TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     toolListKnowledgeDocumentsArgsSchema,
@@ -289,6 +297,22 @@ export const editContentToolDefinition = defineTool({
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditContentArgsSchema,
+});
+
+export const createContentToolDefinition = defineTool({
+    name: 'createContent',
+    title: 'Create content',
+    description: TOOL_CREATE_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolCreateContentArgsSchema,
+});
+
+export const listContentToolDefinition = defineTool({
+    name: 'listContent',
+    title: 'List content',
+    description: TOOL_LIST_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListContentArgsSchema,
 });
 
 export const improveContextToolDefinition = defineTool({
@@ -557,6 +581,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getDashboardChartsToolDefinition,
     readContentToolDefinition,
     editContentToolDefinition,
+    createContentToolDefinition,
+    listContentToolDefinition,
     improveContextToolDefinition,
     loadSkillToolDefinition,
     proposeChangeToolDefinition,

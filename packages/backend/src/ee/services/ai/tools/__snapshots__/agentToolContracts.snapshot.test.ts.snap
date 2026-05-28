@@ -89,7 +89,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
       "properties": {
         "content": {
           "anyOf": [
@@ -2203,15 +2202,6 @@ Usage tips:
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "description": "Tool: "listContent"
-Purpose:
-Lists accessible Lightdash content in a project as a browsable hierarchy.
-
-Usage tips:
-- By default, lists root-level spaces.
-- Pass a spaceSlug to list direct children and content inside that space.
-- Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, and space content counts.",
       "properties": {
         "page": {
           "anyOf": [

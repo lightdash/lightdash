@@ -12,9 +12,7 @@ Usage tips:
 - Use page for pagination. Page starts at 1.
 - Results include names, slugs, content types, and space content counts.`;
 
-export const toolListContentArgsSchema = createToolSchema({
-    description: TOOL_LIST_CONTENT_DESCRIPTION,
-})
+export const toolListContentArgsSchema = createToolSchema()
     .extend({
         spaceSlug: z
             .string()
