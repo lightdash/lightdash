@@ -288,6 +288,7 @@ export class SavedChartController extends BaseController {
     /**
      * Calculate metric totals from a saved chart
      * @summary Calculate total from saved chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */

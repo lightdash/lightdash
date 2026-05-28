@@ -408,6 +408,7 @@ export class ProjectController extends BaseController {
     /**
      * Calculate all metric totals from a metricQuery
      * @summary Calculate total from query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.
      * @param projectUuid The uuid of the project to get charts for
      * @param body The metric query to calculate totals for
      * @param req express request
