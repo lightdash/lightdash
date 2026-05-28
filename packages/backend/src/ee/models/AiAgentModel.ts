@@ -516,10 +516,6 @@ export class AiAgentModel {
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
-            // Hide any leftover built-in system agents from listings during
-            // rolling deploy; the column itself is dropped in the follow-up
-            // migration once this code is everywhere.
-            .where(`${AiAgentTableName}.is_system`, false)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1675,10 +1671,6 @@ export class AiAgentModel {
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     version: args.version,
-                    // System agents have been removed; this column is dropped
-                    // in a follow-up migration. Insert false explicitly so
-                    // rolling deploys against the old schema stay happy.
-                    is_system: false,
                 })
                 .returning('*');
 
