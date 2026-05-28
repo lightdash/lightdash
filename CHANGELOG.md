@@ -1,3 +1,10 @@
+# [0.3031.0](https://github.com/lightdash/lightdash/compare/0.3030.0...0.3031.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** log AI writeback agent tool calls via stream-json output ([#23585](https://github.com/lightdash/lightdash/issues/23585)) ([c45fa4e](https://github.com/lightdash/lightdash/commit/c45fa4ea0e8aaaca70116c4c270303dff264a81e))
+
 # [0.3030.0](https://github.com/lightdash/lightdash/compare/0.3029.0...0.3030.0) (2026-05-28)
 
 
