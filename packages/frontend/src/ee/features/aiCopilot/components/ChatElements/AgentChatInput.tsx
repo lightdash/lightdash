@@ -92,6 +92,7 @@ interface AgentChatInputProps {
     onValueChange?: (value: string) => void;
     fullWidth?: boolean;
     clearOnSubmit?: boolean;
+    showSuggestions?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -132,6 +133,7 @@ export const AgentChatInput = ({
     onValueChange,
     fullWidth = false,
     clearOnSubmit = true,
+    showSuggestions = true,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -217,7 +219,8 @@ export const AgentChatInput = ({
         loading,
         messageCount,
         latestAssistantMessageUuid,
-        suggestionsEnabled: suggestionsFlag.data?.enabled === true,
+        suggestionsEnabled:
+            showSuggestions && suggestionsFlag.data?.enabled === true,
         threadUuid,
     });
 
