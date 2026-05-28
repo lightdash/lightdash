@@ -1,3 +1,11 @@
+# [0.3034.0](https://github.com/lightdash/lightdash/compare/0.3033.0...0.3034.0) (2026-05-28)
+
+
+### Features
+
+* **ai-agents:** add classifier review queue admin tab ([#23554](https://github.com/lightdash/lightdash/issues/23554)) ([ddfaa65](https://github.com/lightdash/lightdash/commit/ddfaa65cb91091132273e6cbbaef8a101de75900))
+* **ai-agents:** run review classifier from live events ([#23550](https://github.com/lightdash/lightdash/issues/23550)) ([5ab808f](https://github.com/lightdash/lightdash/commit/5ab808f7e8e5003cdc69aee1cc0097837fd00f71))
+
 # [0.3033.0](https://github.com/lightdash/lightdash/compare/0.3032.0...0.3033.0) (2026-05-28)
 
 
