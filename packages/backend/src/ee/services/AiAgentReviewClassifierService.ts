@@ -35,7 +35,7 @@ import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v1';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v2';
 
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
@@ -871,7 +871,7 @@ export class AiAgentReviewClassifierService extends BaseService {
 
 Classify whether the assistant turn contains an actionable issue. Use only the supplied evidence packet. Do not invent project fields or facts.
 
-Definitions:
+Root cause definitions:
 - semantic_layer: dbt/Lightdash YAML model, dimension, metric, join, filter, or AI hint should change.
 - project_context: available explores, project context, or knowledge about which explore to use is missing/wrong.
 - agent_configuration: Lightdash agent settings should change, e.g. instructions, knowledge docs, data access, SQL mode, MCP, access.
@@ -882,9 +882,46 @@ Definitions:
 - not_a_failure: normal refinement, new request, acceptance, formatting-only change, or harmless follow-up.
 - ambiguous: likely issue, but insufficient evidence to choose one root cause.
 
-Return promotedToFinding=false for normal refinement, acceptance/continuation, unrelated new questions, or formatting-only changes.
-Successful queries can still be findings when the user asked broad business language and the semantic/catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity.
-Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
+Implicit signal definitions — set these whenever the evidence supports them:
+- assistant_no_answer: the assistant did not answer the user's actual question. This includes giving only a workaround for missing data ("we don't have X, so here's Y instead"), explicitly saying the data is not available, or producing an empty / non-substantive response.
+- next_user_correction: the next user prompt corrects or pushes back on the previous answer's field, metric, explore, scope, business definition, or data availability ("actually I meant…", "but what about…", "you can't connect them?"). Do not use this for ordinary drill-downs or additive follow-up questions.
+- next_user_dispute: the next user prompt explicitly says the previous answer was wrong.
+- next_user_retry: the next user prompt asks the same unresolved question again or asks to try a different approach after a failed, empty, non-substantive, or off-target answer. Do not use this for normal iterative exploration after a useful answer.
+- output_shape_correction: the next user prompt asks for a different chart / format / grouping with no semantic change.
+- tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from.
+- product_capability_request: the user asked for something Lightdash cannot currently express.
+- human_intervention: an admin or engineer had to step in.
+
+Decision rules — apply in order:
+
+1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
+
+2. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
+   - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
+   - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
+   - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
+   - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question.
+
+When promoting, pick primaryRootCause by mapping the dominant signal:
+   - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field → semantic_layer.
+   - assistant_no_answer where the assistant picked a wrong / unrelated explore or field → project_context.
+   - assistant_no_answer due to disabled SQL or data access, missing instructions, or missing knowledge docs → agent_configuration.
+   - assistant_no_answer because the warehouse genuinely lacks the data → data_gap.
+   - assistant_no_answer because Lightdash cannot express the question (missing chart type, unsupported pivot, etc.) → product_capability.
+   - next_user_correction or next_user_dispute about field choice, scoping, or definition → semantic_layer or project_context.
+   - next_user_retry after a failed or empty answer → runtime_reliability or agent_configuration depending on cause.
+   - tool_error → runtime_reliability.
+   - product_capability_request → product_capability.
+   - human_intervention → agent_configuration unless evidence clearly points elsewhere.
+
+3. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
+
+4. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity.
+
+5. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
+
+6. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
+
 When promotedToFinding=true, provide concise evidence excerpts copied or summarized from the packet and a practical recommendation.
 Use one primaryRootCause. Secondary causes are optional.
 For targetRefs, return compact refs:
