@@ -1,6 +1,8 @@
 import {
-    PR_DESCRIPTION_PATH,
-    PR_TITLE_PATH,
+    PR_DESCRIPTION_CLOSE,
+    PR_DESCRIPTION_OPEN,
+    PR_TITLE_CLOSE,
+    PR_TITLE_OPEN,
     TMP_PROFILES_DIR,
 } from './constants';
 
@@ -73,10 +75,19 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. Write two files for the host to open a pull request from:
-   - ${PR_TITLE_PATH}: a single-line PR title, plain text, no emojis, max 72 characters.
-   - ${PR_DESCRIPTION_PATH}: a markdown PR description, plain text, no emojis.
+6. End your final reply with two structured-output blocks so the host can
+   pick up the PR metadata reliably. The host strips both blocks before
+   showing your reply to the user, so they will not appear in Slack. Emit them
+   verbatim, on their own lines, each opening and closing tag exactly as shown:
 
-If you did not change any files, skip steps 1–6 entirely and do not write
-${PR_TITLE_PATH} or ${PR_DESCRIPTION_PATH}.
+   ${PR_TITLE_OPEN}
+   single-line PR title — plain text, no emojis, max 72 characters
+   ${PR_TITLE_CLOSE}
+
+   ${PR_DESCRIPTION_OPEN}
+   PR description in plain markdown, no emojis
+   ${PR_DESCRIPTION_CLOSE}
+
+If you did not change any files, skip steps 1–6 entirely and do not emit the
+blocks.
 `.trim();

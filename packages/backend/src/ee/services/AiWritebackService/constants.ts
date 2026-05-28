@@ -6,9 +6,21 @@ export const CWD = '/home/user/repo';
 export const PROMPT_PATH = '/tmp/prompt.txt';
 export const SYSTEM_PROMPT_PATH = '/tmp/system_prompt.txt';
 
-// Files the agent writes for the host to open a PR from.
+// Files the agent writes for the host to open a PR from. Kept as a fallback
+// — the primary channel is now structured output blocks in the agent's stdout
+// (see PR_TITLE_OPEN/CLOSE etc.).
 export const PR_TITLE_PATH = '/tmp/pr_title.txt';
 export const PR_DESCRIPTION_PATH = '/tmp/pr_description.md';
+
+// Structured-output delimiters. The agent emits the PR title/description in
+// these XML-style blocks at the end of its final reply, the host parses them
+// out of stdout for the PR, and the host strips them before showing the reply
+// to the user. The tags are deliberately specific so they cannot collide with
+// normal dbt or markdown content.
+export const PR_TITLE_OPEN = '<lightdash-writeback-pr-title>';
+export const PR_TITLE_CLOSE = '</lightdash-writeback-pr-title>';
+export const PR_DESCRIPTION_OPEN = '<lightdash-writeback-pr-description>';
+export const PR_DESCRIPTION_CLOSE = '</lightdash-writeback-pr-description>';
 
 // Installation tokens authenticate over HTTPS with a fixed username.
 export const GIT_USERNAME = 'x-access-token';

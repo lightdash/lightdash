@@ -37,7 +37,11 @@ import {
     CWD,
     GIT_TIMEOUT_MS,
     GIT_USERNAME,
+    PR_DESCRIPTION_CLOSE,
+    PR_DESCRIPTION_OPEN,
     PR_DESCRIPTION_PATH,
+    PR_TITLE_CLOSE,
+    PR_TITLE_OPEN,
     PR_TITLE_PATH,
     PROMPT_PATH,
     RUN_TIMEOUT_MS,
@@ -300,6 +304,50 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Pull the PR title and description out of the agent's final stdout via
+     * the structured-output delimiters, and return a copy of the stdout with
+     * those blocks removed so they don't appear in the Slack reply. Either
+     * field may be null when the agent failed to emit it — in that case the
+     * caller falls back to the (less reliable) file-based metadata channel.
+     */
+    private extractPrMetadata(stdout: string): {
+        title: string | null;
+        description: string | null;
+        sanitizedStdout: string;
+    } {
+        const escape = (s: string): string =>
+            s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const titleRe = new RegExp(
+            `${escape(PR_TITLE_OPEN)}([\\s\\S]*?)${escape(PR_TITLE_CLOSE)}`,
+        );
+        const descRe = new RegExp(
+            `${escape(PR_DESCRIPTION_OPEN)}([\\s\\S]*?)${escape(
+                PR_DESCRIPTION_CLOSE,
+            )}`,
+        );
+        const title = stdout.match(titleRe)?.[1].trim() || null;
+        const description = stdout.match(descRe)?.[1].trim() || null;
+        const stripRe = new RegExp(
+            `${escape(PR_TITLE_OPEN)}[\\s\\S]*?${escape(
+                PR_TITLE_CLOSE,
+            )}|${escape(PR_DESCRIPTION_OPEN)}[\\s\\S]*?${escape(
+                PR_DESCRIPTION_CLOSE,
+            )}`,
+            'g',
+        );
+        const sanitizedStdout = stdout
+            .replace(stripRe, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        this.logger.info(
+            `AiWriteback: extracted PR metadata from stdout (title=${
+                title !== null
+            }, description=${description !== null})`,
+        );
+        return { title, description, sanitizedStdout };
+    }
+
+    /**
      * Stage the agent's changes for commit. We deliberately avoid
      * `git add --all`: the agent can leave scratch files (e.g. PR metadata) in
      * the working tree, and staging everything is how those leaked into PRs.
@@ -403,6 +451,12 @@ export class AiWritebackService extends BaseService {
                 isResume: turn.isResume,
             });
 
+            const {
+                title: prTitle,
+                description: prDescription,
+                sanitizedStdout,
+            } = this.extractPrMetadata(agent.stdout);
+
             const { hasChanges } = await sandbox.git.status(CWD);
 
             // The agent crashed mid-run. The working tree may be in a
@@ -418,7 +472,7 @@ export class AiWritebackService extends BaseService {
                     prCreated: false,
                 });
                 return {
-                    output: agent.stdout,
+                    output: sanitizedStdout,
                     exitCode: agent.exitCode,
                     prUrl: turn.existingRow?.pr_url ?? null,
                     projectName: turn.projectName,
@@ -433,6 +487,8 @@ export class AiWritebackService extends BaseService {
                 turn,
                 aiThreadUuid,
                 setStage,
+                prTitle,
+                prDescription,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -443,7 +499,7 @@ export class AiWritebackService extends BaseService {
             });
 
             return {
-                output: agent.stdout,
+                output: sanitizedStdout,
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
                 projectName: turn.projectName,
@@ -718,6 +774,8 @@ export class AiWritebackService extends BaseService {
         turn,
         aiThreadUuid,
         setStage,
+        prTitle,
+        prDescription,
     }: {
         sandbox: Sandbox;
         github: GithubInstallation;
@@ -725,6 +783,8 @@ export class AiWritebackService extends BaseService {
         turn: TurnContext;
         aiThreadUuid: string | undefined;
         setStage: SetStage;
+        prTitle: string | null;
+        prDescription: string | null;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -745,6 +805,8 @@ export class AiWritebackService extends BaseService {
                 installationId: github.installationId,
                 token: github.token,
                 setStage,
+                prTitle,
+                prDescription,
             });
             this.logger.info(
                 `AiWriteback: updated PR ${turn.existingRow.pr_url} (sandboxId=${sandbox.sandboxId})`,
@@ -762,6 +824,8 @@ export class AiWritebackService extends BaseService {
             token: github.token,
             installationId: github.installationId,
             setStage,
+            prTitle,
+            prDescription,
         });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -793,28 +857,39 @@ export class AiWritebackService extends BaseService {
         token,
         installationId,
         setStage,
+        prTitle,
+        prDescription,
     }: {
         sandbox: Sandbox;
         githubConnection: GithubConnection;
         token: string;
         installationId: string;
         setStage: SetStage;
+        prTitle: string | null;
+        prDescription: string | null;
     }): Promise<string> {
         // The current branch right after clone is the default branch — that
         // becomes the PR base. Capture it before we branch off.
         const baseBranch =
             (await sandbox.git.status(CWD)).currentBranch ?? 'main';
 
-        const title = await this.resolvePrMetadata(
-            sandbox,
-            PR_TITLE_PATH,
-            'AI writeback changes',
-        );
-        const description = await this.resolvePrMetadata(
-            sandbox,
-            PR_DESCRIPTION_PATH,
-            'Changes generated by the Lightdash AI writeback agent.',
-        );
+        // Prefer the structured-output values parsed from the agent's stdout.
+        // Fall back to the file-based channel (and finally a generic default)
+        // only when the agent failed to emit the structured blocks.
+        const title =
+            prTitle ??
+            (await this.resolvePrMetadata(
+                sandbox,
+                PR_TITLE_PATH,
+                'AI writeback changes',
+            ));
+        const description =
+            prDescription ??
+            (await this.resolvePrMetadata(
+                sandbox,
+                PR_DESCRIPTION_PATH,
+                'Changes generated by the Lightdash AI writeback agent.',
+            ));
 
         const branch = `lightdash-ai-writeback/${randomUUID()}`;
 
@@ -862,6 +937,8 @@ export class AiWritebackService extends BaseService {
         installationId,
         token,
         setStage,
+        prTitle,
+        prDescription,
     }: {
         sandbox: Sandbox;
         existingRow: DbAiWritebackThread;
@@ -869,17 +946,23 @@ export class AiWritebackService extends BaseService {
         installationId: string;
         token: string;
         setStage: SetStage;
+        prTitle: string | null;
+        prDescription: string | null;
     }): Promise<void> {
-        const title = await this.resolvePrMetadata(
-            sandbox,
-            PR_TITLE_PATH,
-            'AI writeback follow-up',
-        );
-        const description = await this.resolvePrMetadata(
-            sandbox,
-            PR_DESCRIPTION_PATH,
-            'Follow-up changes from the Lightdash AI writeback agent.',
-        );
+        const title =
+            prTitle ??
+            (await this.resolvePrMetadata(
+                sandbox,
+                PR_TITLE_PATH,
+                'AI writeback follow-up',
+            ));
+        const description =
+            prDescription ??
+            (await this.resolvePrMetadata(
+                sandbox,
+                PR_DESCRIPTION_PATH,
+                'Follow-up changes from the Lightdash AI writeback agent.',
+            ));
 
         setStage('commit');
         await this.stageChanges(sandbox, githubConnection.projectSubPath);
