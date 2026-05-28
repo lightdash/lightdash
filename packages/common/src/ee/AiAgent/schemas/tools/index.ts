@@ -23,7 +23,6 @@ export * from './toolImproveContextArgs';
 export * from './toolListProjectsArgs';
 export * from './toolListWarehouseTablesArgs';
 export * from './toolProposeChangeArgs';
-export * from './toolProposeWritebackArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
 export * from './toolRunSavedChartArgs';
