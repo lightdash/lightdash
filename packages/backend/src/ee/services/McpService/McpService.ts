@@ -26,8 +26,8 @@ import {
     JobPollTimeoutError,
     listAgentsToolDefinition,
     listExploresToolDefinition,
-    listProjectsToolDefinition,
     listVerifiedContentToolDefinition,
+    mcpListProjectsToolDefinition,
     MissingConfigError,
     NotFoundError,
     OauthAccount,
@@ -158,7 +158,7 @@ const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
-const mcpListProjectsTool = listProjectsToolDefinition.for('mcp');
+const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
 const mcpListAgentsTool = listAgentsToolDefinition.for('mcp');

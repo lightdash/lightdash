@@ -67,6 +67,10 @@ import {
     toolGetKnowledgeDocumentContentArgsSchema,
 } from './toolGetKnowledgeDocumentContentArgs';
 import {
+    TOOL_GET_PROJECT_INFO_DESCRIPTION,
+    toolGetProjectInfoArgsSchema,
+} from './toolGetProjectInfoArgs';
+import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
 } from './toolImproveContextArgs';
@@ -74,6 +78,10 @@ import {
     TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     toolListKnowledgeDocumentsArgsSchema,
 } from './toolListKnowledgeDocumentsArgs';
+import {
+    TOOL_LIST_PROJECTS_DESCRIPTION,
+    toolListProjectsArgsSchema,
+} from './toolListProjectsArgs';
 import {
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
     toolListWarehouseTablesArgsSchema,
@@ -291,6 +299,22 @@ export const improveContextToolDefinition = defineTool({
     inputSchema: toolImproveContextArgsSchema,
 });
 
+export const listProjectsToolDefinition = defineTool({
+    name: 'listProjects',
+    title: 'List projects',
+    description: TOOL_LIST_PROJECTS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListProjectsArgsSchema,
+});
+
+export const getProjectInfoToolDefinition = defineTool({
+    name: 'getProjectInfo',
+    title: 'Get project info',
+    description: TOOL_GET_PROJECT_INFO_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGetProjectInfoArgsSchema,
+});
+
 export const loadSkillToolDefinition = defineTool({
     name: 'loadSkill',
     title: 'Load skill',
@@ -421,7 +445,7 @@ export const listExploresToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const listProjectsToolDefinition = defineTool({
+export const mcpListProjectsToolDefinition = defineTool({
     name: 'listProjects',
     title: 'List projects',
     description:
@@ -550,6 +574,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getLightdashVersionToolDefinition,
     listExploresToolDefinition,
     listProjectsToolDefinition,
+    mcpListProjectsToolDefinition,
+    getProjectInfoToolDefinition,
     setProjectToolDefinition,
     getCurrentProjectToolDefinition,
     listAgentsToolDefinition,
