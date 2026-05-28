@@ -93,6 +93,35 @@ This includes:
 
 6. **Add frontend check** with `user?.ability.can()`
 
+## Changing the Scope Vocabulary (Migrating Custom Roles)
+
+Custom roles persist scope names as strings in the `scoped_roles` table (`role_uuid`, `scope_name`, `granted_by`). They are decoupled from system roles and **do not auto-update** when the scope vocabulary changes. Any rename / split / merge / removal must include a Knex migration that reconciles existing rows, otherwise self-hosted instances silently lose or retain permissions.
+
+**Before merging a scope change, evaluate the impact and write a migration:**
+
+| Change | Impact on `scoped_roles` | Required migration |
+|--------|--------------------------|--------------------|
+| **Rename a scope** (e.g. `manage:Foo` → `manage:Bar`) | Old rows reference a name that no longer exists in `scopes.ts`. `parseScopes` drops them as invalid, silently revoking access. | `UPDATE scoped_roles SET scope_name = 'new' WHERE scope_name = 'old'` |
+| **Split one scope into two** (e.g. `manage:CustomSql` → `manage:CustomSql` + `manage:CustomFields`) | Roles with the original scope lose access to whichever capability moved to the new scope. | Backfill the new scope for every role that has the original (`INSERT ... SELECT ... ON CONFLICT DO NOTHING`). See `20260417111420_grant_custom_fields_to_custom_sql_roles.ts`. |
+| **Merge two scopes into one** | Roles with only one of the merged scopes may gain or lose capability. | Insert the merged scope where either source exists; then delete the old rows. |
+| **Remove a scope** | Rows reference a non-existent scope name, spamming `Invalid scope: ...` warnings from `parseScopes` on every request. | Delete the orphaned rows. See `20260519142606_remove_legacy_dashboard_export_scopes.ts`. |
+| **Tighten conditions on an existing scope** | No row change needed, but the behavioral change is invisible to operators. | None on the table; note in PR description. |
+| **Add a brand-new scope** | No existing rows are affected. Only system roles in `roleToScopeMapping.ts` need updating. | None for custom roles. |
+
+**Migration conventions** (see `packages/backend/src/database/CLAUDE.md` for general safe-migration rules):
+
+- Wrap the body in `try/catch` and log a recoverable manual-fix command on failure. These backfills are best-effort cleanup — failing them should never block subsequent migrations.
+- Use `ON CONFLICT DO NOTHING` for inserts since `(role_uuid, scope_name)` is the natural unique key.
+- Preserve `granted_by` from the source row when copying a scope, so audit history points back at the original grantor rather than `NULL`.
+- Provide a sensible `down()` — usually deleting the rows the `up()` inserted. If the change is irreversible (legacy cleanup), document why `down()` is a no-op.
+
+**Checklist when changing the scope vocabulary:**
+
+1. Determine which change type applies (rename / split / merge / remove / add / tighten).
+2. If a migration is required, create it with `pnpm -F backend create-migration <name>` and follow the patterns above.
+3. Update `roleToScopeMapping.ts` so system roles reflect the new vocabulary, and run the parity test.
+4. Call this out in the PR description so reviewers can verify the data migration matches the code change.
+
 ## Debugging Permission Issues
 
 When a user gets "ForbiddenError":
