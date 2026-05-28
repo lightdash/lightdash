@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_LIST_PROJECTS_DESCRIPTION = [
     'List the Lightdash projects in this organization that the current user has access to.',
@@ -12,9 +13,7 @@ export type ToolListProjectsArgs = z.infer<typeof toolListProjectsArgsSchema>;
 
 export const toolListProjectsOutputSchema = z.object({
     result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-    }),
+    metadata: baseOutputMetadataSchema,
 });
 
 export type ToolListProjectsOutput = z.infer<

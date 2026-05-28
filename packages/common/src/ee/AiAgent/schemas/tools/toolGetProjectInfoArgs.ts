@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_GET_PROJECT_INFO_DESCRIPTION = [
     'Get details about the Lightdash project you are currently working in and its underlying dbt project.',
@@ -14,9 +15,7 @@ export type ToolGetProjectInfoArgs = z.infer<
 
 export const toolGetProjectInfoOutputSchema = z.object({
     result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-    }),
+    metadata: baseOutputMetadataSchema,
 });
 
 export type ToolGetProjectInfoOutput = z.infer<
