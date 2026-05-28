@@ -101,7 +101,7 @@ const NewThreadPanel: FC<{
     });
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(agent.uuid, projectUuid, {
+        useCreateAgentThreadMutation(projectUuid, {
             // Launcher does its own routing via panels/dock — skip the default
             // page navigation that other surfaces want.
             skipNavigation: true,
@@ -142,6 +142,7 @@ const NewThreadPanel: FC<{
         toolHints: string[];
     }) => {
         void createAgentThread({
+            agentUuid: agent.uuid,
             prompt: message,
             context: contextInput.length > 0 ? contextInput : undefined,
             optimisticContext:

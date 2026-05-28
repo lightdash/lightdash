@@ -19,6 +19,7 @@ import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
+import { AiRouterModel } from './models/AiRouterModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -36,6 +37,7 @@ import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
+import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
@@ -198,6 +200,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            aiRouterService: ({ models, repository, context }) =>
+                new AiRouterService({
+                    lightdashConfig: context.lightdashConfig,
+                    aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                 }),
             aiAgentDocumentService: ({ models, repository, context }) =>
                 new AiAgentDocumentService({
@@ -520,6 +529,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiWritebackThreadModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
+            aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),

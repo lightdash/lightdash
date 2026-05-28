@@ -169,7 +169,7 @@ import {
 } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
+import { selectAgent } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
@@ -7028,7 +7028,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Get available agents for a user with their full context, filtered by access if OAuth is required
      */
-    private async getAvailableAgents(
+    public async getAvailableAgents(
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
@@ -7364,34 +7364,36 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         }
 
-        // Multiple agents - use LLM to select the best one
         const { model } = getModel(this.lightdashConfig.ai.copilot);
 
-        const { agent: selectedAgent, selection } =
-            await selectBestAgentWithContext(
-                model,
-                availableAgents,
-                messageText,
-            );
+        const decision = await selectAgent({
+            model,
+            candidates: availableAgents,
+            prompt: messageText,
+        });
+
+        const selectedAgent =
+            availableAgents.find(
+                (a) => a.uuid === decision.selectedAgentUuid,
+            ) ?? availableAgents[0];
 
         Logger.info(
             `Agent selected by LLM ${JSON.stringify({
                 agentUuid: selectedAgent.uuid,
                 agentName: selectedAgent.name,
-                reasoning: selection.reasoning,
-                confidence: selection.confidence,
-                shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+                reasoning: decision.reasoning,
+                confidence: decision.confidence,
+                shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
             })}`,
         );
 
-        // If confidence is low, show selection UI instead
-        if (selection.confidence === 'low') {
+        if (decision.confidence === 'low') {
             Logger.info(
                 `Low confidence in agent selection - showing manual selection UI,
                 ${JSON.stringify({
-                    reasoning: selection.reasoning,
+                    reasoning: decision.reasoning,
                     shouldSkipForwardingQuery:
-                        selection.shouldSkipForwardingQuery,
+                        decision.shouldSkipForwardingQuery,
                 })},`,
             );
             await this.showAgentSelectionUI(
@@ -7399,7 +7401,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 channelId,
                 threadTs,
                 say,
-                selection.shouldSkipForwardingQuery,
+                decision.shouldSkipForwardingQuery,
             );
             return undefined;
         }
@@ -7419,7 +7421,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return {
             agent: selectedAgent,
-            shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+            shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
         };
     }
 

@@ -23,8 +23,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useAiRouterConfig } from '../../features/aiCopilot/hooks/useAiRouter';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
+import AgentsRouterPage from './AgentsRouterPage';
 
 const AGENT_FEATURES = [
     {
@@ -88,6 +90,7 @@ const AgentsWelcome = () => {
     const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
         enabled: isAiCopilotEnabledOrTrial,
     });
+    const aiRouterConfigQuery = useAiRouterConfig();
 
     if (aiOrganizationSettingsQuery.isLoading) {
         return <AiPageLoading />;
@@ -100,23 +103,37 @@ const AgentsWelcome = () => {
         return <div>something went wrong...</div>;
     }
 
-    if (agentsQuery.isLoading || userAgentPreferencesQuery.isLoading) {
+    if (
+        agentsQuery.isLoading ||
+        userAgentPreferencesQuery.isLoading ||
+        // Router config: wait until we know whether it's enabled.
+        // 404 / other errors mean "not configured" — that resolves the query.
+        aiRouterConfigQuery.isLoading
+    ) {
         return <AiPageLoading />;
     }
 
-    if (userAgentPreferencesQuery.data?.defaultAgentUuid) {
-        return (
-            <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${userAgentPreferencesQuery.data.defaultAgentUuid}`}
-                replace
-            />
-        );
-    }
-
-    if (agentsQuery.data.length > 0) {
+    if (agentsQuery.data.length === 0) {
+        // Fall through to the empty state below.
+    } else if (agentsQuery.data.length === 1) {
+        // Only one agent — no routing decision to make.
         return (
             <Navigate
                 to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
+                replace
+            />
+        );
+    } else if (aiRouterConfigQuery.data?.enabled) {
+        return <AgentsRouterPage />;
+    } else {
+        // Router disabled or not configured: prior behaviour — prefer the
+        // user's default agent, otherwise the first agent in the list.
+        const defaultAgentUuid =
+            userAgentPreferencesQuery.data?.defaultAgentUuid ??
+            agentsQuery.data[0].uuid;
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
                 replace
             />
         );

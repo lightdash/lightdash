@@ -394,6 +394,12 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiRouterDecisionTable,
+    AiRouterDecisionTableName,
+    AiRouterTable,
+    AiRouterTableName,
+} from '../ee/database/entities/aiRouter';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -574,5 +580,7 @@ declare module 'knex/types/tables' {
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AiRouterTableName]: AiRouterTable;
+        [AiRouterDecisionTableName]: AiRouterDecisionTable;
     }
 }
