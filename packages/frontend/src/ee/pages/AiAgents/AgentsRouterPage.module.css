@@ -169,7 +169,7 @@
         var(--mantine-color-violet-0),
         color-mix(
             in oklab,
-            var(--mantine-color-violet-9) 42%,
+            var(--mantine-color-violet-9) 22%,
             var(--mantine-color-ldDark-5)
         )
     );
@@ -187,9 +187,30 @@
         var(--mantine-color-violet-1),
         color-mix(
             in oklab,
-            var(--mantine-color-violet-9) 55%,
+            var(--mantine-color-violet-9) 32%,
             var(--mantine-color-ldDark-5)
         )
+    );
+}
+
+.candidateName {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldGray-0)
+    );
+}
+
+.candidateDescription {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-3)
+    );
+}
+
+.candidateButton.recommended .candidateDescription {
+    color: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-1)
     );
 }
 

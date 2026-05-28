@@ -402,6 +402,9 @@ const AgentsRouterPage = () => {
                                                         size="sm"
                                                         fw={600}
                                                         truncate="end"
+                                                        className={
+                                                            classes.candidateName
+                                                        }
                                                     >
                                                         {c.name}
                                                     </Text>
@@ -419,8 +422,10 @@ const AgentsRouterPage = () => {
                                                 {c.description && (
                                                     <Text
                                                         size="xs"
-                                                        c="dimmed"
                                                         truncate="end"
+                                                        className={
+                                                            classes.candidateDescription
+                                                        }
                                                     >
                                                         {c.description}
                                                     </Text>
