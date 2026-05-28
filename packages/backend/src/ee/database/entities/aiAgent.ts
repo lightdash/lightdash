@@ -20,6 +20,13 @@ export type DbAiAgent = {
      * Column kept on the table (DB default `false`); drop in a follow-up migration.
      */
     enable_reasoning?: boolean;
+    /**
+     * @deprecated The built-in Slack system agent was removed. New rows are
+     * always inserted with `false`, and the listing filter still excludes
+     * rows where `true`. Column + remaining references drop in a follow-up
+     * migration once this code is deployed.
+     */
+    is_system: boolean;
     version: number;
     created_at: Date;
     updated_at: Date;
