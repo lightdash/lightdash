@@ -258,11 +258,6 @@ const AgentsRouterPage = () => {
                             />
                         </Avatar>
                         <Title order={2}>Ask AI</Title>
-                        <Text c="dimmed" size="sm" ta="center" maw={520}>
-                            Ask anything about your data. We&apos;ll route your
-                            question to the right agent — or pin one if
-                            you&apos;d like.
-                        </Text>
                     </Stack>
 
                     <AgentChatInput
