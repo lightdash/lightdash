@@ -19,11 +19,13 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
+import useHealth from '../../../hooks/health/useHealth';
 import {
     useDeleteGoogleSsoConfig,
     useGoogleSsoConfig,
     useUpsertGoogleSsoConfig,
 } from '../../../hooks/organization/useOrganizationSso';
+import Callout from '../../common/Callout';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -41,12 +43,16 @@ type FormValues = {
 
 const GoogleSsoPanel: FC = () => {
     const { data: existing, isLoading } = useGoogleSsoConfig();
+    const { data: health } = useHealth();
     const upsert = useUpsertGoogleSsoConfig();
     const deleteConfig = useDeleteGoogleSsoConfig();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isOpen, toggleOpen] = useToggle(false);
 
     const isConfigured = !!existing;
+    // Google sign-in is only live on the main login page when the shared
+    // instance OAuth app is configured (AUTH_GOOGLE_ENABLED + client id/secret).
+    const googleEnabledInstanceWide = !!health?.auth.google.enabled;
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -147,10 +153,26 @@ const GoogleSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge color="gray" variant="outline" size="lg">
-                                Not configured
+                                Using defaults
                             </Badge>
                         )}
                     </Group>
+
+                    {!isConfigured && googleEnabledInstanceWide && (
+                        <Callout
+                            variant="info"
+                            title="Google sign-in is on by default"
+                        >
+                            Everyone in your org can sign in with Google from
+                            the main login page, using Lightdash's shared Google
+                            app. Set up a configuration here to restrict it to
+                            specific email domains or to disable password
+                            sign-in. If another provider (e.g. Okta) is
+                            configured for your domain, it takes over the
+                            post-email sign-in step and Google is hidden there
+                            unless you enable it here.
+                        </Callout>
+                    )}
 
                     {isConfigured ? (
                         <Button
