@@ -5047,15 +5047,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
-        const proposeWriteback: ProposeWritebackFn = (args) =>
-            wrapSentryTransaction('AiAgent.proposeWriteback', {}, () =>
-                this.aiWritebackService.run({
-                    user,
-                    projectUuid,
-                    prompt: args.prompt,
-                    aiThreadUuid: prompt.threadUuid,
-                }),
+        const proposeWriteback: ProposeWritebackFn = async (args) => {
+            const result = await wrapSentryTransaction(
+                'AiAgent.proposeWriteback',
+                {},
+                () =>
+                    this.aiWritebackService.run({
+                        user,
+                        projectUuid,
+                        prompt: args.prompt,
+                        aiThreadUuid: prompt.threadUuid,
+                    }),
             );
+            // On a successful PR open/update, add a green-tick reaction to the
+            // user's original Slack mention so they see the outcome at a
+            // glance without scrolling through the agent's reply. Best-effort
+            // — installs missing `reactions:write` (or any other transient
+            // failure) silently skip the reaction.
+            if (result.prUrl && isSlackPrompt(prompt)) {
+                void this.slackClient
+                    .addReaction({
+                        organizationUuid,
+                        channel: prompt.slackChannelId,
+                        timestamp: prompt.promptSlackTs,
+                        name: 'white_check_mark',
+                    })
+                    .catch((err) => {
+                        Logger.debug(
+                            'Failed to add :white_check_mark: reaction to writeback mention:',
+                            err,
+                        );
+                    });
+            }
+            return result;
+        };
 
         const listProjects: ListProjectsFn = () =>
             wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
@@ -8360,7 +8385,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // that the bot saw their @mention, before any auth / agent resolution.
         // Fire-and-forget: installs that haven't re-authorized to grant
         // `reactions:write` silently skip the reaction without breaking the
-        // mention flow.
+        // mention flow. We use the per-event Slack client here rather than
+        // SlackClient.addReaction because we don't yet have the orgUuid at
+        // this point (it's resolved a few lines below).
         void client.reactions
             .add({
                 channel: event.channel,
