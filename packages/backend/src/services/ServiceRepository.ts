@@ -1276,6 +1276,8 @@ export class ServiceRepository
         AiAgentReviewClassifierServiceImplT,
     >(): AiAgentReviewClassifierServiceImplT {
         return this.getService('aiAgentReviewClassifierService');
+    }
+
     public getAiRouterService<AiRouterServiceImplT>(): AiRouterServiceImplT {
         return this.getService('aiRouterService');
     }

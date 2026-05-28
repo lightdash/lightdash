@@ -742,6 +742,8 @@ export class ModelRepository
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentReviewClassifierModel');
+    }
+
     public getAiRouterModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiRouterModel');
     }
