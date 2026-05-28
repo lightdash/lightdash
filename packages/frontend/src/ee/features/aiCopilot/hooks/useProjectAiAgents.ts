@@ -494,6 +494,7 @@ const createOptimisticMessages = (
             artifacts: null,
             referencedArtifacts: null,
             modelConfig: null,
+            tokenUsage: null,
         },
     ];
 };
