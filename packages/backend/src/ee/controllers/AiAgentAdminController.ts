@@ -1,8 +1,10 @@
 import {
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
-    ApiAiAgentResponse,
+    ApiAiAgentReviewItemsResponse,
+    ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiErrorPayload,
@@ -124,6 +126,50 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiAgentAdminService().listAgents(
+                toSessionUser(req.account),
+            ),
+        };
+    }
+
+    /**
+     * Get AI agent classifier review items for admin
+     * @summary List AI agent review items
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items')
+    @OperationId('getAiAgentReviewItems')
+    async getReviewItems(
+        @Request() req: express.Request,
+        @Query() status?: AiAgentReviewItemStatus[],
+    ): Promise<ApiAiAgentReviewItemsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().listReviewItems(
+                toSessionUser(req.account),
+                status,
+            ),
+        };
+    }
+
+    /**
+     * Get AI agent classifier review signals for admin debugging
+     * @summary List AI agent review signals
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-signals')
+    @OperationId('getAiAgentReviewSignals')
+    async getReviewSignals(
+        @Request() req: express.Request,
+    ): Promise<ApiAiAgentReviewSignalsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().listReviewSignals(
                 toSessionUser(req.account),
             ),
         };

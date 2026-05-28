@@ -189,9 +189,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     prometheusMetrics,
                 }),
-            aiAgentAdminService: ({ models, context }) =>
+            aiAgentAdminService: ({ models, repository, context }) =>
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiAgentDocumentService: ({ models, repository, context }) =>

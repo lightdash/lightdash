@@ -82,6 +82,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                 path: 'agents',
                 element: <AiAgentsAdminPage />,
             },
+            {
+                path: 'reviews',
+                element: <AiAgentsAdminPage />,
+            },
         ],
     },
     {
