@@ -183,6 +183,7 @@ pnpm -F backend rollback-last
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
 -   The parity test (`roleToScopeParity.test.ts`) ensures `projectMemberAbility.ts` and `roleToScopeMapping.ts` stay in sync
+-   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
 
 ## TypeScript Project References
 
