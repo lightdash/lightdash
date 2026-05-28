@@ -4,7 +4,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 
-const buildDescription = (
+export const buildRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,
 ) => `Tool: run_sql
@@ -50,9 +50,7 @@ export const createToolRunSqlArgsSchema = ({
     maxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
     defaultLimit = DEFAULT_RUN_SQL_LIMIT,
 }: CreateToolRunSqlArgsSchemaOptions = {}) =>
-    createToolSchema({
-        description: buildDescription(defaultLimit, maxLimit),
-    })
+    createToolSchema()
         .extend({
             sql: z
                 .string()
@@ -78,6 +76,26 @@ export const toolRunSqlOutputSchema = z.object({
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
     }),
+});
+
+export const mcpRunSqlStructuredOutputSchema = z.object({
+    rows: z
+        .array(z.record(z.unknown()))
+        .describe(
+            'Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).',
+        ),
+    columns: z
+        .array(z.string())
+        .describe(
+            'Ordered list of column names matching the keys in each row of `rows`.',
+        ),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+            'Total number of rows returned. May be less than the requested limit.',
+        ),
 });
 
 export type ToolRunSqlArgs = z.infer<typeof toolRunSqlArgsSchema>;

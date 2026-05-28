@@ -166,9 +166,7 @@ Configuration Tips:
 - For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
 `;
 
-export const toolRunQueryArgsSchema = createToolSchema({
-    description: TOOL_RUN_QUERY_DESCRIPTION,
-})
+export const toolRunQueryArgsSchema = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,
@@ -207,6 +205,13 @@ export type ToolRunQueryArgsTransformed = z.infer<
 export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
+});
+
+export const mcpRunMetricQueryStructuredOutputSchema = z.object({
+    rows: z.array(z.record(z.unknown())),
+    fields: z.record(z.unknown()),
+    echartsOption: z.unknown().nullable(),
+    exploreUrl: z.string().nullable(),
 });
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;

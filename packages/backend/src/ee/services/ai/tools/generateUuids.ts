@@ -1,32 +1,14 @@
+import { generateUuidsToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-export const toolGenerateUuidsArgsSchema = z
-    .object({
-        count: z
-            .number()
-            .min(1)
-            .max(20)
-            .describe('Number of UUIDs to generate.'),
-    })
-    .describe(
-        'Generate one or more UUIDs to use as stable identifiers when creating new objects.',
-    );
-
-const toolGenerateUuidsOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'error']),
-    }),
-});
+const toolDefinition = generateUuidsToolDefinition.for('agent');
 
 export const getGenerateUuids = () =>
     tool({
-        description: toolGenerateUuidsArgsSchema.description,
-        inputSchema: toolGenerateUuidsArgsSchema,
-        outputSchema: toolGenerateUuidsOutputSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         execute: async ({ count }) => {
             try {
                 return {

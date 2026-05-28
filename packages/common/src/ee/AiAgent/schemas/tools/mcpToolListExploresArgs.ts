@@ -14,9 +14,7 @@ Usage Tips:
 `;
 
 // MCP-only tool - no type field needed
-export const mcpToolListExploresArgsSchema = z
-    .object({})
-    .describe(MCP_TOOL_LIST_EXPLORES_DESCRIPTION);
+export const mcpToolListExploresArgsSchema = z.object({});
 
 export type McpToolListExploresArgs = z.infer<
     typeof mcpToolListExploresArgsSchema

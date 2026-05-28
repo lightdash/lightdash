@@ -5,6 +5,7 @@ import {
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
+    runMetricQueryToolDefinition,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
     ToolRunMetricQueryArgsTransformed,
@@ -28,6 +29,8 @@ import {
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
 } from '../utils/validators';
+
+const toolDefinition = runMetricQueryToolDefinition.for('agent');
 
 type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
@@ -86,9 +89,8 @@ export const getRunMetricQuery = ({
     };
 
     return tool({
-        description: toolRunMetricQueryArgsSchema.description,
-        inputSchema: toolRunMetricQueryArgsSchema,
-        outputSchema: toolRunMetricQueryOutputSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);

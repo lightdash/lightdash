@@ -16,9 +16,7 @@ Usage tips:
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
 
-export const toolFindContentArgsSchema = createToolSchema({
-    description: TOOL_FIND_CONTENT_DESCRIPTION,
-})
+export const toolFindContentArgsSchema = createToolSchema()
     .extend({
         searchQueries: z.array(
             z.object({

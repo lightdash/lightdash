@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_RUN_SAVED_CHART_DESCRIPTION = `
+export const TOOL_RUN_SAVED_CHART_DESCRIPTION = `
 Run an existing saved chart by its UUID and return the rows it produces.
 
 When to use this tool:
@@ -17,9 +17,7 @@ user is asking about. The chart's saved metric query, filters, sorts, and
 custom metrics are applied automatically.
 `;
 
-export const toolRunSavedChartArgsSchema = createToolSchema({
-    description: TOOL_RUN_SAVED_CHART_DESCRIPTION,
-})
+export const toolRunSavedChartArgsSchema = createToolSchema()
     .extend({
         chartUuid: z
             .string()

@@ -65,15 +65,24 @@ Response shape (MCP CallToolResult):
   }
 `;
 
-export const mcpRunAiWritebackArgsSchema = z
-    .object({
-        prompt: z
-            .string()
-            .min(1)
-            .describe(
-                'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project.',
-            ),
-    })
-    .describe(MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION);
+export const mcpRunAiWritebackArgsSchema = z.object({
+    prompt: z
+        .string()
+        .min(1)
+        .describe(
+            'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project.',
+        ),
+});
+
+export const mcpRunAiWritebackStructuredOutputSchema = z.object({
+    output: z.string().describe('The text output produced by the agent.'),
+    exitCode: z.number().int().describe("The sandbox command's exit status."),
+    prUrl: z
+        .string()
+        .nullable()
+        .describe(
+            'URL of the pull request opened from the agent changes, or null when the agent made no file changes.',
+        ),
+});
 
 export type McpRunAiWritebackArgs = z.infer<typeof mcpRunAiWritebackArgsSchema>;

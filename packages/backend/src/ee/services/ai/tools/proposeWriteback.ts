@@ -1,36 +1,22 @@
-import { toolProposeWritebackOutputSchema } from '@lightdash/common';
+import {
+    proposeWritebackToolDefinition,
+    toolProposeWritebackOutputSchema,
+} from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-
-const toolProposeWritebackArgsSchema = z
-    .object({
-        prompt: z
-            .string()
-            .min(1)
-            .describe(
-                'A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.',
-            ),
-    })
-    .describe(
-        [
-            'Open a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
-            'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
-            'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those).',
-            'The writeback agent runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes.',
-        ].join(' '),
-    );
 
 type Dependencies = {
     proposeWriteback: ProposeWritebackFn;
 };
 
+const toolDefinition = proposeWritebackToolDefinition.for('agent');
+
 export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
     tool({
-        description: toolProposeWritebackArgsSchema.description,
-        inputSchema: toolProposeWritebackArgsSchema,
+        description: toolDefinition.description,
+        inputSchema: toolDefinition.inputSchema,
         outputSchema: toolProposeWritebackOutputSchema,
         execute: async ({ prompt }) => {
             try {

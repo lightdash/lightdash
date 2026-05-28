@@ -1,4 +1,4 @@
-import { Explore } from '@lightdash/common';
+import { discoverFieldsToolDefinition, Explore } from '@lightdash/common';
 import {
     readUIMessageStream,
     tool,
@@ -15,25 +15,11 @@ import {
     type DiscoverFieldsAgentDependencies,
 } from './agent';
 import {
-    discoverFieldsInputSchema,
     discoverFieldsResultSchema,
     type DiscoverFieldsResult,
 } from './schema';
 
-const DISCOVER_FIELDS_DESCRIPTION = `Tool: discoverFields
-
-Purpose:
-Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore and which fields to use to answer it.
-
-Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
-
-You will receive one of three statuses:
-- "resolved" — proceed with runQuery (or generateDashboard) using the returned explore + fields.
-- "ambiguous" — surface the suggestedQuestion to the user; do NOT call runQuery.
-- "no_match" — explain back to the user that no data source covers the request.
-
-Re-call this tool if the user pivots mid-thread to a different data topic and you need fields from a different explore.
-`;
+const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
 
 const renderResolved = (
     result: Extract<DiscoverFieldsResult, { status: 'resolved' }>,
@@ -176,8 +162,8 @@ type ToolArgs = {
  */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
-        description: DISCOVER_FIELDS_DESCRIPTION,
-        inputSchema: discoverFieldsInputSchema,
+        description: discoverFieldsTool.description,
+        inputSchema: discoverFieldsTool.inputSchema,
         async *execute(input, { toolCallId, abortSignal }) {
             try {
                 const { stream, flushPersistence } = runDiscoverFieldsAgent(

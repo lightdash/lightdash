@@ -1,6 +1,8 @@
 import {
+    buildRunSqlDescription,
     createToolRunSqlArgsSchema,
     isSlackPrompt,
+    runSqlToolDefinition,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -32,6 +34,8 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
 };
+
+const toolDefinition = runSqlToolDefinition.for('agent');
 
 // Strip --line and /* block */ comments + string literals so subsequent
 // keyword checks don't false-positive on text that's inside a comment or a
@@ -87,7 +91,7 @@ export const getRunSql = ({
     });
 
     return tool({
-        description: inputSchema.description,
+        description: buildRunSqlDescription(500, maxQueryLimit),
         inputSchema,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {

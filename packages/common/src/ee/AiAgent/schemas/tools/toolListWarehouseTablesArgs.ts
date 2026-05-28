@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = `Tool: list_warehouse_tables
+export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = `Tool: list_warehouse_tables
 
 Purpose:
 List physical tables available in the connected data warehouse. Use this BEFORE writing a runSql call when you need to discover the correct schema or table name for a table that isn't already exposed via an explore.
@@ -23,9 +24,7 @@ Parameters:
 - limit: Optional. Maximum number of tables to return. Defaults to 100.
 `;
 
-export const toolListWarehouseTablesArgsSchema = createToolSchema({
-    description: TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
-})
+export const toolListWarehouseTablesArgsSchema = createToolSchema()
     .extend({
         schema: z
             .string()
@@ -51,4 +50,13 @@ export const toolListWarehouseTablesArgsSchema = createToolSchema({
 
 export type ToolListWarehouseTablesArgs = z.infer<
     typeof toolListWarehouseTablesArgsSchema
+>;
+
+export const toolListWarehouseTablesOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolListWarehouseTablesOutput = z.infer<
+    typeof toolListWarehouseTablesOutputSchema
 >;

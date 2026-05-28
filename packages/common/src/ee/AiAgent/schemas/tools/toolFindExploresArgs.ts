@@ -17,9 +17,7 @@ Output:
 - Top matching fields with their explore names and searchRank scores
 `;
 
-export const toolFindExploresArgsSchemaV1 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV1 = createToolSchema()
     .extend({
         exploreName: z
             .string()
@@ -29,9 +27,7 @@ export const toolFindExploresArgsSchemaV1 = createToolSchema({
     .withPagination()
     .build();
 
-export const toolFindExploresArgsSchemaV2 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV2 = createToolSchema()
     .extend({
         exploreName: z
             .string()
@@ -39,9 +35,7 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema({
     })
     .build();
 
-export const toolFindExploresArgsSchemaV3 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV3 = createToolSchema()
     .extend({
         // TODO: check if we need to add exploreName back in for backward compatibility
         searchQuery: z

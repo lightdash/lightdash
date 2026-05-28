@@ -81,9 +81,7 @@ export type DashboardVisualization = z.infer<
     typeof dashboardVisualizationSchema
 >;
 
-export const toolDashboardArgsSchema = createToolSchema({
-    description: TOOL_DASHBOARD_DESCRIPTION,
-})
+export const toolDashboardArgsSchema = createToolSchema()
     .extend({
         title: z.string().describe('A descriptive title for the dashboard'),
         description: z

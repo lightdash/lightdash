@@ -5073,7 +5073,43 @@ Empty array or null: single partition (calculations across all rows)., ",
         "type": "object",
       },
       "name": "run_metric_query",
-      "outputSchema": null,
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "echartsOption": {
+            "anyOf": [
+              {},
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "exploreUrl": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "fields": {
+            "additionalProperties": {},
+            "type": "object",
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "rows",
+          "fields",
+          "exploreUrl",
+        ],
+        "type": "object",
+      },
     },
     {
       "agentName": null,
