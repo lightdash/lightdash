@@ -1,3 +1,10 @@
+# [0.3029.0](https://github.com/lightdash/lightdash/compare/0.3028.1...0.3029.0) (2026-05-28)
+
+
+### Features
+
+* add organization domain verification with OTP email flow and SSO routing integration ([#23559](https://github.com/lightdash/lightdash/issues/23559)) ([9e5abc5](https://github.com/lightdash/lightdash/commit/9e5abc53c5309f5443e6743774bbe03fd8557a21))
+
 ## [0.3028.1](https://github.com/lightdash/lightdash/compare/0.3028.0...0.3028.1) (2026-05-28)
 
 
