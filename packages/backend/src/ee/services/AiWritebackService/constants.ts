@@ -1,5 +1,3 @@
-export const TEMPLATE_NAME = 'lightdash-ai-writeback';
-
 // Where the repo is cloned inside the sandbox, and where the agent runs.
 export const CWD = '/home/user/repo';
 

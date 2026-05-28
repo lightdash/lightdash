@@ -47,7 +47,6 @@ import {
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     SYSTEM_PROMPT_PATH,
-    TEMPLATE_NAME,
 } from './constants';
 import { buildSystemPrompt } from './templates';
 import type {
@@ -200,14 +199,21 @@ export class AiWritebackService extends BaseService {
         projectUuid: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.create(TEMPLATE_NAME, {
+        const { e2bAiWritebackTemplateName, e2bAiWritebackTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        // E2B treats `name` and `name:default` interchangeably, so an empty
+        // tag is fine — it just resolves to the implicit `default` build.
+        const templateRef = e2bAiWritebackTemplateTag
+            ? `${e2bAiWritebackTemplateName}:${e2bAiWritebackTemplateTag}`
+            : e2bAiWritebackTemplateName;
+        const sandbox = await Sandbox.create(templateRef, {
             timeoutMs: SANDBOX_TIMEOUT_MS,
             apiKey: this.getE2bApiKey(),
             lifecycle: { onTimeout: 'pause' },
         });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info(
-            `AiWriteback: sandbox created (sandboxId=${sandbox.sandboxId}, project=${projectUuid}, ${durationMs}ms)`,
+            `AiWriteback: sandbox created (sandboxId=${sandbox.sandboxId}, project=${projectUuid}, template=${templateRef}, ${durationMs}ms)`,
         );
         return { sandbox, durationMs };
     }
