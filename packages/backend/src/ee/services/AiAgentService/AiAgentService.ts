@@ -5351,6 +5351,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         const proposeWriteback: ProposeWritebackFn = async (args) => {
+            // Stream coarse progress back into the agent's "Thinking…" Slack
+            // message so the user can see what the writeback is doing
+            // (Starting sandbox → Cloning project → Discovering models →
+            // Editing models → Compiling project → Committing → …). Web/MCP
+            // callers don't have a message to update, so the callback is
+            // wired only for Slack prompts. Fire-and-forget — a Slack update
+            // failure (rate limit, message deleted, etc.) must never take
+            // down the writeback itself.
+            const slackProgressCallback = isSlackPrompt(prompt)
+                ? (message: string) => {
+                      void this.updateSlackResponseWithProgress(
+                          prompt,
+                          message,
+                      ).catch((err) => {
+                          Logger.debug(
+                              `Failed to update Slack progress for writeback (${message}):`,
+                              err,
+                          );
+                      });
+                  }
+                : undefined;
+
             const result = await wrapSentryTransaction(
                 'AiAgent.proposeWriteback',
                 {},
@@ -5360,6 +5382,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: args.prompt,
                         aiThreadUuid: prompt.threadUuid,
+                        onProgress: slackProgressCallback,
                     }),
             );
             // On a successful PR open/update, add a green-tick reaction to the
