@@ -1,3 +1,10 @@
+# [0.3036.0](https://github.com/lightdash/lightdash/compare/0.3035.0...0.3036.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** show feedback row on AI writeback PR Slack messages ([#23597](https://github.com/lightdash/lightdash/issues/23597)) ([c4f6cd1](https://github.com/lightdash/lightdash/commit/c4f6cd1373b9889bb2118f2df6bc4d16a4c212a5))
+
 # [0.3035.0](https://github.com/lightdash/lightdash/compare/0.3034.0...0.3035.0) (2026-05-28)
 
 
