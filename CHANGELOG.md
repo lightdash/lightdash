@@ -1,3 +1,10 @@
+# [0.3030.0](https://github.com/lightdash/lightdash/compare/0.3029.0...0.3030.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** system-agent Slack project selection (PROD-7952) ([#23565](https://github.com/lightdash/lightdash/issues/23565)) ([98f5fa4](https://github.com/lightdash/lightdash/commit/98f5fa430c98e1019099280a6a70749ccaed3f46))
+
 # [0.3029.0](https://github.com/lightdash/lightdash/compare/0.3028.1...0.3029.0) (2026-05-28)
 
 
