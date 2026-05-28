@@ -1371,6 +1371,14 @@ export type AppRuntimeConfig = {
      * deployments that haven't picked up a version-tagged build yet.
      */
     e2bTemplateTag: string;
+    /**
+     * Separate template name+tag for the AI writeback sandbox. Decoupled from
+     * the data-app template so operators can pin or roll back the writeback
+     * image independently (e.g. roll back writeback without disturbing data
+     * apps). Defaults match the release workflow's build target.
+     */
+    e2bAiWritebackTemplateName: string;
+    e2bAiWritebackTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1589,6 +1597,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         // guarantees this tag exists). Operators can override to roll back
         // or pin during incidents.
         e2bTemplateTag: process.env.E2B_TEMPLATE_TAG ?? (VERSION as string),
+        e2bAiWritebackTemplateName:
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_NAME ||
+            'lightdash-ai-writeback',
+        e2bAiWritebackTemplateTag:
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
 

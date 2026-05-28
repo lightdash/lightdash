@@ -691,9 +691,9 @@ jobs:
     env:
       E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
       E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-ai-writeback
-      E2B_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
-      E2B_TEMPLATE_EXTRA_TAGS: latest
+      E2B_AI_WRITEBACK_TEMPLATE_NAME: lightdash-ai-writeback
+      E2B_AI_WRITEBACK_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
+      E2B_AI_WRITEBACK_TEMPLATE_EXTRA_TAGS: latest
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -734,9 +734,9 @@ jobs:
     env:
       E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
       E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-ai-writeback
-      E2B_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
-      E2B_TEMPLATE_SOURCE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.source_tag }}
+      E2B_AI_WRITEBACK_TEMPLATE_NAME: lightdash-ai-writeback
+      E2B_AI_WRITEBACK_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
+      E2B_AI_WRITEBACK_TEMPLATE_SOURCE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.source_tag }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:

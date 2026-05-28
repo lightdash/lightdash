@@ -34,10 +34,14 @@ async function main() {
         }).fromDockerfile(dockerfile);
 
         const templateName =
-            process.env.E2B_TEMPLATE_NAME || 'lightdash-ai-writeback';
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_NAME ||
+            'lightdash-ai-writeback';
 
-        const primaryTag = process.env.E2B_TEMPLATE_TAG?.trim() || '';
-        const extraTags = (process.env.E2B_TEMPLATE_EXTRA_TAGS || '')
+        const primaryTag =
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG?.trim() || '';
+        const extraTags = (
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_EXTRA_TAGS || ''
+        )
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean);

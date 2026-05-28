@@ -363,6 +363,8 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bApiKey: null,
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
+        e2bAiWritebackTemplateName: 'lightdash-ai-writeback',
+        e2bAiWritebackTemplateTag: '',
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
