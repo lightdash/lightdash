@@ -1,3 +1,10 @@
+# [0.3033.0](https://github.com/lightdash/lightdash/compare/0.3032.0...0.3033.0) (2026-05-28)
+
+
+### Features
+
+* **ai-agents:** classify review candidates ([#23549](https://github.com/lightdash/lightdash/issues/23549)) ([7f87f99](https://github.com/lightdash/lightdash/commit/7f87f996fc639d6f01f06a55fc3a5a987c89daa7))
+
 # [0.3032.0](https://github.com/lightdash/lightdash/compare/0.3031.0...0.3032.0) (2026-05-28)
 
 
