@@ -155,7 +155,7 @@ export const findExploresToolDefinition = defineTool({
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindExploresArgsSchemaV3,
-    mcp: { name: 'find_explores', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const findFieldsToolDefinition = defineTool({
@@ -164,7 +164,7 @@ export const findFieldsToolDefinition = defineTool({
     description: TOOL_FIND_FIELDS_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
-    mcp: { name: 'find_fields', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const findContentToolDefinition = defineTool({
@@ -173,7 +173,7 @@ export const findContentToolDefinition = defineTool({
     description: TOOL_FIND_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindContentArgsSchema,
-    mcp: { name: 'find_content', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const searchFieldValuesToolDefinition = defineTool({
@@ -182,7 +182,7 @@ export const searchFieldValuesToolDefinition = defineTool({
     description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolSearchFieldValuesArgsSchema,
-    mcp: { name: 'search_field_values', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const runQueryToolDefinition = defineTool({
@@ -209,7 +209,6 @@ export const runSqlToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     mcp: {
-        name: 'run_sql',
         annotations: readOnlyAnnotations,
         outputSchema: mcpRunSqlStructuredOutputSchema,
     },
@@ -410,7 +409,7 @@ export const getLightdashVersionToolDefinition = defineTool({
     description: 'Get the current Lightdash version',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'get_lightdash_version', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listExploresToolDefinition = defineTool({
@@ -419,7 +418,7 @@ export const listExploresToolDefinition = defineTool({
     description: MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     availability: ['mcp'],
     inputSchema: mcpToolListExploresArgsSchema,
-    mcp: { name: 'list_explores', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listProjectsToolDefinition = defineTool({
@@ -429,7 +428,7 @@ export const listProjectsToolDefinition = defineTool({
         'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'list_projects', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const setProjectToolDefinition = defineTool({
@@ -442,7 +441,7 @@ export const setProjectToolDefinition = defineTool({
         projectUuid: z.string(),
         tags: z.array(z.string()).optional(),
     }),
-    mcp: { name: 'set_project', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const getCurrentProjectToolDefinition = defineTool({
@@ -452,7 +451,7 @@ export const getCurrentProjectToolDefinition = defineTool({
         'Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'get_current_project', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listAgentsToolDefinition = defineTool({
@@ -464,7 +463,7 @@ export const listAgentsToolDefinition = defineTool({
     inputSchema: z.object({
         projectUuid: z.string().optional(),
     }),
-    mcp: { name: 'list_agents', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const setAgentToolDefinition = defineTool({
@@ -476,7 +475,7 @@ export const setAgentToolDefinition = defineTool({
     inputSchema: z.object({
         agentUuid: z.string(),
     }),
-    mcp: { name: 'set_agent', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const clearAgentToolDefinition = defineTool({
@@ -486,7 +485,7 @@ export const clearAgentToolDefinition = defineTool({
         "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'clear_agent', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const getCurrentAgentToolDefinition = defineTool({
@@ -496,7 +495,7 @@ export const getCurrentAgentToolDefinition = defineTool({
         "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'get_current_agent', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listVerifiedContentToolDefinition = defineTool({
@@ -506,7 +505,7 @@ export const listVerifiedContentToolDefinition = defineTool({
         'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { name: 'list_verified_content', annotations: readOnlyAnnotations },
+    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const runAiWritebackToolDefinition = defineTool({
@@ -516,7 +515,6 @@ export const runAiWritebackToolDefinition = defineTool({
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        name: 'run_ai_writeback',
         annotations: writeAnnotations,
         outputSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
