@@ -547,6 +547,7 @@ export class SavedChartService
             organizationUuid,
             projectUuid,
             spaceUuid,
+            dashboardUuid,
             metricQuery: {
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
@@ -637,11 +638,43 @@ export class SavedChartService
             );
         }
 
-        const savedChart = await this.savedChartModel.createVersion(
-            savedChartUuid,
-            data,
-            user,
-        );
+        let savedChart: SavedChartDAO;
+        if (dashboardUuid) {
+            const dashboard =
+                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+            await this.savedChartModel.transaction(async (tx) => {
+                // Rollback picks chart versions with created_at <= dashboard version created_at.
+                // Create the chart version first so the dashboard snapshot can point at it.
+                await this.savedChartModel.createVersion(
+                    savedChartUuid,
+                    data,
+                    user,
+                    tx,
+                );
+                await this.dashboardModel.addVersion(
+                    dashboardUuid,
+                    {
+                        tiles: dashboard.tiles,
+                        filters: dashboard.filters,
+                        parameters: dashboard.parameters,
+                        tabs: dashboard.tabs,
+                        config: dashboard.config,
+                    },
+                    user,
+                    projectUuid,
+                    tx,
+                );
+            });
+
+            savedChart = await this.savedChartModel.get(savedChartUuid);
+        } else {
+            savedChart = await this.savedChartModel.createVersion(
+                savedChartUuid,
+                data,
+                user,
+            );
+        }
 
         // Auto-remove verification when chart content is edited
         await this.contentVerificationModel.unverify(

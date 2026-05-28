@@ -54,7 +54,7 @@ const savedChartData = {
         tableCalculations: [],
     },
     tableName: 'test_table',
-    dashboardUuid: null,
+    dashboardUuid: null as string | null,
     chartConfig: {
         type: 'cartesian',
         config: { eChartsConfig: { xAxis: [], yAxis: [], series: [] } },
@@ -101,6 +101,25 @@ const savedChartModel = {
     get: jest.fn(async () => savedChartData),
     createVersion: jest.fn(async () => savedChartData),
     update: jest.fn(async () => savedChartData),
+    transaction: jest.fn(async (callback) => callback('trx')),
+};
+
+const dashboardData = {
+    uuid: 'dashboard-uuid',
+    tiles: [],
+    filters: {
+        dimensions: [],
+        metrics: [],
+        tableCalculations: [],
+    },
+    parameters: {},
+    tabs: [],
+    config: { isDateZoomDisabled: false },
+};
+
+const dashboardModel = {
+    getByIdOrSlug: jest.fn(async () => dashboardData),
+    addVersion: jest.fn(async () => dashboardData),
 };
 
 const contentVerificationModel = {
@@ -137,7 +156,7 @@ describe('SavedChartService - Content Verification', () => {
         schedulerService: {} as unknown as SchedulerService,
         schedulerClient: {} as unknown as SchedulerClient,
         slackClient: {} as unknown as SlackClient,
-        dashboardModel: {} as unknown as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         catalogModel: {} as unknown as CatalogModel,
         permissionsService: {} as unknown as PermissionsService,
         googleDriveClient: {} as unknown as GoogleDriveClient,
@@ -208,6 +227,74 @@ describe('SavedChartService - Content Verification', () => {
                 ContentType.CHART,
                 'chart-uuid',
             );
+        });
+
+        it('should create a dashboard version when editing a dashboard chart', async () => {
+            savedChartModel.get.mockResolvedValueOnce({
+                ...savedChartData,
+                dashboardUuid: 'dashboard-uuid',
+            });
+
+            await service.createVersion(adminUser, 'chart-uuid', {
+                tableName: 'test_table',
+                metricQuery: {
+                    exploreName: 'test',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: ChartType.CARTESIAN },
+                tableConfig: { columnOrder: [] },
+            });
+
+            expect(savedChartModel.transaction).toHaveBeenCalledTimes(1);
+            expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+                'chart-uuid',
+                expect.any(Object),
+                adminUser,
+                'trx',
+            );
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                'dashboard-uuid',
+                {
+                    tiles: dashboardData.tiles,
+                    filters: dashboardData.filters,
+                    parameters: dashboardData.parameters,
+                    tabs: dashboardData.tabs,
+                    config: dashboardData.config,
+                },
+                adminUser,
+                'project-uuid',
+                'trx',
+            );
+            expect(
+                savedChartModel.createVersion.mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                dashboardModel.addVersion.mock.invocationCallOrder[0],
+            );
+        });
+
+        it('should not create a dashboard version when editing a space chart', async () => {
+            await service.createVersion(adminUser, 'chart-uuid', {
+                tableName: 'test_table',
+                metricQuery: {
+                    exploreName: 'test',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: ChartType.CARTESIAN },
+                tableConfig: { columnOrder: [] },
+            });
+
+            expect(savedChartModel.transaction).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
         });
 
         it('should auto-unverify chart when metadata is edited via update', async () => {
