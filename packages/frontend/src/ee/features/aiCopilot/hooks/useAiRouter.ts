@@ -4,9 +4,11 @@ import {
     type AiRouterRouteRequest,
     type AiRouterRouteResponseResult,
     type ApiError,
+    type UpsertAiRouterRequest,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import useToaster from '../../../../hooks/toaster/useToaster';
 
 const ROUTER_BASE = '/org/aiRouter';
 
@@ -25,6 +27,29 @@ export const useAiRouterConfig = () =>
         queryFn: getAiRouterConfig,
         retry: false,
     });
+
+const upsertAiRouterConfig = (body: UpsertAiRouterRequest) =>
+    lightdashApi<AiRouter>({
+        url: ROUTER_BASE,
+        method: 'PUT',
+        body: JSON.stringify(body),
+    });
+
+export const useUpsertAiRouterConfig = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<AiRouter, ApiError, UpsertAiRouterRequest>({
+        mutationFn: upsertAiRouterConfig,
+        onSuccess: (data) => {
+            queryClient.setQueryData(['ai-router'], data);
+        },
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Failed to update AI router configuration',
+                apiError: error,
+            }),
+    });
+};
 
 const routePrompt = (body: AiRouterRouteRequest) =>
     lightdashApi<AiRouterRouteResponseResult>({

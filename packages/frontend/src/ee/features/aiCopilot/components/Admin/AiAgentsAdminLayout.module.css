@@ -11,5 +11,5 @@
 }
 
 .threadsTable {
-    margin: 0 var(--mantine-spacing-lg);
+    height: 100%;
 }

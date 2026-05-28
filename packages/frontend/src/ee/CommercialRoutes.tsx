@@ -1,10 +1,8 @@
-import { Navigate, Outlet, type RouteObject } from 'react-router';
-import NavBar from '../components/NavBar';
+import { Navigate, type RouteObject } from 'react-router';
 import PrivateRoute from '../components/PrivateRoute';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import EmbeddedApp from './features/embed/EmbeddedApp';
-import { AiAgentsAdminPage } from './pages/AiAgents/Admin/AiAgentsAdminPage';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
 import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
@@ -63,30 +61,19 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
 const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     {
         path: '/ai-agents/admin',
-        element: (
-            <PrivateRoute>
-                <NavBar />
-                <Outlet />
-            </PrivateRoute>
-        ),
-        children: [
-            {
-                index: true,
-                element: <Navigate to="threads" replace />,
-            },
-            {
-                path: 'threads',
-                element: <AiAgentsAdminPage />,
-            },
-            {
-                path: 'agents',
-                element: <AiAgentsAdminPage />,
-            },
-            {
-                path: 'reviews',
-                element: <AiAgentsAdminPage />,
-            },
-        ],
+        element: <Navigate to="/generalSettings/ai/general" replace />,
+    },
+    {
+        path: '/ai-agents/admin/threads',
+        element: <Navigate to="/generalSettings/ai/threads" replace />,
+    },
+    {
+        path: '/ai-agents/admin/agents',
+        element: <Navigate to="/generalSettings/ai/agents" replace />,
+    },
+    {
+        path: '/ai-agents/admin/reviews',
+        element: <Navigate to="/generalSettings/ai/reviews" replace />,
     },
     {
         path: '/ai-agents/',

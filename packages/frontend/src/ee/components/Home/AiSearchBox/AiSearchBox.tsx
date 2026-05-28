@@ -280,7 +280,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                     />
                                 }
                                 component={Link}
-                                to="/ai-agents/admin/agents"
+                                to="/generalSettings/ai/agents"
                                 classNames={{
                                     label: styles.adminSettingsButtonLabel,
                                     section: styles.adminSettingsButtonSection,

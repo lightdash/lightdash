@@ -256,7 +256,9 @@ const AgentsRouterPage = () => {
             Header={
                 <AgentPageHeader
                     settingsHref={
-                        canManageAgents ? '/ai-agents/admin/agents' : undefined
+                        canManageAgents
+                            ? '/generalSettings/ai/agents'
+                            : undefined
                     }
                 />
             }
