@@ -68,7 +68,7 @@ const makeRun = (overrides: Record<string, unknown> = {}) => ({
     organizationUuid: ORGANIZATION_UUID,
     status: 'running' as const,
     reviewAgentVersion: 'llm-judge-v1',
-    judgePromptHash: 'ai-agent-review-judge-v1',
+    judgePromptHash: 'ai-agent-review-judge-v2',
     agentConfigSnapshotHash: null,
     agentConfigSnapshot: null,
     agentConfigSnapshotAgentUpdatedAt: null,
