@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
@@ -198,6 +199,38 @@ export class AiWritebackService extends BaseService {
 
     private static elapsed(start: number): number {
         return Math.round(performance.now() - start);
+    }
+
+    /**
+     * Map an internal lifecycle stage to the short progress string surfaced
+     * to the user (e.g. via the Slack bot's "Thinking…" message). One source
+     * of truth so the wording stays consistent if a stage is renamed later.
+     * Keep the strings short — Slack renders them in a single context line.
+     */
+    private static progressTextForStage(
+        stage: AiWritebackFailureStage,
+    ): string {
+        switch (stage) {
+            case 'install':
+                return 'Setting up';
+            case 'sandbox':
+                return 'Starting sandbox';
+            case 'clone':
+                return 'Cloning project';
+            case 'agent':
+                return 'Working on changes';
+            case 'commit':
+                return 'Committing changes';
+            case 'push':
+                return 'Pushing to GitHub';
+            case 'pull_request':
+                return 'Opening pull request';
+            default:
+                return assertUnreachable(
+                    stage,
+                    `Unknown AiWritebackFailureStage: ${String(stage)}`,
+                );
+        }
     }
 
     private async createSandbox(
@@ -416,8 +449,22 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
-        const { user, projectUuid, prompt, aiThreadUuid } = args;
+        const { user, projectUuid, prompt, aiThreadUuid, onProgress } = args;
         const runStartedAt = performance.now();
+
+        // Wrap the optional onProgress in a try/catch so a misbehaving caller
+        // (e.g. a Slack `chat.update` 429 that wasn't caught upstream) can
+        // never take down the writeback run itself. Progress is best-effort.
+        const reportProgress = (message: string): void => {
+            if (!onProgress) return;
+            try {
+                onProgress(message);
+            } catch (error) {
+                this.logger.debug(
+                    `AiWriteback: onProgress threw — ignoring: ${getErrorMessage(error)}`,
+                );
+            }
+        };
 
         const turn = await this.prepareTurn({
             user,
@@ -451,6 +498,7 @@ export class AiWritebackService extends BaseService {
             });
             failureStage = stage;
             stageStartedAt = now;
+            reportProgress(AiWritebackService.progressTextForStage(stage));
         };
 
         let sandbox: Sandbox | undefined;
@@ -479,6 +527,7 @@ export class AiWritebackService extends BaseService {
                 projectName: turn.projectName,
                 repository,
                 isResume: turn.isResume,
+                reportProgress,
             });
 
             const {
@@ -824,6 +873,7 @@ export class AiWritebackService extends BaseService {
         projectName,
         repository,
         isResume,
+        reportProgress,
     }: {
         sandbox: Sandbox;
         prompt: string;
@@ -831,6 +881,7 @@ export class AiWritebackService extends BaseService {
         projectName: string;
         repository: string;
         isResume: boolean;
+        reportProgress: (message: string) => void;
     }): Promise<{ stdout: string; exitCode: number }> {
         const repoContext = await this.gatherRepoContext(
             sandbox,
@@ -867,6 +918,43 @@ export class AiWritebackService extends BaseService {
         const appendStderrTail = (chunk: string) => {
             stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
         };
+
+        // Map a single agent tool call to a coarse "phase" so we can stream
+        // semantic progress to the user without firing once per tool. The
+        // ordering — discover → edit → compile — matches the order an
+        // attentive viewer would describe the work, but the agent itself
+        // is free to interleave; we just announce each phase the first time
+        // we see it.
+        type AgentPhase = 'discovering' | 'editing' | 'compiling';
+        const phaseProgressText: Record<AgentPhase, string> = {
+            discovering: 'Discovering models',
+            editing: 'Editing models',
+            compiling: 'Compiling project',
+        };
+        const classifyTool = (
+            name: string,
+            input: unknown,
+        ): AgentPhase | null => {
+            if (name === 'Bash') {
+                const command =
+                    input && typeof input === 'object'
+                        ? (input as { command?: unknown }).command
+                        : undefined;
+                if (
+                    typeof command === 'string' &&
+                    command.includes('lightdash compile')
+                ) {
+                    return 'compiling';
+                }
+                return null;
+            }
+            if (name === 'Edit' || name === 'Write') return 'editing';
+            if (name === 'Read' || name === 'Glob' || name === 'Grep') {
+                return 'discovering';
+            }
+            return null;
+        };
+        const seenPhases = new Set<AgentPhase>();
 
         const summarizeToolInput = (input: unknown): string => {
             if (input && typeof input === 'object') {
@@ -919,6 +1007,11 @@ export class AiWritebackService extends BaseService {
                                 toolName: block.name,
                                 summary: summarizeToolInput(block.input),
                             });
+                            const phase = classifyTool(block.name, block.input);
+                            if (phase && !seenPhases.has(phase)) {
+                                seenPhases.add(phase);
+                                reportProgress(phaseProgressText[phase]);
+                            }
                         }
                     }
                 }
