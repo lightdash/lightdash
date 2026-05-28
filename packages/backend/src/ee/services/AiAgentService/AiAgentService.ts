@@ -39,13 +39,16 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    ContentType,
     Explore,
     ExploreCompiler,
     FeatureFlags,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    getContentAsCodePathFromLtreePath,
     getItemId,
+    getLtreePathFromContentAsCodePath,
     isExploreError,
     isGitProjectType,
     isSlackPrompt,
@@ -134,6 +137,7 @@ import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
@@ -141,6 +145,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { ContentService } from '../../../services/ContentService/ContentService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -204,6 +209,7 @@ import {
     GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    ListContentFn,
     ListExploresFn,
     ListProjectsFn,
     ListWarehouseTablesFn,
@@ -264,6 +270,9 @@ type AgentResponseStream = {
     consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
 };
 
+type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
+type AgentListContentItem = AgentListContentResult['items'][number];
+
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -285,9 +294,11 @@ type AiAgentServiceDependencies = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     spaceService: SpaceService;
+    spaceModel: SpaceModel;
     projectModel: ProjectModel;
     coderService: CoderService;
     savedChartService: SavedChartService;
+    contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
     aiAgentContentValidation: AiAgentContentValidation;
@@ -475,11 +486,15 @@ export class AiAgentService extends BaseService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly coderService: CoderService;
 
     private readonly savedChartService: SavedChartService;
+
+    private readonly contentService: ContentService;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
@@ -538,9 +553,11 @@ export class AiAgentService extends BaseService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.coderService = dependencies.coderService;
         this.savedChartService = dependencies.savedChartService;
+        this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
@@ -4275,6 +4292,146 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ];
     }
 
+    private static paginateListContent(
+        items: AgentListContentItem[],
+        page: number,
+        pageSize: number,
+    ): AgentListContentResult {
+        const offset = (page - 1) * pageSize;
+        return {
+            spaceSlug: null,
+            items: items.slice(offset, offset + pageSize),
+            pagination: {
+                page,
+                pageSize,
+                totalResults: items.length,
+                totalPageCount: Math.ceil(items.length / pageSize),
+            },
+        };
+    }
+
+    private static hasAgentSpaceAccess(
+        agentSpaceAccess: string[] | Set<string> | null | undefined,
+        spaceUuid: string,
+    ): boolean {
+        if (
+            !agentSpaceAccess ||
+            (agentSpaceAccess instanceof Set
+                ? agentSpaceAccess.size === 0
+                : agentSpaceAccess.length === 0)
+        ) {
+            return true;
+        }
+        return agentSpaceAccess instanceof Set
+            ? agentSpaceAccess.has(spaceUuid)
+            : agentSpaceAccess.includes(spaceUuid);
+    }
+
+    private async getRootSpacesForAgent(
+        user: SessionUser,
+        projectUuid: string,
+        agentSpaceAccess: Set<string> | null,
+        page: number,
+        pageSize: number,
+    ): Promise<AgentListContentResult> {
+        const spaces = (
+            await this.projectService.getSpaces(user, projectUuid)
+        ).filter((space) =>
+            AiAgentService.hasAgentSpaceAccess(agentSpaceAccess, space.uuid),
+        );
+        const visibleSpaceUuids = new Set(spaces.map((space) => space.uuid));
+        const items = spaces
+            .filter(
+                (space) =>
+                    !space.parentSpaceUuid ||
+                    !visibleSpaceUuids.has(space.parentSpaceUuid),
+            )
+            .map(
+                (space): AgentListContentItem => ({
+                    contentType: ContentType.SPACE,
+                    name: space.name,
+                    slug: getContentAsCodePathFromLtreePath(space.path),
+                    chartCount: space.chartCount,
+                    dashboardCount: space.dashboardCount,
+                    childSpaceCount: space.childSpaceCount,
+                    appCount: space.appCount,
+                    directAccess: space.userAccess?.hasDirectAccess === true,
+                }),
+            );
+
+        return AiAgentService.paginateListContent(items, page, pageSize);
+    }
+
+    private async getSpaceContentsForAgent(
+        user: SessionUser,
+        projectUuid: string,
+        spaceSlug: string,
+        agentSpaceAccess: Set<string> | null,
+        page: number,
+        pageSize: number,
+    ): Promise<AgentListContentResult> {
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+        });
+        if (
+            !space ||
+            !AiAgentService.hasAgentSpaceAccess(agentSpaceAccess, space.uuid)
+        ) {
+            throw new NotFoundError(`Space "${spaceSlug}" was not found`);
+        }
+
+        const results = await this.contentService.find(
+            user,
+            {
+                projectUuids: [projectUuid],
+                spaceUuids: [space.uuid],
+                contentTypes: [
+                    ContentType.DASHBOARD,
+                    ContentType.CHART,
+                    ContentType.SPACE,
+                    ContentType.DATA_APP,
+                ],
+            },
+            {},
+            { page, pageSize },
+        );
+
+        return {
+            spaceSlug,
+            items: results.data
+                .filter(
+                    (item) =>
+                        item.contentType !== ContentType.SPACE ||
+                        AiAgentService.hasAgentSpaceAccess(
+                            agentSpaceAccess,
+                            item.uuid,
+                        ),
+                )
+                .map((item): AgentListContentItem => {
+                    if (item.contentType === ContentType.SPACE) {
+                        return {
+                            contentType: ContentType.SPACE,
+                            name: item.name,
+                            slug: getContentAsCodePathFromLtreePath(item.path),
+                            chartCount: item.chartCount,
+                            dashboardCount: item.dashboardCount,
+                            childSpaceCount: item.childSpaceCount,
+                            appCount: item.appCount,
+                            directAccess: item.access.includes(user.userUuid),
+                        };
+                    }
+
+                    return {
+                        contentType: item.contentType,
+                        name: item.name,
+                        slug: item.slug,
+                    };
+                }),
+            pagination: results.pagination,
+        };
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
     private getAiAgentDependencies(
@@ -4907,24 +5064,52 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
 
                 const agentSettings = await this.getAgentSettings(user, prompt);
-                if (
-                    !agentSettings.spaceAccess ||
-                    agentSettings.spaceAccess.length === 0
-                ) {
-                    return {
-                        content: filteredResults,
-                    };
-                }
-
                 return {
-                    content:
-                        agentSettings.spaceAccess.length === 0
-                            ? filteredResults
-                            : filteredResults.filter(({ spaceUuid }) =>
-                                  agentSettings.spaceAccess.includes(spaceUuid),
-                              ),
+                    content: filteredResults.filter(({ spaceUuid }) =>
+                        AiAgentService.hasAgentSpaceAccess(
+                            agentSettings.spaceAccess,
+                            spaceUuid,
+                        ),
+                    ),
                 };
             });
+
+        const listContent: ListContentFn = async ({ spaceSlug, page }) =>
+            wrapSentryTransaction(
+                'AiAgent.listContent',
+                { spaceSlug, page },
+                async () => {
+                    const pageSize = 25;
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+                    const agentSpaceAccess =
+                        agentSettings.spaceAccess &&
+                        agentSettings.spaceAccess.length > 0
+                            ? new Set(agentSettings.spaceAccess)
+                            : null;
+
+                    if (spaceSlug === null) {
+                        return this.getRootSpacesForAgent(
+                            user,
+                            projectUuid,
+                            agentSpaceAccess,
+                            page,
+                            pageSize,
+                        );
+                    }
+
+                    return this.getSpaceContentsForAgent(
+                        user,
+                        projectUuid,
+                        spaceSlug,
+                        agentSpaceAccess,
+                        page,
+                        pageSize,
+                    );
+                },
+            );
 
         const getDashboardCharts: GetDashboardChartsFn = async (args) =>
             wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
@@ -5129,6 +5314,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return {
             listExplores,
             getExplore,
+            listContent,
             findContent,
             readContent,
             editContent,
@@ -5232,6 +5418,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const {
             listExplores,
             getExplore,
+            listContent,
             findContent,
             readContent,
             editContent,
@@ -5411,6 +5598,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const dependencies: AiAgentDependencies = {
             listExplores,
             getExplore,
+            listContent,
             findContent,
             readContent,
             editContent,

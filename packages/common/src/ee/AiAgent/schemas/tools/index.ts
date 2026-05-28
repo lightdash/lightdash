@@ -5,6 +5,7 @@ export * from './toolDescribeWarehouseTableArgs';
 export * from './toolFindChartsArgs';
 export * from './toolGetKnowledgeDocumentContentArgs';
 export * from './toolListKnowledgeDocumentsArgs';
+export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
 export * from './toolGetDashboardChartsArgs';

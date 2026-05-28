@@ -11,6 +11,7 @@ import {
     toolGetKnowledgeDocumentContentArgsSchema,
     toolGetProjectInfoArgsSchema,
     toolImproveContextArgsSchema,
+    toolListContentArgsSchema,
     toolListKnowledgeDocumentsArgsSchema,
     toolListProjectsArgsSchema,
     toolListWarehouseTablesArgsSchema,
@@ -70,6 +71,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     discoverFields: 'discover_fields',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
+    listContent: 'list_content',
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
@@ -107,6 +109,7 @@ const TOOL_SCHEMAS = {
     // TODO: agent needs to be v2 for this to work
     generateDashboard: toolDashboardV2ArgsSchema,
     findContent: toolFindContentArgsSchema,
+    listContent: toolListContentArgsSchema,
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,
     getDashboardCharts: toolGetDashboardChartsArgsSchema,

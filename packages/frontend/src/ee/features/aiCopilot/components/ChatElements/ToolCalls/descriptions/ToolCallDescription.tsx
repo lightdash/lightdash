@@ -217,6 +217,7 @@ export const ToolCallDescription: FC<{
         case 'listKnowledgeDocuments':
         case 'listProjects':
         case 'getProjectInfo':
+        case 'listContent':
         case 'discoverFields':
         case 'generateUuids':
         case 'improveContext':

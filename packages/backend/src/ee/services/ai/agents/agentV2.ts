@@ -21,6 +21,7 @@ import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
 import { getGetProjectInfo } from '../tools/getProjectInfo';
 import { getImproveContext } from '../tools/improveContext';
+import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
@@ -183,6 +184,10 @@ const getAgentTools = (
         },
     });
 
+    const listContent = getListContent({
+        listContent: dependencies.listContent,
+    });
+
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
         siteUrl: args.siteUrl,
@@ -298,6 +303,7 @@ const getAgentTools = (
             ? {
                   readContent,
                   editContent,
+                  listContent,
               }
             : {
                   getDashboardCharts,
