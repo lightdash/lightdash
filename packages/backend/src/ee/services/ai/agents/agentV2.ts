@@ -12,6 +12,7 @@ import {
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
@@ -252,6 +253,9 @@ const getAgentTools = (
     const editContent = getEditContent({
         editContent: dependencies.editContent,
     });
+    const createContent = getCreateContent({
+        createContent: dependencies.createContent,
+    });
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
@@ -304,13 +308,14 @@ const getAgentTools = (
                   readContent,
                   editContent,
                   listContent,
+                  createContent,
               }
             : {
                   getDashboardCharts,
+                  generateDashboard,
               }),
         runQuery,
         runSavedChart,
-        generateDashboard,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(args.enableSelfImprovement && args.canManageAgent

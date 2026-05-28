@@ -65,6 +65,37 @@ const toolProposeWritebackArgsSchema = z
         'Open a pull request that modifies the dbt project / semantic layer.',
     );
 
+const toolCreateContentArgsSchema = z
+    .object({
+        type: z.enum(['dashboard', 'chart']),
+        content: z.union([
+            z
+                .object({
+                    slug: z.string(),
+                    name: z.string(),
+                    description: z.string().nullable().optional(),
+                    spaceSlug: z.string(),
+                    version: z.number(),
+                    tiles: z.array(z.unknown()),
+                    tabs: z.array(z.unknown()),
+                })
+                .passthrough(),
+            z
+                .object({
+                    slug: z.string(),
+                    name: z.string(),
+                    description: z.string().nullable().optional(),
+                    spaceSlug: z.string(),
+                    version: z.number(),
+                    tableName: z.string(),
+                    metricQuery: z.unknown(),
+                    chartConfig: z.unknown(),
+                })
+                .passthrough(),
+        ]),
+    })
+    .describe('Create a dashboard or chart from full JSON.');
+
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
@@ -77,6 +108,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getDashboardCharts: 'get_dashboard_charts',
     readContent: 'read_content',
     editContent: 'edit_content',
+    createContent: 'create_content',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
@@ -115,6 +147,7 @@ const TOOL_SCHEMAS = {
     getDashboardCharts: toolGetDashboardChartsArgsSchema,
     readContent: toolReadContentArgsSchema,
     editContent: toolEditContentArgsSchema,
+    createContent: toolCreateContentArgsSchema,
     improveContext: toolImproveContextArgsSchema,
     listProjects: toolListProjectsArgsSchema,
     getProjectInfo: toolGetProjectInfoArgsSchema,

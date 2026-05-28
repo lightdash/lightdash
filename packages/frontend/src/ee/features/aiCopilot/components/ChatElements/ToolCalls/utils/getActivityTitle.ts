@@ -46,6 +46,7 @@ export const getActivityTitle = (
     }
     const toolNames = toolGroups.map((g) => g.toolName);
     const hasDashboard = toolNames.includes('generateDashboard');
+    const hasCreateContent = toolNames.includes('createContent');
     const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
     const hasQuery = toolNames.includes('runQuery');
     const hasRunSql = toolNames.includes('runSql');
@@ -54,6 +55,12 @@ export const getActivityTitle = (
     if (hasDashboard) {
         return {
             title: 'How this dashboard was built',
+            icon: IconLayoutDashboard,
+        };
+    }
+    if (hasCreateContent) {
+        return {
+            title: 'How this content was created',
             icon: IconLayoutDashboard,
         };
     }
