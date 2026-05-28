@@ -11,6 +11,7 @@ import {
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
 import { Sandbox } from 'e2b';
 import type {
@@ -212,9 +213,13 @@ export class AiWritebackService extends BaseService {
             lifecycle: { onTimeout: 'pause' },
         });
         const durationMs = AiWritebackService.elapsed(start);
-        this.logger.info(
-            `AiWriteback: sandbox created (sandboxId=${sandbox.sandboxId}, project=${projectUuid}, template=${templateRef}, ${durationMs}ms)`,
-        );
+        this.logger.info('AI writeback sandbox created', {
+            event: 'ai_writeback.sandbox.created',
+            sandboxId: sandbox.sandboxId,
+            projectUuid,
+            template: templateRef,
+            durationMs,
+        });
         return { sandbox, durationMs };
     }
 
@@ -226,13 +231,20 @@ export class AiWritebackService extends BaseService {
             const start = performance.now();
             await sandbox.pause();
             const durationMs = AiWritebackService.elapsed(start);
-            this.logger.info(
-                `AiWriteback: sandbox paused (sandboxId=${sandbox.sandboxId}, project=${projectUuid}, ${durationMs}ms)`,
-            );
+            this.logger.info('AI writeback sandbox paused', {
+                event: 'ai_writeback.sandbox.lifecycle',
+                action: 'paused',
+                sandboxId: sandbox.sandboxId,
+                projectUuid,
+                durationMs,
+            });
         } catch (error) {
-            this.logger.warn(
-                `AiWriteback: failed to pause sandbox (sandboxId=${sandbox.sandboxId}, project=${projectUuid}): ${getErrorMessage(error)}`,
-            );
+            this.logger.warn('AI writeback failed to pause sandbox', {
+                event: 'ai_writeback.sandbox.pause_failed',
+                sandboxId: sandbox.sandboxId,
+                projectUuid,
+                errorMessage: getErrorMessage(error),
+            });
         }
     }
 
@@ -246,9 +258,13 @@ export class AiWritebackService extends BaseService {
             timeoutMs: SANDBOX_TIMEOUT_MS,
         });
         const durationMs = AiWritebackService.elapsed(start);
-        this.logger.info(
-            `AiWriteback: sandbox resumed (sandboxId=${sandbox.sandboxId}, project=${projectUuid}, ${durationMs}ms)`,
-        );
+        this.logger.info('AI writeback sandbox resumed', {
+            event: 'ai_writeback.sandbox.lifecycle',
+            action: 'resumed',
+            sandboxId: sandbox.sandboxId,
+            projectUuid,
+            durationMs,
+        });
         return { sandbox, durationMs };
     }
 
@@ -397,15 +413,19 @@ export class AiWritebackService extends BaseService {
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const { user, projectUuid, prompt, aiThreadUuid } = args;
-
-        this.logger.info(
-            `AiWriteback: agent run started (projectUuid=${projectUuid}, aiThreadUuid=${aiThreadUuid})`,
-        );
+        const runStartedAt = performance.now();
 
         const turn = await this.prepareTurn({
             user,
             projectUuid,
             aiThreadUuid,
+        });
+
+        this.logger.info('AI writeback run started', {
+            event: 'ai_writeback.run.started',
+            projectUuid,
+            aiThreadUuid: aiThreadUuid ?? null,
+            isResume: turn.isResume,
         });
 
         const repository = `${turn.githubConnection.owner}/${turn.githubConnection.repo}`;
@@ -418,13 +438,13 @@ export class AiWritebackService extends BaseService {
             const now = Date.now();
             // Log every transition so a run reads as a timeline in the logs and
             // a stall is immediately attributable to the stage it happened in.
-            this.logger.info(
-                `AiWriteback: stage '${failureStage}' done in ${
-                    now - stageStartedAt
-                }ms → entering '${stage}' (aiThreadUuid=${
-                    aiThreadUuid ?? 'none'
-                })`,
-            );
+            this.logger.info('AI writeback stage complete', {
+                event: 'ai_writeback.run.stage',
+                aiThreadUuid: aiThreadUuid ?? null,
+                stage: failureStage,
+                nextStage: stage,
+                durationMs: now - stageStartedAt,
+            });
             failureStage = stage;
             stageStartedAt = now;
         };
@@ -470,7 +490,19 @@ export class AiWritebackService extends BaseService {
             // and surface the failure to the caller.
             if (agent.exitCode !== 0) {
                 this.logger.warn(
-                    `AiWriteback: agent exited non-zero (sandboxId=${sandbox.sandboxId}, exit=${agent.exitCode}) — skipping PR`,
+                    'AI writeback agent exited non-zero, skipping PR',
+                    {
+                        event: 'ai_writeback.run.failed',
+                        projectUuid,
+                        aiThreadUuid: aiThreadUuid ?? null,
+                        sandboxId: sandbox.sandboxId,
+                        failureStage,
+                        exitCode: agent.exitCode,
+                        errorMessage: 'Agent CLI exited non-zero',
+                        totalDurationMs: Math.round(
+                            performance.now() - runStartedAt,
+                        ),
+                    },
                 );
                 tracker.completed({
                     exitCode: agent.exitCode,
@@ -504,6 +536,19 @@ export class AiWritebackService extends BaseService {
                 prCreated: applied.prCreated,
             });
 
+            this.logger.info('AI writeback run completed', {
+                event: 'ai_writeback.run.completed',
+                projectUuid,
+                aiThreadUuid: aiThreadUuid ?? null,
+                sandboxId: sandbox.sandboxId,
+                isResume: turn.isResume,
+                exitCode: agent.exitCode,
+                hasChanges,
+                prCreated: applied.prCreated,
+                prUrl: applied.prUrl ?? null,
+                totalDurationMs: Math.round(performance.now() - runStartedAt),
+            });
+
             return {
                 output: sanitizedStdout,
                 exitCode: agent.exitCode,
@@ -512,11 +557,26 @@ export class AiWritebackService extends BaseService {
                 repository,
             };
         } catch (error) {
-            this.logger.error(
-                `AiWriteback: failed during stage '${failureStage}' (sandboxId=${
-                    sandbox?.sandboxId ?? 'none'
-                }): ${getErrorMessage(error)}`,
-            );
+            this.logger.error('AI writeback run failed', {
+                event: 'ai_writeback.run.failed',
+                projectUuid,
+                aiThreadUuid: aiThreadUuid ?? null,
+                sandboxId: sandbox?.sandboxId ?? null,
+                failureStage,
+                errorMessage: getErrorMessage(error),
+                totalDurationMs: Math.round(performance.now() - runStartedAt),
+            });
+            Sentry.captureException(error, {
+                tags: {
+                    errorType: 'AiWritebackRunFailed',
+                    failureStage,
+                },
+                extra: {
+                    projectUuid,
+                    aiThreadUuid: aiThreadUuid ?? null,
+                    sandboxId: sandbox?.sandboxId ?? null,
+                },
+            });
             tracker.failed(failureStage, error);
             throw error;
         } finally {
@@ -790,17 +850,23 @@ export class AiWritebackService extends BaseService {
                         ) {
                             toolCounts[block.name] =
                                 (toolCounts[block.name] ?? 0) + 1;
-                            this.logger.info(
-                                `AiWriteback: tool ${block.name} ${summarizeToolInput(block.input)} (sandboxId=${sandbox.sandboxId})`,
-                            );
+                            this.logger.info('AI writeback agent tool call', {
+                                event: 'ai_writeback.run.tool',
+                                sandboxId: sandbox.sandboxId,
+                                toolName: block.name,
+                                summary: summarizeToolInput(block.input),
+                            });
                         }
                     }
                 }
                 if (messageText) assistantText = messageText;
             } else if (e.type === 'result') {
-                this.logger.info(
-                    `AiWriteback: agent run summary (sandboxId=${sandbox.sandboxId}, cost_usd=${e.total_cost_usd ?? 'n/a'}, tools=${JSON.stringify(toolCounts)})`,
-                );
+                this.logger.info('AI writeback agent run summary', {
+                    event: 'ai_writeback.run.summary',
+                    sandboxId: sandbox.sandboxId,
+                    costUsd: e.total_cost_usd ?? null,
+                    toolCounts,
+                });
             }
         };
 
@@ -863,9 +929,12 @@ export class AiWritebackService extends BaseService {
             }
             buffer = '';
         }
-        this.logger.info(
-            `AiWriteback: agent run completed (sandboxId=${sandbox.sandboxId}, exit=${result.exitCode}, isResume=${isResume})`,
-        );
+        this.logger.info('AI writeback agent CLI exited', {
+            event: 'ai_writeback.run.agent_exited',
+            sandboxId: sandbox.sandboxId,
+            exitCode: result.exitCode,
+            isResume,
+        });
         return { stdout: assistantText, exitCode: result.exitCode };
     }
 
