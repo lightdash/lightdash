@@ -1,3 +1,10 @@
+# [0.3038.0](https://github.com/lightdash/lightdash/compare/0.3037.0...0.3038.0) (2026-05-28)
+
+
+### Features
+
+* add per-org support impersonation consent toggle with organization_settings column and admin panel ([#23584](https://github.com/lightdash/lightdash/issues/23584)) ([2cbb52c](https://github.com/lightdash/lightdash/commit/2cbb52c350a1d0f49f81bed6231bc28258d7334b))
+
 # [0.3037.0](https://github.com/lightdash/lightdash/compare/0.3036.0...0.3037.0) (2026-05-28)
 
 
