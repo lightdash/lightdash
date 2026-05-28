@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="x-apple-disable-message-reformatting" />
+    </head>
+    <body
+        style="
+            min-width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #292929;
+            font-family: BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue',
+                Arial, sans-serif;
+        "
+    >
+        <table
+            role="presentation"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="background-color: #292929"
+        >
+            <tr>
+                <td align="center" style="padding: 40px 16px">
+                    <table
+                        role="presentation"
+                        width="440"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                        style="width: 440px; max-width: 100%"
+                    >
+                        <tr>
+                            <td
+                                style="
+                                    background-color: #7262ff;
+                                    padding: 20px;
+                                    border-radius: 4px 4px 0 0;
+                                "
+                            >
+                                <img
+                                    src="{{logoSrc}}"
+                                    width="122"
+                                    alt="Lightdash"
+                                    style="display: block; border: 0"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td
+                                style="
+                                    background-color: #f7f7f9;
+                                    padding: 40px;
+                                    border-radius: 0 0 4px 4px;
+                                    text-align: center;
+                                "
+                            >
+                                <h1
+                                    style="
+                                        margin: 0;
+                                        font-size: 16px;
+                                        font-weight: 500;
+                                        color: #121212;
+                                    "
+                                >
+                                    Verify your domain
+                                </h1>
+                                <p
+                                    style="
+                                        margin: 24px 0 8px;
+                                        font-size: 14px;
+                                        color: #8c8182;
+                                    "
+                                >
+                                    Your one time passcode is:
+                                </p>
+                                <p
+                                    style="
+                                        margin: 0 0 24px;
+                                        font-size: 32px;
+                                        font-weight: 500;
+                                        letter-spacing: 4px;
+                                        color: #7262ff;
+                                    "
+                                >
+                                    {{passcode}}
+                                </p>
+                                <p style="margin: 0; font-size: 14px; color: #8c8182">
+                                    Enter this code in Lightdash to verify that
+                                    your organization owns
+                                    <b>{{domain}}</b>. This code is valid for
+                                    <b>15 minutes</b>. If you didn't request
+                                    this, you can ignore this email.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 24px; text-align: center">
+                                <a
+                                    href="https://www.lightdash.com/"
+                                    target="_blank"
+                                    style="
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                        color: #878787;
+                                        text-decoration: none;
+                                    "
+                                    >Lightdash</a
+                                >
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

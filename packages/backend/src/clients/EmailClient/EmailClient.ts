@@ -885,6 +885,31 @@ export default class EmailClient {
         });
     }
 
+    async sendDomainVerificationEmail({
+        recipient,
+        passcode,
+        domain,
+    }: {
+        recipient: string;
+        passcode: string;
+        domain: string;
+    }): Promise<void> {
+        const subject = `Verify your domain ${domain}`;
+        const text = `Verify that your organization owns ${domain} by entering the following passcode in Lightdash: ${passcode}`;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'domainVerification',
+            context: {
+                passcode,
+                domain,
+                title: subject,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text,
+        });
+    }
+
     public async sendSchedulerModifiedByOtherUserEmail({
         recipient,
         modifyingUserName,

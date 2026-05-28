@@ -37,6 +37,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
+import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSettingsService } from './OrganizationSettingsService/OrganizationSettingsService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
@@ -93,6 +94,7 @@ interface ServiceManifest {
     organizationService: OrganizationService;
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
+    organizationDomainVerificationService: OrganizationDomainVerificationService;
     organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -569,8 +571,24 @@ export class ServiceRepository
                     organizationSsoModel: this.models.getOrganizationSsoModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
+                    organizationDomainVerificationModel:
+                        this.models.getOrganizationDomainVerificationModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
+    public getOrganizationDomainVerificationService(): OrganizationDomainVerificationService {
+        return this.getService(
+            'organizationDomainVerificationService',
+            () =>
+                new OrganizationDomainVerificationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationDomainVerificationModel:
+                        this.models.getOrganizationDomainVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailClient: this.clients.getEmailClient(),
                 }),
         );
     }

@@ -8,6 +8,7 @@ import {
     GenericOidcSsoConfigSummary,
     GoogleSsoConfig,
     GoogleSsoConfigSummary,
+    isPublicEmailProviderDomain,
     NotFoundError,
     OktaSsoConfig,
     OktaSsoConfigSummary,
@@ -27,6 +28,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
+import { OrganizationDomainVerificationModel } from '../../models/OrganizationDomainVerificationModel';
 import {
     OrganizationSsoMethod,
     OrganizationSsoModel,
@@ -39,6 +41,7 @@ type OrganizationSsoServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationSsoModel: OrganizationSsoModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     featureFlagModel: FeatureFlagModel;
     userModel: UserModel;
 };
@@ -111,6 +114,8 @@ export class OrganizationSsoService extends BaseService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly organizationDomainVerificationModel: OrganizationDomainVerificationModel;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly userModel: UserModel;
@@ -119,6 +124,7 @@ export class OrganizationSsoService extends BaseService {
         lightdashConfig,
         organizationSsoModel,
         organizationAllowedEmailDomainsModel,
+        organizationDomainVerificationModel,
         featureFlagModel,
         userModel,
     }: OrganizationSsoServiceArguments) {
@@ -127,6 +133,8 @@ export class OrganizationSsoService extends BaseService {
         this.organizationSsoModel = organizationSsoModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.organizationDomainVerificationModel =
+            organizationDomainVerificationModel;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
     }
@@ -149,24 +157,6 @@ export class OrganizationSsoService extends BaseService {
         }
     }
 
-    /**
-     * Domains no single organization should ever be able to claim.
-     * Not exhaustive — covers the obvious public providers and corporate
-     * domains we know can't legitimately belong to a single Lightdash org.
-     */
-    private static readonly DISALLOWED_DOMAINS = new Set([
-        'gmail.com',
-        'googlemail.com',
-        'google.com',
-        'microsoft.com',
-        'onmicrosoft.com',
-        'outlook.com',
-        'hotmail.com',
-        'live.com',
-        'yahoo.com',
-        'icloud.com',
-    ]);
-
     private static validateEmailDomains(domains: string[]): void {
         const normalized = domains.map((d) => d.trim().toLowerCase());
 
@@ -184,14 +174,42 @@ export class OrganizationSsoService extends BaseService {
             );
         }
 
-        const disallowed = normalized.filter((d) =>
-            OrganizationSsoService.DISALLOWED_DOMAINS.has(d),
-        );
+        // Public providers (gmail, outlook, …) can never belong to one org —
+        // see the shared blocklist in @lightdash/common.
+        const disallowed = normalized.filter(isPublicEmailProviderDomain);
         if (disallowed.length > 0) {
             throw new ParameterError(
                 `These domains can't be claimed: ${disallowed.join(
                     ', ',
                 )}. Use a domain or subdomain that identifies your organization.`,
+            );
+        }
+    }
+
+    /**
+     * A provider may only route email domains the organization has proven it
+     * owns. Verified domains are the source of truth for SSO routing; this is
+     * the server-side backstop behind the verified-domain picker in the UI.
+     */
+    private async assertEmailDomainsVerified(
+        organizationUuid: string,
+        domains: string[],
+    ): Promise<void> {
+        const verified = new Set(
+            (
+                await this.organizationDomainVerificationModel.findVerifiedDomains(
+                    organizationUuid,
+                )
+            ).map((d) => d.domain),
+        );
+        const unverified = domains
+            .map((d) => d.trim().toLowerCase())
+            .filter((d) => !verified.has(d));
+        if (unverified.length > 0) {
+            throw new ParameterError(
+                `These domains must be verified before they can be used for SSO: ${unverified.join(
+                    ', ',
+                )}. Verify them in Settings → Verified domains.`,
             );
         }
     }
@@ -259,6 +277,12 @@ export class OrganizationSsoService extends BaseService {
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
+            if (data.overrideEmailDomains) {
+                await this.assertEmailDomainsVerified(
+                    organizationUuid,
+                    data.emailDomains,
+                );
+            }
         }
 
         const existing = await this.organizationSsoModel.findMethod(
@@ -360,6 +384,12 @@ export class OrganizationSsoService extends BaseService {
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
+            if (data.overrideEmailDomains) {
+                await this.assertEmailDomainsVerified(
+                    organizationUuid,
+                    data.emailDomains,
+                );
+            }
         }
 
         const existing = await this.organizationSsoModel.findMethod(
@@ -460,6 +490,12 @@ export class OrganizationSsoService extends BaseService {
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
+            if (data.overrideEmailDomains) {
+                await this.assertEmailDomainsVerified(
+                    organizationUuid,
+                    data.emailDomains,
+                );
+            }
         }
 
         const existing = await this.organizationSsoModel.findMethod(
@@ -557,6 +593,12 @@ export class OrganizationSsoService extends BaseService {
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
+            if (data.overrideEmailDomains) {
+                await this.assertEmailDomainsVerified(
+                    organizationUuid,
+                    data.emailDomains,
+                );
+            }
         }
 
         const existing = await this.organizationSsoModel.findMethod(
@@ -647,6 +689,12 @@ export class OrganizationSsoService extends BaseService {
 
         if (data.emailDomains && data.emailDomains.length > 0) {
             OrganizationSsoService.validateEmailDomains(data.emailDomains);
+            if (data.overrideEmailDomains) {
+                await this.assertEmailDomainsVerified(
+                    organizationUuid,
+                    data.emailDomains,
+                );
+            }
         }
 
         const config: GoogleSsoConfig = {};

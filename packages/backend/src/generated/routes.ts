@@ -141,6 +141,8 @@ import { EmbedController } from './../ee/controllers/embedController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ManagedAgentController } from './../ee/controllers/managedAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrganizationDomainVerificationController } from './../ee/controllers/OrganizationDomainVerificationController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationWarehouseCredentialsController } from './../ee/controllers/OrganizationWarehouseCredentialsController';
@@ -11715,6 +11717,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['editContent'] },
                 { dataType: 'enum', enums: ['improveContext'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
+                { dataType: 'enum', enums: ['proposeWriteback'] },
                 { dataType: 'enum', enums: ['runSavedChart'] },
                 { dataType: 'enum', enums: ['listWarehouseTables'] },
                 { dataType: 'enum', enums: ['describeWarehouseTable'] },
@@ -12430,11 +12433,11 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -17247,6 +17250,148 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Partial_OrganizationSsoMethodFlags_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VerifiedDomain: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                verifiedByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                verifiedAt: { dataType: 'datetime', required: true },
+                domain: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiVerifiedDomainsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'VerifiedDomain' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmailOneTimePassword: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                numberOfAttempts: { dataType: 'double', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_EmailStatusExpiring.otp_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                otp: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'intersection',
+                            subSchemas: [
+                                { ref: 'EmailOneTimePassword' },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        isMaxAttempts: {
+                                            dataType: 'boolean',
+                                            required: true,
+                                        },
+                                        isExpired: {
+                                            dataType: 'boolean',
+                                            required: true,
+                                        },
+                                        expiresAt: {
+                                            dataType: 'datetime',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DomainVerificationStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_EmailStatusExpiring.otp_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        isVerified: { dataType: 'boolean', required: true },
+                        domain: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDomainVerificationStatusResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DomainVerificationStatus', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RequestDomainVerification: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                challengeEmail: { dataType: 'string', required: true },
+                domain: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConfirmDomainVerification: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                passcode: { dataType: 'string', required: true },
+                domain: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Role: {
         dataType: 'refAlias',
         type: {
@@ -18388,18 +18533,6 @@ const models: TsoaRoute.Models = {
                 { ref: 'ActivateUserWithInviteCode' },
                 { ref: 'CreateUserArgs' },
             ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    EmailOneTimePassword: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                numberOfAttempts: { dataType: 'double', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-            },
             validators: {},
         },
     },
@@ -44699,6 +44832,256 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteGoogleConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationDomainVerificationController_listVerifiedDomains: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/org/domains',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController.prototype
+                .listVerifiedDomains,
+        ),
+
+        async function OrganizationDomainVerificationController_listVerifiedDomains(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationDomainVerificationController_listVerifiedDomains,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationDomainVerificationController>(
+                        OrganizationDomainVerificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listVerifiedDomains',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationDomainVerificationController_requestVerification: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'RequestDomainVerification',
+        },
+    };
+    app.post(
+        '/api/v1/org/domains/verify',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController.prototype
+                .requestVerification,
+        ),
+
+        async function OrganizationDomainVerificationController_requestVerification(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationDomainVerificationController_requestVerification,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationDomainVerificationController>(
+                        OrganizationDomainVerificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'requestVerification',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationDomainVerificationController_confirmVerification: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ConfirmDomainVerification',
+        },
+    };
+    app.post(
+        '/api/v1/org/domains/confirm',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController.prototype
+                .confirmVerification,
+        ),
+
+        async function OrganizationDomainVerificationController_confirmVerification(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationDomainVerificationController_confirmVerification,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationDomainVerificationController>(
+                        OrganizationDomainVerificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'confirmVerification',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationDomainVerificationController_deleteVerifiedDomain: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        domain: {
+            in: 'path',
+            name: 'domain',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v1/org/domains/:domain',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationDomainVerificationController.prototype
+                .deleteVerifiedDomain,
+        ),
+
+        async function OrganizationDomainVerificationController_deleteVerifiedDomain(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationDomainVerificationController_deleteVerifiedDomain,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationDomainVerificationController>(
+                        OrganizationDomainVerificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteVerifiedDomain',
                     controller,
                     response,
                     next,

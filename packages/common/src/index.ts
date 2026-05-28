@@ -134,6 +134,7 @@ export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationAccess';
+export * from './types/organizationDomainVerification';
 export * from './types/organizationMemberProfile';
 export * from './types/organizationSettings';
 export * from './types/organizationSso';
