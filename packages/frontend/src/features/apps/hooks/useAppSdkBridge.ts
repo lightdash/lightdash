@@ -285,6 +285,36 @@ export function useAppSdkBridge(
                     ? `/api/v1/embed/${embedProjectUuid}/user-info`
                     : path;
 
+            // Emits a terminal `error` QueryEvent re-keyed to the POST id
+            // when a metric-query POST fails before the SDK ever gets a
+            // queryUuid. Without it, the pending entry stays in
+            // MinimalApp's in-flight set forever and the screenshot
+            // indicator never mounts. The GET-poll error/ready paths
+            // already emit their own terminal events, so this only runs
+            // for the POST.
+            const emitPostFailure = (errorMessage: string) => {
+                if (!isMetricQueryPost(method, path) || !onQueryEvent) return;
+                onQueryEvent({
+                    id,
+                    timestamp: Date.now(),
+                    label: null,
+                    exploreName: '',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    limit: 0,
+                    queryUuid: null,
+                    status: 'error',
+                    rowCount: null,
+                    durationMs: null,
+                    error: errorMessage,
+                    rawMetricQuery: null,
+                });
+            };
+
             try {
                 // SDK embeds: a bare `fetch(path)` resolves against the
                 // host's origin, not Lightdash. Rewrite to an absolute URL
@@ -420,15 +450,16 @@ export function useAppSdkBridge(
 
                     respond({ result: json.results });
                 } else {
-                    respond({
-                        error:
-                            json.error?.message ?? `API error (${res.status})`,
-                    });
+                    const errorMessage =
+                        json.error?.message ?? `API error (${res.status})`;
+                    emitPostFailure(errorMessage);
+                    respond({ error: errorMessage });
                 }
             } catch (err) {
-                respond({
-                    error: err instanceof Error ? err.message : 'Unknown error',
-                });
+                const errorMessage =
+                    err instanceof Error ? err.message : 'Unknown error';
+                emitPostFailure(errorMessage);
+                respond({ error: errorMessage });
             }
         },
         [
