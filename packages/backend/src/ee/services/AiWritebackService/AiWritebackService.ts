@@ -30,6 +30,7 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import type { DbAiWritebackThread } from '../../database/entities/ai';
+import type { AiWritebackPromptModel } from '../../models/AiWritebackPromptModel';
 import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
 import {
     ALLOWED_TOOLS,
@@ -73,6 +74,7 @@ type AiWritebackServiceDeps = {
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
+    aiWritebackPromptModel: AiWritebackPromptModel;
 };
 
 export class AiWritebackService extends BaseService {
@@ -88,6 +90,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    private readonly aiWritebackPromptModel: AiWritebackPromptModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -95,6 +99,7 @@ export class AiWritebackService extends BaseService {
         featureFlagModel,
         githubAppInstallationsModel,
         aiWritebackThreadModel,
+        aiWritebackPromptModel,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -103,6 +108,7 @@ export class AiWritebackService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
+        this.aiWritebackPromptModel = aiWritebackPromptModel;
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -520,12 +526,32 @@ export class AiWritebackService extends BaseService {
             });
 
             setStage('agent');
+            const repoContext = await this.gatherRepoContext(
+                sandbox,
+                turn.githubConnection.projectSubPath,
+            );
+            const systemPrompt = buildSystemPrompt(
+                turn.githubConnection.projectSubPath,
+                {
+                    projectName: turn.projectName,
+                    repository,
+                    repoContext,
+                },
+            );
+            const promptLog = await this.aiWritebackPromptModel.create({
+                projectUuid,
+                organizationUuid: turn.organizationUuid,
+                aiThreadUuid: aiThreadUuid ?? null,
+                createdByUserUuid: user.userUuid,
+                sandboxId: sandbox.sandboxId,
+                isResume: turn.isResume,
+                systemPrompt,
+                prompt,
+            });
             const agent = await this.runAgentInSandbox({
                 sandbox,
+                systemPrompt,
                 prompt,
-                projectSubPath: turn.githubConnection.projectSubPath,
-                projectName: turn.projectName,
-                repository,
                 isResume: turn.isResume,
                 reportProgress,
             });
@@ -535,6 +561,11 @@ export class AiWritebackService extends BaseService {
                 description: prDescription,
                 sanitizedStdout,
             } = this.extractPrMetadata(agent.stdout);
+
+            await this.aiWritebackPromptModel.respond(
+                promptLog.ai_writeback_prompt_uuid,
+                { response: sanitizedStdout, exitCode: agent.exitCode },
+            );
 
             const { hasChanges } = await sandbox.git.status(CWD);
 
@@ -868,33 +899,18 @@ export class AiWritebackService extends BaseService {
      */
     private async runAgentInSandbox({
         sandbox,
+        systemPrompt,
         prompt,
-        projectSubPath,
-        projectName,
-        repository,
         isResume,
         reportProgress,
     }: {
         sandbox: Sandbox;
+        systemPrompt: string;
         prompt: string;
-        projectSubPath: string;
-        projectName: string;
-        repository: string;
         isResume: boolean;
         reportProgress: (message: string) => void;
     }): Promise<{ stdout: string; exitCode: number }> {
-        const repoContext = await this.gatherRepoContext(
-            sandbox,
-            projectSubPath,
-        );
-        await sandbox.files.write(
-            SYSTEM_PROMPT_PATH,
-            buildSystemPrompt(projectSubPath, {
-                projectName,
-                repository,
-                repoContext,
-            }),
-        );
+        await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
 
         // Parse Claude Code's stream-json output line-by-line so the agent
