@@ -1,4 +1,3 @@
-import { type ApiError } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { SERVER_ERROR_MARKER } from '../api';
 import { getResultsFromStream } from './request';
@@ -12,7 +11,7 @@ describe('getResultsFromStream', () => {
         const promise = getResultsFromStream<unknown>(undefined);
 
         // Shape: must be a 5xx ApiError so the retry layer matches it.
-        await expect(promise).rejects.toMatchObject<Partial<ApiError>>({
+        await expect(promise).rejects.toMatchObject({
             status: 'error',
             error: {
                 name: 'Error',
