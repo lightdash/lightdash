@@ -221,14 +221,6 @@ export enum FeatureFlags {
      * built out.
      */
     AiWriteback = 'ai-writeback',
-
-    /**
-     * Enable the built-in system agent fallback in Slack. When enabled, if a
-     * Slack channel has no configured agent, the system will use the built-in
-     * system agent instead of showing an error. Independent of AiWriteback so
-     * the features can be toggled separately.
-     */
-    AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
 }
 
 export type FeatureFlag = {
