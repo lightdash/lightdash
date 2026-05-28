@@ -3960,26 +3960,41 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "additionalProperties": false,
       "properties": {
         "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "prUrl": {
-              "type": [
-                "string",
-                "null",
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "prUrl": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "prUrl",
               ],
+              "type": "object",
             },
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
               ],
-              "type": "string",
+              "type": "object",
             },
-          },
-          "required": [
-            "status",
           ],
-          "type": "object",
         },
         "result": {
           "type": "string",
