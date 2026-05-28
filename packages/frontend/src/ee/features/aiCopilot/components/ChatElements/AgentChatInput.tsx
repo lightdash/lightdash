@@ -91,6 +91,7 @@ interface AgentChatInputProps {
     defaultValue?: string;
     onValueChange?: (value: string) => void;
     fullWidth?: boolean;
+    clearOnSubmit?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -130,6 +131,7 @@ export const AgentChatInput = ({
     defaultValue,
     onValueChange,
     fullWidth = false,
+    clearOnSubmit = true,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -144,6 +146,8 @@ export const AgentChatInput = ({
     loadingRef.current = loading;
     const disabledRef = useRef(disabled);
     disabledRef.current = disabled;
+    const clearOnSubmitRef = useRef(clearOnSubmit);
+    clearOnSubmitRef.current = clearOnSubmit;
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -280,8 +284,10 @@ export const AgentChatInput = ({
                         message: text,
                         toolHints: extractToolHints(ed),
                     });
-                    ed.commands.clearContent();
-                    setValueState('');
+                    if (clearOnSubmitRef.current) {
+                        ed.commands.clearContent();
+                        setValueState('');
+                    }
                     return true;
                 }
                 return false;
@@ -348,8 +354,10 @@ export const AgentChatInput = ({
                 message: chip.label,
                 toolHints: [chip.tool],
             });
-            editor?.commands.clearContent();
-            setValueState('');
+            if (clearOnSubmitRef.current) {
+                editor?.commands.clearContent();
+                setValueState('');
+            }
             trackClick();
         },
         [
@@ -399,8 +407,10 @@ export const AgentChatInput = ({
             message: text,
             toolHints: extractToolHints(ed),
         });
-        ed.commands.clearContent();
-        setValueState('');
+        if (clearOnSubmitRef.current) {
+            ed.commands.clearContent();
+            setValueState('');
+        }
     };
 
     const chipRow = useMemo(() => {
