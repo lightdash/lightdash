@@ -7,8 +7,6 @@ import {
     ActionIcon,
     Anchor,
     Box,
-    Button,
-    Divider,
     Group,
     Paper,
     Switch,
@@ -16,7 +14,12 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
-import { IconArrowUp, IconBrain, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconArrowUp,
+    IconBulb,
+    IconBulbFilled,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -584,54 +587,80 @@ export const AgentChatInput = ({
 
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
+                        {(showModelSelector || onExtendedThinkingChange) && (
+                            <Box className={styles.modelGroup}>
+                                {showModelSelector && (
+                                    <ModelSelector
+                                        models={models}
+                                        value={selectedModelId ?? null}
+                                        onChange={onModelChange}
+                                        variant="subtle"
+                                        color="gray"
+                                        size="xs"
+                                    />
+                                )}
+
+                                {showModelSelector &&
+                                    onExtendedThinkingChange && (
+                                        <div
+                                            className={styles.modelGroupDivider}
+                                        />
+                                    )}
+
+                                {onExtendedThinkingChange && (
+                                    <Tooltip
+                                        multiline
+                                        w={240}
+                                        withArrow
+                                        position="top"
+                                        label="Let the model spend extra reasoning time before answering. Slower but better on complex questions."
+                                    >
+                                        <ActionIcon
+                                            variant={
+                                                extendedThinking
+                                                    ? 'light'
+                                                    : 'subtle'
+                                            }
+                                            color={
+                                                extendedThinking
+                                                    ? 'indigo'
+                                                    : 'gray'
+                                            }
+                                            size={30}
+                                            onClick={() =>
+                                                onExtendedThinkingChange(
+                                                    !extendedThinking,
+                                                )
+                                            }
+                                            aria-label="Toggle extended thinking"
+                                            aria-pressed={extendedThinking}
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    extendedThinking
+                                                        ? IconBulbFilled
+                                                        : IconBulb
+                                                }
+                                                size="sm"
+                                                color={
+                                                    extendedThinking
+                                                        ? 'indigo.5'
+                                                        : 'ldGray.6'
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
+                            </Box>
+                        )}
+
                         {showAgentSelector && (
                             <AgentSelector
                                 projectUuid={projectUuid!}
                                 agents={agents!}
                                 selectedAgent={selectedAgent!}
+                                compact
                             />
-                        )}
-
-                        {showModelSelector && (
-                            <ModelSelector
-                                models={models}
-                                value={selectedModelId ?? null}
-                                onChange={onModelChange}
-                            />
-                        )}
-
-                        {onExtendedThinkingChange && (
-                            <Group>
-                                <Divider orientation="vertical" />
-                                <Button
-                                    variant="subtle"
-                                    size="compact-sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconBrain}
-                                            color={
-                                                extendedThinking
-                                                    ? 'indigo.5'
-                                                    : 'ldGray.7'
-                                            }
-                                        />
-                                    }
-                                    className={
-                                        styles.thinkingButton +
-                                        ' ' +
-                                        (extendedThinking
-                                            ? styles.thinkingButtonOn
-                                            : '')
-                                    }
-                                    onClick={() =>
-                                        onExtendedThinkingChange(
-                                            !extendedThinking,
-                                        )
-                                    }
-                                >
-                                    Thinking
-                                </Button>
-                            </Group>
                         )}
                     </Box>
 

@@ -3,27 +3,35 @@ import {
     Center,
     Combobox,
     Group,
-    InputBase,
     Stack,
     Text,
+    UnstyledButton,
     useCombobox,
 } from '@mantine-8/core';
 import {
     IconCheck,
+    IconChevronDown,
     IconCirclePlus,
-    IconSelector,
     IconSparkles,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiRouterConfig } from '../../hooks/useAiRouter';
+import styles from './AgentSelector.module.css';
 import { getAgentOptions, type Agent } from './AgentSelectorUtils';
 
 type Props = {
     agents: Agent[];
     selectedAgent: Agent | 'auto';
     projectUuid: string;
+    /**
+     * Render the target as an icon-only chip; the label reveals on hover,
+     * focus, or while the dropdown is open. Used when toolbar space is
+     * tight (e.g. the chat input).
+     */
+    compact?: boolean;
 };
 
 const AUTO_VALUE = '__auto__';
@@ -32,10 +40,13 @@ export const AgentSelector = ({
     agents,
     selectedAgent,
     projectUuid,
+    compact = false,
 }: Props) => {
     const navigate = useNavigate();
     const { search } = useLocation();
+    const [opened, setOpened] = useState(false);
     const combobox = useCombobox({
+        onOpenedChange: setOpened,
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
 
@@ -77,16 +88,20 @@ export const AgentSelector = ({
             store={combobox}
             onOptionSubmit={handleOptionSubmit}
             withinPortal={false}
+            width={compact ? 260 : 'target'}
+            position="bottom-start"
         >
             <Combobox.Target>
-                <InputBase
-                    w="230px"
-                    component="button"
+                <UnstyledButton
                     type="button"
-                    pointer
                     onClick={() => combobox.toggleDropdown()}
-                    leftSection={
-                        isAuto ? (
+                    className={`${styles.target} ${
+                        compact ? styles.compact : ''
+                    }`}
+                    data-open={opened ? 'true' : undefined}
+                >
+                    <Group gap={6} wrap="nowrap" align="center" w="100%">
+                        {isAuto ? (
                             <Avatar size={22} color="violet" radius="xl">
                                 <MantineIcon
                                     icon={IconSparkles}
@@ -100,22 +115,17 @@ export const AgentSelector = ({
                                 name={selectedAgent.name}
                                 src={selectedAgent.imageUrl}
                             />
-                        )
-                    }
-                    rightSection={<MantineIcon icon={IconSelector} />}
-                    styles={(theme) => ({
-                        input: {
-                            borderColor: theme.colors.ldGray[2],
-                            borderRadius: theme.radius.md,
-                            boxShadow: `var(--mantine-shadow-subtle)`,
-                            fontSize: theme.fontSizes.xs,
-                        },
-                    })}
-                >
-                    <Text size="xs" truncate="end" ml={2}>
-                        {isAuto ? 'Auto' : selectedAgent.name}
-                    </Text>
-                </InputBase>
+                        )}
+                        <Text size="xs" truncate="end" className={styles.label}>
+                            {isAuto ? 'Auto' : selectedAgent.name}
+                        </Text>
+                        <MantineIcon
+                            icon={IconChevronDown}
+                            size="sm"
+                            color="ldGray.6"
+                        />
+                    </Group>
+                </UnstyledButton>
             </Combobox.Target>
 
             <Combobox.Dropdown>
@@ -135,7 +145,7 @@ export const AgentSelector = ({
                                         Auto
                                     </Text>
                                     <Text size="xs" c="dimmed" truncate="end">
-                                        Let AI pick the best agent
+                                        We'll route to the besy-fit agent
                                     </Text>
                                 </Stack>
                                 {isAuto && (
