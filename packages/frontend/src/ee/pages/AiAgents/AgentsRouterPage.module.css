@@ -110,6 +110,57 @@
     animation: pickerItemIn 360ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both;
 }
 
+.pickerScroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    max-height: min(420px, 55vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px;
+    padding-bottom: 10px;
+    margin: -4px;
+    scrollbar-width: thin;
+    scrollbar-color: light-dark(
+            var(--mantine-color-gray-3),
+            var(--mantine-color-dark-3)
+        )
+        transparent;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 10px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 10px),
+        transparent 100%
+    );
+}
+
+.pickerScroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pickerScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pickerScroll::-webkit-scrollbar-thumb {
+    background-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+    border-radius: 999px;
+}
+
+.pickerScroll::-webkit-scrollbar-thumb:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-2)
+    );
+}
+
 .candidateButton {
     display: block;
     width: 100%;
