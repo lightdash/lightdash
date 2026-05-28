@@ -87,6 +87,7 @@ Use table calculations for:
         "type": "object",
       },
       "name": "get_lightdash_version",
+      "title": "Get Lightdash version",
     },
     {
       "agentName": null,
@@ -108,6 +109,7 @@ Usage Tips:
         "type": "object",
       },
       "name": "list_explores",
+      "title": "List explores",
     },
     {
       "agentName": null,
@@ -140,6 +142,7 @@ Output:
         "type": "object",
       },
       "name": "find_explores",
+      "title": "Find explores",
     },
     {
       "agentName": null,
@@ -193,6 +196,7 @@ Usage tips:
         "type": "object",
       },
       "name": "find_fields",
+      "title": "Find fields",
     },
     {
       "agentName": null,
@@ -236,6 +240,7 @@ Usage tips:
         "type": "object",
       },
       "name": "find_content",
+      "title": "Find content",
     },
     {
       "agentName": null,
@@ -247,6 +252,7 @@ Usage tips:
         "type": "object",
       },
       "name": "list_projects",
+      "title": "List projects",
     },
     {
       "agentName": null,
@@ -271,6 +277,7 @@ Usage tips:
         "type": "object",
       },
       "name": "set_project",
+      "title": "Set project",
     },
     {
       "agentName": null,
@@ -282,6 +289,7 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_project",
+      "title": "Get current project",
     },
     {
       "agentName": null,
@@ -297,6 +305,7 @@ Usage tips:
         "type": "object",
       },
       "name": "list_agents",
+      "title": "List agents",
     },
     {
       "agentName": null,
@@ -315,6 +324,7 @@ Usage tips:
         "type": "object",
       },
       "name": "set_agent",
+      "title": "Set agent",
     },
     {
       "agentName": null,
@@ -326,6 +336,7 @@ Usage tips:
         "type": "object",
       },
       "name": "clear_agent",
+      "title": "Clear agent",
     },
     {
       "agentName": null,
@@ -337,6 +348,7 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_agent",
+      "title": "Get current agent",
     },
     {
       "agentName": "runQuery",
@@ -5098,6 +5110,7 @@ Empty array or null: single partition (calculations across all rows)., ",
         ],
         "type": "object",
       },
+      "title": "Run query",
     },
     {
       "agentName": null,
@@ -6759,6 +6772,7 @@ Usage Tips:
         "type": "object",
       },
       "name": "search_field_values",
+      "title": "Search field values",
     },
     {
       "agentName": null,
@@ -6849,6 +6863,7 @@ Notes:
         ],
         "type": "object",
       },
+      "title": undefined,
     },
     {
       "agentName": null,
@@ -6860,6 +6875,7 @@ Notes:
         "type": "object",
       },
       "name": "list_verified_content",
+      "title": "List verified content",
     },
     {
       "agentName": null,
@@ -6936,6 +6952,7 @@ Response shape (MCP CallToolResult):
         ],
         "type": "object",
       },
+      "title": "Run AI writeback",
     },
   ],
 }
