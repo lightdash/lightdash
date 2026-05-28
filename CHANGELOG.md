@@ -1,3 +1,10 @@
+# [0.3040.0](https://github.com/lightdash/lightdash/compare/0.3039.0...0.3040.0) (2026-05-28)
+
+
+### Features
+
+* **ee:** name the selected project in the Slack picker confirmation ([#23614](https://github.com/lightdash/lightdash/issues/23614)) ([ce2eff7](https://github.com/lightdash/lightdash/commit/ce2eff754baaea50b119ca451b247ee4e27608aa))
+
 # [0.3039.0](https://github.com/lightdash/lightdash/compare/0.3038.0...0.3039.0) (2026-05-28)
 
 
