@@ -32,7 +32,7 @@ For edits, call `editContent` with:
 4. Call `editContent` with that patch.
 5. Re-read if needed to verify the final state.
 
-### Recommended workflow for Charts/Dashboard Tiles:
+### Recommended workflow for editing Charts/Dashboard Tiles:
 
 1. Call `readContent` for the chart slug.
 2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below)
@@ -42,12 +42,27 @@ For edits, call `editContent` with:
 6. Call `editContent` with that patch.
 7. Re-read if needed to verify the final state.
 
+### Recommended workflow for creating new Charts:
+
+1. Use `discoverFields` to explore available fields and plan your chart
+2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
+3. Build the full chart JSON with that metric query and other required fields and call `createContent` with that JSON to create the chart.
+
+### Recommended workflow for creating new Dashboards:
+
+1. Always read the `dashboard-reference` and `dashboard-best-practices` resources
+2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
+3. Use `discoverFields` to explore available fields and plan which charts to include.
+4. Create an empty dashboard shell first
+5. Start building charts and adding them to the dashboard one by one, use the workflow outlined above for creating charts
+
 Rules:
 
 - Always read content before editing.
 - Preserve unrelated fields.
 - Prefer minimal patches.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
+- When you create or edit content, please provide links for them in the final response
 
 ## Common Mistakes
 
@@ -141,5 +156,6 @@ Use `spaceSlug` for shared charts. Add `dashboardSlug` to scope a chart to a spe
 Start with:
 
 - `dashboard-reference` for dashboards
+    - `dashboard-best-practices` for tips on effective dashboard design
 - `cartesian-chart-reference` for bar, line, area, or scatter charts
 - the specific chart resource for any other chart type

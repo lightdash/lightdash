@@ -13,6 +13,7 @@ import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
     CreateChangeFn,
+    CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
     EditContentFn,
@@ -115,6 +116,7 @@ export type AiAgentDependencies = {
     findContent: FindContentFn;
     readContent: ReadContentFn;
     editContent: EditContentFn;
+    createContent: CreateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;

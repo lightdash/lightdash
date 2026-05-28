@@ -19,8 +19,16 @@ import type {
 } from '@lightdash/common';
 import { type ToolCallSummary } from './types';
 
-type ContentEditorToolArgs = {
+type ToolReadContentArgs = {
     slug?: string;
+};
+
+type ToolEditContentArgs = {
+    slug?: string;
+};
+
+type ToolCreateContentArgs = {
+    content?: { slug?: string };
 };
 
 /**
@@ -98,10 +106,17 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolListWarehouseTablesArgs;
             return args.schema ?? args.search ?? null;
         }
-        case 'readContent':
-        case 'editContent': {
-            const args = toolArgs as ContentEditorToolArgs;
+        case 'readContent': {
+            const args = toolArgs as ToolReadContentArgs;
             return args.slug ?? null;
+        }
+        case 'editContent': {
+            const args = toolArgs as ToolEditContentArgs;
+            return args.slug ?? null;
+        }
+        case 'createContent': {
+            const args = toolArgs as ToolCreateContentArgs;
+            return args.content?.slug ?? null;
         }
         case 'runSql':
         case 'runSavedChart':

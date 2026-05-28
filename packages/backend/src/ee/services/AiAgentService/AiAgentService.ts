@@ -200,6 +200,7 @@ import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
+    CreateContentFn,
     DescribeWarehouseTableFn,
     EditContentFn,
     FindContentFn,
@@ -4808,6 +4809,65 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
+        const createContent: CreateContentFn = ({ type, content }) =>
+            wrapSentryTransaction(
+                'AiAgent.createContent',
+                { slug: content.slug, type },
+                async () => {
+                    this.aiAgentContentValidation.validateContent(
+                        type,
+                        content,
+                    );
+
+                    switch (type) {
+                        case 'dashboard': {
+                            const promotionChanges =
+                                await this.coderService.upsertDashboard(
+                                    user,
+                                    projectUuid,
+                                    content.slug,
+                                    content,
+                                    { mode: 'create' },
+                                );
+                            const finalSlug =
+                                promotionChanges.dashboards[0]?.data.slug ??
+                                content.slug;
+
+                            return readContent({
+                                slug: finalSlug,
+                                type,
+                            });
+                        }
+                        case 'chart': {
+                            // TODO: Reject missing dashboardSlug targets for
+                            // agent-created charts instead of relying on
+                            // CoderService's placeholder dashboard behavior.
+                            const promotionChanges =
+                                await this.coderService.upsertChart(
+                                    user,
+                                    projectUuid,
+                                    content.slug,
+                                    content,
+                                    { mode: 'create' },
+                                );
+                            const finalSlug =
+                                promotionChanges.charts[0]?.data.slug ??
+                                content.slug;
+
+                            return readContent({
+                                slug: finalSlug,
+                                type,
+                            });
+                        }
+                        default:
+                            return assertUnreachable(
+                                type,
+                                'Invalid content type',
+                            );
+                    }
+                },
+            );
+
         const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
             wrapSentryTransaction(
                 'AiAgent.runAsyncQuery',
@@ -5401,6 +5461,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             editContent,
+            createContent,
             getDashboardCharts,
             findFields,
             findExplores,
@@ -5505,6 +5566,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             editContent,
+            createContent,
             getDashboardCharts,
             findFields,
             findExplores,
@@ -5685,6 +5747,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             editContent,
+            createContent,
             getDashboardCharts,
             findFields,
             findExplores,

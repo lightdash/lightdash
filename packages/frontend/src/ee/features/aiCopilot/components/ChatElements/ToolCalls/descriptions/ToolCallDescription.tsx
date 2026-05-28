@@ -40,8 +40,18 @@ import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToo
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
-type ContentEditorToolArgs = {
+type ToolReadContentArgs = {
     slug?: string;
+    type?: 'dashboard' | 'chart';
+};
+
+type ToolEditContentArgs = {
+    slug?: string;
+    type?: 'dashboard' | 'chart';
+};
+
+type ToolCreateContentArgs = {
+    content?: { slug?: string };
     type?: 'dashboard' | 'chart';
 };
 
@@ -172,14 +182,38 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'readContent':
-        case 'editContent':
-            const contentEditorToolArgs =
-                toolCall.toolArgs as ContentEditorToolArgs;
-            return contentEditorToolArgs.slug && contentEditorToolArgs.type ? (
+            const readContentToolArgs =
+                toolCall.toolArgs as ToolReadContentArgs;
+            return readContentToolArgs.slug && readContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
-                    action={toolName === 'readContent' ? 'read' : 'edit'}
-                    slug={contentEditorToolArgs.slug}
-                    type={contentEditorToolArgs.type}
+                    action="read"
+                    slug={readContentToolArgs.slug}
+                    type={readContentToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
+        case 'editContent':
+            const editContentToolArgs =
+                toolCall.toolArgs as ToolEditContentArgs;
+            return editContentToolArgs.slug && editContentToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action="edit"
+                    slug={editContentToolArgs.slug}
+                    type={editContentToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
+        case 'createContent':
+            const createContentToolArgs =
+                toolCall.toolArgs as ToolCreateContentArgs;
+            return createContentToolArgs.content?.slug &&
+                createContentToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action="create"
+                    slug={createContentToolArgs.content.slug}
+                    type={createContentToolArgs.type}
                 />
             ) : (
                 <> </>
