@@ -5700,19 +5700,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const enableSqlMode = options.enableSqlMode ?? false;
 
-        let canRunSql = enableSqlMode;
-        // Without OAuth, Slack messages run as a workspace-default user — the CASL check below would evaluate against that default, letting anyone in the workspace trigger SQL under another person's identity. Fail-closed.
-        if (canRunSql && isSlackPrompt(prompt) && user.organizationUuid) {
+        // Whether this prompt's caller identity can be trusted as the real
+        // sender. For Slack prompts that's only true when the org has
+        // `aiRequireOAuth` on; otherwise every message runs as the
+        // workspace installer and downstream CASL checks would evaluate
+        // against the installer's ability. Non-Slack callers are always
+        // the real sender, so default to true.
+        let aiRequireOAuth = true;
+        if (isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
-            if (!slackSettings?.aiRequireOAuth) {
-                this.logger.info(
-                    `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-                );
-                canRunSql = false;
-            }
+            aiRequireOAuth = !!slackSettings?.aiRequireOAuth;
+        }
+
+        let canRunSql = enableSqlMode;
+        // Fail-closed: CASL would evaluate against the installer, not the sender.
+        if (canRunSql && !aiRequireOAuth) {
+            this.logger.info(
+                `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            canRunSql = false;
         }
 
         // Require the same CASL ability the SQL Runner page uses. The check
@@ -5783,11 +5792,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiAgentRevamp,
             });
-        const { enabled: aiWritebackEnabled } =
-            await this.featureFlagService.get({
+        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
+            {
                 user,
                 featureFlagId: FeatureFlags.AiWriteback,
-            });
+            },
+        );
+        if (aiWritebackEnabled && !aiRequireOAuth) {
+            this.logger.info(
+                `Disabling proposeWriteback for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            aiWritebackEnabled = false;
+        }
         const availableSkills = agentRevampEnabled
             ? await BuiltInSkills.getAiAgentSkills()
             : [];
