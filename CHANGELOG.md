@@ -1,3 +1,11 @@
+## [0.3052.2](https://github.com/lightdash/lightdash/compare/0.3052.1...0.3052.2) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** disable Slack writeback when aiRequireOAuth is off ([#23660](https://github.com/lightdash/lightdash/issues/23660)) ([bc9988a](https://github.com/lightdash/lightdash/commit/bc9988afeed44f2219be0652981b3dd3b8dc455f))
+* prevent AI agent form crash with custom group roles ([#23647](https://github.com/lightdash/lightdash/issues/23647)) ([2dcac1d](https://github.com/lightdash/lightdash/commit/2dcac1d9e58e05577a438176665ac64dcec578bb))
+
 ## [0.3052.1](https://github.com/lightdash/lightdash/compare/0.3052.0...0.3052.1) (2026-05-29)
 
 
