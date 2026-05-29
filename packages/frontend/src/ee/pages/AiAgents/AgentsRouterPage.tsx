@@ -313,6 +313,7 @@ const AgentsRouterPage = () => {
                         }
                         clearOnSubmit={false}
                         fullWidth
+                        showSuggestions={false}
                     />
 
                     {isWorking && workingLabel && (
