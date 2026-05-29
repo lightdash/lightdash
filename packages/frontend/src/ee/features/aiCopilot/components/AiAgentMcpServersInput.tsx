@@ -1,4 +1,5 @@
 import {
+    GITHUB_MCP_SERVER_URL,
     type AiMcpServer,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
@@ -575,19 +576,36 @@ export const AiAgentMcpServersInput = ({
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
         useConnectGithubMcpServerMutation(projectUuid);
 
-    // One-click GitHub: only offered when the org has a GitHub integration the
-    // user can manage, and no GitHub MCP is connected yet.
+    // A project-level GitHub MCP server may already exist (e.g. created for
+    // another agent, or detached from this one). If so, the one-click flow just
+    // re-attaches it rather than creating a duplicate.
+    const existingGithubMcpServer = useMemo(
+        () =>
+            mcpServers?.find(
+                (mcpServer) => mcpServer.url === GITHUB_MCP_SERVER_URL,
+            ),
+        [mcpServers],
+    );
+    const isGithubConnectedToAgent =
+        !!existingGithubMcpServer &&
+        value.includes(existingGithubMcpServer.uuid);
+
+    // One-click GitHub: offered when the org has a GitHub integration the user
+    // can manage and GitHub is not already attached to THIS agent. We gate on
+    // agent attachment (not project-level existence) so the button reappears
+    // after the server is removed from this agent.
     const canOneClickConnectGithub =
-        githubMcpAvailability?.available === true &&
-        githubMcpAvailability?.alreadyConnected === false;
+        githubMcpAvailability?.available === true && !isGithubConnectedToAgent;
 
     const handleConnectGithubMcp = useCallback(async () => {
-        const server = await connectGithubMcp();
-        // Attach the new server to this agent so it's usable immediately.
+        // Reuse the existing project-level server when present; otherwise mint
+        // the installation token and create it.
+        const server = existingGithubMcpServer ?? (await connectGithubMcp());
+        // Attach to this agent so it's usable immediately.
         if (server && !value.includes(server.uuid)) {
             onChange([...value, server.uuid]);
         }
-    }, [connectGithubMcp, onChange, value]);
+    }, [existingGithubMcpServer, connectGithubMcp, onChange, value]);
 
     const selectedMcpServers = useMemo(
         () =>
