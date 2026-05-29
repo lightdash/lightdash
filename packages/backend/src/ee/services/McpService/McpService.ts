@@ -2889,13 +2889,33 @@ export class McpService extends BaseService {
     }
 
     public async isMcpContentAsCodeEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        user: SessionUser,
+        projectUuid?: string,
     ): Promise<boolean> {
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.McpContentAsCode,
         });
-        return flag.enabled;
+        if (!flag.enabled) {
+            return false;
+        }
+
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        if (!projectUuid) {
+            return true;
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'manage',
+            subject('ContentAsCode', {
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+            }),
+        );
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

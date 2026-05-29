@@ -185,19 +185,29 @@ const getAgentTools = (
         },
     });
 
-    const listContent = getListContent({
-        listContent: dependencies.listContent,
-    });
-
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
         siteUrl: args.siteUrl,
         pageSize: args.getDashboardChartsPageSize,
     });
 
-    const readContent = getReadContent({
-        readContent: dependencies.readContent,
-    });
+    const contentTools =
+        args.enableAgentRevamp && args.canManageContentAsCode
+            ? {
+                  readContent: getReadContent({
+                      readContent: dependencies.readContent,
+                  }),
+                  editContent: getEditContent({
+                      editContent: dependencies.editContent,
+                  }),
+                  listContent: getListContent({
+                      listContent: dependencies.listContent,
+                  }),
+                  createContent: getCreateContent({
+                      createContent: dependencies.createContent,
+                  }),
+              }
+            : null;
 
     const runQuery = getRunQuery({
         updateProgress: dependencies.updateProgress,
@@ -250,12 +260,6 @@ const getAgentTools = (
     });
 
     const improveContext = getImproveContext();
-    const editContent = getEditContent({
-        editContent: dependencies.editContent,
-    });
-    const createContent = getCreateContent({
-        createContent: dependencies.createContent,
-    });
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
@@ -303,17 +307,10 @@ const getAgentTools = (
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
-        ...(args.enableAgentRevamp
-            ? {
-                  readContent,
-                  editContent,
-                  listContent,
-                  createContent,
-              }
-            : {
-                  getDashboardCharts,
-                  generateDashboard,
-              }),
+        ...(contentTools ?? {
+            getDashboardCharts,
+            generateDashboard,
+        }),
         runQuery,
         runSavedChart,
         generateUuids,

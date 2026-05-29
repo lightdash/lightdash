@@ -4724,6 +4724,39 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
     }
 
+    private canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): boolean {
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'manage',
+            subject('ContentAsCode', {
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+            }),
+        );
+    }
+
+    private assertCanManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): void {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        if (!this.canManageContentAsCode(user, projectUuid)) {
+            throw new ForbiddenError(
+                'You do not have permission to manage content as code',
+            );
+        }
+    }
+
     public getContentToolDependencies({
         user,
         projectUuid,
@@ -4738,30 +4771,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         AiAgentDependencies,
         'listContent' | 'readContent' | 'editContent' | 'createContent'
     > {
-        if (!user.organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage content as code',
-            );
-        }
-
         const readContent: ReadContentFn = ({ slug, type }) =>
             wrapSentryTransaction(
                 `${sentryPrefix}.readContent`,
                 { slug, type },
                 async () => {
+                    this.assertCanManageContentAsCode(user, projectUuid);
+
                     switch (type) {
                         case 'dashboard': {
                             const { dashboards } =
@@ -4817,6 +4833,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.editContent`,
                 { slug, type },
                 async () => {
+                    this.assertCanManageContentAsCode(user, projectUuid);
+
                     if (!Array.isArray(patch)) {
                         throw new ParameterError(
                             'Patch must be an RFC6902 patch array',
@@ -4878,6 +4896,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.createContent`,
                 { slug: content.slug, type },
                 async () => {
+                    this.assertCanManageContentAsCode(user, projectUuid);
+
                     this.aiAgentContentValidation.validateContent(
                         type,
                         content,
@@ -4937,6 +4957,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.listContent`,
                 { spaceSlug, page },
                 async () => {
+                    this.assertCanManageContentAsCode(user, projectUuid);
+
                     const pageSize = 25;
                     const agentSpaceAccess = getAgentSpaceAccess
                         ? await getAgentSpaceAccess()
@@ -6043,9 +6065,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             aiWritebackEnabled = false;
         }
-        const availableSkills = agentRevampEnabled
-            ? await BuiltInSkills.getAiAgentSkills()
-            : [];
+        const canManageContentAsCode = this.canManageContentAsCode(
+            user,
+            prompt.projectUuid,
+        );
+        const availableSkills =
+            agentRevampEnabled && canManageContentAsCode
+                ? await BuiltInSkills.getAiAgentSkills()
+                : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
@@ -6081,6 +6108,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             warehouseSchema,
             availableSkills,
             enableAgentRevamp: agentRevampEnabled,
+            canManageContentAsCode,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
