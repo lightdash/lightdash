@@ -5,8 +5,10 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewItemWritebackResult,
     AiAgentReviewSignalSummary,
     AiAgentSummary,
+    DbtProjectType,
     FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
@@ -18,15 +20,20 @@ import {
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { planReviewWriteback } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
 
 type AiAgentAdminServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     featureFlagService: FeatureFlagService;
+    projectModel: ProjectModel;
+    aiWritebackService: AiWritebackService;
     lightdashConfig: LightdashConfig;
 };
 
@@ -39,12 +46,18 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly projectModel: ProjectModel;
+
+    private readonly aiWritebackService: AiWritebackService;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.projectModel = dependencies.projectModel;
+        this.aiWritebackService = dependencies.aiWritebackService;
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
@@ -228,6 +241,96 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
         return reviewItem;
+    }
+
+    async createReviewItemWriteback(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemWritebackResult> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const featureFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentReviewWriteback,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+        if (!featureFlag.enabled) {
+            throw new ForbiddenError(
+                'AI agent review writeback is not enabled',
+            );
+        }
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        if (reviewItem.primaryRootCause !== 'semantic_layer') {
+            throw new ParameterError(
+                'Writeback is only supported for semantic-layer review items',
+            );
+        }
+        if (reviewItem.linkedPrUrl && reviewItem.prState === 'open') {
+            throw new ParameterError(
+                'A pull request is already open for this review item',
+            );
+        }
+
+        const scope =
+            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!scope) {
+            throw new NotFoundError('Review item not found');
+        }
+
+        const project = await this.projectModel.get(scope.projectUuid);
+        if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
+            throw new ParameterError(
+                'Writeback requires a GitHub-connected dbt project',
+            );
+        }
+
+        const plan = planReviewWriteback(reviewItem);
+
+        const result = await this.aiWritebackService.run({
+            user,
+            projectUuid: scope.projectUuid,
+            prompt: plan.promptText,
+        });
+
+        if (result.prUrl) {
+            await this.aiAgentReviewClassifierModel.setReviewItemPrLink({
+                fingerprint,
+                organizationUuid,
+                projectUuid: scope.projectUuid,
+                agentUuid: scope.agentUuid,
+                linkedPrUrl: result.prUrl,
+                prState: 'open',
+            });
+        }
+
+        const updated = await this.aiAgentReviewClassifierModel.getReviewItem(
+            organizationUuid,
+            fingerprint,
+        );
+        return {
+            reviewItem: updated ?? reviewItem,
+            prUrl: result.prUrl,
+            prCreated: result.prUrl !== null,
+            summary: result.output,
+        };
     }
 
     /**

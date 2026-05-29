@@ -527,6 +527,16 @@ export type UpdateAiAgentReviewItemStatus = {
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
 
+export type AiAgentReviewItemWritebackResult = {
+    reviewItem: AiAgentReviewItemSummary;
+    prUrl: string | null;
+    prCreated: boolean;
+    summary: string;
+};
+
+export type ApiAiAgentReviewItemWritebackResponse =
+    ApiSuccess<AiAgentReviewItemWritebackResult>;
+
 export type AiAgentReviewSignalSummary = {
     uuid: string;
     runUuid: string;

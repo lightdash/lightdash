@@ -202,6 +202,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    projectModel: models.getProjectModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiRouterService: ({ models, repository, context }) =>
