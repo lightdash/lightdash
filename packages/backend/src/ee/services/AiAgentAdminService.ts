@@ -642,6 +642,7 @@ export class AiAgentAdminService extends BaseService {
                 user,
                 projectUuid,
                 prompt: plan.promptText,
+                source: 'admin_review',
                 onProgress: (message) => {
                     void setProgress(message);
                 },

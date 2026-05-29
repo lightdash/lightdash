@@ -435,6 +435,7 @@ export class McpService extends BaseService {
                         user,
                         projectUuid,
                         prompt: args.prompt,
+                        source: 'mcp',
                     });
 
                     const summary = result.prUrl

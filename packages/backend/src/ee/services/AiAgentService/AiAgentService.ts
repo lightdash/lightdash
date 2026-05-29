@@ -5482,6 +5482,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: args.prompt,
                         aiThreadUuid: prompt.threadUuid,
+                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
                         onProgress: writebackProgressCallback,
                     }),
             );
