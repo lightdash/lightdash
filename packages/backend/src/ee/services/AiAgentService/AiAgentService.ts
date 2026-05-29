@@ -101,6 +101,7 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import { EventEmitter } from 'events';
 import * as JsonPatch from 'fast-json-patch';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -4497,6 +4498,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     private getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
+        options?: {
+            onProgress?: (progress: string) => void;
+        },
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
@@ -4673,10 +4677,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return { fields: enrichedFields, pagination };
             });
 
-        const updateProgress: UpdateProgressFn = (progress) =>
-            isSlackPrompt(prompt)
-                ? this.updateSlackResponseWithProgress(prompt, progress)
-                : Promise.resolve();
+        const updateProgress: UpdateProgressFn = (progress) => {
+            if (isSlackPrompt(prompt)) {
+                return this.updateSlackResponseWithProgress(prompt, progress);
+            }
+            // For web prompts, emit progress to the stream if callback provided
+            if (options?.onProgress) {
+                options.onProgress(progress);
+            }
+            return Promise.resolve();
+        };
 
         const getPrompt: GetPromptFn = async () => {
             const webOrSlackPrompt = isSlackPrompt(prompt)
@@ -5583,6 +5593,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const { prompt, stream } = options;
 
+        // EventEmitter for web streaming progress updates
+        const progressEmitter =
+            stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+
         const {
             listExplores,
             getExplore,
@@ -5615,7 +5629,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             proposeWriteback,
             listProjects,
             getProjectInfo,
-        } = this.getAiAgentDependencies(user, prompt);
+        } = this.getAiAgentDependencies(user, prompt, {
+            onProgress: progressEmitter
+                ? (progress) => progressEmitter.emit('progress', progress)
+                : undefined,
+        });
 
         const enableSqlMode = options.enableSqlMode ?? false;
 
@@ -5897,6 +5915,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         type: 'data-mcp-unavailable',
                         data: unavailableMcpServer,
                         transient: true,
+                    });
+                }
+
+                // Listen for progress events and write them to the stream
+                if (progressEmitter) {
+                    progressEmitter.on('progress', (progress: string) => {
+                        writer.write({
+                            type: 'data-progress',
+                            data: { message: progress },
+                            transient: true,
+                        });
                     });
                 }
 

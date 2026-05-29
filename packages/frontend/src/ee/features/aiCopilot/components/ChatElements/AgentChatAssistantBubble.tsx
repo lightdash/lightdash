@@ -689,9 +689,15 @@ const AssistantBubbleContent: FC<{
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
-                            {showFinishingUp && (
-                                <TypingDots label="Finishing up" />
+                            {isStreaming && streamingState?.progressMessage && (
+                                <TypingDots
+                                    label={streamingState.progressMessage}
+                                />
                             )}
+                            {showFinishingUp &&
+                                !streamingState?.progressMessage && (
+                                    <TypingDots label="Finishing up" />
+                                )}
                         </Stack>
                     );
                 }

@@ -59,6 +59,7 @@ export interface AiAgentThreadStreamingState {
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
     mcpUnavailableNotices: McpUnavailableNotice[];
+    progressMessage?: string;
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -322,6 +323,25 @@ export const aiAgentThreadStreamSlice = createSlice({
                 notice: McpUnavailableNotice;
             }>(),
         },
+        setProgressMessage: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    message: string;
+                }>,
+            ) => {
+                const { threadUuid, message } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.progressMessage = message;
+                }
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                message: string;
+            }>(),
+        },
     },
 });
 
@@ -337,4 +357,5 @@ export const {
     addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
+    setProgressMessage,
 } = aiAgentThreadStreamSlice.actions;

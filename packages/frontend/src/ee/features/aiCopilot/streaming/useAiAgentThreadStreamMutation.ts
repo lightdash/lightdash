@@ -22,6 +22,7 @@ import {
     setImproveContextNotification,
     setMessage,
     setParts,
+    setProgressMessage,
     startStreaming,
     stopStreaming,
     type StreamPart,
@@ -48,6 +49,14 @@ type McpUnavailableNoticeChunk = UIMessageChunk & {
         serverName: string;
         message: string;
         status: 'not_connected' | 'connecting' | 'connected' | 'error';
+    };
+    transient?: boolean;
+};
+
+type ProgressChunk = UIMessageChunk & {
+    type: 'data-progress';
+    data: {
+        message: string;
     };
     transient?: boolean;
 };
@@ -124,6 +133,24 @@ export const getMcpUnavailableNoticeFromChunk = (
     return null;
 };
 
+export const getProgressMessageFromChunk = (
+    chunk: UIMessageChunk,
+): string | null => {
+    if (
+        chunk.type === 'data-progress' &&
+        'data' in chunk &&
+        chunk.data &&
+        typeof chunk.data === 'object'
+    ) {
+        const data = chunk.data as ProgressChunk['data'];
+        if (typeof data.message === 'string') {
+            return data.message;
+        }
+    }
+
+    return null;
+};
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -184,6 +211,18 @@ export function useAiAgentThreadStreamMutation() {
                                 addMcpUnavailableNotice({
                                     threadUuid,
                                     notice,
+                                }),
+                            );
+                            continue;
+                        }
+
+                        const progressMessage =
+                            getProgressMessageFromChunk(value);
+                        if (progressMessage) {
+                            dispatch(
+                                setProgressMessage({
+                                    threadUuid,
+                                    message: progressMessage,
                                 }),
                             );
                             continue;
