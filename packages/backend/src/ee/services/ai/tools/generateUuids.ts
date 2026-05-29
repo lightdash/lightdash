@@ -7,8 +7,7 @@ const toolDefinition = generateUuidsToolDefinition.for('agent');
 
 export const getGenerateUuids = () =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ count }) => {
             try {
                 return {

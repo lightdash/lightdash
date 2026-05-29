@@ -186,8 +186,7 @@ export const getFindContent = ({
     trackCoverage,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 const searchQueryResults = await Promise.all(

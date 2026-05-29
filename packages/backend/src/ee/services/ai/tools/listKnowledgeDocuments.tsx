@@ -24,8 +24,7 @@ export const getListKnowledgeDocuments = ({
     listKnowledgeDocuments,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async () => {
             try {
                 const documents = await listKnowledgeDocuments();

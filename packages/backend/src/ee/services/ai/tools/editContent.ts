@@ -12,8 +12,7 @@ const toolDefinition = editContentToolDefinition.for('agent');
 
 export const getEditContent = ({ editContent }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ slug, type, patch }) => {
             try {
                 const result = await editContent({ slug, type, patch });

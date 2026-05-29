@@ -176,8 +176,7 @@ export const getRunQuery = ({
     enableSelfImprovement,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');

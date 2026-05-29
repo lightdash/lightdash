@@ -40,8 +40,7 @@ export const getGetDashboardCharts = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 const page = args.page ?? 1;

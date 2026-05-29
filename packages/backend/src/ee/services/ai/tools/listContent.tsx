@@ -1,8 +1,4 @@
-import {
-    ContentType,
-    listContentToolDefinition,
-    toolListContentOutputSchema,
-} from '@lightdash/common';
+import { ContentType, listContentToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -48,9 +44,7 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
 
 export const getListContent = ({ listContent }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
-        outputSchema: toolListContentOutputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 return {

@@ -16,8 +16,7 @@ const toolDefinition = searchFieldValuesToolDefinition.for('agent');
 
 export const getSearchFieldValues = ({ searchFieldValues }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (toolArgs) => {
             try {
                 const args =

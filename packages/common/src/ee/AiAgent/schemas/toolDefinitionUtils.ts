@@ -1,4 +1,13 @@
-import { type ToolDescription, type ToolRuntime } from './defineTool';
+import {
+    type AgentToModelOutput,
+    type McpErrorResult,
+    type McpStructuredResult,
+    type McpTextResult,
+    type McpToolResultBuilders,
+    type StandardAgentToolOutput,
+    type ToolDescription,
+    type ToolRuntime,
+} from './defineTool';
 
 export const resolveDescription = (
     description: ToolDescription,
@@ -17,3 +26,35 @@ export const assertAvailable = (
         );
     }
 };
+
+export const defaultAgentToModelOutput: AgentToModelOutput<
+    StandardAgentToolOutput
+> = ({ output }) =>
+    output.metadata.status === 'error'
+        ? { type: 'error-text', value: output.result }
+        : { type: 'text', value: output.result };
+
+const text = (textContent: string): McpTextResult => ({
+    content: [{ type: 'text', text: textContent }],
+});
+
+const error = (textContent: string): McpErrorResult => ({
+    isError: true,
+    content: [{ type: 'text', text: textContent }],
+});
+
+const structured = <TStructuredContent>(
+    textContent: string,
+    structuredContent: TStructuredContent,
+): McpStructuredResult<TStructuredContent> => ({
+    content: [{ type: 'text', text: textContent }],
+    structuredContent,
+});
+
+export const createMcpToolResultBuilders = <
+    TStructuredContent = unknown,
+>(): McpToolResultBuilders<TStructuredContent> => ({
+    text,
+    error,
+    structured,
+});

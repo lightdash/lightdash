@@ -118,8 +118,7 @@ export const getProposeChange = ({
     getExploreCompiler,
 }: GetProposeChangeArgs) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);

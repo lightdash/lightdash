@@ -14,7 +14,52 @@ export type McpToolAnnotations = {
     idempotentHint: boolean;
 };
 
-type McpOutputSchema = z.ZodObject<z.ZodRawShape>;
+export type AgentModelOutput =
+    | { type: 'text'; value: string }
+    | { type: 'error-text'; value: string };
+
+export type AgentToModelOutput<TOutput = unknown> = (args: {
+    output: TOutput;
+}) => AgentModelOutput;
+
+export type StandardAgentToolOutput = {
+    result: string;
+    metadata: { status: string };
+};
+
+export type AgentOutputSchema = z.ZodTypeAny;
+
+export type AgentToolConfig<
+    TOutputSchema extends AgentOutputSchema | undefined = undefined,
+> = {
+    outputSchema?: TOutputSchema;
+    toModelOutput?: AgentToModelOutput<StandardAgentToolOutput>;
+};
+
+export type McpOutputSchema = z.ZodObject<z.ZodRawShape>;
+
+export type McpTextContent = { type: 'text'; text: string };
+
+export type McpTextResult = { content: [McpTextContent] };
+
+export type McpErrorResult = {
+    isError: true;
+    content: [McpTextContent];
+};
+
+export type McpStructuredResult<TStructuredContent> = {
+    content: [McpTextContent];
+    structuredContent: TStructuredContent;
+};
+
+export type McpToolResultBuilders<TStructuredContent = unknown> = {
+    text(text: string): McpTextResult;
+    error(text: string): McpErrorResult;
+    structured(
+        text: string,
+        structuredContent: TStructuredContent,
+    ): McpStructuredResult<TStructuredContent>;
+};
 
 type McpToolConfigBase = {
     name?: string;
@@ -23,19 +68,19 @@ type McpToolConfigBase = {
 };
 
 export type McpToolConfigWithoutOutput = McpToolConfigBase & {
-    outputSchema?: undefined;
+    structuredContentSchema?: undefined;
 };
 
 export type McpToolConfigWithOutput<TOutputSchema extends McpOutputSchema> =
     McpToolConfigBase & {
-        outputSchema: TOutputSchema;
+        structuredContentSchema: TOutputSchema;
     };
 
 export type McpToolConfig =
     | McpToolConfigWithoutOutput
     | McpToolConfigWithOutput<McpOutputSchema>;
 
-export type AgentToolView<
+type AgentToolViewBase<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
 > = {
@@ -43,6 +88,15 @@ export type AgentToolView<
     title: string;
     description: string;
     inputSchema: TInput;
+};
+
+export type AgentToolView<
+    TName extends string,
+    TInput extends z.ZodObject<z.ZodRawShape>,
+    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
+> = AgentToolViewBase<TName, TInput> & {
+    outputSchema?: TAgentOutputSchema;
+    toModelOutput: AgentToModelOutput<StandardAgentToolOutput>;
 };
 
 type McpToolViewBase<
@@ -56,18 +110,22 @@ type McpToolViewBase<
     inputSchema: TInput;
     annotations: McpToolAnnotations;
     meta: Record<string, unknown> | undefined;
+    result: McpToolResultBuilders;
 };
 
 export type McpToolViewWithoutOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-> = McpToolViewBase<TName, TInput>;
+> = McpToolViewBase<TName, TInput> & {
+    outputSchema?: undefined;
+};
 
 export type McpToolViewWithOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TOutputSchema extends McpOutputSchema,
-> = McpToolViewBase<TName, TInput> & {
+> = Omit<McpToolViewBase<TName, TInput>, 'result'> & {
+    result: McpToolResultBuilders<z.infer<TOutputSchema>>;
     outputSchema: TOutputSchema;
 };
 
@@ -75,6 +133,7 @@ export type ToolDefinitionWithoutMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
+    TAgentOutputSchema extends AgentOutputSchema | undefined,
 > = {
     readonly name: TName;
     readonly title: string;
@@ -82,7 +141,7 @@ export type ToolDefinitionWithoutMcpOutput<
     readonly inputSchema: TInput;
     readonly inputSchemaTransformed: TInputTransformed;
     readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput>;
+    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
     for(runtime: 'mcp'): McpToolViewWithoutOutput<TName, TInput>;
 };
 
@@ -90,6 +149,7 @@ export type ToolDefinitionWithMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
+    TAgentOutputSchema extends AgentOutputSchema | undefined,
     TOutputSchema extends McpOutputSchema,
 > = {
     readonly name: TName;
@@ -98,7 +158,7 @@ export type ToolDefinitionWithMcpOutput<
     readonly inputSchema: TInput;
     readonly inputSchemaTransformed: TInputTransformed;
     readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput>;
+    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
     for(runtime: 'mcp'): McpToolViewWithOutput<TName, TInput, TOutputSchema>;
 };
 
@@ -106,19 +166,27 @@ export type ToolDefinition<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny = TInput,
+    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
 > =
-    | ToolDefinitionWithoutMcpOutput<TName, TInput, TInputTransformed>
+    | ToolDefinitionWithoutMcpOutput<
+          TName,
+          TInput,
+          TInputTransformed,
+          TAgentOutputSchema
+      >
     | ToolDefinitionWithMcpOutput<
           TName,
           TInput,
           TInputTransformed,
+          TAgentOutputSchema,
           McpOutputSchema
       >;
 
 export type ToolDefinitionInstance = ToolDefinition<
     string,
     z.ZodObject<z.ZodRawShape>,
-    z.ZodTypeAny
+    z.ZodTypeAny,
+    AgentOutputSchema | undefined
 >;
 
 export type ToolInput<T extends ToolDefinitionInstance> = z.infer<
@@ -133,6 +201,7 @@ type ToolDefinitionArgsBase<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
+    TAgentOutputSchema extends AgentOutputSchema | undefined,
 > = {
     name: TName;
     title: string;
@@ -140,13 +209,20 @@ type ToolDefinitionArgsBase<
     availability: readonly ToolRuntime[];
     inputSchema: TInput;
     inputSchemaTransformed?: TInputTransformed;
+    agent?: AgentToolConfig<TAgentOutputSchema>;
 };
 
 type ToolDefinitionArgsWithoutMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
-> = ToolDefinitionArgsBase<TName, TInput, TInputTransformed> & {
+    TAgentOutputSchema extends AgentOutputSchema | undefined,
+> = ToolDefinitionArgsBase<
+    TName,
+    TInput,
+    TInputTransformed,
+    TAgentOutputSchema
+> & {
     mcp?: McpToolConfigWithoutOutput;
 };
 
@@ -154,8 +230,14 @@ type ToolDefinitionArgsWithMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
+    TAgentOutputSchema extends AgentOutputSchema | undefined,
     TOutputSchema extends McpOutputSchema,
-> = ToolDefinitionArgsBase<TName, TInput, TInputTransformed> & {
+> = ToolDefinitionArgsBase<
+    TName,
+    TInput,
+    TInputTransformed,
+    TAgentOutputSchema
+> & {
     mcp: McpToolConfigWithOutput<TOutputSchema>;
 };
 
@@ -177,44 +259,80 @@ const validateToolDefinition = (args: {
     }
 };
 
+const hasMcpStructuredContentSchema = (
+    mcpConfig: McpToolConfig | undefined,
+): mcpConfig is McpToolConfigWithOutput<McpOutputSchema> =>
+    mcpConfig?.structuredContentSchema !== undefined;
+
 export function defineTool<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny = TInput,
+    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
     TOutputSchema extends McpOutputSchema = McpOutputSchema,
 >(
     def: ToolDefinitionArgsWithMcpOutput<
         TName,
         TInput,
         TInputTransformed,
+        TAgentOutputSchema,
         TOutputSchema
     >,
-): ToolDefinitionWithMcpOutput<TName, TInput, TInputTransformed, TOutputSchema>;
+): ToolDefinitionWithMcpOutput<
+    TName,
+    TInput,
+    TInputTransformed,
+    TAgentOutputSchema,
+    TOutputSchema
+>;
 export function defineTool<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny = TInput,
+    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
 >(
-    def: ToolDefinitionArgsWithoutMcpOutput<TName, TInput, TInputTransformed>,
-): ToolDefinitionWithoutMcpOutput<TName, TInput, TInputTransformed>;
+    def: ToolDefinitionArgsWithoutMcpOutput<
+        TName,
+        TInput,
+        TInputTransformed,
+        TAgentOutputSchema
+    >,
+): ToolDefinitionWithoutMcpOutput<
+    TName,
+    TInput,
+    TInputTransformed,
+    TAgentOutputSchema
+>;
 export function defineTool<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
 >(
     def:
-        | ToolDefinitionArgsWithoutMcpOutput<TName, TInput, z.ZodTypeAny>
+        | ToolDefinitionArgsWithoutMcpOutput<
+              TName,
+              TInput,
+              z.ZodTypeAny,
+              AgentOutputSchema | undefined
+          >
         | ToolDefinitionArgsWithMcpOutput<
               TName,
               TInput,
               z.ZodTypeAny,
+              AgentOutputSchema | undefined,
               McpOutputSchema
           >,
 ):
-    | ToolDefinitionWithoutMcpOutput<TName, TInput, z.ZodTypeAny>
+    | ToolDefinitionWithoutMcpOutput<
+          TName,
+          TInput,
+          z.ZodTypeAny,
+          AgentOutputSchema | undefined
+      >
     | ToolDefinitionWithMcpOutput<
           TName,
           TInput,
           z.ZodTypeAny,
+          AgentOutputSchema | undefined,
           McpOutputSchema
       > {
     validateToolDefinition(def);
@@ -222,7 +340,9 @@ export function defineTool<
     const inputSchemaTransformed =
         def.inputSchemaTransformed ?? def.inputSchema;
 
-    if (def.mcp?.outputSchema) {
+    const mcpConfig: McpToolConfig | undefined = def.mcp;
+
+    if (hasMcpStructuredContentSchema(mcpConfig)) {
         return new ToolDefinitionWithMcpOutputImpl({
             name: def.name,
             title: def.title,
@@ -230,7 +350,8 @@ export function defineTool<
             availability: def.availability,
             inputSchema: def.inputSchema,
             inputSchemaTransformed,
-            mcpConfig: def.mcp,
+            agentConfig: def.agent ?? null,
+            mcpConfig,
         });
     }
 
@@ -241,6 +362,7 @@ export function defineTool<
         availability: def.availability,
         inputSchema: def.inputSchema,
         inputSchemaTransformed,
-        mcpConfig: def.mcp ?? null,
+        agentConfig: def.agent ?? null,
+        mcpConfig: mcpConfig ?? null,
     });
 }

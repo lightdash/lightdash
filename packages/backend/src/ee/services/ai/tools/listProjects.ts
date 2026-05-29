@@ -11,8 +11,7 @@ const toolDefinition = listProjectsToolDefinition.for('agent');
 
 export const getListProjects = ({ listProjects }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async () => {
             try {
                 const projects = await listProjects();

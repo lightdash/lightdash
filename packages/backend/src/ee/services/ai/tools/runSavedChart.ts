@@ -95,8 +95,7 @@ export const getRunSavedChart = ({
     enableDataAccess,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ chartUuid }) => {
             try {
                 await updateProgress('Running saved chart...');

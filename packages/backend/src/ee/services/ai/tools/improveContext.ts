@@ -8,8 +8,7 @@ const toolDefinition = improveContextToolDefinition.for('agent');
 
 export const getImproveContext = () =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (toolArgs) => {
             try {
                 Logger.debug(`[AI Agent] Attempting to improve context:

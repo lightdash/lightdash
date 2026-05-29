@@ -93,6 +93,8 @@ export const getRunSql = ({
     return tool({
         description: buildRunSqlDescription(500, maxQueryLimit),
         inputSchema,
+        outputSchema: toolDefinition.outputSchema,
+        toModelOutput: toolDefinition.toModelOutput,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {

@@ -14,8 +14,7 @@ export const getGetKnowledgeDocumentContent = ({
     getKnowledgeDocumentContent,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ documentUuid }) => {
             try {
                 const document = await getKnowledgeDocumentContent({

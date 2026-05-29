@@ -1,7 +1,4 @@
-import {
-    proposeWritebackToolDefinition,
-    toolProposeWritebackOutputSchema,
-} from '@lightdash/common';
+import { proposeWritebackToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -15,9 +12,7 @@ const toolDefinition = proposeWritebackToolDefinition.for('agent');
 
 export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
-        outputSchema: toolProposeWritebackOutputSchema,
+        ...toolDefinition,
         execute: async ({ prompt }) => {
             try {
                 const { prUrl, output, projectName, repository } =
