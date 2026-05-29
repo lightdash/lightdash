@@ -587,39 +587,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    async getResultsPageFromWarehouse(
-        account: Account,
-        queryHistory: QueryHistory,
-        page: number,
-        pageSize: number,
-        formatter: (row: Record<string, unknown>) => ResultRow,
-    ) {
-        if (!queryHistory.projectUuid) {
-            throw new Error('Project UUID is required');
-        }
-
-        const warehouseConnection = await this._getWarehouseClient(
-            queryHistory.projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid: queryHistory.projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-        );
-
-        return warehouseConnection.warehouseClient.getAsyncQueryResults(
-            {
-                sql: queryHistory.compiledSql,
-                queryId: queryHistory.warehouseQueryId,
-                queryMetadata: queryHistory.warehouseQueryMetadata,
-                page,
-                pageSize,
-            },
-            formatter,
-        );
-    }
-
     async cancelAsyncQuery({
         account,
         projectUuid,
@@ -846,35 +813,19 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone ?? undefined,
             );
 
-        const resultsCacheEnabled =
-            (await this.cacheService?.isResultsCacheEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-                organizationName: account.organization.name,
-            })) ?? false;
-
         const {
             result: { rows },
             durationMs,
         } = await measureTime(
             () =>
-                this.getResultsStorageClientForContext(queryHistory.context)
-                    .isEnabled || resultsCacheEnabled
-                    ? this.getResultsPageFromS3(
-                          queryUuid,
-                          resultsFileName,
-                          queryHistory.context,
-                          page,
-                          defaultedPageSize,
-                          formatter,
-                      )
-                    : this.getResultsPageFromWarehouse(
-                          account,
-                          queryHistory,
-                          page,
-                          defaultedPageSize,
-                          formatter,
-                      ),
+                this.getResultsPageFromS3(
+                    queryUuid,
+                    resultsFileName,
+                    queryHistory.context,
+                    page,
+                    defaultedPageSize,
+                    formatter,
+                ),
             'getCachedResultsPage',
             this.logger,
             context,
@@ -5855,34 +5806,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
         });
-
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
-        if (!queryHistory.resultsFileName) {
-            // Some self-hosted installs disable results-file storage, so the
-            // async query still completes but there is no file to download.
-            const { rows } = await this.getResultsPageFromWarehouse(
-                account,
-                queryHistory,
-                1,
-                Math.max(queryHistory.totalRowCount ?? 0, 1),
-                (row) => row as ResultRow,
-            );
-
-            return {
-                rows,
-                cacheMetadata,
-                fields,
-                pivotDetails:
-                    AsyncQueryService.getPivotDetailsFromQueryHistory(
-                        queryHistory,
-                    ),
-            };
-        }
 
         return this.getReadyQueryResults({
             account,

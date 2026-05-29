@@ -669,7 +669,10 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         .filter((v) => v.length > 0);
 
     if (!endpoint || !bucket || !region) {
-        return undefined;
+        throw new ParseError(
+            'S3-compatible storage is required. Set S3_ENDPOINT, S3_BUCKET and S3_REGION (AWS S3, GCS, MinIO, etc.) - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3',
+            {},
+        );
     }
 
     return {

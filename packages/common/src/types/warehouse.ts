@@ -52,11 +52,6 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
-export type WarehousePaginationArgs = {
-    page: number;
-    pageSize: number;
-};
-
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
     timezone?: string;
@@ -70,22 +65,6 @@ export type WarehouseExecuteAsyncQuery = {
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
-};
-
-export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs & {
-    sql: string;
-    queryId: string | null;
-    queryMetadata: WarehouseQueryMetadata | null;
-};
-
-export type WarehouseGetAsyncQueryResults<
-    TFormattedRow extends Record<string, unknown>,
-> = {
-    queryId: string | null;
-    fields: Record<string, { type: DimensionType }>;
-    pageCount: number;
-    totalRows: number;
-    rows: TFormattedRow[];
 };
 
 export enum TimeIntervalUnit {
@@ -131,11 +110,6 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             table: string;
         }[],
     ) => Promise<WarehouseCatalog>;
-
-    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        args: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     streamQuery(
         query: string,
