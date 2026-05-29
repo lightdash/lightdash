@@ -1,3 +1,11 @@
+# [0.3045.0](https://github.com/lightdash/lightdash/compare/0.3044.0...0.3045.0) (2026-05-29)
+
+
+### Features
+
+* **ai-agents:** add `showSuggestions` prop to disable chat input suggestions ([#23622](https://github.com/lightdash/lightdash/issues/23622)) ([d83a7c9](https://github.com/lightdash/lightdash/commit/d83a7c929816d1c96f5f235a6e4ee56d901e2d97)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **ai-agents:** add scrollable container to agent picker candidates ([#23621](https://github.com/lightdash/lightdash/issues/23621)) ([d44f44b](https://github.com/lightdash/lightdash/commit/d44f44bd8b3d93a07c0923423f5502d676b4fb14))
+
 # [0.3044.0](https://github.com/lightdash/lightdash/compare/0.3043.0...0.3044.0) (2026-05-29)
 
 
