@@ -361,6 +361,23 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
     authorizationUrl: string;
 }>;
 
+// The hosted GitHub MCP server. The one-click "Connect GitHub" flow points the
+// MCP server here and authenticates with the org's GitHub App installation
+// token (minted server-side), so no separate OAuth/PAT step is needed.
+export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
+export const GITHUB_MCP_SERVER_NAME = 'GitHub';
+
+export type AiMcpGithubAvailability = {
+    // The org has a GitHub App installation AND the caller has permission to
+    // manage that integration (manage:GitIntegration).
+    available: boolean;
+    // A GitHub MCP server (matching GITHUB_MCP_SERVER_URL) already exists for
+    // this project.
+    alreadyConnected: boolean;
+};
+export type ApiAiMcpGithubAvailabilityResponse =
+    ApiSuccess<AiMcpGithubAvailability>;
+
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';
     results: AiAgentThreadSummary[];

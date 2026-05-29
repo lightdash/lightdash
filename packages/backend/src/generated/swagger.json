@@ -12238,6 +12238,35 @@
                 "required": ["authType", "url", "name"],
                 "type": "object"
             },
+            "AiMcpGithubAvailability": {
+                "properties": {
+                    "alreadyConnected": {
+                        "type": "boolean"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["alreadyConnected", "available"],
+                "type": "object"
+            },
+            "ApiSuccess_AiMcpGithubAvailability_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiMcpGithubAvailability"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiMcpGithubAvailabilityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiMcpGithubAvailability_"
+            },
             "AiMcpServerTool": {
                 "properties": {
                     "updatedAt": {
@@ -13675,8 +13704,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13734,8 +13763,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -36932,7 +36961,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3054.0",
+        "version": "0.3056.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -38956,6 +38985,82 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/availability": {
+            "get": {
+                "operationId": "getGithubMcpAvailability",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpGithubAvailabilityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/connect": {
+            "post": {
+                "operationId": "connectGithubMcpServer",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools": {

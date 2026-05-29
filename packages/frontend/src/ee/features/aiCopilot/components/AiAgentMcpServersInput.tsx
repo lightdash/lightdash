@@ -1,4 +1,5 @@
 import {
+    GITHUB_MCP_SERVER_URL,
     type AiMcpServer,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
@@ -29,6 +30,7 @@ import { useForm, zodResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
+    IconBrandGithub,
     IconChevronDown,
     IconChevronRight,
     IconDots,
@@ -45,7 +47,9 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
+    useConnectGithubMcpServerMutation,
     useDisconnectMcpOAuthConnectionMutation,
+    useGithubMcpAvailability,
     useProjectAiMcpServers,
     useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
@@ -545,6 +549,8 @@ export const AiAgentMcpServersInput = ({
         useDisclosure(false);
     const [isAttachMcpServersModalOpen, attachMcpServersModalHandlers] =
         useDisclosure(false);
+    const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
+        useDisclosure(false);
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
@@ -567,6 +573,31 @@ export const AiAgentMcpServersInput = ({
         isLoading: isDisconnectingMcpOAuthConnection,
         variables: disconnectingMcpOAuthConnection,
     } = useDisconnectMcpOAuthConnectionMutation(projectUuid);
+    const { data: githubMcpAvailability } =
+        useGithubMcpAvailability(projectUuid);
+    const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
+        useConnectGithubMcpServerMutation(projectUuid);
+
+    // A project-level GitHub MCP server may already exist (e.g. created for
+    // another agent, or detached from this one). If so, the one-click flow just
+    // re-attaches it rather than creating a duplicate.
+    const existingGithubMcpServer = useMemo(
+        () =>
+            mcpServers?.find(
+                (mcpServer) => mcpServer.url === GITHUB_MCP_SERVER_URL,
+            ),
+        [mcpServers],
+    );
+    const isGithubConnectedToAgent =
+        !!existingGithubMcpServer &&
+        value.includes(existingGithubMcpServer.uuid);
+
+    // One-click GitHub: offered when the org has a GitHub integration the user
+    // can manage and GitHub is not already attached to THIS agent. We gate on
+    // agent attachment (not project-level existence) so the button reappears
+    // after the server is removed from this agent.
+    const canOneClickConnectGithub =
+        githubMcpAvailability?.available === true && !isGithubConnectedToAgent;
 
     const selectedMcpServers = useMemo(
         () =>
@@ -663,6 +694,26 @@ export const AiAgentMcpServersInput = ({
         },
         [agentUuid, onChange, onPersistedChange, updateAgentMcpServers],
     );
+
+    const handleConnectGithubMcp = useCallback(async () => {
+        // Reuse the existing project-level server when present; otherwise mint
+        // the installation token and create it.
+        const server = existingGithubMcpServer ?? (await connectGithubMcp());
+        // Persist the attachment (not just local form state) so the agent's
+        // tool-permissions panel can load/save immediately, matching "+ Add".
+        if (server && !value.includes(server.uuid)) {
+            await persistMcpServerSelection([...value, server.uuid], value);
+        }
+        // Only reached on success — connectGithubMcp throws on failure (its
+        // mutation surfaces the error toast) and leaves the dialog open.
+        githubConfirmModalHandlers.close();
+    }, [
+        existingGithubMcpServer,
+        connectGithubMcp,
+        persistMcpServerSelection,
+        value,
+        githubConfirmModalHandlers,
+    ]);
 
     const handleAttachMcpServers = useCallback(async () => {
         const nextValue = Array.from(new Set([...value, ...attachSelection]));
@@ -955,14 +1006,40 @@ export const AiAgentMcpServersInput = ({
                         <BetaBadge />
                     </Group>
                     {selectedMcpServers.length > 0 && (
-                        <Button
-                            variant="default"
-                            size="compact-xs"
-                            onClick={openAttachMcpServersModal}
-                            disabled={isPersistingSelection}
-                        >
-                            + Add
-                        </Button>
+                        <Group align="center" gap="xs">
+                            {canOneClickConnectGithub && (
+                                <Tooltip
+                                    withinPortal
+                                    multiline
+                                    w={260}
+                                    label="Connect the GitHub MCP using your organization's existing GitHub integration — no extra sign-in needed."
+                                >
+                                    <Button
+                                        variant="default"
+                                        size="compact-xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconBrandGithub}
+                                            />
+                                        }
+                                        loading={isConnectingGithubMcp}
+                                        onClick={
+                                            githubConfirmModalHandlers.open
+                                        }
+                                    >
+                                        Connect GitHub
+                                    </Button>
+                                </Tooltip>
+                            )}
+                            <Button
+                                variant="default"
+                                size="compact-xs"
+                                onClick={openAttachMcpServersModal}
+                                disabled={isPersistingSelection}
+                            >
+                                + Add
+                            </Button>
+                        </Group>
                     )}
                 </Group>
                 <Stack gap="sm">
@@ -978,17 +1055,36 @@ export const AiAgentMcpServersInput = ({
                                 <Text size="sm" c="dimmed">
                                     No MCP servers attached
                                 </Text>
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    disabled={
-                                        isLoadingMcpServers ||
-                                        isPersistingSelection
-                                    }
-                                    onClick={openAttachMcpServersModal}
-                                >
-                                    + Add
-                                </Button>
+                                <Group gap="xs">
+                                    {canOneClickConnectGithub && (
+                                        <Button
+                                            variant="default"
+                                            size="xs"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconBrandGithub}
+                                                />
+                                            }
+                                            loading={isConnectingGithubMcp}
+                                            onClick={
+                                                githubConfirmModalHandlers.open
+                                            }
+                                        >
+                                            Connect GitHub
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        disabled={
+                                            isLoadingMcpServers ||
+                                            isPersistingSelection
+                                        }
+                                        onClick={openAttachMcpServersModal}
+                                    >
+                                        + Add
+                                    </Button>
+                                </Group>
                             </Stack>
                         </Center>
                     )}
@@ -1270,6 +1366,34 @@ export const AiAgentMcpServersInput = ({
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
             />
+            <MantineModal
+                opened={isGithubConfirmModalOpen}
+                onClose={githubConfirmModalHandlers.close}
+                title="Connect GitHub"
+                icon={IconBrandGithub}
+                actions={
+                    <Button
+                        leftSection={<MantineIcon icon={IconBrandGithub} />}
+                        loading={isConnectingGithubMcp || isPersistingSelection}
+                        onClick={handleConnectGithubMcp}
+                    >
+                        Connect GitHub
+                    </Button>
+                }
+            >
+                <Stack gap="sm">
+                    <Text size="sm">
+                        Lightdash will reuse your organization's existing GitHub
+                        connection — the same integration used for your dbt
+                        projects. No additional sign-in is required.
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        This adds a read/write GitHub MCP server to this agent,
+                        scoped to the repositories your GitHub integration can
+                        already access. You can remove it at any time.
+                    </Text>
+                </Stack>
+            </MantineModal>
         </>
     );
 };

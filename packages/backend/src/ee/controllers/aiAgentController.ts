@@ -29,6 +29,7 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
@@ -210,6 +211,48 @@ export class AiAgentController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcpServers/github/availability')
+    @OperationId('getGithubMcpAvailability')
+    async getGithubMcpAvailability(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiMcpGithubAvailabilityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getGithubMcpAvailability(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/mcpServers/github/connect')
+    @OperationId('connectGithubMcpServer')
+    async connectGithubMcpServer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().connectGithubMcpServer(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

@@ -1807,6 +1807,19 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
+    event: 'ai_agent.github_mcp_connected';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        mcpServerId: string;
+        // Distinguishes the one-click flow (auto-config from the org's GitHub
+        // integration) from manually creating a GitHub MCP server.
+        method: 'one_click';
+    };
+};
+
 export type AiAgentDeletedEvent = BaseTrack & {
     event: 'ai_agent.deleted';
     userId: string;
@@ -2234,6 +2247,7 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentDocumentCreatedEvent
