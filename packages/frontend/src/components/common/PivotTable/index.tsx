@@ -1743,7 +1743,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
                                         ref={measureRef}
-                                        rowSpan={rowSpanMerge?.rowSpan}
+                                        rowSpan={
+                                            rowSpanMerge &&
+                                            rowSpanMerge.rowSpan > 1
+                                                ? rowSpanMerge.rowSpan
+                                                : undefined
+                                        }
                                         className={
                                             rowSpanMerge
                                                 ? `${pivotStyles.mergedDimCell}${
@@ -1883,7 +1888,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : groupingOnlyMode &&
+                                        ) : cell.getIsPlaceholder() ? null : // for this row/column) renders blank instead of the // In merge mode, an empty pivot data cell (no data
+                                        // `∅`/`-` placeholder. `value` is undefined/null only
+                                        // when the cell is absent — a real `raw: 0`/`''`/`null`
+                                        // still has a non-null `value` wrapper, so it is unaffected.
+                                        groupingOnlyMode &&
                                           isDataColumn &&
                                           value == null ? null : (
                                             flexRender(
