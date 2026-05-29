@@ -15,7 +15,6 @@ type RegisteredMcpTool = {
         outputSchema?: ZodRawShape | ZodTypeAny;
         _meta?: Record<string, unknown>;
     };
-    callback: (args: unknown, extra: unknown) => Promise<unknown>;
 };
 
 type RegisteredMcpPrompt = {
@@ -57,7 +56,6 @@ jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
                 mockRegisteredMcpTools.push({
                     name,
                     config,
-                    callback: _callback as RegisteredMcpTool['callback'],
                 });
                 return {};
             },
