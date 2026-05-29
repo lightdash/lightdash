@@ -30,7 +30,6 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import type { DbAiWritebackThread } from '../../database/entities/ai';
-import type { AiWritebackPromptModel } from '../../models/AiWritebackPromptModel';
 import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
 import {
     ALLOWED_TOOLS,
@@ -74,7 +73,6 @@ type AiWritebackServiceDeps = {
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
-    aiWritebackPromptModel: AiWritebackPromptModel;
 };
 
 export class AiWritebackService extends BaseService {
@@ -90,8 +88,6 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
-    private readonly aiWritebackPromptModel: AiWritebackPromptModel;
-
     constructor({
         lightdashConfig,
         analytics,
@@ -99,7 +95,6 @@ export class AiWritebackService extends BaseService {
         featureFlagModel,
         githubAppInstallationsModel,
         aiWritebackThreadModel,
-        aiWritebackPromptModel,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -108,7 +103,6 @@ export class AiWritebackService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
-        this.aiWritebackPromptModel = aiWritebackPromptModel;
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -538,16 +532,6 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                 },
             );
-            const promptLog = await this.aiWritebackPromptModel.create({
-                projectUuid,
-                organizationUuid: turn.organizationUuid,
-                aiThreadUuid: aiThreadUuid ?? null,
-                createdByUserUuid: user.userUuid,
-                sandboxId: sandbox.sandboxId,
-                isResume: turn.isResume,
-                systemPrompt,
-                prompt,
-            });
             const agent = await this.runAgentInSandbox({
                 sandbox,
                 systemPrompt,
@@ -561,11 +545,6 @@ export class AiWritebackService extends BaseService {
                 description: prDescription,
                 sanitizedStdout,
             } = this.extractPrMetadata(agent.stdout);
-
-            await this.aiWritebackPromptModel.respond(
-                promptLog.ai_writeback_prompt_uuid,
-                { response: sanitizedStdout, exitCode: agent.exitCode },
-            );
 
             const { hasChanges } = await sandbox.git.status(CWD);
 
