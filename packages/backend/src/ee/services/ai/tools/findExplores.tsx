@@ -107,8 +107,7 @@ export const getFindExplores = ({
     fieldSearchSize,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 await updateProgress(

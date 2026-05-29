@@ -1,18 +1,25 @@
 import snakeCase from 'lodash/snakeCase';
 import { type z } from 'zod';
 import {
+    type AgentToolConfig,
     type AgentToolView,
     type McpToolConfigWithoutOutput,
     type McpToolViewWithoutOutput,
     type ToolDescription,
     type ToolRuntime,
 } from './defineTool';
-import { assertAvailable, resolveDescription } from './toolDefinitionUtils';
+import {
+    assertAvailable,
+    createMcpToolResultBuilders,
+    defaultAgentToModelOutput,
+    resolveDescription,
+} from './toolDefinitionUtils';
 
 export class ToolDefinitionWithoutMcpOutputImpl<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
     TInputTransformed extends z.ZodTypeAny,
+    TAgentOutputSchema extends z.ZodTypeAny | undefined,
 > {
     readonly name: TName;
 
@@ -26,6 +33,8 @@ export class ToolDefinitionWithoutMcpOutputImpl<
 
     private readonly descriptionConfig: ToolDescription;
 
+    private readonly agentConfig: AgentToolConfig<TAgentOutputSchema> | null;
+
     private readonly mcpConfig: McpToolConfigWithoutOutput | null;
 
     constructor(args: {
@@ -35,6 +44,7 @@ export class ToolDefinitionWithoutMcpOutputImpl<
         availability: readonly ToolRuntime[];
         inputSchema: TInput;
         inputSchemaTransformed: TInputTransformed;
+        agentConfig: AgentToolConfig<TAgentOutputSchema> | null;
         mcpConfig: McpToolConfigWithoutOutput | null;
     }) {
         this.name = args.name;
@@ -43,6 +53,7 @@ export class ToolDefinitionWithoutMcpOutputImpl<
         this.availability = args.availability;
         this.inputSchema = args.inputSchema;
         this.inputSchemaTransformed = args.inputSchemaTransformed;
+        this.agentConfig = args.agentConfig;
         this.mcpConfig = args.mcpConfig;
     }
 
@@ -50,20 +61,37 @@ export class ToolDefinitionWithoutMcpOutputImpl<
         return resolveDescription(this.descriptionConfig, this.name);
     }
 
-    for(runtime: 'agent'): AgentToolView<TName, TInput>;
+    private buildAgentView(): AgentToolView<TName, TInput, TAgentOutputSchema> {
+        const base = {
+            name: this.name,
+            title: this.title,
+            description: this.description,
+            inputSchema: this.inputSchema,
+            toModelOutput:
+                this.agentConfig?.toModelOutput ?? defaultAgentToModelOutput,
+        };
+
+        if (this.agentConfig?.outputSchema) {
+            return {
+                ...base,
+                outputSchema: this.agentConfig.outputSchema,
+            };
+        }
+
+        return base;
+    }
+
+    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
     for(runtime: 'mcp'): McpToolViewWithoutOutput<TName, TInput>;
     for(
         runtime: ToolRuntime,
-    ): AgentToolView<TName, TInput> | McpToolViewWithoutOutput<TName, TInput> {
+    ):
+        | AgentToolView<TName, TInput, TAgentOutputSchema>
+        | McpToolViewWithoutOutput<TName, TInput> {
         assertAvailable(this.name, this.availability, runtime);
 
         if (runtime === 'agent') {
-            return {
-                name: this.name,
-                title: this.title,
-                description: this.description,
-                inputSchema: this.inputSchema,
-            };
+            return this.buildAgentView();
         }
 
         if (this.mcpConfig === null) {
@@ -79,6 +107,7 @@ export class ToolDefinitionWithoutMcpOutputImpl<
             inputSchema: this.inputSchema,
             annotations: this.mcpConfig.annotations,
             meta: this.mcpConfig.meta,
+            result: createMcpToolResultBuilders(),
         };
     }
 }

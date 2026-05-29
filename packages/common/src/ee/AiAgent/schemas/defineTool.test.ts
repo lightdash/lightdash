@@ -18,6 +18,65 @@ describe('defineTool', () => {
         expect(mcpView.outputSchema).toBeDefined();
     });
 
+    it('builds spreadable agent views with output schemas', () => {
+        const outputSchema = z.object({
+            result: z.string(),
+            metadata: z.object({ status: z.enum(['success', 'error']) }),
+        });
+        const tool = defineTool({
+            name: 'sampleAgentTool',
+            title: 'Sample agent tool',
+            description: 'Sample',
+            availability: ['agent'],
+            inputSchema: z.object({}),
+            agent: { outputSchema },
+        });
+
+        const agentView = tool.for('agent');
+        expect(agentView.outputSchema).toBe(outputSchema);
+        expect(
+            agentView.toModelOutput({
+                output: {
+                    result: 'Nope',
+                    metadata: { status: 'error' },
+                },
+            }),
+        ).toEqual({ type: 'error-text', value: 'Nope' });
+    });
+
+    it('builds MCP result helpers', () => {
+        const outputSchema = z.object({ count: z.number() });
+        const tool = defineTool({
+            name: 'sampleMcpTool',
+            title: 'Sample MCP tool',
+            description: 'Sample',
+            availability: ['mcp'],
+            inputSchema: z.object({}),
+            mcp: {
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
+                structuredContentSchema: outputSchema,
+            },
+        });
+
+        const mcpView = tool.for('mcp');
+        expect(mcpView.outputSchema).toBe(outputSchema);
+        expect(mcpView.result.text('Done')).toEqual({
+            content: [{ type: 'text', text: 'Done' }],
+        });
+        expect(mcpView.result.error('Bad')).toEqual({
+            isError: true,
+            content: [{ type: 'text', text: 'Bad' }],
+        });
+        expect(mcpView.result.structured('Counted', { count: 1 })).toEqual({
+            content: [{ type: 'text', text: 'Counted' }],
+            structuredContent: { count: 1 },
+        });
+    });
+
     it('resolves descriptions with the runtime-specific name', () => {
         const tool = defineTool({
             name: 'sampleTool',

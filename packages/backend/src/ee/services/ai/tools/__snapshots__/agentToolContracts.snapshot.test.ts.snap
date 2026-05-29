@@ -44,6 +44,37 @@ Parameters:
       "type": "object",
     },
     "name": "describeWarehouseTable",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "not_found",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: discoverFields
@@ -83,6 +114,268 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "discoverFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "streaming",
+                  "type": "string",
+                },
+                "streamingMessage": {},
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "const": "",
+              "type": "string",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "discovery": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "explore": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "baseTable": {
+                              "type": "string",
+                            },
+                            "joinedTables": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "label": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "name",
+                            "label",
+                            "baseTable",
+                            "joinedTables",
+                          ],
+                          "type": "object",
+                        },
+                        "fields": {
+                          "description": "Filtered list of fields relevant to the user query — typically 5–20 entries. Not the full explore.",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "description": {
+                                "description": "Short description, only include when needed to distinguish similar fields.",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "fieldFilterType": {
+                                "type": "string",
+                              },
+                              "fieldId": {
+                                "description": "The fieldId to use in runQuery payloads.",
+                                "type": "string",
+                              },
+                              "fieldType": {
+                                "enum": [
+                                  "dimension",
+                                  "metric",
+                                ],
+                                "type": "string",
+                              },
+                              "fieldValueType": {
+                                "description": "The value type (e.g. number, string, date, timestamp, boolean).",
+                                "type": "string",
+                              },
+                              "isFromJoinedTable": {
+                                "type": "boolean",
+                              },
+                              "label": {
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "table": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "name",
+                              "label",
+                              "table",
+                              "fieldType",
+                              "fieldValueType",
+                              "fieldFilterType",
+                              "isFromJoinedTable",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "rationale": {
+                          "description": "Brief justification for the explore + field selection.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "status": {
+                          "const": "resolved",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "explore",
+                        "fields",
+                        "rationale",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "candidates": {
+                          "description": "Plausible explores the parent should ask the user to disambiguate between.",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "exploreLabel": {
+                                "type": "string",
+                              },
+                              "exploreName": {
+                                "type": "string",
+                              },
+                              "reason": {
+                                "description": "Why this explore is a plausible candidate for the query.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "exploreName",
+                              "exploreLabel",
+                              "reason",
+                            ],
+                            "type": "object",
+                          },
+                          "minItems": 2,
+                          "type": "array",
+                        },
+                        "status": {
+                          "const": "ambiguous",
+                          "type": "string",
+                        },
+                        "suggestedQuestion": {
+                          "description": "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "candidates",
+                        "suggestedQuestion",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "description": "Why no explore covers the user query — used by the parent to explain back to the user.",
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "no_match",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "reason",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "streamingMessage": {},
+              },
+              "required": [
+                "status",
+                "discovery",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+          ],
+          "type": "object",
+        },
+      ],
+    },
   },
   {
     "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
@@ -291,6 +584,36 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "type": "object",
     },
     "name": "editContent",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: "findContent"
@@ -333,6 +656,36 @@ Usage tips:
       "type": "object",
     },
     "name": "findContent",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: findExplores
@@ -364,6 +717,131 @@ Output:
       "type": "object",
     },
     "name": "findExplores",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "ranking": {
+              "additionalProperties": false,
+              "properties": {
+                "exploreSearchResults": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "joinedTables": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "label": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "searchRank": {
+                        "type": [
+                          "number",
+                          "null",
+                        ],
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "label",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "searchQuery": {
+                  "type": "string",
+                },
+                "topMatchingFields": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "chartUsage": {
+                        "type": [
+                          "number",
+                          "null",
+                        ],
+                      },
+                      "fieldType": {
+                        "type": "string",
+                      },
+                      "label": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "searchRank": {
+                        "type": [
+                          "number",
+                          "null",
+                        ],
+                      },
+                      "tableName": {
+                        "type": "string",
+                      },
+                      "verifiedChartUsage": {
+                        "type": [
+                          "number",
+                          "null",
+                        ],
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "label",
+                      "tableName",
+                      "fieldType",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "searchQuery",
+              ],
+              "type": "object",
+            },
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: "findFields"
@@ -424,6 +902,130 @@ Usage tips:
       "type": "object",
     },
     "name": "findFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "ranking": {
+              "additionalProperties": false,
+              "properties": {
+                "searchQueries": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                      },
+                      "pagination": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "page": {
+                            "type": "number",
+                          },
+                          "pageSize": {
+                            "type": "number",
+                          },
+                          "totalPageCount": {
+                            "type": "number",
+                          },
+                          "totalResults": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "page",
+                          "pageSize",
+                          "totalResults",
+                          "totalPageCount",
+                        ],
+                        "type": "object",
+                      },
+                      "results": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUsage": {
+                              "type": [
+                                "number",
+                                "null",
+                              ],
+                            },
+                            "fieldType": {
+                              "type": "string",
+                            },
+                            "label": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "searchRank": {
+                              "type": [
+                                "number",
+                                "null",
+                              ],
+                            },
+                            "tableName": {
+                              "type": "string",
+                            },
+                            "verifiedChartUsage": {
+                              "type": [
+                                "number",
+                                "null",
+                              ],
+                            },
+                          },
+                          "required": [
+                            "name",
+                            "label",
+                            "tableName",
+                            "fieldType",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "label",
+                      "results",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "searchQueries",
+              ],
+              "type": "object",
+            },
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "
@@ -2022,6 +2624,36 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateDashboard",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Generate one or more UUIDs to use as stable identifiers when creating new objects.",
@@ -2042,6 +2674,36 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "generateUuids",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: "getDashboardCharts"
@@ -2085,6 +2747,36 @@ Usage tips:
       "type": "object",
     },
     "name": "getDashboardCharts",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: get_knowledge_document_content
@@ -2119,6 +2811,58 @@ Parameters:
       "type": "object",
     },
     "name": "getKnowledgeDocumentContent",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "contentSizeBytes": {
+                  "type": "number",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "name",
+                "contentSizeBytes",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Get details about the Lightdash project you are currently working in and its underlying dbt project. Use this when the user asks what dbt project this is, which git repository/branch it connects to, what dbt version or warehouse it uses, or wants general context about the current project. This is read-only, applies to the project you are currently working in, and never returns credentials or secrets.",
@@ -2129,6 +2873,36 @@ Parameters:
       "type": "object",
     },
     "name": "getProjectInfo",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "
@@ -2198,6 +2972,36 @@ Captures learnings from user corrections, clarifications, and guidance to improv
       "type": "object",
     },
     "name": "improveContext",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: "listContent"
@@ -2298,6 +3102,36 @@ Parameters:
       "type": "object",
     },
     "name": "listKnowledgeDocuments",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "List the Lightdash projects in this organization that the current user has access to. Use this when the user asks what projects exist, which projects they can access, or wants to know about other projects in their organization. This is read-only and only returns projects the user is allowed to view. It does not switch the project you are currently working in.",
@@ -2308,6 +3142,36 @@ Parameters:
       "type": "object",
     },
     "name": "listProjects",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: list_warehouse_tables
@@ -2354,6 +3218,36 @@ Parameters:
       "type": "object",
     },
     "name": "listWarehouseTables",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
@@ -2386,6 +3280,36 @@ Parameters:
       "type": "object",
     },
     "name": "loadSkill",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "
@@ -3419,6 +4343,62 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "proposeChange",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "changeUuid": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "userFeedback": {
+                  "default": "accepted",
+                  "enum": [
+                    "accepted",
+                    "rejected",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "changeUuid",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Open a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent / proposeChange for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes.",
@@ -3517,6 +4497,36 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "type": "object",
     },
     "name": "readContent",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: runQuery
@@ -5104,6 +6114,36 @@ Table calculations perform row-by-row calculations on query results without coll
       "type": "object",
     },
     "name": "runQuery",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "
@@ -5135,6 +6175,36 @@ custom metrics are applied automatically.
       "type": "object",
     },
     "name": "runSavedChart",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: run_sql
@@ -5192,6 +6262,38 @@ Notes:
       "type": "object",
     },
     "name": "runSql",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+                "rejected",
+                "timeout",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
   {
     "description": "Tool: searchFieldValues
@@ -5890,6 +6992,36 @@ Usage Tips:
       "type": "object",
     },
     "name": "searchFieldValues",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
   },
 ]
 `;

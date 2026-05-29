@@ -11,8 +11,7 @@ const toolDefinition = listWarehouseTablesToolDefinition.for('agent');
 
 export const getListWarehouseTables = ({ listWarehouseTables }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ schema, search, limit }) => {
             try {
                 const all = await listWarehouseTables();

@@ -13,8 +13,7 @@ export const getDescribeWarehouseTable = ({
     describeWarehouseTable,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ table, schema }) => {
             try {
                 const { columns, resolvedSchema } =

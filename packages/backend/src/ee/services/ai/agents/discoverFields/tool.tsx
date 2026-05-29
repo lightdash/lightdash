@@ -162,8 +162,7 @@ type ToolArgs = {
  */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
-        description: discoverFieldsTool.description,
-        inputSchema: discoverFieldsTool.inputSchema,
+        ...discoverFieldsTool,
         async *execute(input, { toolCallId, abortSignal }) {
             try {
                 const { stream, flushPersistence } = runDiscoverFieldsAgent(

@@ -1,7 +1,4 @@
-import {
-    createContentToolDefinition,
-    toolCreateContentOutputSchema,
-} from '@lightdash/common';
+import { createContentToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -15,9 +12,7 @@ const toolDefinition = createContentToolDefinition.for('agent');
 
 export const getCreateContent = ({ createContent }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
-        outputSchema: toolCreateContentOutputSchema,
+        ...toolDefinition,
         execute: async ({ type, content }) => {
             try {
                 const result = await createContent({

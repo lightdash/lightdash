@@ -12,8 +12,7 @@ const toolDefinition = readContentToolDefinition.for('agent');
 
 export const getReadContent = ({ readContent }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ slug, type }) => {
             try {
                 const result = await readContent({ slug, type });

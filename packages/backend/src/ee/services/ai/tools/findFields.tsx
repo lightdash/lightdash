@@ -115,8 +115,7 @@ export const getFindFields = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries

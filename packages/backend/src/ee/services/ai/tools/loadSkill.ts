@@ -17,8 +17,7 @@ const toolDefinition = loadSkillToolDefinition.for('agent');
 
 export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
     tool({
-        description: toolDefinition.description,
-        inputSchema: toolDefinition.inputSchema,
+        ...toolDefinition,
         execute: async ({ name, resourceName }) => {
             try {
                 const skill = await loadSkill(name);

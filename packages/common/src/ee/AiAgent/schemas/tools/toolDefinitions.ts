@@ -17,112 +17,139 @@ import {
 import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
+    toolCreateContentOutputSchema,
 } from './toolCreateContentArgs';
 import {
     TOOL_DASHBOARD_DESCRIPTION,
     toolDashboardArgsSchema,
+    toolDashboardOutputSchema,
 } from './toolDashboardArgs';
 import {
     TOOL_DASHBOARD_V2_DESCRIPTION,
     toolDashboardV2ArgsSchema,
+    toolDashboardV2OutputSchema,
 } from './toolDashboardV2Args';
 import {
     TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     toolDescribeWarehouseTableArgsSchema,
+    toolDescribeWarehouseTableOutputSchema,
 } from './toolDescribeWarehouseTableArgs';
 import {
     DISCOVER_FIELDS_DESCRIPTION,
     discoverFieldsInputSchema,
+    toolDiscoverFieldsOutputSchema,
 } from './toolDiscoverFieldsArgs';
 import {
     TOOL_EDIT_CONTENT_DESCRIPTION,
     toolEditContentArgsSchema,
+    toolEditContentOutputSchema,
 } from './toolEditContentArgs';
 import {
     TOOL_FIND_CHARTS_DESCRIPTION,
     toolFindChartsArgsSchema,
+    toolFindChartsOutputSchema,
 } from './toolFindChartsArgs';
 import {
     TOOL_FIND_CONTENT_DESCRIPTION,
     toolFindContentArgsSchema,
+    toolFindContentOutputSchema,
 } from './toolFindContentArgs';
 import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
+    toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
+    toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
+    toolFindFieldsOutputSchema,
 } from './toolFindFieldsArgs';
 import {
     TOOL_GENERATE_UUIDS_DESCRIPTION,
     toolGenerateUuidsArgsSchema,
+    toolGenerateUuidsOutputSchema,
 } from './toolGenerateUuidsArgs';
 import {
     TOOL_GET_DASHBOARD_CHARTS_DESCRIPTION,
     toolGetDashboardChartsArgsSchema,
+    toolGetDashboardChartsOutputSchema,
 } from './toolGetDashboardChartsArgs';
 import {
     TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
     toolGetKnowledgeDocumentContentArgsSchema,
+    toolGetKnowledgeDocumentContentOutputSchema,
 } from './toolGetKnowledgeDocumentContentArgs';
 import {
     TOOL_GET_PROJECT_INFO_DESCRIPTION,
     toolGetProjectInfoArgsSchema,
+    toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
+    toolImproveContextOutputSchema,
 } from './toolImproveContextArgs';
 import {
     TOOL_LIST_CONTENT_DESCRIPTION,
     toolListContentArgsSchema,
+    toolListContentOutputSchema,
 } from './toolListContentArgs';
 import {
     TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     toolListKnowledgeDocumentsArgsSchema,
+    toolListKnowledgeDocumentsOutputSchema,
 } from './toolListKnowledgeDocumentsArgs';
 import {
     TOOL_LIST_PROJECTS_DESCRIPTION,
     toolListProjectsArgsSchema,
+    toolListProjectsOutputSchema,
 } from './toolListProjectsArgs';
 import {
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
     toolListWarehouseTablesArgsSchema,
+    toolListWarehouseTablesOutputSchema,
 } from './toolListWarehouseTablesArgs';
 import {
     TOOL_LOAD_SKILL_DESCRIPTION,
     toolLoadSkillArgsSchema,
+    toolLoadSkillOutputSchema,
 } from './toolLoadSkillArgs';
 import {
     TOOL_PROPOSE_CHANGE_DESCRIPTION,
     toolProposeChangeArgsSchema,
+    toolProposeChangeOutputSchema,
 } from './toolProposeChangeArgs';
 import {
     TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
     toolProposeWritebackArgsSchema,
+    toolProposeWritebackOutputSchema,
 } from './toolProposeWritebackArgs';
 import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
+    toolReadContentOutputSchema,
 } from './toolReadContentArgs';
 import {
     TOOL_RUN_METRIC_QUERY_DESCRIPTION,
     toolRunMetricQueryArgsSchema,
+    toolRunMetricQueryOutputSchema,
 } from './toolRunMetricQueryArgs';
 import {
     mcpRunMetricQueryStructuredOutputSchema,
     TOOL_RUN_QUERY_DESCRIPTION,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryOutputSchema,
 } from './toolRunQueryArgs';
 import {
     TOOL_RUN_SAVED_CHART_DESCRIPTION,
     toolRunSavedChartArgsSchema,
+    toolRunSavedChartOutputSchema,
 } from './toolRunSavedChartArgs';
 import {
     buildRunSqlDescription,
@@ -130,25 +157,30 @@ import {
     DEFAULT_RUN_SQL_MAX_LIMIT,
     mcpRunSqlStructuredOutputSchema,
     toolRunSqlArgsSchema,
+    toolRunSqlOutputSchema,
 } from './toolRunSqlArgs';
 import {
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
     toolSearchFieldValuesArgsSchema,
+    toolSearchFieldValuesOutputSchema,
 } from './toolSearchFieldValuesArgs';
 import {
     TOOL_TABLE_VIZ_DESCRIPTION,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
+    toolTableVizOutputSchema,
 } from './toolTableVizArgs';
 import {
     TOOL_TIME_SERIES_VIZ_DESCRIPTION,
     toolTimeSeriesArgsSchema,
     toolTimeSeriesArgsSchemaTransformed,
+    toolTimeSeriesOutputSchema,
 } from './toolTimeSeriesArgs';
 import {
     TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
+    toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
 
 const readOnlyAnnotations: McpToolAnnotations = {
@@ -171,6 +203,7 @@ export const findExploresToolDefinition = defineTool({
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindExploresArgsSchemaV3,
+    agent: { outputSchema: toolFindExploresOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -180,6 +213,7 @@ export const findFieldsToolDefinition = defineTool({
     description: TOOL_FIND_FIELDS_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
+    agent: { outputSchema: toolFindFieldsOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -189,6 +223,7 @@ export const findContentToolDefinition = defineTool({
     description: TOOL_FIND_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindContentArgsSchema,
+    agent: { outputSchema: toolFindContentOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -198,6 +233,7 @@ export const searchFieldValuesToolDefinition = defineTool({
     description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolSearchFieldValuesArgsSchema,
+    agent: { outputSchema: toolSearchFieldValuesOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -208,10 +244,11 @@ export const runQueryToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolRunQueryArgsSchema,
     inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    agent: { outputSchema: toolRunQueryOutputSchema },
     mcp: {
         name: 'run_metric_query',
         annotations: readOnlyAnnotations,
-        outputSchema: mcpRunMetricQueryStructuredOutputSchema,
+        structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
     },
 });
 
@@ -224,9 +261,10 @@ export const runSqlToolDefinition = defineTool({
     ),
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
+    agent: { outputSchema: toolRunSqlOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
-        outputSchema: mcpRunSqlStructuredOutputSchema,
+        structuredContentSchema: mcpRunSqlStructuredOutputSchema,
     },
 });
 
@@ -237,6 +275,7 @@ export const runMetricQueryToolDefinition = defineTool({
     description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolRunMetricQueryArgsSchema,
+    agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
 export const discoverFieldsToolDefinition = defineTool({
@@ -245,6 +284,7 @@ export const discoverFieldsToolDefinition = defineTool({
     description: DISCOVER_FIELDS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: discoverFieldsInputSchema,
+    agent: { outputSchema: toolDiscoverFieldsOutputSchema },
 });
 
 export const generateDashboardToolDefinition = defineTool({
@@ -253,18 +293,22 @@ export const generateDashboardToolDefinition = defineTool({
     description: TOOL_DASHBOARD_V2_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolDashboardV2ArgsSchema,
+    agent: { outputSchema: toolDashboardV2OutputSchema },
 });
 
 /** @deprecated Legacy v1 dashboard tool schema kept for historical tool calls and artifacts. */
 export const generateDashboardV1ToolDefinition: ToolDefinition<
     'generateDashboard',
-    typeof toolDashboardArgsSchema
+    typeof toolDashboardArgsSchema,
+    typeof toolDashboardArgsSchema,
+    typeof toolDashboardOutputSchema
 > = defineTool({
     name: 'generateDashboard',
     title: 'Generate dashboard',
     description: TOOL_DASHBOARD_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolDashboardArgsSchema,
+    agent: { outputSchema: toolDashboardOutputSchema },
 });
 
 export const generateUuidsToolDefinition = defineTool({
@@ -273,6 +317,7 @@ export const generateUuidsToolDefinition = defineTool({
     description: TOOL_GENERATE_UUIDS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolGenerateUuidsArgsSchema,
+    agent: { outputSchema: toolGenerateUuidsOutputSchema },
 });
 
 export const getDashboardChartsToolDefinition = defineTool({
@@ -281,6 +326,7 @@ export const getDashboardChartsToolDefinition = defineTool({
     description: TOOL_GET_DASHBOARD_CHARTS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolGetDashboardChartsArgsSchema,
+    agent: { outputSchema: toolGetDashboardChartsOutputSchema },
 });
 
 export const readContentToolDefinition = defineTool({
@@ -289,6 +335,7 @@ export const readContentToolDefinition = defineTool({
     description: TOOL_READ_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolReadContentArgsSchema,
+    agent: { outputSchema: toolReadContentOutputSchema },
 });
 
 export const editContentToolDefinition = defineTool({
@@ -297,6 +344,7 @@ export const editContentToolDefinition = defineTool({
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditContentArgsSchema,
+    agent: { outputSchema: toolEditContentOutputSchema },
 });
 
 export const createContentToolDefinition = defineTool({
@@ -305,6 +353,7 @@ export const createContentToolDefinition = defineTool({
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolCreateContentArgsSchema,
+    agent: { outputSchema: toolCreateContentOutputSchema },
 });
 
 export const listContentToolDefinition = defineTool({
@@ -313,6 +362,7 @@ export const listContentToolDefinition = defineTool({
     description: TOOL_LIST_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolListContentArgsSchema,
+    agent: { outputSchema: toolListContentOutputSchema },
 });
 
 export const improveContextToolDefinition = defineTool({
@@ -321,6 +371,7 @@ export const improveContextToolDefinition = defineTool({
     description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolImproveContextArgsSchema,
+    agent: { outputSchema: toolImproveContextOutputSchema },
 });
 
 export const listProjectsToolDefinition = defineTool({
@@ -329,6 +380,7 @@ export const listProjectsToolDefinition = defineTool({
     description: TOOL_LIST_PROJECTS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolListProjectsArgsSchema,
+    agent: { outputSchema: toolListProjectsOutputSchema },
 });
 
 export const getProjectInfoToolDefinition = defineTool({
@@ -337,6 +389,7 @@ export const getProjectInfoToolDefinition = defineTool({
     description: TOOL_GET_PROJECT_INFO_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolGetProjectInfoArgsSchema,
+    agent: { outputSchema: toolGetProjectInfoOutputSchema },
 });
 
 export const loadSkillToolDefinition = defineTool({
@@ -345,6 +398,7 @@ export const loadSkillToolDefinition = defineTool({
     description: TOOL_LOAD_SKILL_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolLoadSkillArgsSchema,
+    agent: { outputSchema: toolLoadSkillOutputSchema },
 });
 
 export const proposeChangeToolDefinition = defineTool({
@@ -353,6 +407,7 @@ export const proposeChangeToolDefinition = defineTool({
     description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolProposeChangeArgsSchema,
+    agent: { outputSchema: toolProposeChangeOutputSchema },
 });
 
 export const proposeWritebackToolDefinition = defineTool({
@@ -361,6 +416,7 @@ export const proposeWritebackToolDefinition = defineTool({
     description: TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolProposeWritebackArgsSchema,
+    agent: { outputSchema: toolProposeWritebackOutputSchema },
 });
 
 export const runSavedChartToolDefinition = defineTool({
@@ -369,6 +425,7 @@ export const runSavedChartToolDefinition = defineTool({
     description: TOOL_RUN_SAVED_CHART_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolRunSavedChartArgsSchema,
+    agent: { outputSchema: toolRunSavedChartOutputSchema },
 });
 
 export const listWarehouseTablesToolDefinition = defineTool({
@@ -377,6 +434,7 @@ export const listWarehouseTablesToolDefinition = defineTool({
     description: TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolListWarehouseTablesArgsSchema,
+    agent: { outputSchema: toolListWarehouseTablesOutputSchema },
 });
 
 export const describeWarehouseTableToolDefinition = defineTool({
@@ -385,6 +443,7 @@ export const describeWarehouseTableToolDefinition = defineTool({
     description: TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolDescribeWarehouseTableArgsSchema,
+    agent: { outputSchema: toolDescribeWarehouseTableOutputSchema },
 });
 
 export const listKnowledgeDocumentsToolDefinition = defineTool({
@@ -393,6 +452,7 @@ export const listKnowledgeDocumentsToolDefinition = defineTool({
     description: TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolListKnowledgeDocumentsArgsSchema,
+    agent: { outputSchema: toolListKnowledgeDocumentsOutputSchema },
 });
 
 export const getKnowledgeDocumentContentToolDefinition = defineTool({
@@ -401,6 +461,7 @@ export const getKnowledgeDocumentContentToolDefinition = defineTool({
     description: TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolGetKnowledgeDocumentContentArgsSchema,
+    agent: { outputSchema: toolGetKnowledgeDocumentContentOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -410,6 +471,7 @@ export const findChartsToolDefinition = defineTool({
     description: TOOL_FIND_CHARTS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolFindChartsArgsSchema,
+    agent: { outputSchema: toolFindChartsOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -419,6 +481,7 @@ export const findDashboardsToolDefinition = defineTool({
     description: TOOL_FIND_DASHBOARDS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolFindDashboardsArgsSchema,
+    agent: { outputSchema: toolFindDashboardsOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -429,6 +492,7 @@ export const generateBarVizConfigToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolVerticalBarArgsSchema,
     inputSchemaTransformed: toolVerticalBarArgsSchemaTransformed,
+    agent: { outputSchema: toolVerticalBarOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -439,6 +503,7 @@ export const generateTableVizConfigToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolTableVizArgsSchema,
     inputSchemaTransformed: toolTableVizArgsSchemaTransformed,
+    agent: { outputSchema: toolTableVizOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -449,6 +514,7 @@ export const generateTimeSeriesVizConfigToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolTimeSeriesArgsSchema,
     inputSchemaTransformed: toolTimeSeriesArgsSchemaTransformed,
+    agent: { outputSchema: toolTimeSeriesOutputSchema },
 });
 
 export const getLightdashVersionToolDefinition = defineTool({
@@ -564,7 +630,7 @@ export const runAiWritebackToolDefinition = defineTool({
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
         annotations: writeAnnotations,
-        outputSchema: mcpRunAiWritebackStructuredOutputSchema,
+        structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });
 
