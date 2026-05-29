@@ -1888,13 +1888,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : // for this row/column) renders blank instead of the // In merge mode, an empty pivot data cell (no data
-                                        // `∅`/`-` placeholder. `value` is undefined/null only
-                                        // when the cell is absent — a real `raw: 0`/`''`/`null`
-                                        // still has a non-null `value` wrapper, so it is unaffected.
+                                        ) : cell.getIsPlaceholder() ? null : // blank instead of the `∅`/`-` placeholder. An empty // In merge mode an empty pivot data cell renders
+                                        // cell still carries a value wrapper whose `raw` is
+                                        // null (formatted as `∅`), or no wrapper at all, so we
+                                        // key off `value?.raw`. A real `raw: 0`/`''` is kept.
                                         groupingOnlyMode &&
                                           isDataColumn &&
-                                          value == null ? null : (
+                                          value?.raw == null ? null : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
