@@ -1,3 +1,10 @@
+# [0.3057.0](https://github.com/lightdash/lightdash/compare/0.3056.1...0.3057.0) (2026-05-29)
+
+
+### Features
+
+* **ai-writeback:** emit explicit `source` field on run events ([#23684](https://github.com/lightdash/lightdash/issues/23684)) ([fef43d9](https://github.com/lightdash/lightdash/commit/fef43d9a662c7a7c12d1d9b9fb57e3f445e2af5d))
+
 ## [0.3056.1](https://github.com/lightdash/lightdash/compare/0.3056.0...0.3056.1) (2026-05-29)
 
 
