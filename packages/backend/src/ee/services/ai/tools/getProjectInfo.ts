@@ -1,6 +1,7 @@
 import {
     DbtProjectTypeLabels,
     getProjectInfoToolDefinition,
+    toolGetProjectInfoOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetProjectInfoFn } from '../types/aiAgentDependencies';
@@ -16,6 +17,7 @@ export const getGetProjectInfo = ({ getProjectInfo }: Dependencies) =>
     tool({
         description: toolDefinition.description,
         inputSchema: toolDefinition.inputSchema,
+        outputSchema: toolGetProjectInfoOutputSchema,
         execute: async () => {
             try {
                 const info = await getProjectInfo();
