@@ -306,6 +306,77 @@
     margin-top: 2px;
 }
 
+/* Vertical progress step list — same alignment as .liveTrace so the
+   "Starting sandbox → Cloning project → …" rows hang from the same
+   indent as the parent tool's chip label. */
+.liveStepProgress {
+    position: relative;
+    z-index: 1;
+    padding: 6px 0 4px 18px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.liveStepProgressRow {
+    animation: liveStepProgressFadeIn 220ms ease-out;
+}
+
+.liveStepProgressDot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-5);
+    flex-shrink: 0;
+    transition: background-color 200ms ease;
+}
+
+.liveStepProgressDot[data-active='true'] {
+    background-color: var(--mantine-color-indigo-6);
+    animation: liveStepProgressPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.liveStepProgressLabel {
+    color: var(--mantine-color-ldGray-7);
+    letter-spacing: -0.005em;
+    font-weight: 500;
+}
+
+.liveStepProgressLabel[data-active='true'] {
+    color: var(--mantine-color-ldGray-9);
+}
+
+@keyframes liveStepProgressFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes liveStepProgressPulse {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .liveStepProgressRow,
+    .liveStepProgressDot {
+        animation: none;
+    }
+}
+
 /* History rows cascade in with staggered delays (see --row-delay) so opening
  * the bento feels like a deck dealing rather than a flash. */
 .historyRow {

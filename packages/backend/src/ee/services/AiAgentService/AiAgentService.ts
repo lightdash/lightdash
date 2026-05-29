@@ -105,6 +105,7 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import { EventEmitter } from 'events';
 import * as JsonPatch from 'fast-json-patch';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -4578,6 +4579,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     private getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
+        options?: {
+            // Receives the same coarse step-progress strings ("Running your
+            // query…", "Starting sandbox…") that Slack overwrites into the
+            // pinned "Thinking…" message, along with the tool they belong to
+            // so the web client can scope an inline progress row to the active
+            // tool. Only invoked for web prompts; Slack prompts route through
+            // updateSlackResponseWithProgress instead.
+            onStepProgress?: (progress: string, toolName?: string) => void;
+        },
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
@@ -4754,10 +4764,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return { fields: enrichedFields, pagination };
             });
 
-        const updateProgress: UpdateProgressFn = (progress) =>
-            isSlackPrompt(prompt)
-                ? this.updateSlackResponseWithProgress(prompt, progress)
-                : Promise.resolve();
+        const updateProgress: UpdateProgressFn = (progress, toolName) => {
+            if (isSlackPrompt(prompt)) {
+                return this.updateSlackResponseWithProgress(prompt, progress);
+            }
+            // Web prompts surface step progress through a transient
+            // `data-step-progress` chunk on the SSE stream (see
+            // generateOrStreamAgentResponse). The callback is wired only
+            // when streaming; non-stream responses silently drop these
+            // events.
+            options?.onStepProgress?.(progress, toolName);
+            return Promise.resolve();
+        };
 
         const getPrompt: GetPromptFn = async () => {
             const webOrSlackPrompt = isSlackPrompt(prompt)
@@ -5433,27 +5451,27 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         const proposeWriteback: ProposeWritebackFn = async (args) => {
-            // Stream coarse progress back into the agent's "Thinking…" Slack
-            // message so the user can see what the writeback is doing
-            // (Starting sandbox → Cloning project → Discovering models →
-            // Editing models → Compiling project → Committing → …). Web/MCP
-            // callers don't have a message to update, so the callback is
-            // wired only for Slack prompts. Fire-and-forget — a Slack update
-            // failure (rate limit, message deleted, etc.) must never take
-            // down the writeback itself.
-            const slackProgressCallback = isSlackPrompt(prompt)
-                ? (message: string) => {
-                      void this.updateSlackResponseWithProgress(
-                          prompt,
-                          message,
-                      ).catch((err) => {
-                          Logger.debug(
-                              `Failed to update Slack progress for writeback (${message}):`,
-                              err,
-                          );
-                      });
-                  }
-                : undefined;
+            // Stream coarse progress back to the user so they can see what
+            // the writeback is doing (Starting sandbox → Cloning project →
+            // Discovering models → Editing models → Compiling project →
+            // Committing → …). For Slack this overwrites the pinned
+            // "Thinking…" message; for web it surfaces as a transient
+            // `data-step-progress` chunk on the SSE stream. Tagged with the
+            // `proposeWriteback` tool name so the web client only renders
+            // these under the writeback header — never a concurrently running
+            // tool's progress. Fire-and-forget — a Slack rate limit, deleted
+            // message, or dropped SSE client must never take down the
+            // writeback itself.
+            const writebackProgressCallback = (message: string) => {
+                void updateProgress(message, 'proposeWriteback').catch(
+                    (err) => {
+                        Logger.debug(
+                            `Failed to update progress for writeback (${message}):`,
+                            err,
+                        );
+                    },
+                );
+            };
 
             const result = await wrapSentryTransaction(
                 'AiAgent.proposeWriteback',
@@ -5464,7 +5482,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: args.prompt,
                         aiThreadUuid: prompt.threadUuid,
-                        onProgress: slackProgressCallback,
+                        onProgress: writebackProgressCallback,
                     }),
             );
             // On a successful PR open/update, add a green-tick reaction to the
@@ -5664,6 +5682,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const { prompt, stream } = options;
 
+        // Web prompts get a transient `data-step-progress` channel on the
+        // SSE stream so the bubble can show "Starting sandbox…" /
+        // "Cloning project…" as the active step under the running tool,
+        // matching what Slack already gets via
+        // updateSlackResponseWithProgress. Only created when streaming —
+        // non-stream (web) responses have nowhere to flush progress to. The
+        // listener is attached below inside createUIMessageStream, before
+        // the agent's stream starts pulling.
+        const stepProgressEmitter =
+            stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+
         const {
             listExplores,
             getExplore,
@@ -5696,7 +5725,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             proposeWriteback,
             listProjects,
             getProjectInfo,
-        } = this.getAiAgentDependencies(user, prompt);
+        } = this.getAiAgentDependencies(user, prompt, {
+            onStepProgress: stepProgressEmitter
+                ? (progress, toolName) =>
+                      stepProgressEmitter.emit('stepProgress', {
+                          message: progress,
+                          toolName,
+                      })
+                : undefined,
+        });
 
         const enableSqlMode = options.enableSqlMode ?? false;
 
@@ -5995,6 +6032,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         data: unavailableMcpServer,
                         transient: true,
                     });
+                }
+
+                // Forward step-progress events from tools (`updateProgress`,
+                // `proposeWriteback`) to the client. `transient: true` so
+                // they don't get persisted as part of the message; they're
+                // ephemeral status updates the bubble surfaces as the
+                // active step under the running tool group until the next
+                // event lands or the stream ends. `toolName` lets the client
+                // scope the row to the active tool so a concurrently running
+                // tool's progress can't surface under another tool's header.
+                if (stepProgressEmitter) {
+                    stepProgressEmitter.on(
+                        'stepProgress',
+                        (event: { message: string; toolName?: string }) => {
+                            writer.write({
+                                type: 'data-step-progress',
+                                data: {
+                                    message: event.message,
+                                    toolName: event.toolName ?? null,
+                                },
+                                transient: true,
+                            });
+                        },
+                    );
                 }
 
                 writer.merge(result.toUIMessageStream());

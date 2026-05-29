@@ -209,7 +209,7 @@ export class AiWritebackService extends BaseService {
      */
     private static progressTextForStage(
         stage: AiWritebackFailureStage,
-    ): string {
+    ): string | null {
         switch (stage) {
             case 'install':
                 return 'Setting up';
@@ -218,13 +218,16 @@ export class AiWritebackService extends BaseService {
             case 'clone':
                 return 'Cloning project';
             case 'agent':
-                return 'Working on changes';
+                return 'Starting sub agent';
             case 'commit':
                 return 'Committing changes';
             case 'push':
                 return 'Pushing to GitHub';
             case 'pull_request':
-                return 'Opening pull request';
+                // No user-facing label — the parent tool group is already
+                // labelled "Opening a pull request", so this progress
+                // event would just echo the heading and read as filler.
+                return null;
             default:
                 return assertUnreachable(
                     stage,
@@ -498,7 +501,13 @@ export class AiWritebackService extends BaseService {
             });
             failureStage = stage;
             stageStartedAt = now;
-            reportProgress(AiWritebackService.progressTextForStage(stage));
+            // Stages can opt out of progress reporting by returning null
+            // from progressTextForStage when their label would duplicate
+            // the parent tool's heading or otherwise add no signal.
+            const progressText = AiWritebackService.progressTextForStage(stage);
+            if (progressText !== null) {
+                reportProgress(progressText);
+            }
         };
 
         let sandbox: Sandbox | undefined;

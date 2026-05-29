@@ -17,6 +17,7 @@ import {
     addReasoning,
     addMcpUnavailableNotice,
     addToolCall,
+    appendStepProgress,
     markToolCallDecided,
     setError,
     setImproveContextNotification,
@@ -48,6 +49,16 @@ type McpUnavailableNoticeChunk = UIMessageChunk & {
         serverName: string;
         message: string;
         status: 'not_connected' | 'connecting' | 'connected' | 'error';
+    };
+    transient?: boolean;
+};
+
+type StepProgressChunk = UIMessageChunk & {
+    type: 'data-step-progress';
+    data: {
+        message: string;
+        // The tool the event belongs to, or null/absent when unattributed.
+        toolName?: string | null;
     };
     transient?: boolean;
 };
@@ -124,6 +135,28 @@ export const getMcpUnavailableNoticeFromChunk = (
     return null;
 };
 
+export const getStepProgressFromChunk = (
+    chunk: UIMessageChunk,
+): { message: string; toolName: string | null } | null => {
+    if (
+        chunk.type === 'data-step-progress' &&
+        'data' in chunk &&
+        chunk.data &&
+        typeof chunk.data === 'object'
+    ) {
+        const data = chunk.data as StepProgressChunk['data'];
+        if (typeof data.message === 'string' && data.message.length > 0) {
+            return {
+                message: data.message,
+                toolName:
+                    typeof data.toolName === 'string' ? data.toolName : null,
+            };
+        }
+    }
+
+    return null;
+};
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -184,6 +217,18 @@ export function useAiAgentThreadStreamMutation() {
                                 addMcpUnavailableNotice({
                                     threadUuid,
                                     notice,
+                                }),
+                            );
+                            continue;
+                        }
+
+                        const stepProgress = getStepProgressFromChunk(value);
+                        if (stepProgress) {
+                            dispatch(
+                                appendStepProgress({
+                                    threadUuid,
+                                    message: stepProgress.message,
+                                    toolName: stepProgress.toolName,
                                 }),
                             );
                             continue;

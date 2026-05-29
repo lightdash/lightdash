@@ -26,6 +26,13 @@ export type McpUnavailableNotice = {
     status: AiMcpServerConnectionStatus;
 };
 
+export type StepProgressMessage = {
+    message: string;
+    // The tool the event belongs to, or null when the emitting tool didn't
+    // attribute it. Used to scope the inline progress row to the active tool.
+    toolName: string | null;
+};
+
 export type StreamPart =
     | { type: 'text'; text: string }
     | {
@@ -59,6 +66,20 @@ export interface AiAgentThreadStreamingState {
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
     mcpUnavailableNotices: McpUnavailableNotice[];
+    /**
+     * Ordered history of step-progress events emitted by the agent's
+     * tools (e.g. "Starting sandbox…", "Cloning project…", "Editing
+     * models…"). Each `data-step-progress` SSE chunk is appended here
+     * (with adjacent-duplicate dedup). `toolName` is the tool the event
+     * belongs to (null for tools that don't attribute their progress);
+     * the bubble uses it to scope the inline progress row to the active
+     * tool, so a concurrently running tool (e.g. a `findFields` query
+     * fired alongside a writeback) can't surface its message under the
+     * writeback header. Keeping the full history — across tools — in
+     * state means we can revisit the presentation (timeline, summary on
+     * hover, etc.) without changing the wire protocol.
+     */
+    stepProgressMessages: StepProgressMessage[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -80,6 +101,7 @@ const initialThread: Omit<
     reasoning: [],
     decidedToolCallIds: [],
     mcpUnavailableNotices: [],
+    stepProgressMessages: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -297,6 +319,45 @@ export const aiAgentThreadStreamSlice = createSlice({
                 text: string;
             }>(),
         },
+        appendStepProgress: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    message: string;
+                    toolName: string | null;
+                }>,
+            ) => {
+                const { threadUuid, message, toolName } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (!streamingThread) return;
+                // Drop adjacent-duplicate step events — `runQuery` fires
+                // the same "Running your query…" string per-call and we
+                // don't want a stuttering list. Non-adjacent repeats are
+                // fine (different cycle, different context) so we only
+                // check the most recent entry. A repeat from a different
+                // tool is kept (different toolName → not a true duplicate).
+                const last =
+                    streamingThread.stepProgressMessages[
+                        streamingThread.stepProgressMessages.length - 1
+                    ];
+                if (
+                    last &&
+                    last.message === message &&
+                    last.toolName === toolName
+                )
+                    return;
+                streamingThread.stepProgressMessages.push({
+                    message,
+                    toolName,
+                });
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                message: string;
+                toolName: string | null;
+            }>(),
+        },
         addMcpUnavailableNotice: {
             reducer: (
                 state,
@@ -337,4 +398,5 @@ export const {
     addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
+    appendStepProgress,
 } = aiAgentThreadStreamSlice.actions;

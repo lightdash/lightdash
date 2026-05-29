@@ -21,6 +21,7 @@ import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
@@ -64,6 +65,16 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
+    /**
+     * In-flight status events emitted across the stream (e.g. "Starting
+     * sandbox", "Cloning project", "Committing changes" for proposeWriteback).
+     * Each carries the tool it belongs to so the inline row can be scoped to
+     * the active tool — a concurrently running tool's progress (e.g. a
+     * `findFields` query fired alongside the writeback) must not surface under
+     * the writeback header. Latest matching entry is shown as a single
+     * replacing row. Empty when no tool has fired a progress event yet.
+     */
+    stepProgressMessages?: StepProgressMessage[];
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -72,6 +83,25 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
     'proposeChange',
+    'runSavedChart',
+]);
+
+// Built-in tools whose ToolCallDescription returns an empty fragment.
+// Listing them lets the latest-description Box opt out entirely, instead
+// of rendering an empty wrapper that animates an empty area open/closed
+// when the user expands the card. Keep this in sync with the empty cases
+// in ToolCallDescription.tsx — discoverFields is intentionally excluded
+// because it has no description string but does render a subagent trace.
+const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
+    'listKnowledgeDocuments',
+    'listProjects',
+    'getProjectInfo',
+    'listContent',
+    'generateUuids',
+    'improveContext',
+    'loadSkill',
+    'proposeChange',
+    'proposeWriteback',
     'runSavedChart',
 ]);
 
@@ -438,6 +468,72 @@ const getDiscoverFieldsTraceFromCall = (
 };
 
 /**
+ * Render the latest tool's progress as a single inline row under the
+ * card header — the label gets replaced (rather than stacked) as the tool
+ * advances. Matches the Slack experience where one pinned line is
+ * overwritten with each new stage, without losing the visual anchor of a
+ * pulsing dot.
+ *
+ * Returns null when there's nothing to render (the tool hasn't fired any
+ * progress events, an SQL approval is pending, or we're not actively
+ * streaming). Today only proposeWriteback emits progress strings that
+ * warrant this treatment; other tools either run instantly or share the
+ * single "Running your query…" string that the parent bubble shows via
+ * TypingDots instead.
+ *
+ * Crucially, the row shows only the latest event belonging to the active
+ * tool (`toolName === latest.toolName`). A writeback often runs alongside
+ * other tools (e.g. a `findFields` query the agent fired in the same turn),
+ * and all of their progress lands in one flat list — without this scoping a
+ * concurrent tool's "Searching for fields…" would briefly surface under the
+ * "Opening a pull request" header.
+ */
+const renderInlineLiveStepProgress = (params: {
+    latest: LiveActivityToolGroup | null;
+    isLive: boolean;
+    hasPending: boolean;
+    stepProgressMessages: StepProgressMessage[];
+}): React.ReactNode => {
+    const { latest, isLive, hasPending, stepProgressMessages } = params;
+    if (!isLive || !latest || hasPending) return null;
+    if (latest.toolName !== 'proposeWriteback') return null;
+
+    const currentMessage = stepProgressMessages
+        .filter((m) => m.toolName === latest.toolName)
+        .at(-1)?.message;
+    if (!currentMessage) return null;
+
+    return (
+        <Box className={styles.liveStepProgress}>
+            <Group
+                gap={6}
+                align="center"
+                wrap="nowrap"
+                className={styles.liveStepProgressRow}
+                // Key on the message so React swaps the node (replays the
+                // fade-in animation) each time a new progress event lands,
+                // rather than just rewriting the text in place. Reads as a
+                // deliberate "next step" rather than a silent label change.
+                key={currentMessage}
+                data-active="true"
+            >
+                <Box
+                    className={styles.liveStepProgressDot}
+                    data-active="true"
+                />
+                <Text
+                    size="xs"
+                    className={styles.liveStepProgressLabel}
+                    data-active="true"
+                >
+                    {currentMessage}
+                </Text>
+            </Group>
+        </Box>
+    );
+};
+
+/**
  * Render the subagent's live trace outside the activity card's collapse
  * so users see findExplores / findFields rows appear under the
  * "Discovering fields" header without having to expand the card.
@@ -474,6 +570,7 @@ export const LiveActivityCard: FC<Props> = ({
     toolCalls,
     mcpServers,
     pendingContent,
+    stepProgressMessages = [],
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -625,6 +722,12 @@ export const LiveActivityCard: FC<Props> = ({
                 </Group>
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive, hasPending })}
+            {renderInlineLiveStepProgress({
+                latest,
+                isLive,
+                hasPending,
+                stepProgressMessages,
+            })}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -634,63 +737,65 @@ export const LiveActivityCard: FC<Props> = ({
                     {hasPending && (
                         <Box className={styles.pending}>{pendingContent}</Box>
                     )}
-                    {latest && !hasPending && (
-                        <Stack gap={4}>
-                            {(() => {
-                                const latestBuiltInToolName = isToolName(
-                                    latest.toolName,
-                                )
-                                    ? latest.toolName
-                                    : null;
+                    {(() => {
+                        if (!latest || hasPending) return null;
+                        const latestBuiltInToolName = isToolName(
+                            latest.toolName,
+                        )
+                            ? latest.toolName
+                            : null;
+                        if (!latestBuiltInToolName) return null;
 
-                                return latestBuiltInToolName
-                                    ? latest.calls.map((tc) => {
-                                          const trace =
-                                              latestBuiltInToolName ===
-                                              'discoverFields'
-                                                  ? (getDiscoverFieldsTraceFromCall(
-                                                        tc,
-                                                    ) ??
-                                                    getDiscoverFieldsTrace(
-                                                        toolResults?.find(
-                                                            (r) =>
-                                                                r.toolCallId ===
-                                                                tc.toolCallId,
-                                                        ),
-                                                        toolCalls,
-                                                    ))
-                                                  : null;
-
-                                          return (
-                                              <Box
-                                                  key={tc.toolCallId}
-                                                  className={
-                                                      styles.latestDescription
-                                                  }
-                                              >
-                                                  <ToolCallDescription
-                                                      toolName={
-                                                          latestBuiltInToolName
-                                                      }
-                                                      toolCall={tc}
-                                                      toolResult={toolResults?.find(
-                                                          (result) =>
-                                                              result.toolCallId ===
-                                                              tc.toolCallId,
-                                                      )}
-                                                  />
-                                                  {trace && (
-                                                      <DiscoverFieldsTrace
-                                                          trace={trace}
-                                                      />
-                                                  )}
-                                              </Box>
-                                          );
-                                      })
-                                    : null;
-                            })()}
-                        </Stack>
-                    )}
+                        const hasNoDescription =
+                            TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
+                                latestBuiltInToolName,
+                            );
+                        const renderableCalls = latest.calls
+                            .map((tc) => {
+                                const trace =
+                                    latestBuiltInToolName === 'discoverFields'
+                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
+                                          getDiscoverFieldsTrace(
+                                              toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              ),
+                                              toolCalls,
+                                          ))
+                                        : null;
+                                // Skip the wrapper entirely when there's
+                                // nothing to show, otherwise expanding the
+                                // card animates an empty box open/closed.
+                                if (hasNoDescription && !trace) return null;
+                                return (
+                                    <Box
+                                        key={tc.toolCallId}
+                                        className={styles.latestDescription}
+                                    >
+                                        {!hasNoDescription && (
+                                            <ToolCallDescription
+                                                toolName={latestBuiltInToolName}
+                                                toolCall={tc}
+                                                toolResult={toolResults?.find(
+                                                    (result) =>
+                                                        result.toolCallId ===
+                                                        tc.toolCallId,
+                                                )}
+                                            />
+                                        )}
+                                        {trace && (
+                                            <DiscoverFieldsTrace
+                                                trace={trace}
+                                            />
+                                        )}
+                                    </Box>
+                                );
+                            })
+                            .filter((node) => node !== null);
+                        if (renderableCalls.length === 0) return null;
+                        return <Stack gap={4}>{renderableCalls}</Stack>;
+                    })()}
                     {olderGroups.length > 0 && (
                         <Stack gap={2}>
                             {olderGroups.map((group, idx) => {

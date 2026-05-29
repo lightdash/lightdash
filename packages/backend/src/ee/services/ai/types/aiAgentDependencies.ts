@@ -187,7 +187,15 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
       }
 >;
 
-export type UpdateProgressFn = (progress: string) => Promise<void>;
+export type UpdateProgressFn = (
+    progress: string,
+    // The tool the progress belongs to. Web step-progress rendering uses this
+    // to scope an inline progress row to the active tool, so a concurrently
+    // running tool's message can't surface under another tool's header. Slack
+    // ignores it (single pinned message). Omitted by tools that don't need
+    // attribution.
+    toolName?: string,
+) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 
