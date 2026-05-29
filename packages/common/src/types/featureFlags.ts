@@ -223,6 +223,15 @@ export enum FeatureFlags {
     AiWriteback = 'ai-writeback',
 
     /**
+     * Enable turning AI agent review findings into writeback pull requests.
+     * Surfaces the "Create PR" action on semantic-layer review items in
+     * GitHub-connected projects and the finding→writeback bridge behind it.
+     * Composes with AiAgentReviewClassifier (the pipeline) and AiWriteback
+     * (the PR engine); off by default while the bridge is built out.
+     */
+    AiAgentReviewWriteback = 'ai-agent-review-writeback',
+
+    /**
      * Enable the built-in system agent fallback in Slack. When enabled, if a
      * Slack channel has no configured agent, the system will use the built-in
      * system agent instead of showing an error. Independent of AiWriteback so

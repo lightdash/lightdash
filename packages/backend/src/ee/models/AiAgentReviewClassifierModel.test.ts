@@ -2,6 +2,7 @@ import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemTableName,
     AiAgentTurnSignalTableName,
 } from '../database/entities/aiAgentReviewClassifier';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
@@ -287,6 +288,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     created_at: new Date('2026-05-26T09:00:00.000Z'),
                 }),
             ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,
@@ -299,6 +301,8 @@ describe('AiAgentReviewClassifierModel', () => {
                     fingerprint: FINGERPRINT,
                     title: 'Review revenue metric',
                     status: 'open',
+                    linkedPrUrl: null,
+                    prState: null,
                     findingCount: 2,
                 }),
             );
@@ -315,6 +319,59 @@ describe('AiAgentReviewClassifierModel', () => {
                     ],
                 }),
             );
+        });
+
+        it('overlays persisted human state and PR linkage onto the projection', async () => {
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([makeTurnSignalRow()]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([
+                {
+                    ai_agent_review_item_uuid:
+                        '00000000-0000-0000-0000-000000000099',
+                    fingerprint: FINGERPRINT,
+                    organization_uuid: ORGANIZATION_UUID,
+                    project_uuid: PROJECT_UUID,
+                    agent_uuid: AGENT_UUID,
+                    status: 'resolved',
+                    dismissed_reason: null,
+                    assigned_to_user_uuid: null,
+                    linked_issue_url: null,
+                    linked_pr_url: 'https://github.com/acme/dbt/pull/42',
+                    pr_writeback_thread_uuid: null,
+                    pr_state: 'merged',
+                    status_updated_at: new Date('2026-05-28T10:00:00.000Z'),
+                    status_updated_by_user_uuid: null,
+                    created_at: SEEN_AT,
+                    updated_at: SEEN_AT,
+                },
+            ]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    status: 'resolved',
+                    linkedPrUrl: 'https://github.com/acme/dbt/pull/42',
+                    prState: 'merged',
+                }),
+            );
+        });
+
+        it('filters by overlaid status', async () => {
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([makeTurnSignalRow()]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+                statuses: ['resolved'],
+            });
+
+            expect(result).toHaveLength(0);
         });
     });
 
@@ -369,6 +426,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
                 },
             ]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
@@ -403,7 +461,29 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toBe(TURN_SIGNAL_UUID);
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[1].sql).toContain(
+                AiAgentReviewItemTableName,
+            );
+        });
+
+        it('does not upsert a review item when the turn is not promoted', async () => {
+            tracker.on.insert(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
+                },
+            ]);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal: { ...turnSignal, promotedToFinding: false },
+                finding: null,
+            });
+
             expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain(
+                AiAgentTurnSignalTableName,
+            );
         });
     });
 });
