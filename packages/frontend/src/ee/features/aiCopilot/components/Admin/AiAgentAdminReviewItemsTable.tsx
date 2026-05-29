@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Divider,
     Group,
     Paper,
@@ -25,6 +26,7 @@ import {
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
+    IconFilterX,
     IconHelpCircle,
     IconInfoCircle,
     IconListCheck,
@@ -33,13 +35,16 @@ import {
     IconTag,
     IconTriangle,
 } from '@tabler/icons-react';
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
     ContentTable,
     useContentTable,
     type MRT_ColumnDef,
 } from '../../../../../components/common/ContentTable';
+import FilterFacet, {
+    type FilterFacetOption,
+} from '../../../../../components/common/FilterFacet';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
@@ -278,7 +283,7 @@ const CategoryToken = ({
     >
         <Text
             fz="xs"
-            fw={secondary ? 450 : 500}
+            fw={500}
             className={
                 secondary
                     ? styles.categoryTokenSecondaryText
@@ -337,7 +342,7 @@ const SuggestedStep = ({ children }: { children: string }) => (
                 size="xs"
                 className={styles.suggestedStepArrow}
             />
-            <Text fz="xs" c="ldGray.7" lineClamp={1}>
+            <Text fz="xs" fw={600} c="ldGray.8" lineClamp={1}>
                 {children}
             </Text>
         </Group>
@@ -365,6 +370,15 @@ const AiAgentAdminReviewItemsTable = ({
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [reviewSurface, setReviewSurface] =
         useState<ReviewSurface>('findings');
+    const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
+        [],
+    );
+    const [selectedRootCauses, setSelectedRootCauses] = useState<
+        AiAgentRootCause[]
+    >([]);
+    const [selectedSignals, setSelectedSignals] = useState<AiAgentTurnSignal[]>(
+        [],
+    );
     const deferredSearch = useDeferredValue(search);
 
     const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems({
@@ -389,11 +403,11 @@ const AiAgentAdminReviewItemsTable = ({
         );
     }, [projects]);
 
-    const filteredReviewItems = useMemo(() => {
-        if (!deferredSearch) return reviewItems;
-
-        const searchLower = deferredSearch.toLowerCase();
-        return reviewItems.filter((reviewItem) => {
+    const matchesReviewItemSearch = useCallback(
+        (
+            reviewItem: AiAgentReviewItemSummary,
+            searchLower: string,
+        ): boolean => {
             const agentUuid =
                 reviewItem.latestFinding?.agentUuid ?? reviewItem.agentUuid;
             const projectUuid =
@@ -416,14 +430,12 @@ const AiAgentAdminReviewItemsTable = ({
             ]
                 .filter(Boolean)
                 .some((value) => value?.toLowerCase().includes(searchLower));
-        });
-    }, [agentsMap, deferredSearch, projectsMap, reviewItems]);
+        },
+        [agentsMap, projectsMap],
+    );
 
-    const filteredReviewSignals = useMemo(() => {
-        if (!deferredSearch) return reviewSignals;
-
-        const searchLower = deferredSearch.toLowerCase();
-        return reviewSignals.filter((signal) => {
+    const matchesSignalSearch = useCallback(
+        (signal: AiAgentReviewSignalSummary, searchLower: string): boolean => {
             const agent = agentsMap.get(signal.agentUuid);
             const project = projectsMap.get(signal.projectUuid);
             return [
@@ -439,8 +451,289 @@ const AiAgentAdminReviewItemsTable = ({
             ]
                 .filter(Boolean)
                 .some((value) => value?.toLowerCase().includes(searchLower));
+        },
+        [agentsMap, projectsMap],
+    );
+
+    const getReviewItemProjectUuid = (
+        reviewItem: AiAgentReviewItemSummary,
+    ): string | null =>
+        reviewItem.latestFinding?.projectUuid ?? reviewItem.projectUuid ?? null;
+
+    const searchFilteredReviewItems = useMemo(() => {
+        if (!deferredSearch) return reviewItems;
+        const searchLower = deferredSearch.toLowerCase();
+        return reviewItems.filter((item) =>
+            matchesReviewItemSearch(item, searchLower),
+        );
+    }, [deferredSearch, matchesReviewItemSearch, reviewItems]);
+
+    const searchFilteredReviewSignals = useMemo(() => {
+        if (!deferredSearch) return reviewSignals;
+        const searchLower = deferredSearch.toLowerCase();
+        return reviewSignals.filter((signal) =>
+            matchesSignalSearch(signal, searchLower),
+        );
+    }, [deferredSearch, matchesSignalSearch, reviewSignals]);
+
+    const projectFilteredReviewItems = useMemo(() => {
+        if (selectedProjectUuids.length === 0) {
+            return searchFilteredReviewItems;
+        }
+        const projectSet = new Set(selectedProjectUuids);
+        return searchFilteredReviewItems.filter((item) => {
+            const projectUuid = getReviewItemProjectUuid(item);
+            return projectUuid !== null && projectSet.has(projectUuid);
         });
-    }, [agentsMap, deferredSearch, projectsMap, reviewSignals]);
+    }, [searchFilteredReviewItems, selectedProjectUuids]);
+
+    const projectFilteredReviewSignals = useMemo(() => {
+        if (selectedProjectUuids.length === 0) {
+            return searchFilteredReviewSignals;
+        }
+        const projectSet = new Set(selectedProjectUuids);
+        return searchFilteredReviewSignals.filter((signal) =>
+            projectSet.has(signal.projectUuid),
+        );
+    }, [searchFilteredReviewSignals, selectedProjectUuids]);
+
+    const filteredReviewItems = useMemo(() => {
+        if (selectedRootCauses.length === 0) {
+            return projectFilteredReviewItems;
+        }
+        const rootCauseSet = new Set(selectedRootCauses);
+        return projectFilteredReviewItems.filter((item) =>
+            rootCauseSet.has(item.primaryRootCause),
+        );
+    }, [projectFilteredReviewItems, selectedRootCauses]);
+
+    const filteredReviewSignals = useMemo(() => {
+        if (selectedSignals.length === 0) {
+            return projectFilteredReviewSignals;
+        }
+        const signalSet = new Set(selectedSignals);
+        return projectFilteredReviewSignals.filter((signal) =>
+            signalSet.has(signal.signal),
+        );
+    }, [projectFilteredReviewSignals, selectedSignals]);
+
+    const projectFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        const source =
+            reviewSurface === 'findings'
+                ? searchFilteredReviewItems
+                      .filter((item) => {
+                          if (selectedRootCauses.length === 0) return true;
+                          return selectedRootCauses.includes(
+                              item.primaryRootCause,
+                          );
+                      })
+                      .map(getReviewItemProjectUuid)
+                : searchFilteredReviewSignals
+                      .filter((signal) => {
+                          if (selectedSignals.length === 0) return true;
+                          return selectedSignals.includes(signal.signal);
+                      })
+                      .map((signal) => signal.projectUuid);
+
+        for (const projectUuid of source) {
+            if (!projectUuid) continue;
+            counts.set(projectUuid, (counts.get(projectUuid) ?? 0) + 1);
+        }
+
+        return Array.from(counts.entries())
+            .map(([projectUuid, count]) => ({
+                value: projectUuid,
+                label: projectsMap.get(projectUuid)?.name ?? 'Unknown project',
+                count,
+            }))
+            .sort(
+                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+            );
+    }, [
+        projectsMap,
+        reviewSurface,
+        searchFilteredReviewItems,
+        searchFilteredReviewSignals,
+        selectedRootCauses,
+        selectedSignals,
+    ]);
+
+    const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<AiAgentRootCause, number>();
+        for (const item of projectFilteredReviewItems) {
+            counts.set(
+                item.primaryRootCause,
+                (counts.get(item.primaryRootCause) ?? 0) + 1,
+            );
+        }
+        return (Object.keys(rootCauseLabels) as AiAgentRootCause[])
+            .map((rootCause) => ({
+                value: rootCause,
+                label: rootCauseLabels[rootCause],
+                count: counts.get(rootCause) ?? 0,
+            }))
+            .sort(
+                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+            );
+    }, [projectFilteredReviewItems]);
+
+    const signalFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<AiAgentTurnSignal, number>();
+        for (const signal of projectFilteredReviewSignals) {
+            counts.set(signal.signal, (counts.get(signal.signal) ?? 0) + 1);
+        }
+        return (Object.keys(signalLabels) as AiAgentTurnSignal[])
+            .map((turnSignal) => ({
+                value: turnSignal,
+                label: signalLabels[turnSignal],
+                count: counts.get(turnSignal) ?? 0,
+            }))
+            .sort(
+                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+            );
+    }, [projectFilteredReviewSignals]);
+
+    const hasActiveFilters =
+        selectedProjectUuids.length > 0 ||
+        selectedRootCauses.length > 0 ||
+        selectedSignals.length > 0;
+
+    const clearAllFilters = useCallback(() => {
+        setSelectedProjectUuids([]);
+        setSelectedRootCauses([]);
+        setSelectedSignals([]);
+    }, []);
+
+    const renderReviewsToolbar = ({
+        visibleCount,
+        totalCount,
+        noun,
+        isLoading: toolbarLoading,
+        surface,
+    }: {
+        visibleCount: number;
+        totalCount: number;
+        noun: 'item' | 'signal';
+        isLoading: boolean;
+        surface: ReviewSurface;
+    }) => {
+        const pluralised = visibleCount === 1 ? noun : `${noun}s`;
+        const countLabel = toolbarLoading
+            ? 'Loading...'
+            : hasActiveFilters && visibleCount !== totalCount
+              ? `${visibleCount} of ${totalCount} ${pluralised}`
+              : `${visibleCount} ${pluralised}`;
+
+        return (
+            <Box>
+                <Group
+                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                    justify="space-between"
+                >
+                    <Group gap="xs" wrap="wrap">
+                        <SearchFilter
+                            search={search}
+                            setSearch={setSearch}
+                            placeholder="Search reviews"
+                        />
+
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{
+                                alignSelf: 'center',
+                            }}
+                        />
+                        <SegmentedControl
+                            size="xs"
+                            radius="md"
+                            value={reviewSurface}
+                            onChange={(value) =>
+                                setReviewSurface(value as ReviewSurface)
+                            }
+                            data={[
+                                { value: 'findings', label: 'Findings' },
+                                { value: 'signals', label: 'Signals' },
+                            ]}
+                        />
+                        <ReviewConceptHelp />
+
+                        <FilterFacet
+                            label="Project"
+                            icon={IconBox}
+                            options={projectFacetOptions}
+                            selected={selectedProjectUuids}
+                            onChange={setSelectedProjectUuids}
+                            emptyLabel="No projects in current view"
+                            tooltipLabel="Filter by project"
+                        />
+                        {surface === 'findings' ? (
+                            <FilterFacet
+                                label="Root cause"
+                                icon={IconTag}
+                                options={rootCauseFacetOptions}
+                                selected={selectedRootCauses}
+                                onChange={(values) =>
+                                    setSelectedRootCauses(
+                                        values as AiAgentRootCause[],
+                                    )
+                                }
+                                emptyLabel="No root causes in current view"
+                                tooltipLabel="Filter by root cause"
+                            />
+                        ) : (
+                            <FilterFacet
+                                label="Signal"
+                                icon={IconTag}
+                                options={signalFacetOptions}
+                                selected={selectedSignals}
+                                onChange={(values) =>
+                                    setSelectedSignals(
+                                        values as AiAgentTurnSignal[],
+                                    )
+                                }
+                                emptyLabel="No signals in current view"
+                                tooltipLabel="Filter by signal type"
+                            />
+                        )}
+                        {hasActiveFilters && (
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                radius="md"
+                                leftSection={
+                                    <MantineIcon icon={IconFilterX} size="xs" />
+                                }
+                                onClick={clearAllFilters}
+                            >
+                                Clear filters
+                            </Button>
+                        )}
+                    </Group>
+
+                    <Box
+                        bg="ldGray.1"
+                        c="ldGray.9"
+                        style={{
+                            borderRadius: 6,
+                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
+                            height: 32,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Text fz="sm" fw={500}>
+                            {countLabel}
+                        </Text>
+                    </Box>
+                </Group>
+                <Divider color="ldGray.2" />
+            </Box>
+        );
+    };
 
     const columns: MRT_ColumnDef<AiAgentReviewItemSummary>[] = useMemo(
         () => [
@@ -514,7 +807,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 180,
+                size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -582,49 +875,50 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'lastSeenAt',
                 header: 'Last seen',
                 enableSorting: true,
-                size: 110,
+                size: 120,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Text fz="xs" c="ldGray.7" fw={500}>
-                        {formatLastSeenDate(row.original.lastSeenAt)}
-                    </Text>
-                ),
-            },
-            {
-                id: 'threadPreview',
-                header: '',
-                enableSorting: false,
-                size: 56,
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
                     const latestFinding = reviewItem.latestFinding;
-
-                    if (!latestFinding) return null;
-
                     return (
-                        <Tooltip label="Open AI thread preview" withArrow>
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="Open AI thread preview"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onReviewItemSelect?.({
-                                        projectUuid: latestFinding.projectUuid,
-                                        agentUuid: latestFinding.agentUuid,
-                                        threadUuid: latestFinding.threadUuid,
-                                        reviewItemUuid: reviewItem.uuid,
-                                    });
-                                }}
-                            >
-                                <MantineIcon icon={IconMessages} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <Group gap="xs" wrap="nowrap" justify="space-between">
+                            <Text fz="xs" c="ldGray.7" fw={500}>
+                                {formatLastSeenDate(reviewItem.lastSeenAt)}
+                            </Text>
+                            {latestFinding && (
+                                <Tooltip
+                                    label="Open AI thread preview"
+                                    withArrow
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="Open AI thread preview"
+                                        className={styles.threadIcon}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onReviewItemSelect?.({
+                                                projectUuid:
+                                                    latestFinding.projectUuid,
+                                                agentUuid:
+                                                    latestFinding.agentUuid,
+                                                threadUuid:
+                                                    latestFinding.threadUuid,
+                                                reviewItemUuid: reviewItem.uuid,
+                                            });
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconMessages} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </Group>
                     );
                 },
             },
@@ -737,7 +1031,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 180,
+                size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -795,47 +1089,42 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'createdAt',
                 header: 'Reviewed',
                 enableSorting: true,
-                size: 110,
+                size: 120,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Text fz="xs" c="ldGray.7" fw={500}>
-                        {formatLastSeenDate(row.original.createdAt)}
-                    </Text>
-                ),
-            },
-            {
-                id: 'threadPreview',
-                header: '',
-                enableSorting: false,
-                size: 56,
                 Cell: ({ row }) => {
                     const signal = row.original;
-
                     return (
-                        <Tooltip label="Open AI thread preview" withArrow>
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="Open AI thread preview"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onReviewItemSelect?.({
-                                        projectUuid: signal.projectUuid,
-                                        agentUuid: signal.agentUuid,
-                                        threadUuid: signal.threadUuid,
-                                        reviewItemUuid:
-                                            signal.finding?.reviewItemUuid,
-                                    });
-                                }}
-                            >
-                                <MantineIcon icon={IconMessages} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <Group gap="xs" wrap="nowrap" justify="space-between">
+                            <Text fz="xs" c="ldGray.7" fw={500}>
+                                {formatLastSeenDate(signal.createdAt)}
+                            </Text>
+                            <Tooltip label="Open AI thread preview" withArrow>
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    size="sm"
+                                    aria-label="Open AI thread preview"
+                                    className={styles.threadIcon}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onReviewItemSelect?.({
+                                            projectUuid: signal.projectUuid,
+                                            agentUuid: signal.agentUuid,
+                                            threadUuid: signal.threadUuid,
+                                            reviewItemUuid:
+                                                signal.finding?.reviewItemUuid,
+                                        });
+                                    }}
+                                >
+                                    <MantineIcon icon={IconMessages} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
                     );
                 },
             },
@@ -897,6 +1186,7 @@ const AiAgentAdminReviewItemsTable = ({
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
 
             return {
+                className: styles.bodyRow,
                 style: {
                     backgroundColor: isSelected
                         ? theme.colors.ldGray[1]
@@ -904,67 +1194,14 @@ const AiAgentAdminReviewItemsTable = ({
                 },
             };
         },
-        renderTopToolbar: () => (
-            <Box>
-                <Group
-                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                    justify="space-between"
-                >
-                    <Group gap="xs">
-                        <SearchFilter
-                            search={search}
-                            setSearch={setSearch}
-                            placeholder="Search reviews"
-                        />
-
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
-                        <SegmentedControl
-                            size="xs"
-                            radius="md"
-                            value={reviewSurface}
-                            onChange={(value) =>
-                                setReviewSurface(value as ReviewSurface)
-                            }
-                            data={[
-                                { value: 'findings', label: 'Findings' },
-                                { value: 'signals', label: 'Signals' },
-                            ]}
-                        />
-                        <ReviewConceptHelp />
-                    </Group>
-
-                    <Box
-                        bg="ldGray.1"
-                        c="ldGray.9"
-                        style={{
-                            borderRadius: 6,
-                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Text fz="sm" fw={500}>
-                            {isLoading
-                                ? 'Loading...'
-                                : `${filteredReviewItems.length} ${
-                                      filteredReviewItems.length === 1
-                                          ? 'item'
-                                          : 'items'
-                                  }`}
-                        </Text>
-                    </Box>
-                </Group>
-                <Divider color="ldGray.2" />
-            </Box>
-        ),
+        renderTopToolbar: () =>
+            renderReviewsToolbar({
+                visibleCount: filteredReviewItems.length,
+                totalCount: searchFilteredReviewItems.length,
+                noun: 'item',
+                isLoading,
+                surface: 'findings',
+            }),
         state: {
             showProgressBars: false,
             showSkeletons: isLoading,
@@ -1029,6 +1266,7 @@ const AiAgentAdminReviewItemsTable = ({
 
             const signal = row.original;
             return {
+                className: styles.bodyRow,
                 style: {
                     backgroundColor:
                         selectedReviewItemUuid &&
@@ -1039,67 +1277,14 @@ const AiAgentAdminReviewItemsTable = ({
                 },
             };
         },
-        renderTopToolbar: () => (
-            <Box>
-                <Group
-                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                    justify="space-between"
-                >
-                    <Group gap="xs">
-                        <SearchFilter
-                            search={search}
-                            setSearch={setSearch}
-                            placeholder="Search reviews"
-                        />
-
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
-                        <SegmentedControl
-                            size="xs"
-                            radius="md"
-                            value={reviewSurface}
-                            onChange={(value) =>
-                                setReviewSurface(value as ReviewSurface)
-                            }
-                            data={[
-                                { value: 'findings', label: 'Findings' },
-                                { value: 'signals', label: 'Signals' },
-                            ]}
-                        />
-                        <ReviewConceptHelp />
-                    </Group>
-
-                    <Box
-                        bg="ldGray.1"
-                        c="ldGray.9"
-                        style={{
-                            borderRadius: 6,
-                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Text fz="sm" fw={500}>
-                            {isSignalsLoading
-                                ? 'Loading...'
-                                : `${filteredReviewSignals.length} ${
-                                      filteredReviewSignals.length === 1
-                                          ? 'signal'
-                                          : 'signals'
-                                  }`}
-                        </Text>
-                    </Box>
-                </Group>
-                <Divider color="ldGray.2" />
-            </Box>
-        ),
+        renderTopToolbar: () =>
+            renderReviewsToolbar({
+                visibleCount: filteredReviewSignals.length,
+                totalCount: searchFilteredReviewSignals.length,
+                noun: 'signal',
+                isLoading: isSignalsLoading,
+                surface: 'signals',
+            }),
         state: {
             showProgressBars: false,
             showSkeletons: isSignalsLoading,
