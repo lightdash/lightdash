@@ -1,3 +1,10 @@
+# [0.3046.0](https://github.com/lightdash/lightdash/compare/0.3045.0...0.3046.0) (2026-05-29)
+
+
+### Features
+
+* **ai-agents:** project + root-cause filters and shared FilterFacet ([#23624](https://github.com/lightdash/lightdash/issues/23624)) ([22dc01c](https://github.com/lightdash/lightdash/commit/22dc01c10ce9dc66516c6d3e68fbc3e020a5a63e))
+
 # [0.3045.0](https://github.com/lightdash/lightdash/compare/0.3044.0...0.3045.0) (2026-05-29)
 
 
