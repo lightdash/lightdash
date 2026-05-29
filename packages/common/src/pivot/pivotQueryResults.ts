@@ -33,6 +33,47 @@ type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
 
+/**
+ * Warehouse-computed row totals, keyed by a stable index-value key (built with
+ * `buildPivotRowTotalKey`) → metric fieldId → numeric total. Produced by the
+ * `calculate-total` endpoint (`kind: 'rowTotal'`) and fed into the pivot worker
+ * so the displayed row totals are correct for every metric type — count
+ * distinct, average, ratios — instead of the client-side sum that only holds
+ * for additive metrics.
+ */
+export type PivotRowTotalsByIndex = Record<string, Record<string, number>>;
+
+// ISO 8601 datetime with an explicit timezone (e.g. 2026-01-01T00:00:00Z).
+const ISO_DATETIME_RE =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
+
+// Canonicalize a raw index value to a stable string. Date columns serialize
+// differently between the pivot query (`...00Z`) and the flat totals query
+// (`...00.000Z`), so any ISO datetime is normalized to its ISO instant; other
+// values pass through as a plain string.
+const normalizeRowTotalRaw = (raw: unknown): string | null => {
+    if (raw === null || raw === undefined) return null;
+    const str = String(raw);
+    if (ISO_DATETIME_RE.test(str)) {
+        const parsed = new Date(str);
+        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+    return str;
+};
+
+// Stable, order-independent key for matching a pivot row to its warehouse row
+// total. Both the worker (reading source pivot rows) and the frontend hook
+// (reading the flat totals query rows) must build the key from the same set of
+// index dimension fieldIds, so we sort by fieldId and normalize the raw value.
+export const buildPivotRowTotalKey = (
+    indexEntries: Array<[fieldId: string, raw: unknown]>,
+): string =>
+    JSON.stringify(
+        [...indexEntries]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([fieldId, raw]) => [fieldId, normalizeRowTotalRaw(raw)]),
+    );
+
 // Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
 // (parameters live on the client). For flat tables, useColumns re-formats per
 // cell. The pivot path stores backend values verbatim, so we do the same
@@ -173,17 +214,18 @@ const combinedRetrofit = (
         });
     });
 
+    // Row totals are warehouse-computed (see `convertSqlPivotedRowsToPivotData`),
+    // so they are correct for every metric type — no `isSummable` gate. A null
+    // total means no warehouse value was available for that cell; render blank.
     const getMetricAsRowTotalValueFromAxis = (
         total: unknown,
         rowIndex: number,
     ): ResultValue | null => {
         const value = last(data.indexValues[rowIndex]);
         if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+        if (total === null || total === undefined) return null;
 
         const item = getField(value.fieldId);
-        if (!isSummable(item)) {
-            return null;
-        }
         const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
@@ -195,8 +237,9 @@ const combinedRetrofit = (
     const getRowTotalValueFromAxis = (
         field: TotalField | undefined,
         total: unknown,
-    ): ResultValue => {
+    ): ResultValue | null => {
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
+        if (total === null || total === undefined) return null;
         const item = getField(field.fieldId);
 
         const formattedValue = formatItemValue(item, total, false, parameters);
@@ -454,6 +497,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    warehouseRowTotals,
     columnLimit,
     parameters,
 }: {
@@ -472,6 +516,14 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: Record<string, Record<string, number>[]> | undefined;
+    /**
+     * Warehouse-computed row totals from `calculate-total` (`kind: 'rowTotal'`).
+     * Row totals are exclusively warehouse-computed — there is no client-side
+     * fallback — so cells are blank until this resolves (or stay blank if the
+     * source query can't be totalled). Drives both the metrics-as-columns and
+     * metrics-as-rows layouts.
+     */
+    warehouseRowTotals?: PivotRowTotalsByIndex;
     columnLimit?: number;
     parameters?: ParametersValuesMap;
 }): PivotData => {
@@ -516,6 +568,17 @@ export const convertSqlPivotedRowsToPivotData = ({
         }
     } else {
         indexColumns = [];
+    }
+
+    // Full index references (including hidden index dims). The warehouse row
+    // total query groups by ALL index dims, and the source pivot rows are
+    // grouped the same way (hiding only affects rendering), so the lookup key
+    // must use every index dim — not just the visible `indexColumns`.
+    let allIndexColumnRefs: string[] = [];
+    if (pivotDetails.indexColumn) {
+        allIndexColumnRefs = Array.isArray(pivotDetails.indexColumn)
+            ? pivotDetails.indexColumn.map((col) => col.reference)
+            : [pivotDetails.indexColumn.reference];
     }
 
     // Filter value columns: visibleMetricFieldIds (allowlist) takes precedence
@@ -811,57 +874,6 @@ export const convertSqlPivotedRowsToPivotData = ({
     const N_DATA_ROWS = hasIndex ? dataValues.length : 1;
     const N_DATA_COLUMNS = hasHeader ? uniqueColumns.length : 1;
 
-    // Build column indices using unique columns
-    const columnIndices = uniqueColumns.reduce<RecursiveRecord<number>>(
-        (acc, valuesColumn, index) => {
-            const pivotValues = (pivotDetails.groupByColumns || []).map(
-                (col) =>
-                    valuesColumn.pivotValues.find(
-                        ({ referenceField }) =>
-                            referenceField === col.reference,
-                    )?.value,
-            );
-
-            // Create nested structure based on pivotValues
-            let current = acc;
-            for (let i = 0; i < pivotValues.length; i += 1) {
-                const pivotValue = String(pivotValues[i]);
-                if (
-                    !Object.prototype.hasOwnProperty.call(current, pivotValue)
-                ) {
-                    Object.defineProperty(current, pivotValue, {
-                        value: {},
-                        writable: true,
-                        enumerable: true,
-                        configurable: true,
-                    });
-                }
-                current = current[pivotValue] as RecursiveRecord<number>;
-            }
-
-            // For metricsAsRows, don't include metric in column key
-            if (!pivotConfig.metricsAsRows) {
-                Object.defineProperty(current, valuesColumn.referenceField, {
-                    value: index,
-                    writable: true,
-                    enumerable: true,
-                    configurable: true,
-                });
-            } else {
-                // Use a generic key since metrics are in rows, not columns
-                Object.defineProperty(current, 'value', {
-                    value: index,
-                    writable: true,
-                    enumerable: true,
-                    configurable: true,
-                });
-            }
-
-            return acc;
-        },
-        {},
-    );
-
     const summableMetricFieldIds = baseMetricsArray.filter((metricId) => {
         const field = getField(metricId);
 
@@ -873,9 +885,39 @@ export const convertSqlPivotedRowsToPivotData = ({
     });
 
     if (fullPivotConfig.rowTotals && hasHeader) {
+        // Row totals are exclusively warehouse-computed: look up the value for a
+        // (source row, metric) pair in `warehouseRowTotals`, keyed by the row's
+        // index-dim values. Returns null when no warehouse value is available
+        // (e.g. still loading, errored, or the source query can't be totalled)
+        // — there is no client-side fallback, so the cell renders blank.
+        const warehouseRowTotalValue = (
+            sourceRowIndex: number,
+            metricFieldId: string | undefined,
+        ): number | null => {
+            if (!warehouseRowTotals || !metricFieldId) return null;
+            const warehouseRow =
+                warehouseRowTotals[
+                    buildPivotRowTotalKey(
+                        allIndexColumnRefs.map((ref) => [
+                            ref,
+                            rows[sourceRowIndex]?.[ref]?.value?.raw,
+                        ]),
+                    )
+                ];
+            if (!warehouseRow) return null;
+            // The totals query column carries the metric aggregation suffix
+            // (`<metric>_any` for Lightdash metrics, matching PivotQueryBuilder
+            // naming); fall back to the bare id.
+            const value =
+                warehouseRow[`${metricFieldId}_any`] ??
+                warehouseRow[metricFieldId];
+            return typeof value === 'number' ? value : null;
+        };
+
         if (fullPivotConfig.metricsAsRows) {
             const N_TOTAL_COLS = 1;
             const N_TOTAL_ROWS = headerValues.length;
+            const N_METRICS = baseMetricsArray.length;
 
             rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
@@ -885,48 +927,42 @@ export const convertSqlPivotedRowsToPivotData = ({
                 fieldId: undefined,
             };
 
+            // Output rows fan out one per metric per source row (see indexValues
+            // construction), so row `i` is source `floor(i / N)` × metric `i % N`.
             rowTotals = rowTotals.map((row, rowIndex) =>
-                row.map(() =>
-                    dataValues[rowIndex].reduce(
-                        (acc, value) => acc + parseNumericValue(value),
-                        0,
-                    ),
-                ),
+                row.map(() => {
+                    if (N_METRICS === 0) return null;
+                    const sourceRowIndex = Math.floor(rowIndex / N_METRICS);
+                    const metricFieldId =
+                        baseMetricsArray[rowIndex % N_METRICS];
+                    return warehouseRowTotalValue(
+                        sourceRowIndex,
+                        metricFieldId,
+                    );
+                }),
             );
         } else {
-            const N_TOTAL_COLS = summableMetricFieldIds.length;
+            // One total column per visible base metric.
+            const N_TOTAL_COLS = baseMetricsArray.length;
             const N_TOTAL_ROWS = headerValues.length;
 
             rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             rowTotals = create2DArray(rows.length, N_TOTAL_COLS);
 
-            // Set the last header cell as the "Total"
-            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
+            baseMetricsArray.forEach((fieldId, metricIndex) => {
                 rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
                     fieldId,
                 };
             });
 
             rowTotals = rowTotals.map((row, rowIndex) =>
-                row.map((_, totalColIndex) => {
-                    const totalColFieldId =
+                row.map((_, totalColIndex) =>
+                    warehouseRowTotalValue(
+                        rowIndex,
                         rowTotalFields![N_TOTAL_ROWS - 1][totalColIndex]
-                            ?.fieldId;
-                    const valueColIndices = totalColFieldId
-                        ? getAllIndicesForFieldId(
-                              columnIndices,
-                              totalColFieldId,
-                          )
-                        : [];
-                    return dataValues[rowIndex]
-                        .filter((__, dataValueColIndex) =>
-                            valueColIndices.includes(dataValueColIndex),
-                        )
-                        .reduce(
-                            (acc, value) => acc + parseNumericValue(value),
-                            0,
-                        );
-                }),
+                            ?.fieldId,
+                    ),
+                ),
             );
         }
     }

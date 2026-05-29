@@ -148,12 +148,10 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncFieldValueSearchRequestParams;
 
 /**
- * Kinds of totals derivable from an executed pivot query. Only `columnTotal`
- * is implemented today; follow-up PRs will widen the union to enable the
- * commented-out variants below.
+ * Kinds of totals derivable from an executed pivot query. Follow-up PRs
+ * will widen the union to enable the commented-out variants below.
  */
-export type CalculateTotalKind = 'columnTotal';
-// | 'rowTotal'
+export type CalculateTotalKind = 'columnTotal' | 'rowTotal';
 // | 'columnSubtotal'
 // | 'rowSubtotal'
 // | 'grandTotal';

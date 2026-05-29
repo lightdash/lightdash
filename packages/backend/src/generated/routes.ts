@@ -34329,7 +34329,14 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CalculateTotalKind: {
         dataType: 'refAlias',
-        type: { dataType: 'enum', enums: ['columnTotal'], validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['columnTotal'] },
+                { dataType: 'enum', enums: ['rowTotal'] },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncCalculateTotalRequestParams: {

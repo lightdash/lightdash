@@ -25,7 +25,10 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
-import { useAsyncCalculateTotal } from '../useAsyncCalculateTotal';
+import {
+    useAsyncCalculateRowTotal,
+    useAsyncCalculateTotal,
+} from '../useAsyncCalculateTotal';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useIsHidePivotDimsEnabled } from '../useIsHidePivotDimsEnabled';
 import { useIsPivotRowGroupingEnabled } from '../useIsPivotRowGroupingEnabled';
@@ -244,6 +247,29 @@ const useTableConfig = (
         invalidateCache,
     });
 
+    // Index dimension field ids the warehouse row-total query groups by — the
+    // worker keys each rendered row's total by these. Row totals are exclusively
+    // warehouse-computed (no client-side fallback) for SQL pivots, in both the
+    // metrics-as-columns and metrics-as-rows layouts.
+    const rowTotalIndexFieldIds = useMemo<string[]>(() => {
+        const indexColumn = resultsData?.pivotDetails?.indexColumn;
+        if (!indexColumn) return [];
+        return Array.isArray(indexColumn)
+            ? indexColumn.map((col) => col.reference)
+            : [indexColumn.reference];
+    }, [resultsData?.pivotDetails?.indexColumn]);
+    const canFetchAsyncRowTotals =
+        !!resultsData?.queryUuid &&
+        !!tableChartConfig?.showRowCalculation &&
+        !!resultsData?.pivotDetails;
+    const { data: asyncRowTotals } = useAsyncCalculateRowTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        indexFieldIds: rowTotalIndexFieldIds,
+        enabled: canFetchAsyncRowTotals,
+        invalidateCache,
+    });
+
     const { data: groupedSubtotals } = useCalculateSubtotals(
         embedToken && savedChartUuid
             ? {
@@ -404,6 +430,7 @@ const useTableConfig = (
                 getField,
                 getFieldLabel,
                 groupedSubtotals,
+                warehouseRowTotals: asyncRowTotals,
                 parameters,
             })
             .then((data) => {
@@ -434,6 +461,7 @@ const useTableConfig = (
         tableChartConfig?.showRowCalculation,
         worker,
         groupedSubtotals,
+        asyncRowTotals,
         parameters,
     ]);
 
