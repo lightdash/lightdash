@@ -116,6 +116,17 @@ getRowSpanMerges(rows, columnIds, getCellRawValue)
   different outer values does not get wrongly merged.
 - Absorbed rows get `{ isBlockStart: false, rowSpan: 0 }`.
 
+**Ordering assumption.** This is **consecutive** run-length encoding on the existing
+flat row order — it merges adjacent equal values and **preserves the user's row
+order**. It does *not* globally regroup non-adjacent equal values the way the current
+TanStack `getGroupedRowModelLightdash` does (that model buckets by first appearance and
+reorders). For the standard pivot ordering — sorted by the index dimensions, as in the
+target screenshots — the two are identical, and this matches the ticket's own sketch
+("comparing the row-index-dim tuple to the previous row's"). Avoiding a reorder also
+keeps `rowIndex` aligned with `data.indexValues[rowIndex]` / `dataValues[rowIndex]` and
+all the per-row conditional-formatting / cell-menu lookups, which a permutation would
+break.
+
 This helper is the testable core. Unit tests cover: single grouped dim, two nested
 dims, repeated inner value under different outer values, all-distinct, all-same,
 single row.
