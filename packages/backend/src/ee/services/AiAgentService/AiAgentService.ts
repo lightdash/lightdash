@@ -654,20 +654,6 @@ export class AiAgentService extends BaseService {
         return isEligibleForTrial;
     }
 
-    private async getIsContextCompactionEnabled(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiContextCompaction,
-        });
-
-        return flag.enabled;
-    }
-
     /**
      * Checks if a user has access to an AI agent
      * Returns true if:
@@ -2819,16 +2805,6 @@ export class AiAgentService extends BaseService {
         if (prompt.threadUuid !== threadUuid) {
             Logger.debug(
                 `${compactionLogContext} skipped reason=thread-mismatch promptThread=${prompt.threadUuid}`,
-            );
-            return latestCompaction ?? null;
-        }
-
-        const compactionEnabled =
-            await this.getIsContextCompactionEnabled(user);
-
-        if (!compactionEnabled) {
-            Logger.debug(
-                `${compactionLogContext} skipped reason=feature-flag-disabled`,
             );
             return latestCompaction ?? null;
         }
