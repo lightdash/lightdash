@@ -4724,33 +4724,34 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
     }
 
-    private canManageContentAsCode(
+    private async canManageContentAsCode(
         user: SessionUser,
         projectUuid: string,
-    ): boolean {
+    ): Promise<boolean> {
         if (!user.organizationUuid) {
             return false;
         }
 
+        const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         return auditedAbility.can(
             'manage',
             subject('ContentAsCode', {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: project.organizationUuid,
                 projectUuid,
             }),
         );
     }
 
-    private assertCanManageContentAsCode(
+    private async assertCanManageContentAsCode(
         user: SessionUser,
         projectUuid: string,
-    ): void {
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
 
-        if (!this.canManageContentAsCode(user, projectUuid)) {
+        if (!(await this.canManageContentAsCode(user, projectUuid))) {
             throw new ForbiddenError(
                 'You do not have permission to manage content as code',
             );
@@ -4776,7 +4777,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.readContent`,
                 { slug, type },
                 async () => {
-                    this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanManageContentAsCode(user, projectUuid);
 
                     switch (type) {
                         case 'dashboard': {
@@ -4833,7 +4834,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.editContent`,
                 { slug, type },
                 async () => {
-                    this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanManageContentAsCode(user, projectUuid);
 
                     if (!Array.isArray(patch)) {
                         throw new ParameterError(
@@ -4899,7 +4900,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.createContent`,
                 { slug: content.slug, type },
                 async () => {
-                    this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanManageContentAsCode(user, projectUuid);
 
                     switch (type) {
                         case 'dashboard': {
@@ -4963,7 +4964,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.listContent`,
                 { spaceSlug, page },
                 async () => {
-                    this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanManageContentAsCode(user, projectUuid);
 
                     const pageSize = 25;
                     const agentSpaceAccess = getAgentSpaceAccess
@@ -6071,7 +6072,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             aiWritebackEnabled = false;
         }
-        const canManageContentAsCode = this.canManageContentAsCode(
+        const canManageContentAsCode = await this.canManageContentAsCode(
             user,
             prompt.projectUuid,
         );

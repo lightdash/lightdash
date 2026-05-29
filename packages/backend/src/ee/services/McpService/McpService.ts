@@ -2071,20 +2071,12 @@ export class McpService extends BaseService {
             },
         );
 
-        // Dark-launched: these tools are only registered — and therefore only
-        // advertised in tools/list and invocable — when the MCP content-as-code
-        // feature flag is enabled for the caller. The flag is resolved
-        // per-request in the MCP router (mcpRouter.ts) and passed through
-        // createServer.
+        // Dark-launched content-as-code tools.
         if (options.mcpContentAsCodeEnabled) {
             this.registerMcpContentAsCodeTools();
         }
 
-        // Dark-launched: this tool is only registered — and therefore only
-        // advertised in tools/list and invocable — when the AiWriteback
-        // feature flag is enabled for the caller. Clients without the flag
-        // never see it. The flag is resolved per-request in the MCP router
-        // (mcpRouter.ts) and passed through createServer.
+        // Dark-launched writeback tool.
         if (options.aiWritebackEnabled) {
             this.registerRunAiWritebackTool();
         }
@@ -2908,11 +2900,12 @@ export class McpService extends BaseService {
             return true;
         }
 
+        const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         return auditedAbility.can(
             'manage',
             subject('ContentAsCode', {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: project.organizationUuid,
                 projectUuid,
             }),
         );
