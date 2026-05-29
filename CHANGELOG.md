@@ -1,3 +1,10 @@
+## [0.3053.1](https://github.com/lightdash/lightdash/compare/0.3053.0...0.3053.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** cap one writeback PR per Slack thread ([#23679](https://github.com/lightdash/lightdash/issues/23679)) ([2625d8e](https://github.com/lightdash/lightdash/commit/2625d8ebd04126addfc760d5853a4417d74dd92e))
+
 # [0.3053.0](https://github.com/lightdash/lightdash/compare/0.3052.2...0.3053.0) (2026-05-29)
 
 
