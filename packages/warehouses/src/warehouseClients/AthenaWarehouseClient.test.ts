@@ -315,10 +315,7 @@ describe('AthenaWarehouseClient', () => {
 
         test('should list tables from single schema', async () => {
             mockSend.mockResolvedValueOnce({
-                TableMetadataList: [
-                    { Name: 'table1' },
-                    { Name: 'table2' },
-                ],
+                TableMetadataList: [{ Name: 'table1' }, { Name: 'table2' }],
                 NextToken: undefined,
             });
 

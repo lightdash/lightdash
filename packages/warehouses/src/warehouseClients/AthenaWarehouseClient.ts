@@ -312,7 +312,10 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
     private static matchesGlob(name: string, pattern: string): boolean {
         const regex = new RegExp(
-            `^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`,
+            `^${pattern
+                .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                .replace(/\*/g, '.*')
+                .replace(/\?/g, '.')}$`,
         );
         return regex.test(name);
     }
@@ -362,9 +365,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         if (patterns.length > 0) {
             const allDatabases = await this.listAllDatabases();
             const matched = allDatabases.filter((db) =>
-                patterns.some((p) =>
-                    AthenaWarehouseClient.matchesGlob(db, p),
-                ),
+                patterns.some((p) => AthenaWarehouseClient.matchesGlob(db, p)),
             );
             if (matched.length > MAX_WILDCARD_MATCHES) {
                 throw new WarehouseConnectionError(
