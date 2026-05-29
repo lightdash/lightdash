@@ -176,9 +176,12 @@ mcpRouter.all(
                 // registration in createServer/setupHandlers is synchronous.
                 const aiWritebackEnabled =
                     await mcpService.isAiWritebackEnabled(req.user!);
+                const mcpContentAsCodeEnabled =
+                    await mcpService.isMcpContentAsCodeEnabled(req.user!);
                 const mcpServer = mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     aiWritebackEnabled,
+                    mcpContentAsCodeEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,

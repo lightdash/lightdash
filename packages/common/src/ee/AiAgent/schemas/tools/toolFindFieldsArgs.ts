@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import {
+    createToolSchema,
+    toolPaginationOutputSchema,
+} from '../toolSchemaBuilder';
 
 export const TOOL_FIND_FIELDS_DESCRIPTION = `Tool: "findFields"
 
@@ -45,14 +48,7 @@ export const findFieldsRankingMetadataSchema = z.object({
                     verifiedChartUsage: z.number().nullable().optional(),
                 }),
             ),
-            pagination: z
-                .object({
-                    page: z.number(),
-                    pageSize: z.number(),
-                    totalResults: z.number(),
-                    totalPageCount: z.number(),
-                })
-                .optional(),
+            pagination: toolPaginationOutputSchema.optional(),
         }),
     ),
 });

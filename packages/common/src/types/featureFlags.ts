@@ -227,6 +227,13 @@ export enum FeatureFlags {
      * MCP using the org's existing installation token — no manual URL/auth.
      */
     GithubMcpOneClick = 'github-mcp-one-click',
+
+    /**
+     * Expose MCP tools for reading, listing, creating, and editing charts and
+     * dashboards using Lightdash content-as-code payloads. Off by default
+     * while the MCP write surface is dark-launched.
+     */
+    McpContentAsCode = 'mcp-content-as-code',
 }
 
 export type FeatureFlag = {

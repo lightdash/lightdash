@@ -7165,6 +7165,246 @@ Notes:
     },
     {
       "agentName": null,
+      "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "description": "Use this to paginate through the results. Starts at 1., ",
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "spaceSlug": {
+            "description": "Optional space slug/path to list. Use null to list root-level content., ",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "list_content",
+      "title": "List content",
+    },
+    {
+      "agentName": null,
+      "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "Slug of the dashboard or chart to read.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to read.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+        ],
+        "type": "object",
+      },
+      "name": "read_content",
+      "title": "Read content",
+    },
+    {
+      "agentName": null,
+      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "description": "Full Dashboard JSON to create.",
+                "properties": {
+                  "config": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "filters": {},
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tabs": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "tiles": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tiles",
+                  "tabs",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": true,
+                "description": "Full Chart JSON to create.",
+                "properties": {
+                  "chartConfig": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "dashboardSlug": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "metricQuery": {},
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "pivotConfig": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tableConfig": {},
+                  "tableName": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tableName",
+                  "dashboardSlug",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": {
+            "description": "Type of Lightdash content to create.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "content",
+        ],
+        "type": "object",
+      },
+      "name": "create_content",
+      "title": "Create content",
+    },
+    {
+      "agentName": null,
+      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "patch": {
+            "description": "RFC6902 Patch to apply to the current dashboard or chart JSON.",
+            "items": {},
+            "type": "array",
+          },
+          "slug": {
+            "description": "Slug of the dashboard or chart to edit.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to edit.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+          "patch",
+        ],
+        "type": "object",
+      },
+      "name": "edit_content",
+      "title": "Edit content",
+    },
+    {
+      "agentName": null,
       "description": "Tool: run_ai_writeback
 
 Purpose:
@@ -7253,6 +7493,10 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "run_metric_query",
   "run_sql",
   "get_query_result",
+  "read_content",
+  "edit_content",
+  "create_content",
+  "list_content",
   "get_lightdash_version",
   "list_explores",
   "list_projects",

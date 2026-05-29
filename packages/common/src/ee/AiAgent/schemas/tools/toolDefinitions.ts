@@ -352,36 +352,48 @@ export const readContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description: TOOL_READ_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolReadContentArgsSchema,
     agent: { outputSchema: toolReadContentOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const editContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolEditContentArgsSchema,
     agent: { outputSchema: toolEditContentOutputSchema },
+    mcp: {
+        annotations: writeAnnotations,
+    },
 });
 
 export const createContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolCreateContentArgsSchema,
     agent: { outputSchema: toolCreateContentOutputSchema },
+    mcp: {
+        annotations: writeAnnotations,
+    },
 });
 
 export const listContentToolDefinition = defineTool({
     name: 'listContent',
     title: 'List content',
     description: TOOL_LIST_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolListContentArgsSchema,
     agent: { outputSchema: toolListContentOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const improveContextToolDefinition = defineTool({

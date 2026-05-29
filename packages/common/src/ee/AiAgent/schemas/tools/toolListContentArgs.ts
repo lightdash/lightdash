@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
-import { createToolSchema } from '../toolSchemaBuilder';
+import {
+    createToolSchema,
+    toolPaginationOutputSchema,
+} from '../toolSchemaBuilder';
 
 export const TOOL_LIST_CONTENT_DESCRIPTION = `Tool: "listContent"
 Purpose:
@@ -27,6 +30,30 @@ export const toolListContentArgsSchema = createToolSchema()
 export const toolListContentOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
+});
+
+export const mcpListContentStructuredOutputSchema = z.object({
+    spaceSlug: z.string().nullable(),
+    items: z.array(
+        z.union([
+            z.object({
+                contentType: z.enum(['chart', 'dashboard', 'data_app']),
+                name: z.string(),
+                slug: z.string(),
+            }),
+            z.object({
+                contentType: z.literal('space'),
+                name: z.string(),
+                slug: z.string(),
+                chartCount: z.number(),
+                dashboardCount: z.number(),
+                childSpaceCount: z.number(),
+                appCount: z.number(),
+                directAccess: z.boolean(),
+            }),
+        ]),
+    ),
+    pagination: toolPaginationOutputSchema.optional(),
 });
 
 export type ToolListContentArgs = z.infer<typeof toolListContentArgsSchema>;

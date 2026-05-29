@@ -15,6 +15,7 @@ type RegisteredMcpTool = {
         outputSchema?: ZodRawShape | ZodTypeAny;
         _meta?: Record<string, unknown>;
     };
+    callback: (args: unknown, extra: unknown) => Promise<unknown>;
 };
 
 type RegisteredMcpPrompt = {
@@ -53,7 +54,11 @@ jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
                 config: RegisteredMcpTool['config'],
                 _callback: unknown,
             ) => {
-                mockRegisteredMcpTools.push({ name, config });
+                mockRegisteredMcpTools.push({
+                    name,
+                    config,
+                    callback: _callback as RegisteredMcpTool['callback'],
+                });
                 return {};
             },
         ),
@@ -75,12 +80,16 @@ const schemaToJson = (
     );
 };
 
-const makeMcpService = (): McpService =>
+const makeMcpService = (
+    overrides: Partial<ConstructorParameters<typeof McpService>[0]> = {},
+): McpService =>
     new McpService({
         aiAgentService: {},
         aiOrganizationSettingsService: {},
         aiWritebackService: {},
-        analytics: {},
+        analytics: {
+            track: jest.fn(),
+        },
         asyncQueryService: {},
         catalogService: {},
         contentVerificationService: {},
@@ -91,13 +100,24 @@ const makeMcpService = (): McpService =>
             },
             siteUrl: 'https://lightdash.example',
         },
-        mcpContextModel: {},
+        mcpContextModel: {
+            getContext: jest.fn().mockResolvedValue({
+                context: {
+                    projectUuid: 'project-uuid',
+                    projectName: 'Project',
+                    agentUuid: null,
+                    agentName: null,
+                    tags: null,
+                },
+            }),
+        },
         projectModel: {},
         projectService: {},
         searchModel: {},
         shareService: {},
         spaceService: {},
         userAttributesModel: {},
+        ...overrides,
     } as ConstructorParameters<typeof McpService>[0]);
 
 const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
@@ -119,7 +139,10 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        mcpService.createServer({ aiWritebackEnabled: true });
+        mcpService.createServer({
+            aiWritebackEnabled: true,
+            mcpContentAsCodeEnabled: true,
+        });
 
         expect({
             prompts: mockRegisteredMcpPrompts.map(({ name, config }) => ({
@@ -142,5 +165,31 @@ describe('MCP tool contracts', () => {
                     : {}),
             })),
         }).toMatchSnapshot();
+    });
+
+    it('only registers content-as-code tools when enabled', () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        mcpService.createServer({ mcpContentAsCodeEnabled: false });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toEqual(
+            expect.arrayContaining([
+                McpToolName.LIST_CONTENT,
+                McpToolName.READ_CONTENT,
+                McpToolName.CREATE_CONTENT,
+                McpToolName.EDIT_CONTENT,
+            ]),
+        );
+
+        mockRegisteredMcpTools.length = 0;
+        mcpService.createServer({ mcpContentAsCodeEnabled: true });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toEqual(
+            expect.arrayContaining([
+                McpToolName.LIST_CONTENT,
+                McpToolName.READ_CONTENT,
+                McpToolName.CREATE_CONTENT,
+                McpToolName.EDIT_CONTENT,
+            ]),
+        );
     });
 });

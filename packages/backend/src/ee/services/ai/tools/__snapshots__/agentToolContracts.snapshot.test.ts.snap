@@ -562,6 +562,8 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "properties": {
         "patch": {
           "description": "RFC6902 Patch to apply to the current dashboard or chart JSON.",
+          "items": {},
+          "type": "array",
         },
         "slug": {
           "description": "Slug of the dashboard or chart to edit.",
@@ -580,6 +582,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "required": [
         "slug",
         "type",
+        "patch",
       ],
       "type": "object",
     },

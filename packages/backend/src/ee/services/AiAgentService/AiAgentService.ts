@@ -4724,6 +4724,253 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
     }
 
+    public getContentToolDependencies({
+        user,
+        projectUuid,
+        getAgentSpaceAccess,
+        sentryPrefix = 'AiAgent',
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        getAgentSpaceAccess?: () => Promise<Set<string> | null>;
+        sentryPrefix?: 'AiAgent' | 'McpService';
+    }): Pick<
+        AiAgentDependencies,
+        'listContent' | 'readContent' | 'editContent' | 'createContent'
+    > {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage content as code',
+            );
+        }
+
+        const readContent: ReadContentFn = ({ slug, type }) =>
+            wrapSentryTransaction(
+                `${sentryPrefix}.readContent`,
+                { slug, type },
+                async () => {
+                    switch (type) {
+                        case 'dashboard': {
+                            const { dashboards } =
+                                await this.coderService.getDashboards(
+                                    user,
+                                    projectUuid,
+                                    [slug],
+                                );
+
+                            const dashboard = dashboards[0];
+                            if (!dashboard) {
+                                throw new NotFoundError(
+                                    `Dashboard "${slug}" was not found`,
+                                );
+                            }
+
+                            return {
+                                type: 'dashboard',
+                                content: dashboard,
+                            };
+                        }
+                        case 'chart': {
+                            const { charts } =
+                                await this.coderService.getCharts(
+                                    user,
+                                    projectUuid,
+                                    [slug],
+                                );
+
+                            const chart = charts[0];
+                            if (!chart) {
+                                throw new NotFoundError(
+                                    `Chart "${slug}" was not found`,
+                                );
+                            }
+
+                            return {
+                                type: 'chart',
+                                content: chart,
+                            };
+                        }
+                        default:
+                            return assertUnreachable(
+                                type,
+                                'Invalid content type',
+                            );
+                    }
+                },
+            );
+
+        const editContent: EditContentFn = ({ slug, type, patch }) =>
+            wrapSentryTransaction(
+                `${sentryPrefix}.editContent`,
+                { slug, type },
+                async () => {
+                    if (!Array.isArray(patch)) {
+                        throw new ParameterError(
+                            'Patch must be an RFC6902 patch array',
+                        );
+                    }
+                    this.aiAgentContentValidation.validatePatch(type, patch);
+
+                    const currentContent = await readContent({ slug, type });
+                    const patchedContent = JsonPatch.applyPatch(
+                        structuredClone(currentContent.content),
+                        patch,
+                    ).newDocument;
+                    this.aiAgentContentValidation.validateContent(
+                        type,
+                        patchedContent,
+                    );
+
+                    const patchedSlug =
+                        typeof patchedContent.slug === 'string' &&
+                        patchedContent.slug.length > 0
+                            ? patchedContent.slug
+                            : slug;
+
+                    switch (currentContent.type) {
+                        case 'dashboard':
+                            await this.coderService.upsertDashboard(
+                                user,
+                                projectUuid,
+                                slug,
+                                patchedContent as typeof currentContent.content,
+                                { force: true },
+                            );
+                            break;
+                        case 'chart':
+                            await this.coderService.upsertChart(
+                                user,
+                                projectUuid,
+                                slug,
+                                patchedContent as typeof currentContent.content,
+                                { force: true },
+                            );
+                            break;
+                        default:
+                            return assertUnreachable(
+                                currentContent,
+                                'Invalid content type',
+                            );
+                    }
+
+                    return readContent({
+                        slug: patchedSlug,
+                        type,
+                    });
+                },
+            );
+
+        const createContent: CreateContentFn = ({ type, content }) =>
+            wrapSentryTransaction(
+                `${sentryPrefix}.createContent`,
+                { slug: content.slug, type },
+                async () => {
+                    this.aiAgentContentValidation.validateContent(
+                        type,
+                        content,
+                    );
+
+                    switch (type) {
+                        case 'dashboard': {
+                            const promotionChanges =
+                                await this.coderService.upsertDashboard(
+                                    user,
+                                    projectUuid,
+                                    content.slug,
+                                    content,
+                                    { mode: 'create' },
+                                );
+                            const finalSlug =
+                                promotionChanges.dashboards[0]?.data.slug ??
+                                content.slug;
+
+                            return readContent({
+                                slug: finalSlug,
+                                type,
+                            });
+                        }
+                        case 'chart': {
+                            // TODO: Reject missing dashboardSlug targets for
+                            // agent-created charts instead of relying on
+                            // CoderService's placeholder dashboard behavior.
+                            const promotionChanges =
+                                await this.coderService.upsertChart(
+                                    user,
+                                    projectUuid,
+                                    content.slug,
+                                    content,
+                                    { mode: 'create' },
+                                );
+                            const finalSlug =
+                                promotionChanges.charts[0]?.data.slug ??
+                                content.slug;
+
+                            return readContent({
+                                slug: finalSlug,
+                                type,
+                            });
+                        }
+                        default:
+                            return assertUnreachable(
+                                type,
+                                'Invalid content type',
+                            );
+                    }
+                },
+            );
+
+        const listContent: ListContentFn = async ({ spaceSlug, page }) =>
+            wrapSentryTransaction(
+                `${sentryPrefix}.listContent`,
+                { spaceSlug, page },
+                async () => {
+                    const pageSize = 25;
+                    const agentSpaceAccess = getAgentSpaceAccess
+                        ? await getAgentSpaceAccess()
+                        : null;
+
+                    if (spaceSlug === null) {
+                        return this.getRootSpacesForAgent(
+                            user,
+                            projectUuid,
+                            agentSpaceAccess,
+                            page,
+                            pageSize,
+                        );
+                    }
+
+                    return this.getSpaceContentsForAgent(
+                        user,
+                        projectUuid,
+                        spaceSlug,
+                        agentSpaceAccess,
+                        page,
+                        pageSize,
+                    );
+                },
+            );
+
+        return {
+            listContent,
+            readContent,
+            editContent,
+            createContent,
+        };
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
     private getAiAgentDependencies(
@@ -4943,180 +5190,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid,
             });
 
-        const readContent: ReadContentFn = ({ slug, type }) =>
-            wrapSentryTransaction(
-                'AiAgent.readContent',
-                { slug, type },
-                async () => {
-                    switch (type) {
-                        case 'dashboard': {
-                            const { dashboards } =
-                                await this.coderService.getDashboards(
-                                    user,
-                                    projectUuid,
-                                    [slug],
-                                );
-
-                            const dashboard = dashboards[0];
-                            if (!dashboard) {
-                                throw new NotFoundError(
-                                    `Dashboard "${slug}" was not found`,
-                                );
-                            }
-
-                            return {
-                                type: 'dashboard',
-                                content: dashboard,
-                            };
-                        }
-                        case 'chart': {
-                            const { charts } =
-                                await this.coderService.getCharts(
-                                    user,
-                                    projectUuid,
-                                    [slug],
-                                );
-
-                            const chart = charts[0];
-                            if (!chart) {
-                                throw new NotFoundError(
-                                    `Chart "${slug}" was not found`,
-                                );
-                            }
-
-                            return {
-                                type: 'chart',
-                                content: chart,
-                            };
-                        }
-                        default:
-                            return assertUnreachable(
-                                type,
-                                'Invalid content type',
-                            );
-                    }
-                },
-            );
-
-        const editContent: EditContentFn = ({ slug, type, patch }) =>
-            wrapSentryTransaction(
-                'AiAgent.editContent',
-                { slug, type },
-                async () => {
-                    if (!Array.isArray(patch)) {
-                        throw new ParameterError(
-                            'Patch must be an RFC6902 patch array',
-                        );
-                    }
-                    this.aiAgentContentValidation.validatePatch(type, patch);
-
-                    const currentContent = await readContent({ slug, type });
-                    const patchedContent = JsonPatch.applyPatch(
-                        structuredClone(currentContent.content),
-                        patch,
-                    ).newDocument;
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        patchedContent,
+        const { listContent, readContent, editContent, createContent } =
+            this.getContentToolDependencies({
+                user,
+                projectUuid,
+                getAgentSpaceAccess: async () => {
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
                     );
-
-                    const patchedSlug =
-                        typeof patchedContent.slug === 'string' &&
-                        patchedContent.slug.length > 0
-                            ? patchedContent.slug
-                            : slug;
-
-                    switch (currentContent.type) {
-                        case 'dashboard':
-                            await this.coderService.upsertDashboard(
-                                user,
-                                projectUuid,
-                                slug,
-                                patchedContent as typeof currentContent.content,
-                                { force: true },
-                            );
-                            break;
-                        case 'chart':
-                            await this.coderService.upsertChart(
-                                user,
-                                projectUuid,
-                                slug,
-                                patchedContent as typeof currentContent.content,
-                                { force: true },
-                            );
-                            break;
-                        default:
-                            return assertUnreachable(
-                                currentContent,
-                                'Invalid content type',
-                            );
-                    }
-
-                    return readContent({
-                        slug: patchedSlug,
-                        type,
-                    });
+                    return agentSettings.spaceAccess &&
+                        agentSettings.spaceAccess.length > 0
+                        ? new Set(agentSettings.spaceAccess)
+                        : null;
                 },
-            );
-
-        const createContent: CreateContentFn = ({ type, content }) =>
-            wrapSentryTransaction(
-                'AiAgent.createContent',
-                { slug: content.slug, type },
-                async () => {
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        content,
-                    );
-
-                    switch (type) {
-                        case 'dashboard': {
-                            const promotionChanges =
-                                await this.coderService.upsertDashboard(
-                                    user,
-                                    projectUuid,
-                                    content.slug,
-                                    content,
-                                    { mode: 'create' },
-                                );
-                            const finalSlug =
-                                promotionChanges.dashboards[0]?.data.slug ??
-                                content.slug;
-
-                            return readContent({
-                                slug: finalSlug,
-                                type,
-                            });
-                        }
-                        case 'chart': {
-                            // TODO: Reject missing dashboardSlug targets for
-                            // agent-created charts instead of relying on
-                            // CoderService's placeholder dashboard behavior.
-                            const promotionChanges =
-                                await this.coderService.upsertChart(
-                                    user,
-                                    projectUuid,
-                                    content.slug,
-                                    content,
-                                    { mode: 'create' },
-                                );
-                            const finalSlug =
-                                promotionChanges.charts[0]?.data.slug ??
-                                content.slug;
-
-                            return readContent({
-                                slug: finalSlug,
-                                type,
-                            });
-                        }
-                        default:
-                            return assertUnreachable(
-                                type,
-                                'Invalid content type',
-                            );
-                    }
-                },
-            );
+            });
 
         const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
             wrapSentryTransaction(
@@ -5441,43 +5529,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ),
                 };
             });
-
-        const listContent: ListContentFn = async ({ spaceSlug, page }) =>
-            wrapSentryTransaction(
-                'AiAgent.listContent',
-                { spaceSlug, page },
-                async () => {
-                    const pageSize = 25;
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-                    const agentSpaceAccess =
-                        agentSettings.spaceAccess &&
-                        agentSettings.spaceAccess.length > 0
-                            ? new Set(agentSettings.spaceAccess)
-                            : null;
-
-                    if (spaceSlug === null) {
-                        return this.getRootSpacesForAgent(
-                            user,
-                            projectUuid,
-                            agentSpaceAccess,
-                            page,
-                            pageSize,
-                        );
-                    }
-
-                    return this.getSpaceContentsForAgent(
-                        user,
-                        projectUuid,
-                        spaceSlug,
-                        agentSpaceAccess,
-                        page,
-                        pageSize,
-                    );
-                },
-            );
 
         const getDashboardCharts: GetDashboardChartsFn = async (args) =>
             wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>

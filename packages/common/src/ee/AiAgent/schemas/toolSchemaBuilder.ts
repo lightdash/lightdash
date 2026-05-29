@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const toolPaginationOutputSchema = z.object({
+    page: z.number(),
+    pageSize: z.number(),
+    totalResults: z.number(),
+    totalPageCount: z.number(),
+});
+
 export type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
     extend: <$Fields extends z.ZodRawShape>(
         fields: $Fields,

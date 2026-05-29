@@ -10,7 +10,7 @@ export const toolEditContentArgsSchema = z.object({
         .enum(['dashboard', 'chart'])
         .describe('Type of Lightdash content to edit.'),
     patch: z
-        .unknown()
+        .array(z.unknown())
         .describe(
             'RFC6902 Patch to apply to the current dashboard or chart JSON.',
         ),

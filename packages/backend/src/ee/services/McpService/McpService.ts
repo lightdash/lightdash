@@ -9,7 +9,9 @@ import {
     clearAgentToolDefinition,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
+    createContentToolDefinition,
     createToolRunSqlArgsSchema,
+    editContentToolDefinition,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -27,6 +29,7 @@ import {
     isExploreError,
     ItemsMap,
     listAgentsToolDefinition,
+    listContentToolDefinition,
     listExploresToolDefinition,
     listVerifiedContentToolDefinition,
     MCP_QUERY_POLL_INTERVAL_MS,
@@ -39,6 +42,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    readContentToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
@@ -50,6 +54,8 @@ import {
     ToolFindContentArgs,
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
+    ToolListContentArgs,
+    ToolReadContentArgs,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
     ToolSearchFieldValuesArgs,
@@ -139,6 +145,10 @@ export enum McpToolName {
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
     FIND_CONTENT = 'find_content',
+    LIST_CONTENT = 'list_content',
+    READ_CONTENT = 'read_content',
+    CREATE_CONTENT = 'create_content',
+    EDIT_CONTENT = 'edit_content',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -160,6 +170,10 @@ const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
+const mcpListContentTool = listContentToolDefinition.for('mcp');
+const mcpReadContentTool = readContentToolDefinition.for('mcp');
+const mcpCreateContentTool = createContentToolDefinition.for('mcp');
+const mcpEditContentTool = editContentToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -749,10 +763,164 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerMcpContentAsCodeTools(): void {
+        this.mcpServer.registerTool(
+            mcpListContentTool.name,
+            {
+                title: mcpListContentTool.title,
+                description: mcpListContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpListContentTool.inputSchema,
+                ),
+                annotations: mcpListContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const { listContent } =
+                    this.aiAgentService.getContentToolDependencies({
+                        user,
+                        projectUuid,
+                        sentryPrefix: 'McpService',
+                    });
+                const { page, spaceSlug } = args as ToolListContentArgs;
+
+                this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
+
+                const result = await listContent({
+                    spaceSlug: spaceSlug ?? null,
+                    page: page ?? 1,
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    JSON.stringify(result, null, 2),
+                    result,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpReadContentTool.name,
+            {
+                title: mcpReadContentTool.title,
+                description: mcpReadContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpReadContentTool.inputSchema,
+                ),
+                annotations: mcpReadContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const { readContent } =
+                    this.aiAgentService.getContentToolDependencies({
+                        user,
+                        projectUuid,
+                        sentryPrefix: 'McpService',
+                    });
+                const { slug, type } = args as ToolReadContentArgs;
+
+                this.trackToolCall(ctx, McpToolName.READ_CONTENT, projectUuid);
+
+                const result = await readContent({ slug, type });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    JSON.stringify(result.content, null, 2),
+                    result,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpCreateContentTool.name,
+            {
+                title: mcpCreateContentTool.title,
+                description: mcpCreateContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpCreateContentTool.inputSchema,
+                ),
+                annotations: mcpCreateContentTool.annotations,
+                _meta: mcpCreateContentTool.meta,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const { createContent } =
+                    this.aiAgentService.getContentToolDependencies({
+                        user,
+                        projectUuid,
+                        sentryPrefix: 'McpService',
+                    });
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.CREATE_CONTENT,
+                    projectUuid,
+                );
+
+                const result = await createContent(
+                    args as Parameters<typeof createContent>[0],
+                );
+
+                return this.buildScopedResponse(
+                    ctx,
+                    JSON.stringify(result.content, null, 2),
+                    result,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpEditContentTool.name,
+            {
+                title: mcpEditContentTool.title,
+                description: mcpEditContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpEditContentTool.inputSchema,
+                ),
+                annotations: mcpEditContentTool.annotations,
+                _meta: mcpEditContentTool.meta,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const { editContent } =
+                    this.aiAgentService.getContentToolDependencies({
+                        user,
+                        projectUuid,
+                        sentryPrefix: 'McpService',
+                    });
+
+                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
+
+                const result = await editContent(
+                    args as Parameters<typeof editContent>[0],
+                );
+
+                return this.buildScopedResponse(
+                    ctx,
+                    JSON.stringify(result.content, null, 2),
+                    result,
+                );
+            },
+        );
+    }
+
     setupHandlers(
-        options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
+        options: {
+            projectPinned: boolean;
+            aiWritebackEnabled: boolean;
+            mcpContentAsCodeEnabled: boolean;
+        } = {
             projectPinned: false,
             aiWritebackEnabled: false,
+            mcpContentAsCodeEnabled: false,
         },
     ): void {
         this.mcpServer.registerTool(
@@ -1903,6 +2071,15 @@ export class McpService extends BaseService {
             },
         );
 
+        // Dark-launched: these tools are only registered — and therefore only
+        // advertised in tools/list and invocable — when the MCP content-as-code
+        // feature flag is enabled for the caller. The flag is resolved
+        // per-request in the MCP router (mcpRouter.ts) and passed through
+        // createServer.
+        if (options.mcpContentAsCodeEnabled) {
+            this.registerMcpContentAsCodeTools();
+        }
+
         // Dark-launched: this tool is only registered — and therefore only
         // advertised in tools/list and invocable — when the AiWriteback
         // feature flag is enabled for the caller. Clients without the flag
@@ -2589,6 +2766,7 @@ export class McpService extends BaseService {
     public createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
+        mcpContentAsCodeEnabled?: boolean;
     }): McpServer {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -2620,6 +2798,7 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            mcpContentAsCodeEnabled: options?.mcpContentAsCodeEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -2705,6 +2884,16 @@ export class McpService extends BaseService {
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.AiWriteback,
+        });
+        return flag.enabled;
+    }
+
+    public async isMcpContentAsCodeEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.McpContentAsCode,
         });
         return flag.enabled;
     }
