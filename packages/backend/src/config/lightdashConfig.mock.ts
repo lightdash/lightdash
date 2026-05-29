@@ -309,6 +309,9 @@ export const lightdashConfigMock: LightdashConfig = {
         schedule: '0 0 * * *',
         sessionTimeoutMs: 300000,
     },
+    aiWriteback: {
+        anthropicApiKey: null,
+    },
     mcp: {
         enabled: true,
         runSqlMaxLimit: 5000,
