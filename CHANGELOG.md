@@ -1,3 +1,10 @@
+# [0.3053.0](https://github.com/lightdash/lightdash/compare/0.3052.2...0.3053.0) (2026-05-29)
+
+
+### Features
+
+* **ai-review:** persist ai_agent_review_item + writeback feature flag ([#23662](https://github.com/lightdash/lightdash/issues/23662)) ([6ecb72f](https://github.com/lightdash/lightdash/commit/6ecb72f3fd784452fd9c9eba47d7f48ff184866e))
+
 ## [0.3052.2](https://github.com/lightdash/lightdash/compare/0.3052.1...0.3052.2) (2026-05-29)
 
 
