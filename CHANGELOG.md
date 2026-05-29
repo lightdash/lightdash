@@ -1,3 +1,15 @@
+# [0.3049.0](https://github.com/lightdash/lightdash/compare/0.3048.0...0.3049.0) (2026-05-29)
+
+
+### Features
+
+* **filters:** shared FilterFacet for all ContentTable consumers ([#23636](https://github.com/lightdash/lightdash/issues/23636)) ([45cc935](https://github.com/lightdash/lightdash/commit/45cc935471b2f2c9b0af2492b19c4f45f0a0e891))
+
+
+### Reverts
+
+* Revert "refactor(ee): remove built-in Slack system agent fallback (code only)…" (#23644) ([5cdb2b9](https://github.com/lightdash/lightdash/commit/5cdb2b951681900f1de8c8a135e489c2da49c0a4)), closes [#23644](https://github.com/lightdash/lightdash/issues/23644)
+
 # [0.3048.0](https://github.com/lightdash/lightdash/compare/0.3047.0...0.3048.0) (2026-05-29)
 
 
