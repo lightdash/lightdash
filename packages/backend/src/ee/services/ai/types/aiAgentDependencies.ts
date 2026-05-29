@@ -24,6 +24,7 @@ import {
     ProjectType,
     SavedChart,
     SlackPrompt,
+    ToolCreateContentArgs,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -166,17 +167,7 @@ export type EditContentFn = (args: {
       }
 >;
 
-type CreateContentArgs =
-    | {
-          type: 'dashboard';
-          content: DashboardAsCode;
-      }
-    | {
-          type: 'chart';
-          content: ChartAsCode;
-      };
-
-export type CreateContentFn = (args: CreateContentArgs) => Promise<
+export type CreateContentFn = (args: ToolCreateContentArgs) => Promise<
     | {
           type: 'dashboard';
           content: DashboardAsCode;

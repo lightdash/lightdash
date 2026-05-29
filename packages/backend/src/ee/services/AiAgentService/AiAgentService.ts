@@ -4847,47 +4847,50 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         structuredClone(currentContent.content),
                         patch,
                     ).newDocument;
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        patchedContent,
-                    );
-
-                    const patchedSlug =
-                        typeof patchedContent.slug === 'string' &&
-                        patchedContent.slug.length > 0
-                            ? patchedContent.slug
-                            : slug;
 
                     switch (currentContent.type) {
-                        case 'dashboard':
+                        case 'dashboard': {
+                            this.aiAgentContentValidation.validateContent(
+                                'dashboard',
+                                patchedContent,
+                            );
                             await this.coderService.upsertDashboard(
                                 user,
                                 projectUuid,
                                 slug,
-                                patchedContent as typeof currentContent.content,
+                                patchedContent,
                                 { force: true },
                             );
-                            break;
-                        case 'chart':
+
+                            return readContent({
+                                slug: patchedContent.slug || slug,
+                                type,
+                            });
+                        }
+                        case 'chart': {
+                            this.aiAgentContentValidation.validateContent(
+                                'chart',
+                                patchedContent,
+                            );
                             await this.coderService.upsertChart(
                                 user,
                                 projectUuid,
                                 slug,
-                                patchedContent as typeof currentContent.content,
+                                patchedContent,
                                 { force: true },
                             );
-                            break;
+
+                            return readContent({
+                                slug: patchedContent.slug || slug,
+                                type,
+                            });
+                        }
                         default:
                             return assertUnreachable(
                                 currentContent,
                                 'Invalid content type',
                             );
                     }
-
-                    return readContent({
-                        slug: patchedSlug,
-                        type,
-                    });
                 },
             );
 
@@ -4898,13 +4901,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 async () => {
                     this.assertCanManageContentAsCode(user, projectUuid);
 
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        content,
-                    );
-
                     switch (type) {
                         case 'dashboard': {
+                            this.aiAgentContentValidation.validateContent(
+                                'dashboard',
+                                content,
+                            );
                             const promotionChanges =
                                 await this.coderService.upsertDashboard(
                                     user,
@@ -4923,6 +4925,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             });
                         }
                         case 'chart': {
+                            this.aiAgentContentValidation.validateContent(
+                                'chart',
+                                content,
+                            );
                             // TODO: Reject missing dashboardSlug targets for
                             // agent-created charts instead of relying on
                             // CoderService's placeholder dashboard behavior.

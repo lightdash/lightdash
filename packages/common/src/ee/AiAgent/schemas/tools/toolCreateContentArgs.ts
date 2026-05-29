@@ -22,34 +22,35 @@ const baseContentSchema = z.object({
     verification: z.unknown(),
 });
 
+const dashboardContentSchema = baseContentSchema
+    .extend({
+        tiles: z.array(z.unknown()),
+        tabs: z.array(z.unknown()),
+        config: z.unknown(),
+        filters: z.unknown(),
+        parameters: z.unknown(),
+    })
+    .passthrough()
+    .describe('Full Dashboard JSON to create.');
+
+const chartContentSchema = baseContentSchema
+    .extend({
+        tableName: z.string().min(1),
+        metricQuery: z.unknown(),
+        chartConfig: z.unknown(),
+        pivotConfig: z.unknown(),
+        tableConfig: z.unknown(),
+        dashboardSlug: z.string(),
+        parameters: z.unknown(),
+    })
+    .passthrough()
+    .describe('Full Chart JSON to create.');
+
 export const toolCreateContentArgsSchema = z.object({
     type: z
         .enum(['dashboard', 'chart'])
         .describe('Type of Lightdash content to create.'),
-    content: z.union([
-        baseContentSchema
-            .extend({
-                tiles: z.array(z.unknown()),
-                tabs: z.array(z.unknown()),
-                config: z.unknown(),
-                filters: z.unknown(),
-                parameters: z.unknown(),
-            })
-            .passthrough()
-            .describe('Full Dashboard JSON to create.'),
-        baseContentSchema
-            .extend({
-                tableName: z.string().min(1),
-                metricQuery: z.unknown(),
-                chartConfig: z.unknown(),
-                pivotConfig: z.unknown(),
-                tableConfig: z.unknown(),
-                dashboardSlug: z.string(),
-                parameters: z.unknown(),
-            })
-            .passthrough()
-            .describe('Full Chart JSON to create.'),
-    ]),
+    content: z.union([dashboardContentSchema, chartContentSchema]),
 });
 
 export type ToolCreateContentArgs = z.infer<typeof toolCreateContentArgsSchema>;

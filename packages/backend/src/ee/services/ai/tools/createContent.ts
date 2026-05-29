@@ -18,7 +18,7 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                 const result = await createContent({
                     type,
                     content,
-                } as Parameters<CreateContentFn>[0]);
+                });
 
                 return {
                     result: JSON.stringify(result.content, null, 2),

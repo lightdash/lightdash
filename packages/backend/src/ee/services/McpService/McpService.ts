@@ -54,8 +54,6 @@ import {
     ToolFindContentArgs,
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
-    ToolListContentArgs,
-    ToolReadContentArgs,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
     ToolSearchFieldValuesArgs,
@@ -784,7 +782,8 @@ export class McpService extends BaseService {
                         projectUuid,
                         sentryPrefix: 'McpService',
                     });
-                const { page, spaceSlug } = args as ToolListContentArgs;
+                const { page, spaceSlug } =
+                    mcpListContentTool.inputSchema.parse(args);
 
                 this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
 
@@ -821,7 +820,8 @@ export class McpService extends BaseService {
                         projectUuid,
                         sentryPrefix: 'McpService',
                     });
-                const { slug, type } = args as ToolReadContentArgs;
+                const { slug, type } =
+                    mcpReadContentTool.inputSchema.parse(args);
 
                 this.trackToolCall(ctx, McpToolName.READ_CONTENT, projectUuid);
 
@@ -864,7 +864,7 @@ export class McpService extends BaseService {
                 );
 
                 const result = await createContent(
-                    args as Parameters<typeof createContent>[0],
+                    mcpCreateContentTool.inputSchema.parse(args),
                 );
 
                 return this.buildScopedResponse(
@@ -900,7 +900,7 @@ export class McpService extends BaseService {
                 this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
 
                 const result = await editContent(
-                    args as Parameters<typeof editContent>[0],
+                    mcpEditContentTool.inputSchema.parse(args),
                 );
 
                 return this.buildScopedResponse(

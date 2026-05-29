@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
+    ChartAsCode,
     chartAsCodeSchema,
+    DashboardAsCode,
     dashboardAsCodeSchema,
     ParameterError,
 } from '@lightdash/common';
@@ -119,6 +121,14 @@ export class AiAgentContentValidation {
         }
     }
 
+    validateContent(
+        type: 'dashboard',
+        content: unknown,
+    ): asserts content is DashboardAsCode;
+    validateContent(
+        type: 'chart',
+        content: unknown,
+    ): asserts content is ChartAsCode;
     validateContent(type: ContentType, content: unknown): void {
         const validator = this.getValidator(type);
         const normalizedContent = this.normalizeTimestampFields(type, content);
