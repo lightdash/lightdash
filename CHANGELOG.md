@@ -1,3 +1,10 @@
+# [0.3047.0](https://github.com/lightdash/lightdash/compare/0.3046.1...0.3047.0) (2026-05-29)
+
+
+### Features
+
+* separate system agent fallback from ai-writeback flag ([#23635](https://github.com/lightdash/lightdash/issues/23635)) ([32e7c13](https://github.com/lightdash/lightdash/commit/32e7c1311cffd780ed7347055ac68540b3f4a8c7))
+
 ## [0.3046.1](https://github.com/lightdash/lightdash/compare/0.3046.0...0.3046.1) (2026-05-29)
 
 
