@@ -1,3 +1,10 @@
+## [0.3056.1](https://github.com/lightdash/lightdash/compare/0.3056.0...0.3056.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* stop org members list 500 when a group has a custom role ([#23651](https://github.com/lightdash/lightdash/issues/23651)) ([50565e2](https://github.com/lightdash/lightdash/commit/50565e26cfd339e6d1e89a98e0e21b397f2ef263))
+
 # [0.3056.0](https://github.com/lightdash/lightdash/compare/0.3055.0...0.3056.0) (2026-05-29)
 
 
