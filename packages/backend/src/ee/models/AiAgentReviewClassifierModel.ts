@@ -15,6 +15,7 @@ import type {
     AiAgentReviewClassifierSupportingEvidence,
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
+    AiAgentReviewItemDismissedReason,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewSignalSummary,
@@ -87,8 +88,19 @@ type ListReviewItemsArgs = {
     organizationUuid: string;
     projectUuid?: string;
     agentUuid?: string;
+    fingerprint?: string;
     statuses?: AiAgentReviewItemStatus[];
     limit?: number;
+};
+
+type UpsertReviewItemStateArgs = {
+    fingerprint: string;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    status: AiAgentReviewItemStatus;
+    dismissedReason: AiAgentReviewItemDismissedReason | null;
+    statusUpdatedByUserUuid: string | null;
 };
 
 type ListReviewSignalsArgs = {
@@ -797,6 +809,9 @@ export class AiAgentReviewClassifierModel {
                     if (args.agentUuid) {
                         void query.where('agent_uuid', args.agentUuid);
                     }
+                    if (args.fingerprint) {
+                        void query.where('fingerprint', args.fingerprint);
+                    }
                 })
                 .orderBy('created_at', 'desc')
                 .limit(Math.min((args.limit ?? 100) * 10, 1000));
@@ -875,6 +890,59 @@ export class AiAgentReviewClassifierModel {
             AiAgentReviewItemTableName,
         ).whereIn('fingerprint', fingerprints);
         return new Map(items.map((item) => [item.fingerprint, item]));
+    }
+
+    async getReviewItem(
+        organizationUuid: string,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemSummary | null> {
+        const items = await this.listReviewItems({
+            organizationUuid,
+            fingerprint,
+        });
+        return items[0] ?? null;
+    }
+
+    async getPromotedFingerprintScope(
+        organizationUuid: string,
+        fingerprint: string,
+    ): Promise<{ projectUuid: string; agentUuid: string } | null> {
+        const row = await this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .where('organization_uuid', organizationUuid)
+            .where('fingerprint', fingerprint)
+            .where('promoted_to_finding', true)
+            .orderBy('created_at', 'desc')
+            .first('project_uuid', 'agent_uuid');
+        if (!row) {
+            return null;
+        }
+        return { projectUuid: row.project_uuid, agentUuid: row.agent_uuid };
+    }
+
+    async upsertReviewItemState(
+        args: UpsertReviewItemStateArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+                status: args.status,
+                dismissed_reason: args.dismissedReason,
+                status_updated_at: this.database.fn.now() as never,
+                status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+            })
+            .onConflict('fingerprint')
+            .merge({
+                status: args.status,
+                dismissed_reason: args.dismissedReason,
+                status_updated_at: this.database.fn.now(),
+                status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            });
     }
 
     async listReviewSignals(

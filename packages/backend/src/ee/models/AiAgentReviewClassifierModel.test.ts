@@ -486,4 +486,57 @@ describe('AiAgentReviewClassifierModel', () => {
             );
         });
     });
+
+    describe('getPromotedFingerprintScope', () => {
+        it('returns the latest promoted signal scope for a fingerprint', async () => {
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { project_uuid: PROJECT_UUID, agent_uuid: AGENT_UUID },
+                ]);
+
+            const scope = await model.getPromotedFingerprintScope(
+                ORGANIZATION_UUID,
+                FINGERPRINT,
+            );
+
+            expect(scope).toEqual({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            });
+        });
+
+        it('returns null when no promoted signal matches', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+
+            const scope = await model.getPromotedFingerprintScope(
+                ORGANIZATION_UUID,
+                FINGERPRINT,
+            );
+
+            expect(scope).toBeNull();
+        });
+    });
+
+    describe('upsertReviewItemState', () => {
+        it('upserts state by fingerprint with an on-conflict merge', async () => {
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.upsertReviewItemState({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                status: 'dismissed',
+                dismissedReason: 'expected_behavior',
+                statusUpdatedByUserUuid: '00000000-0000-0000-0000-0000000000aa',
+            });
+
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain('on conflict');
+            expect(tracker.history.insert[0].sql).toContain(
+                AiAgentReviewItemTableName,
+            );
+        });
+    });
 });
