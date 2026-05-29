@@ -540,6 +540,27 @@ describe('AiAgentReviewClassifierModel', () => {
         });
     });
 
+    describe('setReviewItemWritebackStatus', () => {
+        it('upserts writeback status and message by fingerprint', async () => {
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.setReviewItemWritebackStatus({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                status: 'running',
+                message: 'Discovering models',
+            });
+
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain('on conflict');
+            expect(tracker.history.insert[0].bindings).toContain(
+                'Discovering models',
+            );
+        });
+    });
+
     describe('reconcileReviewItemPrState', () => {
         it('updates status and pr_state for a fingerprint in the org', async () => {
             tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);

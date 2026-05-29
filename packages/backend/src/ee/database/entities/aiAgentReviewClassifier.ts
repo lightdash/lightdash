@@ -13,6 +13,7 @@ import type {
     AiAgentReviewItemOwnerType,
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
+    AiAgentReviewItemWritebackStatus,
     AiAgentRootCause,
     AiAgentRuntimeContextSnapshot,
     AiAgentTargetRef,
@@ -178,6 +179,8 @@ export type DbAiAgentReviewItem = {
     linked_pr_url: string | null;
     pr_writeback_thread_uuid: string | null;
     pr_state: AiAgentReviewItemPrState | null;
+    pr_writeback_status: AiAgentReviewItemWritebackStatus | null;
+    pr_writeback_message: string | null;
     status_updated_at: Date | null;
     status_updated_by_user_uuid: string | null;
     created_at: Date;

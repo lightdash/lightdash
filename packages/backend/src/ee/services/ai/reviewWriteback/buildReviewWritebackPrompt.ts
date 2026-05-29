@@ -1,8 +1,11 @@
 import {
     assertUnreachable,
+    isExploreError,
     type AiAgentReviewItemSummary,
     type AiAgentSemanticTargetRef,
     type AiAgentTargetRef,
+    type Explore,
+    type ExploreError,
 } from '@lightdash/common';
 
 /**
@@ -15,24 +18,47 @@ export type ReviewWritebackPlan = {
     aggregationKey: string | null;
 };
 
-const formatSemanticTargetRef = (ref: AiAgentSemanticTargetRef): string => {
+// Resolves each model's dbt YAML path from compiled explores so the writeback agent edits the right file (the judge only gives names).
+export const buildYmlPathByModel = (
+    explores: (Explore | ExploreError)[],
+): Map<string, string> => {
+    const map = new Map<string, string>();
+    explores.forEach((explore) => {
+        if (isExploreError(explore)) {
+            return;
+        }
+        Object.entries(explore.tables).forEach(([tableName, table]) => {
+            if (table.ymlPath) {
+                map.set(tableName, table.ymlPath);
+            }
+        });
+    });
+    return map;
+};
+
+const formatSemanticTargetRef = (
+    ref: AiAgentSemanticTargetRef,
+    ymlPathByModel: Map<string, string>,
+): string => {
+    const ymlPath = ymlPathByModel.get(ref.modelName);
+    const yaml = ymlPath ? ` (yaml: ${ymlPath})` : '';
     switch (ref.type) {
         case 'model':
-            return `model "${ref.modelName}"`;
+            return `model "${ref.modelName}"${yaml}`;
         case 'explore':
-            return `explore "${ref.exploreName}" on model "${ref.modelName}"`;
+            return `explore "${ref.exploreName}" on model "${ref.modelName}"${yaml}`;
         case 'join':
-            return `join "${ref.joinName}" on model "${ref.modelName}"`;
+            return `join "${ref.joinName}" on model "${ref.modelName}"${yaml}`;
         case 'dimension':
-            return `dimension "${ref.modelName}.${ref.dimensionName}"`;
+            return `dimension "${ref.modelName}.${ref.dimensionName}"${yaml}`;
         case 'metric':
-            return `metric "${ref.modelName}.${ref.metricName}"`;
+            return `metric "${ref.modelName}.${ref.metricName}"${yaml}`;
         case 'additional_dimension':
-            return `additional dimension "${ref.modelName}.${ref.parentDimensionName}.${ref.dimensionName}"`;
+            return `additional dimension "${ref.modelName}.${ref.parentDimensionName}.${ref.dimensionName}"${yaml}`;
         case 'required_filter':
-            return `required filter on "${ref.modelName}.${ref.fieldName}" in explore "${ref.exploreName}"`;
+            return `required filter on "${ref.modelName}.${ref.fieldName}" in explore "${ref.exploreName}"${yaml}`;
         case 'ai_hint':
-            return `ai_hint on ${ref.targetType} "${ref.modelName}.${ref.targetName}"`;
+            return `ai_hint on ${ref.targetType} "${ref.modelName}.${ref.targetName}"${yaml}`;
         default:
             return assertUnreachable(ref, 'Unknown semantic target ref type');
     }
@@ -48,11 +74,12 @@ const isSemanticTargetRef = (
 
 const buildSemanticLayerWritebackPrompt = (
     item: AiAgentReviewItemSummary,
+    ymlPathByModel: Map<string, string>,
 ): ReviewWritebackPlan => {
     const finding = item.latestFinding;
     const targetLines = (finding?.targetRefs ?? [])
         .filter(isSemanticTargetRef)
-        .map((ref) => `- ${formatSemanticTargetRef(ref)}`);
+        .map((ref) => `- ${formatSemanticTargetRef(ref, ymlPathByModel)}`);
     const evidenceLines = (finding?.evidenceExcerpts ?? []).map(
         (excerpt) => `- (${excerpt.source}) "${excerpt.text}"`,
     );
@@ -87,9 +114,10 @@ const buildSemanticLayerWritebackPrompt = (
  */
 export const planReviewWriteback = (
     item: AiAgentReviewItemSummary,
+    ymlPathByModel: Map<string, string> = new Map(),
 ): ReviewWritebackPlan => {
     if (item.primaryRootCause === 'semantic_layer') {
-        return buildSemanticLayerWritebackPrompt(item);
+        return buildSemanticLayerWritebackPrompt(item, ymlPathByModel);
     }
     throw new Error(
         `Writeback is not supported for root cause "${item.primaryRootCause}"`,

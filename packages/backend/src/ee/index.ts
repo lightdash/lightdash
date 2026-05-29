@@ -193,7 +193,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     prometheusMetrics,
                 }),
-            aiAgentAdminService: ({ models, repository, context }) =>
+            aiAgentAdminService: ({ models, repository, context, clients }) =>
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
@@ -204,6 +204,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    userModel: models.getUserModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiRouterService: ({ models, repository, context }) =>
@@ -606,6 +609,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 workerHealth: context.workerHealth,
                 aiAgentReviewClassifierService:
                     context.serviceRepository.getAiAgentReviewClassifierService(),
+                aiAgentAdminService:
+                    context.serviceRepository.getAiAgentAdminService<AiAgentAdminService>(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

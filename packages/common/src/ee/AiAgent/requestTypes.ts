@@ -181,6 +181,12 @@ export type AiAgentReviewClassifierJobPayload = TraceTaskBase & {
     promptUuid: string;
 };
 
+export type AiAgentReviewWritebackJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {
     artifactVersionUuid: string;
     title: string | null;

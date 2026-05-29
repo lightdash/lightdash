@@ -142,6 +142,27 @@ export const useAiAgentAdminReviewItems = (
     });
 };
 
+const getAiAgentAdminReviewItem = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(fingerprint)}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminReviewItem = (
+    fingerprint: string,
+    options?: { enabled?: boolean; refetchInterval?: number | false },
+) => {
+    return useQuery<ApiAiAgentReviewItemResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-item', fingerprint],
+        queryFn: () => getAiAgentAdminReviewItem(fingerprint),
+        enabled: options?.enabled ?? true,
+        refetchInterval: options?.refetchInterval,
+    });
+};
+
 const updateAiAgentReviewItemStatus = async (args: {
     fingerprint: string;
     body: UpdateAiAgentReviewItemStatus;
