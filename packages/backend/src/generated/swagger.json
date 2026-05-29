@@ -13769,8 +13769,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -13802,10 +13802,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -13814,8 +13814,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -13864,8 +13864,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -13927,10 +13927,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -13939,8 +13939,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -13968,8 +13968,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -13982,19 +13982,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14003,8 +14003,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -14031,6 +14031,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "joinedTables": {
@@ -14069,27 +14073,27 @@
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "label": {
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "metric",
+                                                                                        "dimension"
+                                                                                    ]
+                                                                                },
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "table": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -14097,20 +14101,16 @@
                                                                                 "isFromJoinedTable",
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "fieldType",
                                                                                 "description",
-                                                                                "label",
+                                                                                "fieldType",
+                                                                                "table",
                                                                                 "fieldId",
-                                                                                "name",
-                                                                                "table"
+                                                                                "label",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "status": {
                                                                         "type": "string",
@@ -14121,9 +14121,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
+                                                                    "rationale",
                                                                     "explore",
                                                                     "fields",
-                                                                    "rationale",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -14136,10 +14136,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -14147,8 +14147,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "reason",
                                                                                 "exploreLabel",
+                                                                                "reason",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -14223,9 +14223,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "error",
                                                             "success",
                                                             "rejected",
-                                                            "error",
                                                             "timeout"
                                                         ]
                                                     }
@@ -19446,6 +19446,10 @@
                     "unknown"
                 ]
             },
+            "AiAgentReviewItemPrState": {
+                "type": "string",
+                "enum": ["open", "merged", "closed"]
+            },
             "AiAgentReviewItem": {
                 "properties": {
                     "updatedAt": {
@@ -19455,6 +19459,14 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "prState": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentReviewItemPrState"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "linkedPrUrl": {
                         "type": "string",
@@ -19532,6 +19544,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "prState",
                     "linkedPrUrl",
                     "linkedIssueUrl",
                     "statusUpdatedByUserUuid",
@@ -20002,6 +20015,40 @@
             },
             "ApiAiAgentReviewItemsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemSummary-Array_"
+            },
+            "ApiSuccess_AiAgentReviewItemSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemSummary_"
+            },
+            "UpdateAiAgentReviewItemStatus": {
+                "properties": {
+                    "dismissedReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentReviewItemDismissedReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    }
+                },
+                "required": ["dismissedReason", "status"],
+                "type": "object"
             },
             "AiAgentTurnSignal": {
                 "type": "string",
@@ -26326,7 +26373,15 @@
                                 "$ref": "#/components/schemas/ProjectMemberRole"
                             },
                             {
-                                "type": "string"
+                                "allOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "properties": {},
+                                        "type": "object"
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -31167,7 +31222,22 @@
             "Pick_CreateProjectGroupAccess.role_": {
                 "properties": {
                     "role": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            },
+                            {
+                                "allOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "properties": {},
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        ]
                     }
                 },
                 "required": ["role"],
@@ -36863,7 +36933,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3050.0",
+        "version": "0.3052.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43349,6 +43419,56 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}": {
+            "patch": {
+                "operationId": "updateAiAgentReviewItemStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI agent classifier review signals for admin debugging",
+                "summary": "List AI agent review signals",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiAgentReviewItemStatus"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/aiAgents/admin/review-signals": {
             "get": {
                 "operationId": "getAiAgentReviewSignals",
@@ -43374,8 +43494,6 @@
                         }
                     }
                 },
-                "description": "Get AI agent classifier review signals for admin debugging",
-                "summary": "List AI agent review signals",
                 "security": [],
                 "parameters": []
             }

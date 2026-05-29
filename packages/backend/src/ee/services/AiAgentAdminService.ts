@@ -11,6 +11,9 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
+    NotFoundError,
+    ParameterError,
+    UpdateAiAgentReviewItemStatus,
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
@@ -159,6 +162,72 @@ export class AiAgentAdminService extends BaseService {
         return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
         });
+    }
+
+    async updateReviewItemStatus(
+        user: SessionUser,
+        fingerprint: string,
+        update: UpdateAiAgentReviewItemStatus,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const featureFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+        if (!featureFlag.enabled) {
+            throw new ForbiddenError(
+                'AI agent review classifier is not enabled',
+            );
+        }
+
+        if (update.status === 'dismissed' && !update.dismissedReason) {
+            throw new ParameterError(
+                'A dismissed reason is required when dismissing a review item',
+            );
+        }
+        if (update.status !== 'dismissed' && update.dismissedReason) {
+            throw new ParameterError(
+                'A dismissed reason is only allowed when dismissing a review item',
+            );
+        }
+
+        const scope =
+            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!scope) {
+            throw new NotFoundError('Review item not found');
+        }
+
+        await this.aiAgentReviewClassifierModel.upsertReviewItemState({
+            fingerprint,
+            organizationUuid,
+            projectUuid: scope.projectUuid,
+            agentUuid: scope.agentUuid,
+            status: update.status,
+            dismissedReason: update.dismissedReason,
+            statusUpdatedByUserUuid: user.userUuid,
+        });
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        return reviewItem;
     }
 
     /**

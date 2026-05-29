@@ -3,6 +3,7 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
@@ -11,6 +12,7 @@ import {
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
 } from '@lightdash/common';
 import {
@@ -20,6 +22,7 @@ import {
     Middlewares,
     OperationId,
     Patch,
+    Path,
     Query,
     Request,
     Response,
@@ -158,6 +161,35 @@ export class AiAgentAdminController extends BaseController {
      * Get AI agent classifier review signals for admin debugging
      * @summary List AI agent review signals
      */
+    /**
+     * Update the status of an AI agent review item (e.g. dismiss it)
+     * @summary Update AI agent review item status
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/{fingerprint}')
+    @OperationId('updateAiAgentReviewItemStatus')
+    async updateReviewItemStatus(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+        @Body() body: UpdateAiAgentReviewItemStatus,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().updateReviewItemStatus(
+                toSessionUser(req.account),
+                fingerprint,
+                body,
+            ),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/review-signals')
