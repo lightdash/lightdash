@@ -342,10 +342,11 @@ const REFUSAL_RE =
 
 /**
  * The built-in "system" agent used as a fallback when an organization has no
- * configured agents (gated behind the AiWriteback feature flag). It answers
- * data questions with the normal query/find tools, and — because the run path
- * attaches the `proposeWriteback` tool whenever AiWriteback is enabled — it
- * routes dbt/semantic-layer change requests to the AI writeback flow.
+ * configured agents (gated behind the AiSlackSystemAgentFallback feature
+ * flag). It answers data questions with the normal query/find tools, and —
+ * because the run path attaches the `proposeWriteback` tool whenever
+ * AiWriteback is enabled — it routes dbt/semantic-layer change requests to
+ * the AI writeback flow.
  */
 const SYSTEM_AGENT_NAME = 'Lightdash Assistant';
 const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help the user explore their data by using your query and find tools to answer questions about metrics, dimensions, charts, and dashboards.
@@ -7165,7 +7166,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
      */
     /**
      * Resolve the built-in system agent to use when no agents are configured.
-     * Gated behind the AiWriteback feature flag.
+     * Gated behind the AiSlackSystemAgentFallback feature flag.
      *
      * Returns:
      *  - an `AiAgentWithContext` to use as the fallback agent;
@@ -7203,7 +7204,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const { enabled } = await this.featureFlagService.get({
             user,
-            featureFlagId: FeatureFlags.AiWriteback,
+            featureFlagId: FeatureFlags.AiSlackSystemAgentFallback,
         });
         if (!enabled) {
             return undefined;
@@ -7356,8 +7357,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         if (availableAgents.length === 0) {
             // No configured agents — fall back to the built-in system agent
-            // (gated behind AiWriteback). If the flag is off, keep the
-            // original "no agents" message.
+            // (gated behind AiSlackSystemAgentFallback). If the flag is off,
+            // keep the original "no agents" message.
             const fallback = await this.resolveSystemAgentForSlack({
                 organizationUuid,
                 userUuid,
@@ -8973,9 +8974,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 } catch (e) {
                     // No agent mapped to this channel — fall back to the
-                    // built-in system agent (gated behind AiWriteback). If the
-                    // flag is off, rethrow so the existing "no agent
-                    // configured" message is shown.
+                    // built-in system agent (gated behind
+                    // AiSlackSystemAgentFallback). If the flag is off, rethrow
+                    // so the existing "no agent configured" message is shown.
                     if (!(e instanceof AiAgentNotFoundError)) {
                         throw e;
                     }
