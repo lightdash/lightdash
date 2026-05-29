@@ -403,6 +403,38 @@ export const updatePullRequest = async ({
     }
 };
 
+export const getPullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<{ state: 'open' | 'closed'; merged: boolean }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            headers,
+        });
+
+        return {
+            state: response.data.state === 'closed' ? 'closed' : 'open',
+            merged: response.data.merged === true,
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const checkFileDoesNotExist = async ({
     owner,
     repo,

@@ -539,4 +539,24 @@ describe('AiAgentReviewClassifierModel', () => {
             );
         });
     });
+
+    describe('reconcileReviewItemPrState', () => {
+        it('updates status and pr_state for a fingerprint in the org', async () => {
+            tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
+
+            await model.reconcileReviewItemPrState({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'resolved',
+                prState: 'merged',
+            });
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].sql).toContain(
+                AiAgentReviewItemTableName,
+            );
+            expect(tracker.history.update[0].bindings).toContain('resolved');
+            expect(tracker.history.update[0].bindings).toContain('merged');
+        });
+    });
 });
