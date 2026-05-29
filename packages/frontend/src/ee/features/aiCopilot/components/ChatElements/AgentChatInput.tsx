@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Box,
     Group,
     Paper,
@@ -38,8 +37,6 @@ import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import { getAgentSuggestionModes } from './suggestionModes';
-
-const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
 
@@ -391,14 +388,7 @@ export const AgentChatInput = ({
         [track, projectUuid, agentUuid],
     );
 
-    const { data: contextCompactionFlag } = useServerFeatureFlag(
-        FeatureFlags.AiContextCompaction,
-    );
-
     const hasValue = value.trim().length > 0;
-    const showWarningBanner =
-        messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT &&
-        !contextCompactionFlag?.enabled;
     const showDisabledBanner = disabled && disabledReason;
 
     const handleSubmit = () => {
@@ -448,29 +438,6 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {showWarningBanner && (
-                    <Paper className={styles.warningBanner}>
-                        <Text size="xs" c="ldGray.7" ta="center">
-                            Agent performance degrades if a thread is too long.
-                            Please start a{' '}
-                            <Anchor
-                                size="xs"
-                                href="#"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    if (projectUuid && agentUuid) {
-                                        void navigate(
-                                            `/projects/${projectUuid}/ai-agents/${agentUuid}/threads`,
-                                        );
-                                    }
-                                }}
-                            >
-                                new thread
-                            </Anchor>
-                        </Text>
-                    </Paper>
-                )}
-
                 {chipRow && (
                     <Box
                         className={`${styles.chipReveal} ${
@@ -567,8 +534,8 @@ export const AgentChatInput = ({
         <Box
             ref={rootRef}
             className={`${styles.container} ${
-                showWarningBanner ? styles.warningBannerVisible : ''
-            } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
+                showDisabledBanner ? styles.disabledBannerVisible : ''
+            }`}
         >
             {chipRow && (
                 <Box

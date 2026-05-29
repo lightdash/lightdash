@@ -198,11 +198,6 @@ export enum FeatureFlags {
     PivotRowGrouping = 'pivot-row-grouping',
 
     /**
-     * Enable AI thread context compaction for streamed web-app conversations.
-     */
-    AiContextCompaction = 'ai-context-compaction',
-
-    /**
      * Enable AI agent review classifier experiments.
      */
     AiAgentReviewClassifier = 'ai-agent-review-classifier',

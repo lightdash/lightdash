@@ -131,11 +131,6 @@
     }
 }
 
-.warningBannerVisible .inputCard {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-
 .disabledBanner {
     border-radius: 0;
     border-bottom-left-radius: var(--mantine-radius-lg);
@@ -328,15 +323,6 @@
             background-color: var(--mantine-color-ldDark-7);
         }
     }
-}
-
-.warningBanner {
-    border-radius: var(--mantine-radius-md);
-    margin-left: var(--mantine-spacing-sm);
-    margin-right: var(--mantine-spacing-sm);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    background-color: var(--mantine-color-ldGray-0);
 }
 
 .editorRoot {
