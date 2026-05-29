@@ -9,6 +9,8 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
+    Badge,
     Box,
     Button,
     Divider,
@@ -26,7 +28,9 @@ import {
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
+    IconExternalLink,
     IconFilterX,
+    IconGitPullRequest,
     IconHelpCircle,
     IconInfoCircle,
     IconListCheck,
@@ -34,6 +38,7 @@ import {
     IconRobotFace,
     IconTag,
     IconTriangle,
+    IconX,
 } from '@tabler/icons-react';
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
@@ -51,6 +56,8 @@ import {
     useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
     useAiAgentAdminReviewSignals,
+    useCreateAiAgentReviewItemWriteback,
+    useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { SearchFilter } from './SearchFilter';
@@ -361,6 +368,107 @@ const ReviewConceptHelp = () => (
         </Box>
     </Tooltip>
 );
+
+const statusColors: Record<AiAgentReviewItemStatus, string> = {
+    open: 'blue',
+    in_progress: 'yellow',
+    resolved: 'green',
+    dismissed: 'gray',
+    duplicate: 'gray',
+};
+
+const ReviewItemActionsCell = ({
+    reviewItem,
+}: {
+    reviewItem: AiAgentReviewItemSummary;
+}) => {
+    const updateStatus = useUpdateAiAgentReviewItemStatus();
+    const createWriteback = useCreateAiAgentReviewItemWriteback();
+
+    const isTerminal =
+        reviewItem.status === 'resolved' || reviewItem.status === 'dismissed';
+    const canCreatePr =
+        reviewItem.primaryRootCause === 'semantic_layer' &&
+        !reviewItem.linkedPrUrl &&
+        !isTerminal;
+
+    return (
+        <Group gap="xs" wrap="nowrap" justify="flex-end">
+            <Badge
+                size="sm"
+                radius="sm"
+                variant="light"
+                color={statusColors[reviewItem.status]}
+            >
+                {reviewItem.status.replaceAll('_', ' ')}
+            </Badge>
+
+            {reviewItem.linkedPrUrl && (
+                <Anchor
+                    href={reviewItem.linkedPrUrl}
+                    target="_blank"
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <Group gap={4} wrap="nowrap">
+                        <MantineIcon icon={IconExternalLink} size="xs" />
+                        <Text fz="xs" fw={500}>
+                            View PR
+                        </Text>
+                    </Group>
+                </Anchor>
+            )}
+
+            {canCreatePr && (
+                <Tooltip
+                    label="Open a pull request against the dbt project (may take a few minutes)"
+                    withArrow
+                    multiline
+                    maw={260}
+                >
+                    <Button
+                        size="compact-xs"
+                        radius="md"
+                        variant="light"
+                        loading={createWriteback.isLoading}
+                        leftSection={
+                            <MantineIcon icon={IconGitPullRequest} size="xs" />
+                        }
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            createWriteback.mutate(reviewItem.fingerprint);
+                        }}
+                    >
+                        Create PR
+                    </Button>
+                </Tooltip>
+            )}
+
+            {!isTerminal && (
+                <Tooltip label="Dismiss this finding" withArrow>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        aria-label="Dismiss finding"
+                        loading={updateStatus.isLoading}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            updateStatus.mutate({
+                                fingerprint: reviewItem.fingerprint,
+                                body: {
+                                    status: 'dismissed',
+                                    dismissedReason: 'not_actionable',
+                                },
+                            });
+                        }}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
+    );
+};
 
 const AiAgentAdminReviewItemsTable = ({
     onReviewItemSelect,
@@ -921,6 +1029,24 @@ const AiAgentAdminReviewItemsTable = ({
                         </Group>
                     );
                 },
+            },
+            {
+                accessorKey: 'status',
+                header: 'Status',
+                enableSorting: false,
+                size: 220,
+                Header: ({ column }) => (
+                    <Group gap="two">
+                        <MantineIcon
+                            icon={IconGitPullRequest}
+                            color="ldGray.6"
+                        />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => (
+                    <ReviewItemActionsCell reviewItem={row.original} />
+                ),
             },
         ],
         [agentsMap, onReviewItemSelect, projectsMap],

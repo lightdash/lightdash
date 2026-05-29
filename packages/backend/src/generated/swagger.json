@@ -20026,42 +20026,6 @@
                 "required": ["dismissedReason", "status"],
                 "type": "object"
             },
-            "AiAgentReviewItemWritebackResult": {
-                "properties": {
-                    "summary": {
-                        "type": "string"
-                    },
-                    "prCreated": {
-                        "type": "boolean"
-                    },
-                    "prUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "reviewItem": {
-                        "$ref": "#/components/schemas/AiAgentReviewItemSummary"
-                    }
-                },
-                "required": ["summary", "prCreated", "prUrl", "reviewItem"],
-                "type": "object"
-            },
-            "ApiSuccess_AiAgentReviewItemWritebackResult_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiAgentReviewItemWritebackResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentReviewItemWritebackResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemWritebackResult_"
-            },
             "AiAgentTurnSignal": {
                 "type": "string",
                 "enum": [
@@ -43490,7 +43454,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemWritebackResponse"
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemResponse"
                                 }
                             }
                         }

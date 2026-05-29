@@ -5,7 +5,6 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
-    AiAgentReviewItemWritebackResult,
     AiAgentReviewSignalSummary,
     AiAgentSummary,
     DbtProjectType,
@@ -354,7 +353,7 @@ export class AiAgentAdminService extends BaseService {
     async createReviewItemWriteback(
         user: SessionUser,
         fingerprint: string,
-    ): Promise<AiAgentReviewItemWritebackResult> {
+    ): Promise<AiAgentReviewItemSummary> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -433,12 +432,7 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             fingerprint,
         );
-        return {
-            reviewItem: updated ?? reviewItem,
-            prUrl: result.prUrl,
-            prCreated: result.prUrl !== null,
-            summary: result.output,
-        };
+        return updated ?? reviewItem;
     }
 
     /**

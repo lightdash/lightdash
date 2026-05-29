@@ -5,7 +5,6 @@ import {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
-    ApiAiAgentReviewItemWritebackResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
@@ -207,7 +206,7 @@ export class AiAgentAdminController extends BaseController {
     async createReviewItemWriteback(
         @Request() req: express.Request,
         @Path() fingerprint: string,
-    ): Promise<ApiAiAgentReviewItemWritebackResponse> {
+    ): Promise<ApiAiAgentReviewItemResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
