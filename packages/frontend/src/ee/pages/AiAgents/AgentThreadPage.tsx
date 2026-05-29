@@ -1,4 +1,5 @@
 import { Center, Loader } from '@mantine-8/core';
+import { useCallback } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -21,6 +22,8 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../features/aiCopilot/store/hooks';
+import { type AiAgentToolResult } from '../../features/aiCopilot/types';
+import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -44,12 +47,51 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
     const agentQuery = useAiAgent(projectUuid!, agentUuid!);
-    const { agent } = useOutletContext<AgentContext>();
+    const { agent, navigateFromAgentChat } = useOutletContext<AgentContext>();
 
     const canManage = useAiAgentPermission({
         action: 'manage',
         projectUuid,
     });
+
+    const handleToolResult = useCallback(
+        (toolResult: AiAgentToolResult) => {
+            if (!projectUuid) return;
+
+            const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
+                projectUuid,
+                toolResult,
+            );
+            if (!dashboardUrl) return;
+
+            navigateFromAgentChat(dashboardUrl, {
+                threadUuid,
+                title: thread?.title || thread?.firstMessage?.message,
+            });
+        },
+        [
+            navigateFromAgentChat,
+            projectUuid,
+            thread?.firstMessage?.message,
+            thread?.title,
+            threadUuid,
+        ],
+    );
+
+    const handleDashboardLinkClick = useCallback(
+        (dashboardUrl: string) => {
+            navigateFromAgentChat(dashboardUrl, {
+                threadUuid,
+                title: thread?.title || thread?.firstMessage?.message,
+            });
+        },
+        [
+            navigateFromAgentChat,
+            thread?.firstMessage?.message,
+            thread?.title,
+            threadUuid,
+        ],
+    );
 
     const {
         mutateAsync: createAgentThreadMessage,
@@ -58,6 +100,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid!,
         agentUuid,
         threadUuid,
+        {
+            onToolResult: handleToolResult,
+        },
     );
 
     const { isStreaming, isPending } = usePendingThreadRefetch(
@@ -144,6 +189,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             showAddToEvalsButton={canManage}
+            onDashboardLinkClick={handleDashboardLinkClick}
         >
             <AgentChatInput
                 disabled={inputDisabled}

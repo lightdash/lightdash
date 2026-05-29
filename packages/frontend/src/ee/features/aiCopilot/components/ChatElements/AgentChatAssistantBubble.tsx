@@ -336,7 +336,14 @@ const AssistantBubbleContent: FC<{
     projectUuid: string;
     agentUuid: string;
     mcpServers?: AiMcpServer[];
-}> = ({ message, projectUuid, agentUuid, mcpServers }) => {
+    onDashboardLinkClick?: (url: string) => void;
+}> = ({
+    message,
+    projectUuid,
+    agentUuid,
+    mcpServers,
+    onDashboardLinkClick,
+}) => {
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -654,6 +661,9 @@ const AssistantBubbleContent: FC<{
                                                 sqlRunnerLinkState={
                                                     sqlRunnerLinkState
                                                 }
+                                                onDashboardLinkClick={
+                                                    onDashboardLinkClick
+                                                }
                                             >
                                                 {children}
                                             </ContentLink>
@@ -848,6 +858,9 @@ const AssistantBubbleContent: FC<{
                                                     sqlRunnerLinkState={
                                                         sqlRunnerLinkState
                                                     }
+                                                    onDashboardLinkClick={
+                                                        onDashboardLinkClick
+                                                    }
                                                 >
                                                     {children}
                                                 </ContentLink>
@@ -904,6 +917,7 @@ type Props = {
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
     mcpServers?: AiMcpServer[];
+    onDashboardLinkClick?: (url: string) => void;
 };
 
 export const AssistantBubble: FC<Props> = memo(
@@ -917,6 +931,7 @@ export const AssistantBubble: FC<Props> = memo(
         renderArtifactsInline = false,
         showAddToEvalsButton = false,
         mcpServers,
+        onDashboardLinkClick,
     }) => {
         const artifact = useAiAgentStoreSelector(
             (state) => state.aiArtifact.artifact,
@@ -1010,6 +1025,7 @@ export const AssistantBubble: FC<Props> = memo(
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     mcpServers={mcpServers}
+                    onDashboardLinkClick={onDashboardLinkClick}
                 />
 
                 {isArtifactAvailable && projectUuid && agentUuid && (

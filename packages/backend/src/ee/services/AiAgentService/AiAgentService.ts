@@ -5034,26 +5034,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         patchedContent.slug.length > 0
                             ? patchedContent.slug
                             : slug;
+                    let uuid: string | undefined;
 
                     switch (currentContent.type) {
-                        case 'dashboard':
-                            await this.coderService.upsertDashboard(
-                                user,
-                                projectUuid,
-                                slug,
-                                patchedContent as typeof currentContent.content,
-                                { force: true },
-                            );
+                        case 'dashboard': {
+                            const promotionChanges =
+                                await this.coderService.upsertDashboard(
+                                    user,
+                                    projectUuid,
+                                    slug,
+                                    patchedContent as typeof currentContent.content,
+                                    { force: true },
+                                );
+                            uuid =
+                                promotionChanges.dashboards[0]?.data.uuid ??
+                                undefined;
                             break;
-                        case 'chart':
-                            await this.coderService.upsertChart(
-                                user,
-                                projectUuid,
-                                slug,
-                                patchedContent as typeof currentContent.content,
-                                { force: true },
-                            );
+                        }
+                        case 'chart': {
+                            const promotionChanges =
+                                await this.coderService.upsertChart(
+                                    user,
+                                    projectUuid,
+                                    slug,
+                                    patchedContent as typeof currentContent.content,
+                                    { force: true },
+                                );
+                            uuid =
+                                promotionChanges.charts[0]?.data.uuid ??
+                                undefined;
                             break;
+                        }
                         default:
                             return assertUnreachable(
                                 currentContent,
@@ -5061,10 +5072,36 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             );
                     }
 
-                    return readContent({
+                    const editedContent = await readContent({
                         slug: patchedSlug,
                         type,
                     });
+
+                    if (!uuid) {
+                        throw new NotFoundError(
+                            `Edited ${type} "${patchedSlug}" was not found`,
+                        );
+                    }
+
+                    switch (editedContent.type) {
+                        case 'dashboard':
+                            return {
+                                ...editedContent,
+                                uuid,
+                                url: `/projects/${projectUuid}/dashboards/${editedContent.content.slug}`,
+                            };
+                        case 'chart':
+                            return {
+                                ...editedContent,
+                                uuid,
+                                url: `/projects/${projectUuid}/saved/${editedContent.content.slug}`,
+                            };
+                        default:
+                            return assertUnreachable(
+                                editedContent,
+                                'Invalid content type',
+                            );
+                    }
                 },
             );
 
@@ -5091,11 +5128,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             const finalSlug =
                                 promotionChanges.dashboards[0]?.data.slug ??
                                 content.slug;
-
-                            return readContent({
+                            const uuid =
+                                promotionChanges.dashboards[0]?.data.uuid;
+                            if (!uuid) {
+                                throw new NotFoundError(
+                                    `Created dashboard "${finalSlug}" was not found`,
+                                );
+                            }
+                            const createdContent = await readContent({
                                 slug: finalSlug,
                                 type,
                             });
+
+                            return {
+                                ...createdContent,
+                                uuid,
+                                url: `/projects/${projectUuid}/dashboards/${finalSlug}`,
+                            };
                         }
                         case 'chart': {
                             // TODO: Reject missing dashboardSlug targets for
@@ -5112,11 +5161,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             const finalSlug =
                                 promotionChanges.charts[0]?.data.slug ??
                                 content.slug;
-
-                            return readContent({
+                            const uuid = promotionChanges.charts[0]?.data.uuid;
+                            if (!uuid) {
+                                throw new NotFoundError(
+                                    `Created chart "${finalSlug}" was not found`,
+                                );
+                            }
+                            const createdContent = await readContent({
                                 slug: finalSlug,
                                 type,
                             });
+
+                            return {
+                                ...createdContent,
+                                uuid,
+                                url: `/projects/${projectUuid}/saved/${finalSlug}`,
+                            };
                         }
                         default:
                             return assertUnreachable(

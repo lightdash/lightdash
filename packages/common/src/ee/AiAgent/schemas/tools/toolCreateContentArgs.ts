@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION =
     'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
@@ -54,9 +53,20 @@ export const toolCreateContentArgsSchema = z.object({
 
 export type ToolCreateContentArgs = z.infer<typeof toolCreateContentArgsSchema>;
 
+const toolCreateContentMetadataSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('error') }),
+    z.object({
+        status: z.literal('success'),
+        slug: z.string(),
+        name: z.string(),
+        uuid: z.string(),
+        url: z.string(),
+    }),
+]);
+
 export const toolCreateContentOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: toolCreateContentMetadataSchema,
 });
 
 export type ToolCreateContentOutput = z.infer<
