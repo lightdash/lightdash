@@ -1000,6 +1000,40 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
+    async updateReviewItemWritebackProgress(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        message: string;
+    }): Promise<void> {
+        // Guarded so a late, fire-and-forget progress write can never resurrect
+        // a row that already reached a terminal (completed/failed) state.
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .whereNotIn('pr_writeback_status', ['completed', 'failed'])
+            .update({
+                pr_writeback_status: 'running',
+                pr_writeback_message: args.message,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async failReviewItemWriteback(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        message: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('pr_writeback_status', ['queued', 'running'])
+            .update({
+                pr_writeback_status: 'failed',
+                pr_writeback_message: args.message,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async reconcileReviewItemPrState(args: {
         fingerprint: string;
         organizationUuid: string;

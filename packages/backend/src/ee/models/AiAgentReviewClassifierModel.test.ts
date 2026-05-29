@@ -561,6 +561,24 @@ describe('AiAgentReviewClassifierModel', () => {
         });
     });
 
+    describe('updateReviewItemWritebackProgress', () => {
+        it('guards against resurrecting a terminal row', async () => {
+            tracker.on.update(AiAgentReviewItemTableName).responseOnce(0);
+
+            await model.updateReviewItemWritebackProgress({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                message: 'Starting sandbox',
+            });
+
+            expect(tracker.history.update).toHaveLength(1);
+            const sql = tracker.history.update[0].sql.toLowerCase();
+            expect(sql).toContain('not in');
+            expect(tracker.history.update[0].bindings).toContain('completed');
+            expect(tracker.history.update[0].bindings).toContain('failed');
+        });
+    });
+
     describe('reconcileReviewItemPrState', () => {
         it('updates status and pr_state for a fingerprint in the org', async () => {
             tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);

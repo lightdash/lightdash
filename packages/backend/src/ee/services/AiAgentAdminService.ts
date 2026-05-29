@@ -14,6 +14,7 @@ import {
     getErrorMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     UpdateAiAgentReviewItemStatus,
@@ -60,6 +61,29 @@ const parsePullRequestUrl = (
     }
     return { owner: match[1], repo: match[2], pullNumber: Number(match[3]) };
 };
+
+// Longer than the worker's 30-min job timeout — past this, a queued/running writeback has lost its worker and is treated as failed so the UI recovers and retries.
+const WRITEBACK_STALE_MS = 35 * 60 * 1000;
+
+const isWritebackStale = (
+    item: AiAgentReviewItemSummary,
+    now: number,
+): boolean =>
+    (item.prWritebackStatus === 'queued' ||
+        item.prWritebackStatus === 'running') &&
+    now - new Date(item.updatedAt).getTime() > WRITEBACK_STALE_MS;
+
+const withStaleWritebackOverride = (
+    item: AiAgentReviewItemSummary,
+    now: number,
+): AiAgentReviewItemSummary =>
+    isWritebackStale(item, now)
+        ? {
+              ...item,
+              prWritebackStatus: 'failed',
+              prWritebackMessage: 'Writeback timed out',
+          }
+        : item;
 
 export class AiAgentAdminService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
@@ -199,6 +223,7 @@ export class AiAgentAdminService extends BaseService {
               )
             : new Set<string>();
 
+        const now = Date.now();
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
             const writebackEligible =
@@ -206,7 +231,10 @@ export class AiAgentAdminService extends BaseService {
                 item.primaryRootCause === 'semantic_layer' &&
                 item.projectUuid !== null &&
                 githubProjects.has(item.projectUuid);
-            return { ...item, ...(override ?? {}), writebackEligible };
+            return withStaleWritebackOverride(
+                { ...item, ...(override ?? {}), writebackEligible },
+                now,
+            );
         });
 
         if (statuses) {
@@ -284,14 +312,22 @@ export class AiAgentAdminService extends BaseService {
             return overrides;
         }
 
-        const installationId =
-            await this.githubAppInstallationsModel.getInstallationId(
-                organizationUuid,
+        let token: string;
+        try {
+            const installationId =
+                await this.githubAppInstallationsModel.getInstallationId(
+                    organizationUuid,
+                );
+            if (!installationId) {
+                return overrides;
+            }
+            token = await getInstallationToken(installationId);
+        } catch (error) {
+            this.logger.warn(
+                `Skipping PR-state reconcile — could not resolve GitHub installation: ${error}`,
             );
-        if (!installationId) {
             return overrides;
         }
-        const token = await getInstallationToken(installationId);
 
         await Promise.all(
             open.map(async (item) => {
@@ -464,6 +500,18 @@ export class AiAgentAdminService extends BaseService {
             throw new ForbiddenError('AI writeback is not enabled');
         }
 
+        // Fail fast at the click rather than queue → run → fail on the worker.
+        if (!this.lightdashConfig.appRuntime.e2bApiKey) {
+            throw new MissingConfigError(
+                'E2B API key is not configured (E2B_API_KEY)',
+            );
+        }
+        if (!this.lightdashConfig.aiWriteback.anthropicApiKey) {
+            throw new MissingConfigError(
+                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
+            );
+        }
+
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -482,10 +530,10 @@ export class AiAgentAdminService extends BaseService {
                 'A pull request is already open for this review item',
             );
         }
-        if (
+        const writebackInFlight =
             reviewItem.prWritebackStatus === 'queued' ||
-            reviewItem.prWritebackStatus === 'running'
-        ) {
+            reviewItem.prWritebackStatus === 'running';
+        if (writebackInFlight && !isWritebackStale(reviewItem, Date.now())) {
             throw new ParameterError(
                 'A writeback is already in progress for this review item',
             );
@@ -541,19 +589,14 @@ export class AiAgentAdminService extends BaseService {
         const { fingerprint, organizationUuid, projectUuid, userUuid } =
             payload;
 
-        const setStatus = (
-            status: 'running' | 'completed' | 'failed',
-            message: string | null,
-            agentUuid: string,
-        ) =>
-            this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
-                fingerprint,
-                organizationUuid,
-                projectUuid,
-                agentUuid,
-                status,
-                message,
-            });
+        const setProgress = (message: string) =>
+            this.aiAgentReviewClassifierModel.updateReviewItemWritebackProgress(
+                {
+                    fingerprint,
+                    organizationUuid,
+                    message,
+                },
+            );
 
         const scope =
             await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
@@ -570,9 +613,22 @@ export class AiAgentAdminService extends BaseService {
         }
         const { agentUuid } = scope;
 
+        const setTerminal = (
+            status: 'completed' | 'failed',
+            message: string | null,
+        ) =>
+            this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
+                fingerprint,
+                organizationUuid,
+                projectUuid,
+                agentUuid,
+                status,
+                message,
+            });
+
         try {
             const user = await this.userModel.findSessionUserByUUID(userUuid);
-            await setStatus('running', 'Starting writeback…', agentUuid);
+            await setProgress('Starting writeback…');
 
             const explores = await this.projectModel.findExploresFromCache(
                 projectUuid,
@@ -587,7 +643,7 @@ export class AiAgentAdminService extends BaseService {
                 projectUuid,
                 prompt: plan.promptText,
                 onProgress: (message) => {
-                    void setStatus('running', message, agentUuid);
+                    void setProgress(message);
                 },
             });
 
@@ -600,18 +656,25 @@ export class AiAgentAdminService extends BaseService {
                     linkedPrUrl: result.prUrl,
                     prState: 'open',
                 });
-                await setStatus('completed', 'Opened pull request', agentUuid);
+                await setTerminal('completed', 'Opened pull request');
             } else {
-                await setStatus(
+                await setTerminal(
                     'completed',
                     'Writeback ran — no changes were needed',
-                    agentUuid,
                 );
             }
         } catch (error) {
-            await setStatus('failed', getErrorMessage(error), agentUuid);
+            await setTerminal('failed', getErrorMessage(error));
             throw error;
         }
+    }
+
+    async failReviewItemWritebackJob(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        message: string;
+    }): Promise<void> {
+        await this.aiAgentReviewClassifierModel.failReviewItemWriteback(args);
     }
 
     async getReviewItem(
@@ -641,7 +704,10 @@ export class AiAgentAdminService extends BaseService {
             (await this.getGithubProjectUuids([reviewItem.projectUuid])).has(
                 reviewItem.projectUuid,
             );
-        return { ...reviewItem, writebackEligible };
+        return withStaleWritebackOverride(
+            { ...reviewItem, writebackEligible },
+            Date.now(),
+        );
     }
 
     /**
