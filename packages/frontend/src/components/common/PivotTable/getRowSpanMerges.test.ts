@@ -1,3 +1,5 @@
+import { FieldType } from '@lightdash/common';
+import type { PivotData } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 
@@ -8,10 +10,10 @@ const reader =
 
 describe('getGroupedDimColumnIds', () => {
     it('returns index dims in column order minus the leaf dim', () => {
-        const indexValueTypes = [
-            { fieldId: 'month' },
-            { fieldId: 'tier' },
-        ] as never;
+        const indexValueTypes: PivotData['indexValueTypes'] = [
+            { type: FieldType.DIMENSION, fieldId: 'month' },
+            { type: FieldType.DIMENSION, fieldId: 'tier' },
+        ];
         const columnOrder = ['month', 'tier', 'metric_a', 'metric_b'];
         expect(getGroupedDimColumnIds(indexValueTypes, columnOrder)).toEqual([
             'month',
@@ -19,14 +21,20 @@ describe('getGroupedDimColumnIds', () => {
     });
 
     it('returns empty when there is only a single index dim', () => {
-        const indexValueTypes = [{ fieldId: 'month' }] as never;
+        const indexValueTypes: PivotData['indexValueTypes'] = [
+            { type: FieldType.DIMENSION, fieldId: 'month' },
+        ];
         expect(
             getGroupedDimColumnIds(indexValueTypes, ['month', 'metric_a']),
         ).toEqual([]);
     });
 
     it('returns empty when there are no index dims', () => {
-        expect(getGroupedDimColumnIds([] as never, ['metric_a'])).toEqual([]);
+        expect(
+            getGroupedDimColumnIds([] as PivotData['indexValueTypes'], [
+                'metric_a',
+            ]),
+        ).toEqual([]);
     });
 });
 
@@ -95,5 +103,15 @@ describe('getRowSpanMerges', () => {
         expect(merges.get('month')).toEqual([
             { isBlockStart: true, rowSpan: 1 },
         ]);
+    });
+
+    it('returns an empty map when columnIds is empty', () => {
+        const rows = [{ month: 'A' }];
+        expect(getRowSpanMerges(rows.length, [], reader(rows)).size).toBe(0);
+    });
+
+    it('returns empty span arrays when rowCount is 0', () => {
+        const merges = getRowSpanMerges(0, ['month'], reader([]));
+        expect(merges.get('month')).toEqual([]);
     });
 });
