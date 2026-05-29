@@ -1,3 +1,10 @@
+## [0.3049.3](https://github.com/lightdash/lightdash/compare/0.3049.2...0.3049.3) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-agents:** replace violet color with ldGray in AgentSelector and AgentsRouterPage ([#23656](https://github.com/lightdash/lightdash/issues/23656)) ([9fdce6f](https://github.com/lightdash/lightdash/commit/9fdce6fc8ef08007fa25d5b260a01b3e55ca1366))
+
 ## [0.3049.2](https://github.com/lightdash/lightdash/compare/0.3049.1...0.3049.2) (2026-05-29)
 
 
