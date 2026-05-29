@@ -29,11 +29,24 @@ export type AppliedChanges = {
     pauseOnExit: boolean;
 };
 
+export type AiWritebackSource =
+    | 'slack'
+    | 'web'
+    | 'mcp'
+    | 'api'
+    | 'admin_review';
+
 export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
     prompt: string;
     aiThreadUuid?: string;
+    /**
+     * Identifies the trigger surface so logs, metrics, and analytics can
+     * group runs by where they originated. Required so adding new triggers
+     * is a type-system change rather than a silent fallthrough.
+     */
+    source: AiWritebackSource;
     /**
      * Fired with a short, user-facing progress message each time the run
      * advances through a meaningful phase (e.g. "Starting sandbox",

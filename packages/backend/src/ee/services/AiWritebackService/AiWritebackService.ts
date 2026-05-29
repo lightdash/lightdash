@@ -55,6 +55,7 @@ import { buildGatherRepoContextScript } from './scripts';
 import { buildSystemPrompt } from './templates';
 import type {
     AiWritebackRunArgs,
+    AiWritebackSource,
     AppliedChanges,
     GithubConnection,
     GithubInstallation,
@@ -62,7 +63,7 @@ import type {
     TurnContext,
 } from './types';
 
-export type { AiWritebackRunArgs } from './types';
+export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
 const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
@@ -452,7 +453,8 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
-        const { user, projectUuid, prompt, aiThreadUuid, onProgress } = args;
+        const { user, projectUuid, prompt, aiThreadUuid, source, onProgress } =
+            args;
         const runStartedAt = performance.now();
 
         // Wrap the optional onProgress in a try/catch so a misbehaving caller
@@ -477,6 +479,7 @@ export class AiWritebackService extends BaseService {
 
         this.logger.info('AI writeback run started', {
             event: 'ai_writeback.run.started',
+            source,
             projectUuid,
             aiThreadUuid: aiThreadUuid ?? null,
             isResume: turn.isResume,
@@ -494,6 +497,7 @@ export class AiWritebackService extends BaseService {
             // a stall is immediately attributable to the stage it happened in.
             this.logger.info('AI writeback stage complete', {
                 event: 'ai_writeback.run.stage',
+                source,
                 aiThreadUuid: aiThreadUuid ?? null,
                 stage: failureStage,
                 nextStage: stage,
@@ -546,6 +550,7 @@ export class AiWritebackService extends BaseService {
                 systemPrompt,
                 prompt,
                 isResume: turn.isResume,
+                source,
                 reportProgress,
             });
 
@@ -565,6 +570,7 @@ export class AiWritebackService extends BaseService {
                     'AI writeback agent exited non-zero, skipping PR',
                     {
                         event: 'ai_writeback.run.failed',
+                        source,
                         projectUuid,
                         aiThreadUuid: aiThreadUuid ?? null,
                         sandboxId: sandbox.sandboxId,
@@ -610,6 +616,7 @@ export class AiWritebackService extends BaseService {
 
             this.logger.info('AI writeback run completed', {
                 event: 'ai_writeback.run.completed',
+                source,
                 projectUuid,
                 aiThreadUuid: aiThreadUuid ?? null,
                 sandboxId: sandbox.sandboxId,
@@ -631,6 +638,7 @@ export class AiWritebackService extends BaseService {
         } catch (error) {
             this.logger.error('AI writeback run failed', {
                 event: 'ai_writeback.run.failed',
+                source,
                 projectUuid,
                 aiThreadUuid: aiThreadUuid ?? null,
                 sandboxId: sandbox?.sandboxId ?? null,
@@ -894,12 +902,14 @@ export class AiWritebackService extends BaseService {
         systemPrompt,
         prompt,
         isResume,
+        source,
         reportProgress,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
         prompt: string;
         isResume: boolean;
+        source: AiWritebackSource;
         reportProgress: (message: string) => void;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
@@ -1011,6 +1021,7 @@ export class AiWritebackService extends BaseService {
                                 (toolCounts[block.name] ?? 0) + 1;
                             this.logger.info('AI writeback agent tool call', {
                                 event: 'ai_writeback.run.tool',
+                                source,
                                 sandboxId: sandbox.sandboxId,
                                 toolName: block.name,
                                 summary: summarizeToolInput(block.input),
@@ -1027,6 +1038,7 @@ export class AiWritebackService extends BaseService {
             } else if (e.type === 'result') {
                 this.logger.info('AI writeback agent run summary', {
                     event: 'ai_writeback.run.summary',
+                    source,
                     sandboxId: sandbox.sandboxId,
                     costUsd: e.total_cost_usd ?? null,
                     toolCounts,

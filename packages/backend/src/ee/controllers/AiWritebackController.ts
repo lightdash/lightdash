@@ -73,6 +73,7 @@ export class AiWritebackController extends BaseController {
             user: toSessionUser(req.account),
             projectUuid,
             prompt,
+            source: 'api',
         });
         return {
             status: 'ok',
