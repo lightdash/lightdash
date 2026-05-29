@@ -1,3 +1,10 @@
+# [0.3048.0](https://github.com/lightdash/lightdash/compare/0.3047.0...0.3048.0) (2026-05-29)
+
+
+### Features
+
+* **ai-writeback:** require dedicated Anthropic API key (PROD-7982) ([#23616](https://github.com/lightdash/lightdash/issues/23616)) ([a1e5958](https://github.com/lightdash/lightdash/commit/a1e59585e7da3d218bf90eaa3a9e93f6b0e439ea))
+
 # [0.3047.0](https://github.com/lightdash/lightdash/compare/0.3046.1...0.3047.0) (2026-05-29)
 
 
