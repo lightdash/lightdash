@@ -79,3 +79,27 @@ export type AiRouterDecisionListFilters = {
 };
 
 export type ApiAiRouterDecisionListResponse = ApiSuccess<AiRouterDecision[]>;
+
+/**
+ * Per-project routing instructions written by an admin. Versioned append-only
+ * (like agent instructions): the latest version for a (router, project) pair is
+ * the active one. `instruction` is free text where tagged agents are embedded as
+ * `@[Agent Name](agent-uuid)` tokens; `taggedAgentUuids` is the extracted list,
+ * kept alongside the text so references can be validated and orphans detected.
+ */
+export type AiRouterInstruction = {
+    instructionVersionUuid: string;
+    routerUuid: string;
+    projectUuid: string;
+    instruction: string;
+    taggedAgentUuids: string[];
+    createdAt: Date;
+};
+
+export type ApiAiRouterInstructionResponse =
+    ApiSuccess<AiRouterInstruction | null>;
+
+export type UpsertAiRouterInstructionRequest = {
+    instruction: string;
+    taggedAgentUuids: string[];
+};

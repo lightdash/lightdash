@@ -27,6 +27,7 @@ import type {
     ApiAiOrganizationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
+    ApiAiRouterInstructionResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
     ApiAppendInstructionResponse,
@@ -1069,6 +1070,7 @@ type ApiResults =
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
+    | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']
     | ApiProjectCompileLogsResponse['results']

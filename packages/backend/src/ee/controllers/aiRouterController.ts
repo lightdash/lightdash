@@ -6,9 +6,11 @@ import {
     type AiRouterSelectionMode,
     type ApiAiRouterDecisionCommitResponse,
     type ApiAiRouterDecisionListResponse,
+    type ApiAiRouterInstructionResponse,
     type ApiAiRouterResponse,
     type ApiAiRouterRouteResponse,
     type ApiErrorPayload,
+    type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
 } from '@lightdash/common';
 import {
@@ -73,6 +75,56 @@ export class AiRouterController extends BaseController {
         return {
             status: 'ok',
             results: await this.routerService().upsertConfig(req.account, body),
+        };
+    }
+
+    /**
+     * Get the active routing instruction for a project. Returns null when no
+     * instruction has been written for the project yet.
+     * @summary Get AI router instruction
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/instructions/{projectUuid}')
+    @OperationId('getAiRouterInstruction')
+    async getInstruction(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiRouterInstructionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.routerService().getInstruction(
+                req.account,
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Write a new routing-instruction version for a project. Versions are
+     * append-only; the latest one is the active instruction.
+     * @summary Upsert AI router instruction
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/instructions/{projectUuid}')
+    @OperationId('upsertAiRouterInstruction')
+    async upsertInstruction(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: UpsertAiRouterInstructionRequest,
+    ): Promise<ApiAiRouterInstructionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.routerService().upsertInstruction(
+                req.account,
+                projectUuid,
+                body,
+            ),
         };
     }
 

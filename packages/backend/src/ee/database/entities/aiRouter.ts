@@ -60,3 +60,23 @@ export type AiRouterDecisionTable = Knex.CompositeTableType<
         >
     > & { committed_at?: Knex.Raw | Date | null }
 >;
+
+export const AiRouterInstructionVersionsTableName =
+    'ai_router_instruction_versions';
+
+export type DbAiRouterInstructionVersion = {
+    ai_router_instruction_version_uuid: string;
+    ai_router_uuid: string;
+    project_uuid: string;
+    instruction: string;
+    tagged_agent_uuids: string[];
+    created_at: Date;
+};
+
+export type AiRouterInstructionVersionsTable = Knex.CompositeTableType<
+    DbAiRouterInstructionVersion,
+    Omit<
+        DbAiRouterInstructionVersion,
+        'ai_router_instruction_version_uuid' | 'created_at'
+    >
+>;

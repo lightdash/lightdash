@@ -4,14 +4,17 @@ import {
     type AiRouterDecision,
     type AiRouterDecisionConfidence,
     type AiRouterDecisionListFilters,
+    type AiRouterInstruction,
     type AiRouterSelectionMode,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AiRouterDecisionTableName,
+    AiRouterInstructionVersionsTableName,
     AiRouterTableName,
     type DbAiRouter,
     type DbAiRouterDecision,
+    type DbAiRouterInstructionVersion,
 } from '../database/entities/aiRouter';
 
 const toAiRouter = (row: DbAiRouter): AiRouter => ({
@@ -21,6 +24,17 @@ const toAiRouter = (row: DbAiRouter): AiRouter => ({
     projectUuids: row.project_uuids,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+});
+
+const toAiRouterInstruction = (
+    row: DbAiRouterInstructionVersion,
+): AiRouterInstruction => ({
+    instructionVersionUuid: row.ai_router_instruction_version_uuid,
+    routerUuid: row.ai_router_uuid,
+    projectUuid: row.project_uuid,
+    instruction: row.instruction,
+    taggedAgentUuids: row.tagged_agent_uuids,
+    createdAt: row.created_at,
 });
 
 const toAiRouterDecision = (row: DbAiRouterDecision): AiRouterDecision => ({
@@ -174,5 +188,43 @@ export class AiRouterModel {
 
         const rows = await query;
         return rows.map(toAiRouterDecision);
+    }
+
+    /**
+     * Returns the active routing instruction for a (router, project) — the most
+     * recently created version — or null when none has been written.
+     */
+    async getLatestInstruction({
+        routerUuid,
+        projectUuid,
+    }: {
+        routerUuid: string;
+        projectUuid: string;
+    }): Promise<AiRouterInstruction | null> {
+        const row = await this.database(AiRouterInstructionVersionsTableName)
+            .where({
+                ai_router_uuid: routerUuid,
+                project_uuid: projectUuid,
+            })
+            .orderBy('created_at', 'desc')
+            .first();
+        return row ? toAiRouterInstruction(row) : null;
+    }
+
+    async createInstructionVersion(args: {
+        routerUuid: string;
+        projectUuid: string;
+        instruction: string;
+        taggedAgentUuids: string[];
+    }): Promise<AiRouterInstruction> {
+        const [row] = await this.database(AiRouterInstructionVersionsTableName)
+            .insert({
+                ai_router_uuid: args.routerUuid,
+                project_uuid: args.projectUuid,
+                instruction: args.instruction,
+                tagged_agent_uuids: args.taggedAgentUuids,
+            })
+            .returning('*');
+        return toAiRouterInstruction(row);
     }
 }
