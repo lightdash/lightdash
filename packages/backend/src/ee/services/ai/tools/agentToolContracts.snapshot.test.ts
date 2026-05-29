@@ -1,3 +1,4 @@
+import { agentToolDefinitions } from '@lightdash/common';
 import type { ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
@@ -11,9 +12,11 @@ import { getGenerateDashboardV2 } from './generateDashboardV2';
 import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
+import { getGetProjectInfo } from './getProjectInfo';
 import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
+import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
 import { getProposeChange } from './proposeChange';
@@ -48,6 +51,10 @@ const agentToolSnapshot = (name: string, toolDefinition: SnapshotTool) => ({
         ? { outputSchema: schemaToJson(toolDefinition.outputSchema) }
         : {}),
 });
+
+const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
+    (toolDefinition) => toolDefinition.for('agent').name,
+);
 
 const makeAgentTools = () => {
     const noop = jest.fn();
@@ -117,11 +124,13 @@ const makeAgentTools = () => {
         getKnowledgeDocumentContent: getGetKnowledgeDocumentContent({
             getKnowledgeDocumentContent: noop,
         }),
+        getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
         improveContext: getImproveContext(),
         listContent: getListContent({ listContent: noop }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),
+        listProjects: getListProjects({ listProjects: noop }),
         listWarehouseTables: getListWarehouseTables({
             listWarehouseTables: noop,
         }),
@@ -169,6 +178,10 @@ const makeAgentTools = () => {
 };
 
 describe('AI agent tool contracts', () => {
+    it('matches the shared agent tool definition names snapshot', () => {
+        expect(sharedAgentToolDefinitionNames).toMatchSnapshot();
+    });
+
     it('matches the current agent tool contract snapshot', () => {
         const agentTools = makeAgentTools();
 

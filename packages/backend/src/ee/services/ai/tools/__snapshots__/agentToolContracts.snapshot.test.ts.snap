@@ -2121,6 +2121,16 @@ Parameters:
     "name": "getKnowledgeDocumentContent",
   },
   {
+    "description": "Get details about the Lightdash project you are currently working in and its underlying dbt project. Use this when the user asks what dbt project this is, which git repository/branch it connects to, what dbt version or warehouse it uses, or wants general context about the current project. This is read-only, applies to the project you are currently working in, and never returns credentials or secrets.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "name": "getProjectInfo",
+  },
+  {
     "description": "
 Captures learnings from user corrections, clarifications, and guidance to improve future responses.
 
@@ -2288,6 +2298,16 @@ Parameters:
       "type": "object",
     },
     "name": "listKnowledgeDocuments",
+  },
+  {
+    "description": "List the Lightdash projects in this organization that the current user has access to. Use this when the user asks what projects exist, which projects they can access, or wants to know about other projects in their organization. This is read-only and only returns projects the user is allowed to view. It does not switch the project you are currently working in.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "name": "listProjects",
   },
   {
     "description": "Tool: list_warehouse_tables
@@ -5871,5 +5891,40 @@ Usage Tips:
     },
     "name": "searchFieldValues",
   },
+]
+`;
+
+exports[`AI agent tool contracts matches the shared agent tool definition names snapshot 1`] = `
+[
+  "findExplores",
+  "findFields",
+  "findContent",
+  "searchFieldValues",
+  "runQuery",
+  "runSql",
+  "discoverFields",
+  "generateDashboard",
+  "generateUuids",
+  "getDashboardCharts",
+  "readContent",
+  "editContent",
+  "createContent",
+  "listContent",
+  "improveContext",
+  "loadSkill",
+  "proposeChange",
+  "proposeWriteback",
+  "runSavedChart",
+  "listWarehouseTables",
+  "describeWarehouseTable",
+  "listKnowledgeDocuments",
+  "getKnowledgeDocumentContent",
+  "findCharts",
+  "findDashboards",
+  "generateBarVizConfig",
+  "generateTableVizConfig",
+  "generateTimeSeriesVizConfig",
+  "listProjects",
+  "getProjectInfo",
 ]
 `;
