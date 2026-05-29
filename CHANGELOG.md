@@ -1,3 +1,10 @@
+# [0.3054.0](https://github.com/lightdash/lightdash/compare/0.3053.1...0.3054.0) (2026-05-29)
+
+
+### Features
+
+* **ai-writeback:** stream live step progress + PR card on web ([#23671](https://github.com/lightdash/lightdash/issues/23671)) ([f65dd67](https://github.com/lightdash/lightdash/commit/f65dd67945d14f03123eb11cff97b714e72e1b07))
+
 ## [0.3053.1](https://github.com/lightdash/lightdash/compare/0.3053.0...0.3053.1) (2026-05-29)
 
 
