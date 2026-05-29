@@ -21,6 +21,7 @@ import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
@@ -65,14 +66,15 @@ type Props = {
      */
     pendingContent?: React.ReactNode;
     /**
-     * In-flight status events emitted by the latest tool (e.g. "Starting
+     * In-flight status events emitted across the stream (e.g. "Starting
      * sandbox", "Cloning project", "Committing changes" for proposeWriteback).
-     * Rendered as a vertical "steps" list under the latest row when present —
-     * lets the user follow what a long-running tool is doing without burying
-     * the timeline behind the collapse. Empty when no tool has fired a
-     * progress event yet, or for tools that don't emit progress.
+     * Each carries the tool it belongs to so the inline row can be scoped to
+     * the active tool — a concurrently running tool's progress (e.g. a
+     * `findFields` query fired alongside the writeback) must not surface under
+     * the writeback header. Latest matching entry is shown as a single
+     * replacing row. Empty when no tool has fired a progress event yet.
      */
-    stepProgressMessages?: string[];
+    stepProgressMessages?: StepProgressMessage[];
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -478,20 +480,28 @@ const getDiscoverFieldsTraceFromCall = (
  * warrant this treatment; other tools either run instantly or share the
  * single "Running your query…" string that the parent bubble shows via
  * TypingDots instead.
+ *
+ * Crucially, the row shows only the latest event belonging to the active
+ * tool (`toolName === latest.toolName`). A writeback often runs alongside
+ * other tools (e.g. a `findFields` query the agent fired in the same turn),
+ * and all of their progress lands in one flat list — without this scoping a
+ * concurrent tool's "Searching for fields…" would briefly surface under the
+ * "Opening a pull request" header.
  */
 const renderInlineLiveStepProgress = (params: {
     latest: LiveActivityToolGroup | null;
     isLive: boolean;
     hasPending: boolean;
-    stepProgressMessages: string[];
+    stepProgressMessages: StepProgressMessage[];
 }): React.ReactNode => {
     const { latest, isLive, hasPending, stepProgressMessages } = params;
     if (!isLive || !latest || hasPending) return null;
-    if (stepProgressMessages.length === 0) return null;
     if (latest.toolName !== 'proposeWriteback') return null;
 
-    const currentMessage =
-        stepProgressMessages[stepProgressMessages.length - 1];
+    const currentMessage = stepProgressMessages
+        .filter((m) => m.toolName === latest.toolName)
+        .at(-1)?.message;
+    if (!currentMessage) return null;
 
     return (
         <Box className={styles.liveStepProgress}>

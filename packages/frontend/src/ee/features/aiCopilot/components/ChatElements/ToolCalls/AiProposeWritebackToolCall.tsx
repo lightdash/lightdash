@@ -1,3 +1,4 @@
+import { type ToolProposeWritebackOutput } from '@lightdash/common';
 import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
 import {
     IconAlertTriangle,
@@ -7,12 +8,8 @@ import {
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 
-type Metadata =
-    | { status: 'success'; prUrl: string | null }
-    | { status: 'error' };
-
 type Props = {
-    metadata: Metadata;
+    metadata: ToolProposeWritebackOutput['metadata'];
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
@@ -38,10 +35,10 @@ const summarisePrUrl = (prUrl: string): string | null => {
 
 /**
  * Inline card rendered after a `proposeWriteback` tool call lands. The
- * agent's textual reply intentionally omits the URL (the prompt instructs
- * it to) on the expectation that this card surfaces it instead — matching
- * the Slack experience where the user's mention gets a green-tick reaction
- * plus the PR link in the agent message body.
+ * agent's textual reply intentionally omits the URL (the proposeWriteback
+ * tool result instructs it to) on the expectation that this card surfaces
+ * it instead — matching the Slack experience where the user's mention gets
+ * a green-tick reaction plus the PR link in the agent message body.
  */
 export const AiProposeWritebackToolCall: FC<Props> = ({ metadata }) => {
     if (metadata.status === 'error') {

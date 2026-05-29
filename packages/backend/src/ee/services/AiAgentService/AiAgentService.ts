@@ -4582,10 +4582,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         options?: {
             // Receives the same coarse step-progress strings ("Running your
             // query…", "Starting sandbox…") that Slack overwrites into the
-            // pinned "Thinking…" message. Only invoked for web prompts;
-            // Slack prompts route through updateSlackResponseWithProgress
-            // instead.
-            onStepProgress?: (progress: string) => void;
+            // pinned "Thinking…" message, along with the tool they belong to
+            // so the web client can scope an inline progress row to the active
+            // tool. Only invoked for web prompts; Slack prompts route through
+            // updateSlackResponseWithProgress instead.
+            onStepProgress?: (progress: string, toolName?: string) => void;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -4763,7 +4764,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return { fields: enrichedFields, pagination };
             });
 
-        const updateProgress: UpdateProgressFn = (progress) => {
+        const updateProgress: UpdateProgressFn = (progress, toolName) => {
             if (isSlackPrompt(prompt)) {
                 return this.updateSlackResponseWithProgress(prompt, progress);
             }
@@ -4772,7 +4773,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // generateOrStreamAgentResponse). The callback is wired only
             // when streaming; non-stream responses silently drop these
             // events.
-            options?.onStepProgress?.(progress);
+            options?.onStepProgress?.(progress, toolName);
             return Promise.resolve();
         };
 
@@ -5455,16 +5456,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // Discovering models → Editing models → Compiling project →
             // Committing → …). For Slack this overwrites the pinned
             // "Thinking…" message; for web it surfaces as a transient
-            // `data-progress` chunk on the SSE stream. Fire-and-forget — a
-            // Slack rate limit, deleted message, or dropped SSE client must
-            // never take down the writeback itself.
+            // `data-step-progress` chunk on the SSE stream. Tagged with the
+            // `proposeWriteback` tool name so the web client only renders
+            // these under the writeback header — never a concurrently running
+            // tool's progress. Fire-and-forget — a Slack rate limit, deleted
+            // message, or dropped SSE client must never take down the
+            // writeback itself.
             const writebackProgressCallback = (message: string) => {
-                void updateProgress(message).catch((err) => {
-                    Logger.debug(
-                        `Failed to update progress for writeback (${message}):`,
-                        err,
-                    );
-                });
+                void updateProgress(message, 'proposeWriteback').catch(
+                    (err) => {
+                        Logger.debug(
+                            `Failed to update progress for writeback (${message}):`,
+                            err,
+                        );
+                    },
+                );
             };
 
             const result = await wrapSentryTransaction(
@@ -5721,8 +5727,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectInfo,
         } = this.getAiAgentDependencies(user, prompt, {
             onStepProgress: stepProgressEmitter
-                ? (progress) =>
-                      stepProgressEmitter.emit('stepProgress', progress)
+                ? (progress, toolName) =>
+                      stepProgressEmitter.emit('stepProgress', {
+                          message: progress,
+                          toolName,
+                      })
                 : undefined,
         });
 
@@ -6030,14 +6039,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // they don't get persisted as part of the message; they're
                 // ephemeral status updates the bubble surfaces as the
                 // active step under the running tool group until the next
-                // event lands or the stream ends.
+                // event lands or the stream ends. `toolName` lets the client
+                // scope the row to the active tool so a concurrently running
+                // tool's progress can't surface under another tool's header.
                 if (stepProgressEmitter) {
                     stepProgressEmitter.on(
                         'stepProgress',
-                        (progress: string) => {
+                        (event: { message: string; toolName?: string }) => {
                             writer.write({
                                 type: 'data-step-progress',
-                                data: { message: progress },
+                                data: {
+                                    message: event.message,
+                                    toolName: event.toolName ?? null,
+                                },
                                 transient: true,
                             });
                         },

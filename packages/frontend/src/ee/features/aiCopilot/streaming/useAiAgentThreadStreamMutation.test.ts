@@ -36,14 +36,27 @@ describe('getMcpUnavailableNoticeFromChunk', () => {
 });
 
 describe('getStepProgressFromChunk', () => {
-    it('parses progress data chunks', () => {
+    it('parses progress data chunks with a tool name', () => {
+        expect(
+            getStepProgressFromChunk({
+                type: 'data-step-progress',
+                data: {
+                    message: 'Cloning project',
+                    toolName: 'proposeWriteback',
+                },
+                transient: true,
+            }),
+        ).toEqual({ message: 'Cloning project', toolName: 'proposeWriteback' });
+    });
+
+    it('parses progress data chunks without a tool name (toolName null)', () => {
         expect(
             getStepProgressFromChunk({
                 type: 'data-step-progress',
                 data: { message: 'Running your query...' },
                 transient: true,
             }),
-        ).toEqual('Running your query...');
+        ).toEqual({ message: 'Running your query...', toolName: null });
     });
 
     it('ignores unrelated chunks', () => {

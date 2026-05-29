@@ -426,9 +426,9 @@ const AssistantBubbleContent: FC<{
         isToolProposeChangeResult,
     );
 
-    // Writeback PR card metadata. The backend tells the LLM not to print the
-    // PR URL inline (we surface it via a dedicated button instead), so we
-    // have to source it from the tool result ourselves.
+    // Writeback PR card metadata. The proposeWriteback tool result instructs
+    // the LLM not to print the PR URL inline (we surface it via a dedicated
+    // button instead), so we have to source it from the tool result ourselves.
     //   - Persisted view: pull it from message.toolResults via the existing
     //     isToolProposeWritebackResult type predicate.
     //   - Live streaming: pull it from streamingState.parts. The streaming

@@ -102,6 +102,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Running your query...',
+                toolName: null,
             }).meta,
         ).toEqual(expectedMeta);
     });
@@ -121,6 +122,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Starting sandbox...',
+                toolName: 'proposeWriteback',
             }),
         );
         const afterSecond = aiAgentThreadStreamSlice.reducer(
@@ -128,15 +130,16 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Cloning project...',
+                toolName: 'proposeWriteback',
             }),
         );
         expect(afterSecond['thread-1']?.stepProgressMessages).toEqual([
-            'Starting sandbox...',
-            'Cloning project...',
+            { message: 'Starting sandbox...', toolName: 'proposeWriteback' },
+            { message: 'Cloning project...', toolName: 'proposeWriteback' },
         ]);
     });
 
-    it('drops adjacent duplicate progress messages', () => {
+    it('drops adjacent duplicate progress messages from the same tool', () => {
         const seeded = aiAgentThreadStreamSlice.reducer(
             aiAgentThreadStreamSlice.reducer(
                 undefined,
@@ -148,6 +151,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Running your query...',
+                toolName: 'runQuery',
             }),
         );
         const afterDuplicate = aiAgentThreadStreamSlice.reducer(
@@ -155,10 +159,37 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Running your query...',
+                toolName: 'runQuery',
             }),
         );
         expect(afterDuplicate['thread-1']?.stepProgressMessages).toEqual([
-            'Running your query...',
+            { message: 'Running your query...', toolName: 'runQuery' },
+        ]);
+    });
+
+    it('keeps an adjacent same-message event from a different tool', () => {
+        // The same string emitted by two different tools is not a true
+        // duplicate — scoping the inline row by toolName depends on both
+        // entries surviving.
+        let state = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+        for (const event of [
+            { message: 'Discovering models', toolName: 'proposeWriteback' },
+            { message: 'Discovering models', toolName: 'findExplores' },
+        ]) {
+            state = aiAgentThreadStreamSlice.reducer(
+                state,
+                appendStepProgress({ threadUuid: 'thread-1', ...event }),
+            );
+        }
+        expect(state['thread-1']?.stepProgressMessages).toEqual([
+            { message: 'Discovering models', toolName: 'proposeWriteback' },
+            { message: 'Discovering models', toolName: 'findExplores' },
         ]);
     });
 
@@ -177,13 +208,17 @@ describe('aiAgentThreadStreamSlice', () => {
         ]) {
             state = aiAgentThreadStreamSlice.reducer(
                 state,
-                appendStepProgress({ threadUuid: 'thread-1', message }),
+                appendStepProgress({
+                    threadUuid: 'thread-1',
+                    message,
+                    toolName: 'runQuery',
+                }),
             );
         }
         expect(state['thread-1']?.stepProgressMessages).toEqual([
-            'Running your query...',
-            'Editing models',
-            'Running your query...',
+            { message: 'Running your query...', toolName: 'runQuery' },
+            { message: 'Editing models', toolName: 'runQuery' },
+            { message: 'Running your query...', toolName: 'runQuery' },
         ]);
     });
 
@@ -201,6 +236,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Committing changes',
+                toolName: 'proposeWriteback',
             }),
         );
         const afterText = aiAgentThreadStreamSlice.reducer(
@@ -211,7 +247,7 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         expect(afterText['thread-1']?.stepProgressMessages).toEqual([
-            'Committing changes',
+            { message: 'Committing changes', toolName: 'proposeWriteback' },
         ]);
     });
 });
