@@ -1,4 +1,4 @@
-import { FeatureFlags, type FieldId } from '@lightdash/common';
+import { type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -24,7 +24,6 @@ import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Manager hook for Explorer query state
@@ -88,9 +87,6 @@ export const useExplorerQueryManager = () => {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
@@ -154,15 +150,11 @@ export const useExplorerQueryManager = () => {
         unpivotedQueryExecutor;
 
     const runQuery = useCallback((): boolean => {
-        if (useSqlPivotResults === undefined) {
-            return false;
-        }
         const mainQueryArgs = buildQueryArgs({
             activeFields,
             tableName,
             projectUuid,
             explore,
-            useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
             computedMetricQuery: metricQuery,
             parameters,
             isEditMode,
@@ -183,7 +175,6 @@ export const useExplorerQueryManager = () => {
         tableName,
         projectUuid,
         explore,
-        useSqlPivotResults,
         metricQuery,
         parameters,
         isEditMode,

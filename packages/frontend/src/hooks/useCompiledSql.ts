@@ -1,6 +1,5 @@
 import {
     derivePivotConfigurationFromChart,
-    FeatureFlags,
     getFieldsFromMetricQuery,
     type ApiCompiledQueryResults,
     type ApiError,
@@ -31,7 +30,6 @@ import { convertDateFilters } from '../utils/dateFilter';
 import { useExplore } from './useExplore';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 const getCompiledQuery = async (
     projectUuid: string,
@@ -78,9 +76,6 @@ export const useCompiledSql = (
     const preAggCacheEnabled = useExplorerSelector(selectPreAggCacheEnabled);
 
     const { data: explore } = useExplore(tableId);
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
@@ -96,9 +91,8 @@ export const useCompiledSql = (
         timezone: timezone ?? undefined,
     };
 
-    // Derive pivot configuration when SQL pivot results are enabled
     let pivotConfiguration: PivotConfiguration | undefined;
-    if (useSqlPivotResults?.enabled && explore) {
+    if (explore) {
         const items = getFieldsFromMetricQuery(metricQuery, explore);
         pivotConfiguration = derivePivotConfigurationFromChart(
             { chartConfig, pivotConfig },

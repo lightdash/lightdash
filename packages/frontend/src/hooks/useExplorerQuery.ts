@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import {
@@ -13,7 +12,6 @@ import {
     useCancelQuery,
     type QueryResultsProps,
 } from './useQueryResults';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Public API for Explorer query management
@@ -37,10 +35,6 @@ export const useExplorerQuery = () => {
     const projectUuid = manager.projectUuid;
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
     const unpivotedEnabled = !!unpivotedQueryArgs;
-
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     // Action: Reset query results
     const resetQueryResults = useCallback(() => {
@@ -76,8 +70,7 @@ export const useExplorerQuery = () => {
                     : queryResults.queryUuid;
 
             if (limit === null || limit !== queryResults.totalResults) {
-                const shouldPivot =
-                    exportPivotedResults && !!useSqlPivotResults?.enabled;
+                const shouldPivot = exportPivotedResults;
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
                         ? {
@@ -104,7 +97,6 @@ export const useExplorerQuery = () => {
             queryResults.queryUuid,
             queryResults.totalResults,
             validQueryArgs,
-            useSqlPivotResults?.enabled,
         ],
     );
 

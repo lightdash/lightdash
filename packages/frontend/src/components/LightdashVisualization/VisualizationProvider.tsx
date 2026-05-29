@@ -150,15 +150,9 @@ const VisualizationProvider: FC<
         }
     >();
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        useSqlPivotResults?.enabled
-            ? (unsavedMetricQuery ?? lastValidResultsData?.metricQuery)
-            : lastValidResultsData?.metricQuery,
+        unsavedMetricQuery ?? lastValidResultsData?.metricQuery,
         onPivotDimensionsChange,
     );
 

@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getAvailableParametersFromTables,
     getDateZoomCapabilities,
     QueryExecutionContext,
@@ -19,7 +18,6 @@ import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const executeAsyncDashboardChartQuery = async (
@@ -177,10 +175,6 @@ export const useDashboardChartReadyQuery = (
     // unnecessary refetches when zoom won't have an effect.
     const isZoomLikelyApplied = hasADateDimension && !!granularity;
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
@@ -195,7 +189,6 @@ export const useDashboardChartReadyQuery = (
             isZoomLikelyApplied ? granularity : null,
             invalidateCache,
             chartParameterValues,
-            useSqlPivotResults,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -211,7 +204,6 @@ export const useDashboardChartReadyQuery = (
             granularity,
             invalidateCache,
             chartParameterValues,
-            useSqlPivotResults,
         ],
     );
 
@@ -243,7 +235,7 @@ export const useDashboardChartReadyQuery = (
                           },
                           invalidateCache,
                           parameters: parameterValues,
-                          pivotResults: useSqlPivotResults?.enabled,
+                          pivotResults: true,
                       },
                   )
                 : await executeAsyncDashboardChartQuery(
@@ -260,7 +252,7 @@ export const useDashboardChartReadyQuery = (
                           },
                           invalidateCache,
                           parameters: parameterValues,
-                          pivotResults: useSqlPivotResults?.enabled,
+                          pivotResults: true,
                       },
                   );
 

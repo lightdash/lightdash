@@ -90,11 +90,10 @@ const runPivotChart = (
     assertPivotConfiguration: (pivotConfiguration: PivotConfiguration) => void,
     assertResults: (results: ReadyQueryResults) => void,
 ) => {
-    // Only alias requests that carry a pivotConfiguration. The
-    // useSqlPivotResults feature flag resolves async, so an auto-fetch
-    // can fire before the flag lands and produce a metric-query POST
-    // without pivotConfiguration — which would race the Run-query click
-    // and make cy.wait pick up the wrong request.
+    // Only alias requests that carry a pivotConfiguration. An auto-fetch
+    // can fire before the explore data lands and produce a metric-query
+    // POST without pivotConfiguration — which would race the Run-query
+    // click and make cy.wait pick up the wrong request.
     cy.intercept('POST', '**/api/v2/projects/*/query/metric-query', (req) => {
         const body = getRequestBody(req.body);
         if (body?.pivotConfiguration !== undefined) {

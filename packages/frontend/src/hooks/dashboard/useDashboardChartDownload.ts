@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -9,7 +8,6 @@ import { lightdashApi } from '../../api';
 import { Limit } from '../../components/ExportResults/types';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useDashboardChartDownload = (
@@ -32,10 +30,6 @@ export const useDashboardChartDownload = (
         (c) => c.dateZoomGranularity,
     );
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     const getDownloadQueryUuid = useCallback(
         async (
             limit: number | null,
@@ -46,8 +40,7 @@ export const useDashboardChartDownload = (
                 throw new Error('Missing required parameters');
             }
 
-            const originalQueryIsPivoted =
-                canExportPivotedData && !!useSqlPivotResults?.enabled;
+            const originalQueryIsPivoted = canExportPivotedData;
             const shouldPivotResults =
                 exportPivotedData && originalQueryIsPivoted;
 
@@ -111,7 +104,6 @@ export const useDashboardChartDownload = (
             dateZoomGranularity,
             parameters,
             canExportPivotedData,
-            useSqlPivotResults?.enabled,
             originalQueryUuid,
         ],
     );

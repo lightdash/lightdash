@@ -102,18 +102,14 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             : undefined;
 
     // Check if grouped view is available
-    const {
-        isSqlPivotEnabled,
-        hasPivotColumns: hasPivotConfig,
-        canShowGroupedResults,
-    } = useGroupedResultsAvailability();
+    const { hasPivotColumns: hasPivotConfig, canShowGroupedResults } =
+        useGroupedResultsAvailability();
 
     const resultsData = useMemo(() => {
         const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
 
         // Check if we need unpivoted data (regardless of whether it's ready)
-        const needsUnpivotedData =
-            isSqlPivotEnabled && hasPivotConfig && unpivotedEnabled;
+        const needsUnpivotedData = hasPivotConfig && unpivotedEnabled;
 
         // Only use unpivoted data when it's ready
         const shouldUseUnpivotedData = needsUnpivotedData && hasUnpivotedQuery;
@@ -176,7 +172,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         return result;
     }, [
-        isSqlPivotEnabled,
         unpivotedQuery,
         hasPivotConfig,
         unpivotedEnabled,
