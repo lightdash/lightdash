@@ -47,6 +47,25 @@ export const GIT_TIMEOUT_MS = 5 * 60 * 1000;
 // leak into the PR.
 export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
 
+// Wrapper the agent runs instead of `lightdash compile` directly. It strips
+// secrets from the environment before exec'ing the real compile, so a
+// malicious dbt model cannot read them via Jinja `env_var(...)` during the
+// compile (the agent process holds ANTHROPIC_API_KEY to authenticate the CLI,
+// and bash children would otherwise inherit it). The agent is allowlisted to
+// this wrapper only — not raw `lightdash compile` — so the scrub is enforced
+// regardless of what the agent decides to run. Written into the sandbox at
+// runtime by runAgentInSandbox.
+export const COMPILE_WRAPPER_PATH = '/tmp/ld-writeback-compile';
+
+// Environment variables stripped from the compile child by the wrapper above.
+// ANTHROPIC_API_KEY is the only secret currently in the agent's env, but we
+// also drop common token vars defensively in case that changes.
+export const COMPILE_STRIPPED_ENV_VARS = [
+    'ANTHROPIC_API_KEY',
+    'GITHUB_TOKEN',
+    'GH_TOKEN',
+];
+
 // Fine-grained tool permissions for the Claude Code CLI — used in place of
 // `--dangerously-skip-permissions`. Follows Claude Code's `--allowedTools`
 // syntax: `Tool(specifier)`, where `//path` denotes an absolute filesystem
@@ -54,8 +73,8 @@ export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
 //   - read/edit/write/glob/grep over the cloned repo at CWD
 //   - read/write/edit under TMP_PROFILES_DIR (the patched profiles copy)
 //   - write to the two PR metadata files the host reads after the run
-//   - bash scoped to `lightdash compile` and the file ops needed to set up
-//     the temporary profiles dir
+//   - bash scoped to the compile wrapper (COMPILE_WRAPPER_PATH) and the file
+//     ops needed to set up the temporary profiles dir
 export const ALLOWED_TOOLS = [
     `Read(/${CWD}/**)`,
     `Glob(/${CWD}/**)`,
@@ -71,7 +90,9 @@ export const ALLOWED_TOOLS = [
     // runAgentInSandbox). Without that the agent's /tmp write is refused and it
     // falls back to the repo root, where the host has to scrub it.
     `Write(//tmp/**)`,
-    'Bash(lightdash compile:*)',
+    // Compile only via the secret-stripping wrapper, never raw
+    // `lightdash compile` — see COMPILE_WRAPPER_PATH.
+    `Bash(${COMPILE_WRAPPER_PATH}:*)`,
     'Bash(mkdir:*)',
     'Bash(cp:*)',
 ].join(',');
