@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getMcpUnavailableNoticeFromChunk } from './useAiAgentThreadStreamMutation';
+import {
+    getMcpUnavailableNoticeFromChunk,
+    getStepProgressFromChunk,
+} from './useAiAgentThreadStreamMutation';
 
 describe('getMcpUnavailableNoticeFromChunk', () => {
     it('parses MCP unavailable data chunks', () => {
@@ -27,6 +30,45 @@ describe('getMcpUnavailableNoticeFromChunk', () => {
             getMcpUnavailableNoticeFromChunk({
                 type: 'text-start',
                 id: 'text-1',
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('getStepProgressFromChunk', () => {
+    it('parses progress data chunks', () => {
+        expect(
+            getStepProgressFromChunk({
+                type: 'data-step-progress',
+                data: { message: 'Running your query...' },
+                transient: true,
+            }),
+        ).toEqual('Running your query...');
+    });
+
+    it('ignores unrelated chunks', () => {
+        expect(
+            getStepProgressFromChunk({
+                type: 'text-start',
+                id: 'text-1',
+            }),
+        ).toBeNull();
+    });
+
+    it('ignores data-step-progress chunks with a non-string message', () => {
+        expect(
+            getStepProgressFromChunk({
+                type: 'data-step-progress',
+                data: { message: 42 as unknown as string },
+            }),
+        ).toBeNull();
+    });
+
+    it('ignores data-step-progress chunks with an empty message', () => {
+        expect(
+            getStepProgressFromChunk({
+                type: 'data-step-progress',
+                data: { message: '' },
             }),
         ).toBeNull();
     });

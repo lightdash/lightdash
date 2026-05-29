@@ -4,7 +4,9 @@ import {
     type AiAgentToolCall,
     type AiMcpServer,
     isToolProposeChangeResult,
+    isToolProposeWritebackResult,
     type ToolProposeChangeArgs,
+    type ToolProposeWritebackOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -70,6 +72,7 @@ import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
+import { AiProposeWritebackToolCall } from './ToolCalls/AiProposeWritebackToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
@@ -422,6 +425,37 @@ const AssistantBubbleContent: FC<{
     const proposeChangeToolResult = message.toolResults.find(
         isToolProposeChangeResult,
     );
+
+    // Writeback PR card metadata. The backend tells the LLM not to print the
+    // PR URL inline (we surface it via a dedicated button instead), so we
+    // have to source it from the tool result ourselves.
+    //   - Persisted view: pull it from message.toolResults via the existing
+    //     isToolProposeWritebackResult type predicate.
+    //   - Live streaming: pull it from streamingState.parts. The streaming
+    //     slice mirrors AI SDK output-available chunks into each part's
+    //     toolOutput, which is the full tool return shape {result,metadata}.
+    //     We re-shape to the structured `metadata` the card expects.
+    const proposeWritebackMetadata:
+        | ToolProposeWritebackOutput['metadata']
+        | null = (() => {
+        const persisted = message.toolResults.find(
+            isToolProposeWritebackResult,
+        );
+        if (persisted) return persisted.metadata;
+
+        const livePart = streamingState?.parts.find(
+            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
+                p.type === 'toolCall' &&
+                p.toolName === 'proposeWriteback' &&
+                p.toolOutput !== undefined &&
+                p.isPreliminary !== true,
+        );
+        const liveOutput = livePart?.toolOutput as
+            | ToolProposeWritebackOutput
+            | undefined;
+        return liveOutput?.metadata ?? null;
+    })();
+
     const mcpUnavailableNotices = streamingState?.mcpUnavailableNotices ?? [];
 
     return (
@@ -682,6 +716,10 @@ const AssistantBubbleContent: FC<{
                                     toolCalls={message.toolCalls}
                                     mcpServers={mcpServers}
                                     pendingContent={pendingApprovalContent}
+                                    stepProgressMessages={
+                                        streamingState?.stepProgressMessages ??
+                                        []
+                                    }
                                 />
                             )}
                             {latestTextSeg ? (
@@ -689,8 +727,18 @@ const AssistantBubbleContent: FC<{
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
+                            {/* Progress events ("Starting sandbox", "Cloning
+                                project", …) render inside the
+                                LiveActivityCard above as nested steps under
+                                the active tool — see renderInlineLiveStepProgress
+                                in that component. Here we just keep the
+                                "Finishing up" pulse for the brief gap
+                                between an artifact landing and the closing
+                                text. */}
                             {showFinishingUp && (
-                                <TypingDots label="Finishing up" />
+                                <Box className={styles.streamPart} pl={7}>
+                                    <TypingDots label="Finishing up" />
+                                </Box>
                             )}
                         </Stack>
                     );
@@ -817,9 +865,15 @@ const AssistantBubbleContent: FC<{
             {/* TypingDots fill the gap until the first visible output lands —
              *  any tool call or text part. Reasoning alone doesn't count: it
              *  collapses by default and would otherwise leave the bubble silent.
-             *  Once a part exists, the bento + rolling preview take over. */}
+             *  Once a part exists, the bento + rolling preview take over. The
+             *  optional label shows in-flight progress (e.g. "Starting
+             *  sandbox…") so this gap isn't silent for long-setup tools. */}
             {(isStreaming || (isPending && !streamingError)) &&
-                (streamingState?.parts?.length ?? 0) === 0 && <TypingDots />}
+                (streamingState?.parts?.length ?? 0) === 0 && (
+                    <Box className={styles.streamPart} pl={7}>
+                        <TypingDots />
+                    </Box>
+                )}
             {proposeChangeToolCall && (
                 <AiProposeChangeToolCall
                     change={proposeChangeToolCall.change}
@@ -829,6 +883,11 @@ const AssistantBubbleContent: FC<{
                     threadUuid={message.threadUuid}
                     promptUuid={message.uuid}
                     toolResult={proposeChangeToolResult}
+                />
+            )}
+            {proposeWritebackMetadata && (
+                <AiProposeWritebackToolCall
+                    metadata={proposeWritebackMetadata}
                 />
             )}
         </>

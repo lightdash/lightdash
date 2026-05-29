@@ -17,6 +17,7 @@ import {
     addReasoning,
     addMcpUnavailableNotice,
     addToolCall,
+    appendStepProgress,
     markToolCallDecided,
     setError,
     setImproveContextNotification,
@@ -48,6 +49,14 @@ type McpUnavailableNoticeChunk = UIMessageChunk & {
         serverName: string;
         message: string;
         status: 'not_connected' | 'connecting' | 'connected' | 'error';
+    };
+    transient?: boolean;
+};
+
+type StepProgressChunk = UIMessageChunk & {
+    type: 'data-step-progress';
+    data: {
+        message: string;
     };
     transient?: boolean;
 };
@@ -124,6 +133,24 @@ export const getMcpUnavailableNoticeFromChunk = (
     return null;
 };
 
+export const getStepProgressFromChunk = (
+    chunk: UIMessageChunk,
+): string | null => {
+    if (
+        chunk.type === 'data-step-progress' &&
+        'data' in chunk &&
+        chunk.data &&
+        typeof chunk.data === 'object'
+    ) {
+        const data = chunk.data as StepProgressChunk['data'];
+        if (typeof data.message === 'string' && data.message.length > 0) {
+            return data.message;
+        }
+    }
+
+    return null;
+};
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -184,6 +211,17 @@ export function useAiAgentThreadStreamMutation() {
                                 addMcpUnavailableNotice({
                                     threadUuid,
                                     notice,
+                                }),
+                            );
+                            continue;
+                        }
+
+                        const stepProgress = getStepProgressFromChunk(value);
+                        if (stepProgress) {
+                            dispatch(
+                                appendStepProgress({
+                                    threadUuid,
+                                    message: stepProgress,
                                 }),
                             );
                             continue;

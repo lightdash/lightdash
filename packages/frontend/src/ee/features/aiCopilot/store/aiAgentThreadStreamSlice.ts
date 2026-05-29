@@ -59,6 +59,19 @@ export interface AiAgentThreadStreamingState {
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
     mcpUnavailableNotices: McpUnavailableNotice[];
+    /**
+     * Ordered history of step-progress strings emitted by the agent's
+     * tools (e.g. "Starting sandbox…", "Cloning project…", "Editing
+     * models…"). Each `data-step-progress` SSE chunk is appended here
+     * (with adjacent-duplicate dedup). The bubble surfaces only the
+     * latest entry as the active step under the running tool group;
+     * keeping the full history in state means we can revisit the
+     * presentation (timeline, summary on hover, etc.) without changing
+     * the wire protocol. Slack overwrites a single pinned message — web
+     * has scroll space, but we mimic Slack's single-row replacement for
+     * now to keep the bubble compact.
+     */
+    stepProgressMessages: string[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -80,6 +93,7 @@ const initialThread: Omit<
     reasoning: [],
     decidedToolCallIds: [],
     mcpUnavailableNotices: [],
+    stepProgressMessages: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -297,6 +311,34 @@ export const aiAgentThreadStreamSlice = createSlice({
                 text: string;
             }>(),
         },
+        appendStepProgress: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    message: string;
+                }>,
+            ) => {
+                const { threadUuid, message } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (!streamingThread) return;
+                // Drop adjacent-duplicate step events — `runQuery` fires
+                // the same "Running your query…" string per-call and we
+                // don't want a stuttering list. Non-adjacent repeats are
+                // fine (different cycle, different context) so we only
+                // check the most recent entry.
+                const last =
+                    streamingThread.stepProgressMessages[
+                        streamingThread.stepProgressMessages.length - 1
+                    ];
+                if (last === message) return;
+                streamingThread.stepProgressMessages.push(message);
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                message: string;
+            }>(),
+        },
         addMcpUnavailableNotice: {
             reducer: (
                 state,
@@ -337,4 +379,5 @@ export const {
     addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
+    appendStepProgress,
 } = aiAgentThreadStreamSlice.actions;

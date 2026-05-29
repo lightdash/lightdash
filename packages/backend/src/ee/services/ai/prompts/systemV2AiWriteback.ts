@@ -21,4 +21,4 @@ The writeback agent runs in a fresh sandbox with no memory of this conversation.
 - Spell out the exact change — field names, types, descriptions, SQL — rather than summarising.
 - Don't include pleasantries or meta-commentary; write it as a direct task.
 
-The tool call is synchronous and can take several minutes. Tell the user something brief like "Opening a pull request for that — this can take a minute" before calling it. After the tool returns, surface the pull request URL to the user.`;
+The tool call is synchronous and can take several minutes. Tell the user something brief like "Opening a pull request for that — this may take a few minutes" before calling it. After the tool returns, surface the pull request URL to the user.`;

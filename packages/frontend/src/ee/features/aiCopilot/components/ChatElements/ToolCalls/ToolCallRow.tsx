@@ -30,10 +30,24 @@ import {
 } from './utils/mcpToolDisplay';
 import { type ToolCallSummary } from './utils/types';
 
+// Tools whose ToolCallDescription returns an empty fragment. Tracked here
+// so the row doesn't render a chevron + clickable header that expand into
+// blank space. Keep in sync with the empty `return <></>` cases in
+// ToolCallDescription.tsx. `discoverFields` belongs to the empty-description
+// list but is rescued by its extraBody (the subagent trace) via the
+// hasDescription check below — adding it here is safe so long as extraBody
+// is supplied wherever the trace is meaningful.
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
+    'discoverFields',
+    'generateUuids',
+    'getProjectInfo',
     'improveContext',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
     'loadSkill',
     'proposeChange',
+    'proposeWriteback',
     'runSavedChart',
 ]);
 
