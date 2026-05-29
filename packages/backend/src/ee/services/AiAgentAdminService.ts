@@ -6,10 +6,12 @@ import {
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewSignalSummary,
+    AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -25,10 +27,12 @@ import {
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { planReviewWriteback } from './ai/reviewWriteback/buildReviewWritebackPrompt';
 import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
 
@@ -39,6 +43,8 @@ type AiAgentAdminServiceDependencies = {
     projectModel: ProjectModel;
     aiWritebackService: AiWritebackService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    schedulerClient: CommercialSchedulerClient;
+    userModel: UserModel;
     lightdashConfig: LightdashConfig;
 };
 
@@ -67,6 +73,10 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly schedulerClient: CommercialSchedulerClient;
+
+    private readonly userModel: UserModel;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
@@ -77,6 +87,8 @@ export class AiAgentAdminService extends BaseService {
         this.aiWritebackService = dependencies.aiWritebackService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
+        this.schedulerClient = dependencies.schedulerClient;
+        this.userModel = dependencies.userModel;
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
@@ -392,6 +404,14 @@ export class AiAgentAdminService extends BaseService {
                 'A pull request is already open for this review item',
             );
         }
+        if (
+            reviewItem.prWritebackStatus === 'queued' ||
+            reviewItem.prWritebackStatus === 'running'
+        ) {
+            throw new ParameterError(
+                'A writeback is already in progress for this review item',
+            );
+        }
 
         const scope =
             await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
@@ -409,30 +429,125 @@ export class AiAgentAdminService extends BaseService {
             );
         }
 
-        const plan = planReviewWriteback(reviewItem);
-
-        const result = await this.aiWritebackService.run({
-            user,
+        await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
+            fingerprint,
+            organizationUuid,
             projectUuid: scope.projectUuid,
-            prompt: plan.promptText,
+            agentUuid: scope.agentUuid,
+            status: 'queued',
+            message: 'Queued',
         });
 
-        if (result.prUrl) {
-            await this.aiAgentReviewClassifierModel.setReviewItemPrLink({
-                fingerprint,
-                organizationUuid,
-                projectUuid: scope.projectUuid,
-                agentUuid: scope.agentUuid,
-                linkedPrUrl: result.prUrl,
-                prState: 'open',
-            });
-        }
+        await this.schedulerClient.aiAgentReviewWriteback({
+            fingerprint,
+            organizationUuid,
+            projectUuid: scope.projectUuid,
+            userUuid: user.userUuid,
+        });
 
         const updated = await this.aiAgentReviewClassifierModel.getReviewItem(
             organizationUuid,
             fingerprint,
         );
         return updated ?? reviewItem;
+    }
+
+    /**
+     * Runs on the scheduler worker. Performs the writeback synchronously inside
+     * the job, streaming phase messages onto the review item so the admin UI
+     * can poll for progress.
+     */
+    async runReviewItemWritebackJob(
+        payload: AiAgentReviewWritebackJobPayload,
+    ): Promise<void> {
+        const { fingerprint, organizationUuid, projectUuid, userUuid } =
+            payload;
+
+        const setStatus = (
+            status: 'running' | 'completed' | 'failed',
+            message: string | null,
+            agentUuid: string,
+        ) =>
+            this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
+                fingerprint,
+                organizationUuid,
+                projectUuid,
+                agentUuid,
+                status,
+                message,
+            });
+
+        const scope =
+            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+                organizationUuid,
+                fingerprint,
+            );
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!scope || !reviewItem) {
+            return;
+        }
+        const { agentUuid } = scope;
+
+        try {
+            const user = await this.userModel.findSessionUserByUUID(userUuid);
+            await setStatus('running', 'Starting writeback…', agentUuid);
+
+            const plan = planReviewWriteback(reviewItem);
+            const result = await this.aiWritebackService.run({
+                user,
+                projectUuid,
+                prompt: plan.promptText,
+                onProgress: (message) => {
+                    void setStatus('running', message, agentUuid);
+                },
+            });
+
+            if (result.prUrl) {
+                await this.aiAgentReviewClassifierModel.setReviewItemPrLink({
+                    fingerprint,
+                    organizationUuid,
+                    projectUuid,
+                    agentUuid,
+                    linkedPrUrl: result.prUrl,
+                    prState: 'open',
+                });
+                await setStatus('completed', 'Opened pull request', agentUuid);
+            } else {
+                await setStatus(
+                    'completed',
+                    'Writeback ran — no changes were needed',
+                    agentUuid,
+                );
+            }
+        } catch (error) {
+            await setStatus('failed', getErrorMessage(error), agentUuid);
+            throw error;
+        }
+    }
+
+    async getReviewItem(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        return reviewItem;
     }
 
     /**

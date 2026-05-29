@@ -15,6 +15,7 @@ import {
     Button,
     Divider,
     Group,
+    Loader,
     Paper,
     SegmentedControl,
     Stack,
@@ -54,6 +55,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
     useAiAgentAdminAgents,
+    useAiAgentAdminReviewItem,
     useAiAgentAdminReviewItems,
     useAiAgentAdminReviewSignals,
     useCreateAiAgentReviewItemWriteback,
@@ -385,12 +387,38 @@ const ReviewItemActionsCell = ({
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
 
+    const propInFlight =
+        reviewItem.prWritebackStatus === 'queued' ||
+        reviewItem.prWritebackStatus === 'running';
+    // While a writeback runs on the worker, poll the single item so the live
+    // phase messages ("Starting sandbox", "Discovering models"…) surface here.
+    const { data: polled } = useAiAgentAdminReviewItem(reviewItem.fingerprint, {
+        enabled: propInFlight,
+        refetchInterval: propInFlight ? 2500 : false,
+    });
+    const current = polled ?? reviewItem;
+
+    const isWritebackInFlight =
+        current.prWritebackStatus === 'queued' ||
+        current.prWritebackStatus === 'running';
     const isTerminal =
-        reviewItem.status === 'resolved' || reviewItem.status === 'dismissed';
+        current.status === 'resolved' || current.status === 'dismissed';
     const canCreatePr =
-        reviewItem.primaryRootCause === 'semantic_layer' &&
-        !reviewItem.linkedPrUrl &&
-        !isTerminal;
+        current.primaryRootCause === 'semantic_layer' &&
+        !current.linkedPrUrl &&
+        !isTerminal &&
+        !isWritebackInFlight;
+
+    if (isWritebackInFlight) {
+        return (
+            <Group gap="xs" wrap="nowrap" justify="flex-end">
+                <Loader size="xs" color="violet" />
+                <Text fz="xs" c="ldGray.7" lineClamp={1} maw={170}>
+                    {current.prWritebackMessage ?? 'Working…'}
+                </Text>
+            </Group>
+        );
+    }
 
     return (
         <Group gap="xs" wrap="nowrap" justify="flex-end">
@@ -398,14 +426,14 @@ const ReviewItemActionsCell = ({
                 size="sm"
                 radius="sm"
                 variant="light"
-                color={statusColors[reviewItem.status]}
+                color={statusColors[current.status]}
             >
-                {reviewItem.status.replaceAll('_', ' ')}
+                {current.status.replaceAll('_', ' ')}
             </Badge>
 
-            {reviewItem.linkedPrUrl && (
+            {current.linkedPrUrl && (
                 <Anchor
-                    href={reviewItem.linkedPrUrl}
+                    href={current.linkedPrUrl}
                     target="_blank"
                     onClick={(event) => event.stopPropagation()}
                 >
@@ -420,7 +448,7 @@ const ReviewItemActionsCell = ({
 
             {canCreatePr && (
                 <Tooltip
-                    label="Open a pull request against the dbt project (may take a few minutes)"
+                    label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
                     withArrow
                     multiline
                     maw={260}
@@ -435,7 +463,7 @@ const ReviewItemActionsCell = ({
                         }
                         onClick={(event) => {
                             event.stopPropagation();
-                            createWriteback.mutate(reviewItem.fingerprint);
+                            createWriteback.mutate(current.fingerprint);
                         }}
                     >
                         Create PR
@@ -454,7 +482,7 @@ const ReviewItemActionsCell = ({
                         onClick={(event) => {
                             event.stopPropagation();
                             updateStatus.mutate({
-                                fingerprint: reviewItem.fingerprint,
+                                fingerprint: current.fingerprint,
                                 body: {
                                     status: 'dismissed',
                                     dismissedReason: 'not_actionable',

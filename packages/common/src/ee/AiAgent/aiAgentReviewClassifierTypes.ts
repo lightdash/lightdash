@@ -319,6 +319,12 @@ export type AiAgentReviewItemOwnerType =
 
 export type AiAgentReviewItemPrState = 'open' | 'merged' | 'closed';
 
+export type AiAgentReviewItemWritebackStatus =
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed';
+
 const aiAgentConfigurationSettingSchema = z.enum([
     'instructions',
     'knowledge_documents',
@@ -496,6 +502,8 @@ export type AiAgentReviewItem = {
     linkedIssueUrl: string | null;
     linkedPrUrl: string | null;
     prState: AiAgentReviewItemPrState | null;
+    prWritebackStatus: AiAgentReviewItemWritebackStatus | null;
+    prWritebackMessage: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
