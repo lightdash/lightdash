@@ -1,3 +1,10 @@
+# [0.3050.0](https://github.com/lightdash/lightdash/compare/0.3049.3...0.3050.0) (2026-05-29)
+
+
+### Features
+
+* **ai-agents:** add paginated project-scoped thread list endpoint and sidebar infinite scroll ([#23653](https://github.com/lightdash/lightdash/issues/23653)) ([602ec6f](https://github.com/lightdash/lightdash/commit/602ec6f5a7e6ab651776bcd22450658a91aaed27))
+
 ## [0.3049.3](https://github.com/lightdash/lightdash/compare/0.3049.2...0.3049.3) (2026-05-29)
 
 
