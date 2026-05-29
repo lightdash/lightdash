@@ -59,11 +59,6 @@ export const toolCreateContentOutputSchema = z.object({
     metadata: baseOutputMetadataSchema,
 });
 
-export const mcpContentStructuredOutputSchema = z.object({
-    type: z.enum(['dashboard', 'chart']),
-    content: z.record(z.unknown()),
-});
-
 export type ToolCreateContentOutput = z.infer<
     typeof toolCreateContentOutputSchema
 >;
