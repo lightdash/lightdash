@@ -327,6 +327,11 @@ Both accept all props of their base component (`GroupProps` / `PaperProps`) plus
 <TruncatedText maxWidth="100%" fw={500}>{space.name}</TruncatedText>
 ```
 
+### Tables with search, pagination, and sorting
+
+Use the `ContentTable` component from `components/common/ContentTable` for tables with search, pagination, and sorting.
+If you need filters, use FilterFacet
+
 ## Mantine Documentation
 
 List of all components and links to their documentation in LLM-friendly format: `https://mantine.dev/llms.txt`

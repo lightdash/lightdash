@@ -1,21 +1,17 @@
-import {
-    Badge,
-    Button,
-    Popover,
-    Radio,
-    ScrollArea,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
-import type { FC } from 'react';
+import { useMemo, type FC } from 'react';
+import FilterFacet, { type FilterFacetOption } from '../common/FilterFacet';
 import {
     ALL_QUERY_TYPES,
     formatMissReason,
     QUERY_TYPE_LABELS,
     type QueryType,
 } from './preAggregateHelpers';
-import classes from './PreAggregateStatsTable.module.css';
+
+const toSingleValue = <T extends string>(values: string[]): T | null =>
+    (values[0] as T) ?? null;
+
+const fromSingleValue = (value: string | null): string[] =>
+    value === null ? [] : [value];
 
 // --- Query Type Filter ---
 
@@ -24,73 +20,24 @@ type QueryTypeFilterProps = {
     onChange: (value: QueryType | null) => void;
 };
 
+const QUERY_TYPE_OPTIONS: FilterFacetOption[] = ALL_QUERY_TYPES.map((type) => ({
+    value: type,
+    label: QUERY_TYPE_LABELS[type],
+}));
+
 export const QueryTypeFilter: FC<QueryTypeFilterProps> = ({
     selected,
     onChange,
-}) => {
-    const hasSelection = selected !== null;
-
-    return (
-        <Popover width={250} position="bottom-start">
-            <Popover.Target>
-                <Tooltip withinPortal variant="xs" label="Filter by query type">
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            hasSelection
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        rightSection={
-                            hasSelection ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                >
-                                    1
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Type
-                    </Button>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="ldDark.3" fw={600}>
-                        Filter by type:
-                    </Text>
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
-                        <Radio.Group
-                            value={selected ?? ''}
-                            onChange={(v) => onChange(v as QueryType)}
-                        >
-                            <Stack gap="xs">
-                                {ALL_QUERY_TYPES.map((type) => (
-                                    <Radio
-                                        key={type}
-                                        value={type}
-                                        label={QUERY_TYPE_LABELS[type]}
-                                        size="xs"
-                                    />
-                                ))}
-                            </Stack>
-                        </Radio.Group>
-                    </ScrollArea.Autosize>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
-    );
-};
+}) => (
+    <FilterFacet
+        label="Type"
+        mode="single"
+        options={QUERY_TYPE_OPTIONS}
+        selected={fromSingleValue(selected)}
+        onChange={(values) => onChange(toSingleValue<QueryType>(values))}
+        tooltipLabel="Filter by query type"
+    />
+);
 
 // --- Explore Filter ---
 
@@ -105,67 +52,19 @@ export const ExploreFilter: FC<ExploreFilterProps> = ({
     selected,
     onChange,
 }) => {
-    const hasSelection = selected !== null;
-
+    const options = useMemo<FilterFacetOption[]>(
+        () => explores.map((explore) => ({ value: explore, label: explore })),
+        [explores],
+    );
     return (
-        <Popover width={250} position="bottom-start">
-            <Popover.Target>
-                <Tooltip withinPortal variant="xs" label="Filter by explore">
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            hasSelection
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        rightSection={
-                            hasSelection ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                >
-                                    1
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Explore
-                    </Button>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="ldDark.3" fw={600}>
-                        Filter by explore:
-                    </Text>
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
-                        <Radio.Group
-                            value={selected ?? ''}
-                            onChange={(v) => onChange(v || null)}
-                        >
-                            <Stack gap="xs">
-                                {explores.map((explore) => (
-                                    <Radio
-                                        key={explore}
-                                        value={explore}
-                                        label={explore}
-                                        size="xs"
-                                    />
-                                ))}
-                            </Stack>
-                        </Radio.Group>
-                    </ScrollArea.Autosize>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
+        <FilterFacet
+            label="Explore"
+            mode="single"
+            options={options}
+            selected={fromSingleValue(selected)}
+            onChange={(values) => onChange(toSingleValue(values))}
+            tooltipLabel="Filter by explore"
+        />
     );
 };
 
@@ -182,71 +81,19 @@ export const PreAggregateFilter: FC<PreAggregateFilterProps> = ({
     selected,
     onChange,
 }) => {
-    const hasSelection = selected !== null;
-
+    const options = useMemo<FilterFacetOption[]>(
+        () => names.map((name) => ({ value: name, label: name })),
+        [names],
+    );
     return (
-        <Popover width={250} position="bottom-start">
-            <Popover.Target>
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label="Filter by pre-aggregate"
-                >
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            hasSelection
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        rightSection={
-                            hasSelection ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                >
-                                    1
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Pre-aggregate
-                    </Button>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="ldDark.3" fw={600}>
-                        Filter by pre-aggregate:
-                    </Text>
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
-                        <Radio.Group
-                            value={selected ?? ''}
-                            onChange={(v) => onChange(v || null)}
-                        >
-                            <Stack gap="xs">
-                                {names.map((name) => (
-                                    <Radio
-                                        key={name}
-                                        value={name}
-                                        label={name}
-                                        size="xs"
-                                    />
-                                ))}
-                            </Stack>
-                        </Radio.Group>
-                    </ScrollArea.Autosize>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
+        <FilterFacet
+            label="Pre-aggregate"
+            mode="single"
+            options={options}
+            selected={fromSingleValue(selected)}
+            onChange={(values) => onChange(toSingleValue(values))}
+            tooltipLabel="Filter by pre-aggregate"
+        />
     );
 };
 
@@ -263,70 +110,22 @@ export const MissReasonFilter: FC<MissReasonFilterProps> = ({
     selected,
     onChange,
 }) => {
-    const hasSelection = selected !== null;
-
+    const options = useMemo<FilterFacetOption[]>(
+        () =>
+            reasons.map((reason) => ({
+                value: reason,
+                label: formatMissReason(reason),
+            })),
+        [reasons],
+    );
     return (
-        <Popover width={280} position="bottom-start">
-            <Popover.Target>
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label="Filter by miss reason"
-                >
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            hasSelection
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        rightSection={
-                            hasSelection ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                >
-                                    1
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Reason
-                    </Button>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="ldDark.3" fw={600}>
-                        Filter by miss reason:
-                    </Text>
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
-                        <Radio.Group
-                            value={selected ?? ''}
-                            onChange={(v) => onChange(v || null)}
-                        >
-                            <Stack gap="xs">
-                                {reasons.map((reason) => (
-                                    <Radio
-                                        key={reason}
-                                        value={reason}
-                                        label={formatMissReason(reason)}
-                                        size="xs"
-                                    />
-                                ))}
-                            </Stack>
-                        </Radio.Group>
-                    </ScrollArea.Autosize>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
+        <FilterFacet
+            label="Reason"
+            mode="single"
+            options={options}
+            selected={fromSingleValue(selected)}
+            onChange={(values) => onChange(toSingleValue(values))}
+            tooltipLabel="Filter by miss reason"
+        />
     );
 };

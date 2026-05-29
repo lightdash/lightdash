@@ -4,15 +4,22 @@ import {
     Button,
     Checkbox,
     Group,
+    Loader,
     Popover,
+    Radio,
     ScrollArea,
     Stack,
     Text,
+    TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronDown, type Icon as TablerIcon } from '@tabler/icons-react';
-import { type ReactNode } from 'react';
+import {
+    IconChevronDown,
+    IconSearch,
+    type Icon as TablerIcon,
+} from '@tabler/icons-react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './FilterFacet.module.css';
 
@@ -29,6 +36,8 @@ export type FilterFacetGroup = {
     options: FilterFacetOption[];
 };
 
+export type FilterFacetMode = 'multi' | 'single';
+
 export type FilterFacetProps = {
     label: string;
     selected: string[];
@@ -39,8 +48,15 @@ export type FilterFacetProps = {
     emptyLabel?: string;
     tooltipLabel?: string;
     loading?: boolean;
+    loadingMore?: boolean;
     maxDropdownHeight?: number;
     helperText?: string;
+    mode?: FilterFacetMode;
+    searchValue?: string;
+    onSearchChange?: (value: string) => void;
+    searchPlaceholder?: string;
+    onScrollEnd?: () => void;
+    scrollEndOffset?: number;
 };
 
 const isOptionVisible = (
@@ -61,10 +77,29 @@ const FilterFacet = ({
     emptyLabel = 'No options',
     tooltipLabel,
     loading,
+    loadingMore,
     maxDropdownHeight = 280,
     helperText,
+    mode = 'multi',
+    searchValue,
+    onSearchChange,
+    searchPlaceholder = 'Search…',
+    onScrollEnd,
+    scrollEndOffset = 50,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    const handleScrollPositionChange = useCallback(
+        ({ y }: { x: number; y: number }) => {
+            if (!onScrollEnd || !viewportRef.current) return;
+            const { scrollHeight, clientHeight } = viewportRef.current;
+            if (y >= scrollHeight - clientHeight - scrollEndOffset) {
+                onScrollEnd();
+            }
+        },
+        [onScrollEnd, scrollEndOffset],
+    );
 
     const flatOptions: FilterFacetOption[] = options ?? [];
     const visibleFlatOptions = flatOptions.filter((option) =>
@@ -84,6 +119,10 @@ const FilterFacet = ({
 
     const toggle = (value: string, disabled?: boolean) => {
         if (disabled) return;
+        if (mode === 'single') {
+            onChange(selectedSet.has(value) ? [] : [value]);
+            return;
+        }
         if (selectedSet.has(value)) {
             onChange(selected.filter((v) => v !== value));
         } else {
@@ -109,13 +148,23 @@ const FilterFacet = ({
             >
                 <Group justify="space-between" wrap="nowrap" gap="md">
                     <Group gap="xs" wrap="nowrap">
-                        <Checkbox
-                            size="xs"
-                            checked={isChecked}
-                            readOnly
-                            tabIndex={-1}
-                            disabled={disabled}
-                        />
+                        {mode === 'single' ? (
+                            <Radio
+                                size="xs"
+                                checked={isChecked}
+                                readOnly
+                                tabIndex={-1}
+                                disabled={disabled}
+                            />
+                        ) : (
+                            <Checkbox
+                                size="xs"
+                                checked={isChecked}
+                                readOnly
+                                tabIndex={-1}
+                                disabled={disabled}
+                            />
+                        )}
                         <Box maw={200} style={{ overflow: 'hidden' }}>
                             {typeof option.label === 'string' ? (
                                 <Text fz="xs" c="ldGray.9" truncate>
@@ -198,6 +247,26 @@ const FilterFacet = ({
                         {helperText}
                     </Text>
                 )}
+                {onSearchChange && (
+                    <Box px={4} pt={4} pb={6}>
+                        <TextInput
+                            size="xs"
+                            placeholder={searchPlaceholder}
+                            value={searchValue ?? ''}
+                            onChange={(e) =>
+                                onSearchChange(e.currentTarget.value)
+                            }
+                            leftSection={
+                                <MantineIcon icon={IconSearch} size="xs" />
+                            }
+                            rightSection={
+                                loading || loadingMore ? (
+                                    <Loader size="xs" />
+                                ) : null
+                            }
+                        />
+                    </Box>
+                )}
                 {!hasAnyOption ? (
                     <Text fz="xs" c="ldGray.6" p="xs">
                         {emptyLabel}
@@ -207,6 +276,10 @@ const FilterFacet = ({
                         mah={maxDropdownHeight}
                         type="auto"
                         scrollbars="y"
+                        viewportRef={viewportRef}
+                        onScrollPositionChange={
+                            onScrollEnd ? handleScrollPositionChange : undefined
+                        }
                     >
                         <Stack gap={0}>
                             {visibleFlatOptions.map(renderOption)}
