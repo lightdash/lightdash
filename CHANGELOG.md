@@ -1,3 +1,17 @@
+# [0.3055.0](https://github.com/lightdash/lightdash/compare/0.3054.0...0.3055.0) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-review:** gate Create-PR button on server-computed eligibility (GitHub + flags) ([#23668](https://github.com/lightdash/lightdash/issues/23668)) ([2ecae83](https://github.com/lightdash/lightdash/commit/2ecae8345646f01ca8e7129b450b3dd2b18335d3))
+* **ai-review:** writeback hardening — progress-write race + resilience ([#23669](https://github.com/lightdash/lightdash/issues/23669)) ([ae39718](https://github.com/lightdash/lightdash/commit/ae397184ce971e0d43264e790d55e93f37f7a72b))
+
+
+### Features
+
+* **ai-review:** review-queue UI — Create PR, dismiss, status + PR link ([#23666](https://github.com/lightdash/lightdash/issues/23666)) ([2866822](https://github.com/lightdash/lightdash/commit/286682272aab064e849a75c18f287aa91fc014d2))
+* **ai-review:** run writeback on worker with live progress (PR6) ([#23667](https://github.com/lightdash/lightdash/issues/23667)) ([c991df5](https://github.com/lightdash/lightdash/commit/c991df5ac5fc8e827fecd3830b77b5652454339c))
+
 # [0.3054.0](https://github.com/lightdash/lightdash/compare/0.3053.1...0.3054.0) (2026-05-29)
 
 
