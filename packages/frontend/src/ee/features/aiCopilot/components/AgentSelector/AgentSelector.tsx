@@ -102,11 +102,11 @@ export const AgentSelector = ({
                 >
                     <Group gap={6} wrap="nowrap" align="center" w="100%">
                         {isAuto ? (
-                            <Avatar size={22} color="violet" radius="xl">
+                            <Avatar size={22} color="ldGray" radius="xl">
                                 <MantineIcon
                                     icon={IconSparkles}
                                     size="sm"
-                                    color="violet.6"
+                                    color="ldGray.6"
                                 />
                             </Avatar>
                         ) : (
@@ -133,26 +133,26 @@ export const AgentSelector = ({
                     <Combobox.Header p={4} pr={6}>
                         <Combobox.Option value={AUTO_VALUE} p={2}>
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-                                <Avatar size={22} color="violet" radius="xl">
+                                <Avatar size={22} color="ldGray" radius="xl">
                                     <MantineIcon
                                         icon={IconSparkles}
                                         size="sm"
-                                        color="violet.6"
+                                        color="ldGray.6"
                                     />
                                 </Avatar>
                                 <Stack gap={0} flex={1} miw={0}>
-                                    <Text size="xs" fw={600} c="violet.7">
+                                    <Text size="xs" fw={600}>
                                         Auto
                                     </Text>
                                     <Text size="xs" c="dimmed" truncate="end">
-                                        We'll route to the besy-fit agent
+                                        We'll route to the best-fit agent
                                     </Text>
                                 </Stack>
                                 {isAuto && (
                                     <MantineIcon
                                         icon={IconCheck}
                                         size="sm"
-                                        color="violet"
+                                        color="ldGray.7"
                                     />
                                 )}
                             </Group>
@@ -183,7 +183,7 @@ export const AgentSelector = ({
                                         <MantineIcon
                                             icon={IconCheck}
                                             size="sm"
-                                            color="violet"
+                                            color="ldGray.7"
                                         />
                                     )}
                             </Group>
