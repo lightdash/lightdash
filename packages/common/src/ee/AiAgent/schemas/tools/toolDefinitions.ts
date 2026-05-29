@@ -653,6 +653,72 @@ export const runAiWritebackToolDefinition = defineTool({
     },
 });
 
+type AgentToolDefinitionsByName = {
+    findExplores: typeof findExploresToolDefinition;
+    findFields: typeof findFieldsToolDefinition;
+    findContent: typeof findContentToolDefinition;
+    searchFieldValues: typeof searchFieldValuesToolDefinition;
+    runQuery: typeof runQueryToolDefinition;
+    runSql: typeof runSqlToolDefinition;
+    discoverFields: typeof discoverFieldsToolDefinition;
+    generateDashboard: typeof generateDashboardToolDefinition;
+    generateUuids: typeof generateUuidsToolDefinition;
+    getDashboardCharts: typeof getDashboardChartsToolDefinition;
+    readContent: typeof readContentToolDefinition;
+    editContent: typeof editContentToolDefinition;
+    createContent: typeof createContentToolDefinition;
+    listContent: typeof listContentToolDefinition;
+    improveContext: typeof improveContextToolDefinition;
+    loadSkill: typeof loadSkillToolDefinition;
+    proposeChange: typeof proposeChangeToolDefinition;
+    proposeWriteback: typeof proposeWritebackToolDefinition;
+    runSavedChart: typeof runSavedChartToolDefinition;
+    listWarehouseTables: typeof listWarehouseTablesToolDefinition;
+    describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
+    listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
+    getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
+    findCharts: typeof findChartsToolDefinition;
+    findDashboards: typeof findDashboardsToolDefinition;
+    generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
+    generateTableVizConfig: typeof generateTableVizConfigToolDefinition;
+    generateTimeSeriesVizConfig: typeof generateTimeSeriesVizConfigToolDefinition;
+    listProjects: typeof listProjectsToolDefinition;
+    getProjectInfo: typeof getProjectInfoToolDefinition;
+};
+
+export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
+    findExplores: findExploresToolDefinition,
+    findFields: findFieldsToolDefinition,
+    findContent: findContentToolDefinition,
+    searchFieldValues: searchFieldValuesToolDefinition,
+    runQuery: runQueryToolDefinition,
+    runSql: runSqlToolDefinition,
+    discoverFields: discoverFieldsToolDefinition,
+    generateDashboard: generateDashboardToolDefinition,
+    generateUuids: generateUuidsToolDefinition,
+    getDashboardCharts: getDashboardChartsToolDefinition,
+    readContent: readContentToolDefinition,
+    editContent: editContentToolDefinition,
+    createContent: createContentToolDefinition,
+    listContent: listContentToolDefinition,
+    improveContext: improveContextToolDefinition,
+    loadSkill: loadSkillToolDefinition,
+    proposeChange: proposeChangeToolDefinition,
+    proposeWriteback: proposeWritebackToolDefinition,
+    runSavedChart: runSavedChartToolDefinition,
+    listWarehouseTables: listWarehouseTablesToolDefinition,
+    describeWarehouseTable: describeWarehouseTableToolDefinition,
+    listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
+    getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
+    findCharts: findChartsToolDefinition,
+    findDashboards: findDashboardsToolDefinition,
+    generateBarVizConfig: generateBarVizConfigToolDefinition,
+    generateTableVizConfig: generateTableVizConfigToolDefinition,
+    generateTimeSeriesVizConfig: generateTimeSeriesVizConfigToolDefinition,
+    listProjects: listProjectsToolDefinition,
+    getProjectInfo: getProjectInfoToolDefinition,
+};
+
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
     findFieldsToolDefinition,
@@ -700,15 +766,15 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
 
-export const agentToolDefinitions = builtInToolDefinitions.filter((tool) =>
-    tool.availability.includes('agent'),
-);
+export const agentToolDefinitions: readonly ToolDefinitionInstance[] =
+    builtInToolDefinitions.filter((tool) =>
+        tool.availability.includes('agent'),
+    );
 
 export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 
-export const mcpToolDefinitions = builtInToolDefinitions.filter((tool) =>
-    tool.availability.includes('mcp'),
-);
+export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =
+    builtInToolDefinitions.filter((tool) => tool.availability.includes('mcp'));
 
 export type McpToolDefinition = (typeof mcpToolDefinitions)[number];
 
@@ -720,10 +786,6 @@ export const agentToolNames = agentToolDefinitions.map((tool) => tool.name) as [
 export const mcpToolNames = mcpToolDefinitions.map(
     (tool) => tool.for('mcp').name,
 ) as [string, ...string[]];
-
-export const agentToolDefinitionsByName = Object.fromEntries(
-    agentToolDefinitions.map((tool) => [tool.name, tool]),
-) as Record<string, AgentToolDefinition>;
 
 export const mcpToolDefinitionsByName = Object.fromEntries(
     mcpToolDefinitions.map((tool) => [tool.for('mcp').name, tool]),
