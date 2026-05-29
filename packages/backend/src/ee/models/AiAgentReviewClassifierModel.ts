@@ -860,6 +860,7 @@ export class AiAgentReviewClassifierModel {
                     prState: item?.pr_state ?? null,
                     prWritebackStatus: item?.pr_writeback_status ?? null,
                     prWritebackMessage: item?.pr_writeback_message ?? null,
+                    writebackEligible: false,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {

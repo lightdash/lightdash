@@ -404,7 +404,7 @@ const ReviewItemActionsCell = ({
     const isTerminal =
         current.status === 'resolved' || current.status === 'dismissed';
     const canCreatePr =
-        current.primaryRootCause === 'semantic_layer' &&
+        current.writebackEligible &&
         !current.linkedPrUrl &&
         !isTerminal &&
         !isWritebackInFlight;

@@ -182,15 +182,78 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             items,
         );
+
+        const writebackEnabled = await this.isWritebackFeatureEnabled(user);
+        const githubProjects = writebackEnabled
+            ? await this.getGithubProjectUuids(
+                  items
+                      .filter(
+                          (item) =>
+                              item.primaryRootCause === 'semantic_layer' &&
+                              item.projectUuid !== null,
+                      )
+                      .map((item) => item.projectUuid as string),
+              )
+            : new Set<string>();
+
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
-            return override ? { ...item, ...override } : item;
+            const writebackEligible =
+                writebackEnabled &&
+                item.primaryRootCause === 'semantic_layer' &&
+                item.projectUuid !== null &&
+                githubProjects.has(item.projectUuid);
+            return { ...item, ...(override ?? {}), writebackEligible };
         });
 
         if (statuses) {
             return reconciled.filter((item) => statuses.includes(item.status));
         }
         return reconciled;
+    }
+
+    private async isWritebackFeatureEnabled(
+        user: SessionUser,
+    ): Promise<boolean> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return false;
+        }
+        const flagUser = {
+            userUuid: user.userUuid,
+            organizationUuid,
+            organizationName: user.organizationName ?? '',
+        };
+        const [reviewWriteback, engine] = await Promise.all([
+            this.featureFlagService.get({
+                featureFlagId: FeatureFlags.AiAgentReviewWriteback,
+                user: flagUser,
+            }),
+            this.featureFlagService.get({
+                featureFlagId: FeatureFlags.AiWriteback,
+                user: flagUser,
+            }),
+        ]);
+        return reviewWriteback.enabled && engine.enabled;
+    }
+
+    private async getGithubProjectUuids(
+        projectUuids: string[],
+    ): Promise<Set<string>> {
+        const distinct = [...new Set(projectUuids)];
+        const results = await Promise.all(
+            distinct.map(async (projectUuid) => {
+                try {
+                    const project = await this.projectModel.get(projectUuid);
+                    return project.dbtConnection.type === DbtProjectType.GITHUB
+                        ? projectUuid
+                        : null;
+                } catch {
+                    return null;
+                }
+            }),
+        );
+        return new Set(results.filter((uuid): uuid is string => uuid !== null));
     }
 
     /**
@@ -386,6 +449,18 @@ export class AiAgentAdminService extends BaseService {
             );
         }
 
+        const engineFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiWriteback,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+        if (!engineFlag.enabled) {
+            throw new ForbiddenError('AI writeback is not enabled');
+        }
+
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -547,7 +622,16 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
-        return reviewItem;
+
+        const writebackEnabled = await this.isWritebackFeatureEnabled(user);
+        const writebackEligible =
+            writebackEnabled &&
+            reviewItem.primaryRootCause === 'semantic_layer' &&
+            reviewItem.projectUuid !== null &&
+            (await this.getGithubProjectUuids([reviewItem.projectUuid])).has(
+                reviewItem.projectUuid,
+            );
+        return { ...reviewItem, writebackEligible };
     }
 
     /**

@@ -26,6 +26,7 @@ const baseItem = (
     prState: null,
     prWritebackStatus: null,
     prWritebackMessage: null,
+    writebackEligible: true,
     createdAt: new Date('2026-05-26T00:00:00.000Z'),
     updatedAt: new Date('2026-05-26T00:00:00.000Z'),
     latestFinding: {
