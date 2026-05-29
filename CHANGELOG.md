@@ -1,3 +1,10 @@
+# [0.3044.0](https://github.com/lightdash/lightdash/compare/0.3043.0...0.3044.0) (2026-05-29)
+
+
+### Features
+
+* **mcp:** pass tool titles to registerTool ([#23602](https://github.com/lightdash/lightdash/issues/23602)) ([ab3ee38](https://github.com/lightdash/lightdash/commit/ab3ee38feaa245014b56c9e42ade59c5592e094f))
+
 # [0.3043.0](https://github.com/lightdash/lightdash/compare/0.3042.0...0.3043.0) (2026-05-28)
 
 
