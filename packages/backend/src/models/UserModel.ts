@@ -860,8 +860,10 @@ export class UserModel {
         }
     }
 
-    private async findServiceAccountByUserUuid(userUuid: string): Promise<
+    async findServiceAccountByUserUuid(userUuid: string): Promise<
         | {
+              uuid: string;
+              description: string;
               scopes: ServiceAccountScope[];
               organizationUuid: string;
           }
@@ -871,15 +873,24 @@ export class UserModel {
             .where('service_account_user_uuid', userUuid)
             .select<
                 {
+                    service_account_uuid: string;
+                    description: string;
                     scopes: string[];
                     organization_uuid: string;
                 }[]
-            >('scopes', 'organization_uuid')
+            >(
+                'service_account_uuid',
+                'description',
+                'scopes',
+                'organization_uuid',
+            )
             .first();
         if (!row) {
             return undefined;
         }
         return {
+            uuid: row.service_account_uuid,
+            description: row.description,
             scopes: row.scopes as ServiceAccountScope[],
             organizationUuid: row.organization_uuid,
         };
