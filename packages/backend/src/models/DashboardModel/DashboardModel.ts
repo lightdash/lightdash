@@ -80,7 +80,10 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import Logger from '../../logging/logger';
-import { generateUniqueSlug } from '../../utils/SlugUtils';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlug,
+} from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -1285,6 +1288,33 @@ export class DashboardModel {
         projectUuid: string,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
+            if (dashboard.forceSlug) {
+                // Forced slugs (content-as-code / promotion) skip unique-slug
+                // generation, and there is no DB unique constraint on the slug.
+                // Serialize concurrent creates of the same (project, slug) and
+                // dedupe against a row a racing upsert already created, so we
+                // never insert a duplicate slug (PROD-7883).
+                await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
+                const [existing] = await trx(DashboardsTableName)
+                    .innerJoin(
+                        SpaceTableName,
+                        `${SpaceTableName}.space_id`,
+                        `${DashboardsTableName}.space_id`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .where(`${DashboardsTableName}.slug`, dashboard.slug)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .select(`${DashboardsTableName}.dashboard_uuid`);
+                if (existing) {
+                    return existing.dashboard_uuid;
+                }
+            }
+
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
                 .select(`${SpaceTableName}.*`)
