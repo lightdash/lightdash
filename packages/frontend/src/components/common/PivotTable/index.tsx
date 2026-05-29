@@ -83,6 +83,7 @@ import {
     getFrozenColumnLayout,
     type FrozenColumnEntry,
 } from './getFrozenColumnLayout';
+import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
@@ -668,6 +669,37 @@ const PivotTable: FC<PivotTableProps> = ({
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
+    // Grouping-only mode renders a flat row model and visually merges repeated
+    // row-index dimension values with rowSpan instead of TanStack group rows.
+    const rowSpanMergesByColumnId = useMemo(() => {
+        if (!groupingOnlyMode) return null;
+        const groupedColumnIds = getGroupedDimColumnIds(
+            data.indexValueTypes,
+            columnOrder,
+        );
+        if (groupedColumnIds.length === 0) return null;
+        return getRowSpanMerges(
+            rows.length,
+            groupedColumnIds,
+            (rowIndex, columnId) => {
+                const cell = rows[rowIndex]?.getValue(columnId) as
+                    | { value?: ResultValue }
+                    | undefined;
+                return cell?.value?.raw;
+            },
+        );
+    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, rows]);
+
+    // In merge mode, render every row (no virtualization) so rowSpans stay
+    // contiguous — a block's first row must never be unmounted while its
+    // absorbed siblings are visible.
+    const renderedBodyRows = groupingOnlyMode
+        ? rows.map((row, rowIndex) => ({ row, rowIndex }))
+        : virtualRows.map((virtualRow) => ({
+              row: rows[virtualRow.index],
+              rowIndex: virtualRow.index,
+          }));
+
     const getColumnTotalValueFromAxis = useCallback(
         (total: unknown, colIndex: number): ResultValue | null => {
             const value = last(data.headerValues)?.[colIndex];
@@ -948,40 +980,28 @@ const PivotTable: FC<PivotTableProps> = ({
     }, [hideRowNumbers, data.cellsCount]);
 
     useEffect(() => {
-        // TODO: Remove code duplicated from non-pivot table version.
-        // Grouping is driven by either subtotals (renders aggregate rows) or
-        // row-grouping (visually dedups row dims without aggregates).
-        // Both reuse the same TanStack setGrouping machinery; the cell
-        // renderer downstream conditionally suppresses subtotal content
-        // when only row-grouping is on.
-        const groupingActive = showSubtotals || showRowGrouping;
+        // Grouping is driven by subtotals only. Row-grouping without subtotals
+        // (groupingOnlyMode) now renders a FLAT row model with merged rowSpan
+        // cells (see getRowSpanMerges / the body renderer below), so it must
+        // NOT engage the TanStack grouping machinery.
+        const groupingActive =
+            showSubtotals || (showRowGrouping && !groupingOnlyMode);
         if (groupingActive) {
-            const groupedColumns = data.indexValueTypes.map(
-                (valueType) => valueType.fieldId,
+            const sortedColumns = getGroupedDimColumnIds(
+                data.indexValueTypes,
+                table.getState().columnOrder,
             );
-
-            const sortedColumns = table
-                .getState()
-                .columnOrder.reduce<string[]>((acc, sortedId) => {
-                    return groupedColumns.includes(sortedId)
-                        ? [...acc, sortedId]
-                        : acc;
-                }, [])
-                // The last dimension column essentially groups rows for each unique value in that column.
-                // Grouping on it would result in many useless expandable groups containing just one item.
-                .slice(0, -1);
 
             if (!isEqual(sortedColumns, table.getState().grouping)) {
                 table.setGrouping(sortedColumns);
             }
-        } else {
-            if (table.getState().grouping.length > 0) {
-                table.resetGrouping();
-            }
+        } else if (table.getState().grouping.length > 0) {
+            table.resetGrouping();
         }
     }, [
         showSubtotals,
         showRowGrouping,
+        groupingOnlyMode,
         data.indexValueTypes,
         table,
         columnOrder,
@@ -1464,16 +1484,14 @@ const PivotTable: FC<PivotTableProps> = ({
             </Table.Head>
 
             <Table.Body>
-                {paddingTop > 0 && (
+                {!groupingOnlyMode && paddingTop > 0 && (
                     <VirtualizedArea
                         cellCount={cellsCountWithRowNumber}
                         height={paddingTop}
                     />
                 )}
 
-                {virtualRows.map((virtualRow) => {
-                    const rowIndex = virtualRow.index;
-                    const row = rows[rowIndex];
+                {renderedBodyRows.map(({ row, rowIndex }) => {
                     if (!row) return null;
 
                     const toggleExpander = row.getToggleExpandedHandler();
@@ -1488,7 +1506,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 // Column widths are uniform across rows (CSS table
                                 // layout), so one measurement per column is enough.
                                 const measureRef =
-                                    virtualRow.index === 0
+                                    rowIndex === 0
                                         ? measureCellRef(cell.column.id)
                                         : undefined;
                                 if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
@@ -1535,6 +1553,22 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   )}
                                         </Table.Cell>
                                     );
+                                }
+
+                                // Grouping-only mode: merge repeated row-index
+                                // dimension values with rowSpan. The block's
+                                // first row renders the value spanning the
+                                // block; absorbed rows render no <td> so the
+                                // span covers their position.
+                                const rowSpanMerge =
+                                    rowSpanMergesByColumnId?.get(
+                                        cell.column.id,
+                                    )?.[rowIndex];
+                                if (
+                                    rowSpanMerge &&
+                                    !rowSpanMerge.isBlockStart
+                                ) {
+                                    return null;
                                 }
 
                                 const meta = cell.column.columnDef.meta;
@@ -1709,7 +1743,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
                                         ref={measureRef}
-                                        className={stickyCellProps.className}
+                                        rowSpan={rowSpanMerge?.rowSpan}
+                                        className={
+                                            rowSpanMerge
+                                                ? `${pivotStyles.mergedDimCell}${
+                                                      stickyCellProps.className
+                                                          ? ` ${stickyCellProps.className}`
+                                                          : ''
+                                                  }`
+                                                : stickyCellProps.className
+                                        }
                                         style={stickyCellProps.style}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
@@ -1840,7 +1883,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : (
+                                        ) : cell.getIsPlaceholder() ? null : groupingOnlyMode &&
+                                          isDataColumn &&
+                                          value == null ? null : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
@@ -1853,7 +1898,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     );
                 })}
 
-                {paddingBottom > 0 && (
+                {!groupingOnlyMode && paddingBottom > 0 && (
                     <VirtualizedArea
                         cellCount={cellsCountWithRowNumber}
                         height={paddingBottom}
