@@ -1,3 +1,10 @@
+# [0.3056.0](https://github.com/lightdash/lightdash/compare/0.3055.0...0.3056.0) (2026-05-29)
+
+
+### Features
+
+* **ai-agents:** move admin into Org Settings with AI sub-nav and AI Router toggle ([#23591](https://github.com/lightdash/lightdash/issues/23591)) ([a08629d](https://github.com/lightdash/lightdash/commit/a08629d91971b63a0bf3791db172b10a72fecb01)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3055.0](https://github.com/lightdash/lightdash/compare/0.3054.0...0.3055.0) (2026-05-29)
 
 
