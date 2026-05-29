@@ -1,2 +1,6 @@
 export { default } from './FilterFacet';
-export type { FilterFacetOption, FilterFacetProps } from './FilterFacet';
+export type {
+    FilterFacetGroup,
+    FilterFacetOption,
+    FilterFacetProps,
+} from './FilterFacet';

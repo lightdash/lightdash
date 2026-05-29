@@ -1,5 +1,6 @@
 import {
     Badge,
+    Box,
     Button,
     Checkbox,
     Group,
@@ -10,32 +11,50 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronDown } from '@tabler/icons-react';
-import { type Icon as TablerIcon } from '@tabler/icons-react';
+import { IconChevronDown, type Icon as TablerIcon } from '@tabler/icons-react';
+import { type ReactNode } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './FilterFacet.module.css';
 
 export type FilterFacetOption = {
     value: string;
-    label: string;
+    label: ReactNode;
+    searchLabel?: string;
     count?: number;
+    disabled?: boolean;
+};
+
+export type FilterFacetGroup = {
+    label: string;
+    options: FilterFacetOption[];
 };
 
 export type FilterFacetProps = {
     label: string;
-    options: FilterFacetOption[];
     selected: string[];
     onChange: (selected: string[]) => void;
+    options?: FilterFacetOption[];
+    groups?: FilterFacetGroup[];
     icon?: TablerIcon;
     emptyLabel?: string;
     tooltipLabel?: string;
     loading?: boolean;
     maxDropdownHeight?: number;
+    helperText?: string;
 };
+
+const isOptionVisible = (
+    option: FilterFacetOption,
+    selectedSet: Set<string>,
+): boolean =>
+    option.count === undefined ||
+    option.count > 0 ||
+    selectedSet.has(option.value);
 
 const FilterFacet = ({
     label,
     options,
+    groups,
     selected,
     onChange,
     icon,
@@ -43,16 +62,28 @@ const FilterFacet = ({
     tooltipLabel,
     loading,
     maxDropdownHeight = 280,
+    helperText,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
-    const visibleOptions = options.filter(
-        (option) =>
-            option.count === undefined ||
-            option.count > 0 ||
-            selectedSet.has(option.value),
-    );
 
-    const toggle = (value: string) => {
+    const flatOptions: FilterFacetOption[] = options ?? [];
+    const visibleFlatOptions = flatOptions.filter((option) =>
+        isOptionVisible(option, selectedSet),
+    );
+    const visibleGroups = (groups ?? [])
+        .map((group) => ({
+            label: group.label,
+            options: group.options.filter((option) =>
+                isOptionVisible(option, selectedSet),
+            ),
+        }))
+        .filter((group) => group.options.length > 0);
+
+    const hasAnyOption =
+        visibleFlatOptions.length > 0 || visibleGroups.length > 0;
+
+    const toggle = (value: string, disabled?: boolean) => {
+        if (disabled) return;
         if (selectedSet.has(value)) {
             onChange(selected.filter((v) => v !== value));
         } else {
@@ -61,6 +92,49 @@ const FilterFacet = ({
     };
 
     const hasSelection = selected.length > 0;
+
+    const renderOption = (option: FilterFacetOption) => {
+        const isChecked = selectedSet.has(option.value);
+        const disabled = option.disabled === true;
+        return (
+            <UnstyledButton
+                key={option.value}
+                onClick={() => toggle(option.value, disabled)}
+                px="xs"
+                py={6}
+                className={`${classes.option} ${
+                    disabled ? classes.optionDisabled : ''
+                }`}
+                disabled={disabled}
+            >
+                <Group justify="space-between" wrap="nowrap" gap="md">
+                    <Group gap="xs" wrap="nowrap">
+                        <Checkbox
+                            size="xs"
+                            checked={isChecked}
+                            readOnly
+                            tabIndex={-1}
+                            disabled={disabled}
+                        />
+                        <Box maw={200} style={{ overflow: 'hidden' }}>
+                            {typeof option.label === 'string' ? (
+                                <Text fz="xs" c="ldGray.9" truncate>
+                                    {option.label}
+                                </Text>
+                            ) : (
+                                option.label
+                            )}
+                        </Box>
+                    </Group>
+                    {option.count !== undefined && (
+                        <Text fz="xs" c="ldGray.6" fw={500}>
+                            {option.count}
+                        </Text>
+                    )}
+                </Group>
+            </UnstyledButton>
+        );
+    };
 
     const trigger = (
         <Button
@@ -118,8 +192,13 @@ const FilterFacet = ({
                     trigger
                 )}
             </Popover.Target>
-            <Popover.Dropdown p={4} miw={220}>
-                {visibleOptions.length === 0 ? (
+            <Popover.Dropdown p={4} miw={240}>
+                {helperText && (
+                    <Text fz="xs" c="dimmed" px="xs" py={4}>
+                        {helperText}
+                    </Text>
+                )}
+                {!hasAnyOption ? (
                     <Text fz="xs" c="ldGray.6" p="xs">
                         {emptyLabel}
                     </Text>
@@ -130,50 +209,15 @@ const FilterFacet = ({
                         scrollbars="y"
                     >
                         <Stack gap={0}>
-                            {visibleOptions.map((option) => {
-                                const isChecked = selectedSet.has(option.value);
-                                return (
-                                    <UnstyledButton
-                                        key={option.value}
-                                        onClick={() => toggle(option.value)}
-                                        px="xs"
-                                        py={6}
-                                        className={classes.option}
-                                    >
-                                        <Group
-                                            justify="space-between"
-                                            wrap="nowrap"
-                                            gap="md"
-                                        >
-                                            <Group gap="xs" wrap="nowrap">
-                                                <Checkbox
-                                                    size="xs"
-                                                    checked={isChecked}
-                                                    readOnly
-                                                    tabIndex={-1}
-                                                />
-                                                <Text
-                                                    fz="xs"
-                                                    c="ldGray.9"
-                                                    truncate
-                                                    maw={200}
-                                                >
-                                                    {option.label}
-                                                </Text>
-                                            </Group>
-                                            {option.count !== undefined && (
-                                                <Text
-                                                    fz="xs"
-                                                    c="ldGray.6"
-                                                    fw={500}
-                                                >
-                                                    {option.count}
-                                                </Text>
-                                            )}
-                                        </Group>
-                                    </UnstyledButton>
-                                );
-                            })}
+                            {visibleFlatOptions.map(renderOption)}
+                            {visibleGroups.map((group) => (
+                                <Stack key={group.label} gap={0} mt={4}>
+                                    <Text className={classes.groupLabel}>
+                                        {group.label}
+                                    </Text>
+                                    {group.options.map(renderOption)}
+                                </Stack>
+                            ))}
                         </Stack>
                     </ScrollArea.Autosize>
                 )}
