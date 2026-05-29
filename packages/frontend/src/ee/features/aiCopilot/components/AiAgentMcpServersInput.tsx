@@ -549,6 +549,8 @@ export const AiAgentMcpServersInput = ({
         useDisclosure(false);
     const [isAttachMcpServersModalOpen, attachMcpServersModalHandlers] =
         useDisclosure(false);
+    const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
+        useDisclosure(false);
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
@@ -702,11 +704,15 @@ export const AiAgentMcpServersInput = ({
         if (server && !value.includes(server.uuid)) {
             await persistMcpServerSelection([...value, server.uuid], value);
         }
+        // Only reached on success — connectGithubMcp throws on failure (its
+        // mutation surfaces the error toast) and leaves the dialog open.
+        githubConfirmModalHandlers.close();
     }, [
         existingGithubMcpServer,
         connectGithubMcp,
         persistMcpServerSelection,
         value,
+        githubConfirmModalHandlers,
     ]);
 
     const handleAttachMcpServers = useCallback(async () => {
@@ -1017,7 +1023,9 @@ export const AiAgentMcpServersInput = ({
                                             />
                                         }
                                         loading={isConnectingGithubMcp}
-                                        onClick={handleConnectGithubMcp}
+                                        onClick={
+                                            githubConfirmModalHandlers.open
+                                        }
                                     >
                                         Connect GitHub
                                     </Button>
@@ -1058,7 +1066,9 @@ export const AiAgentMcpServersInput = ({
                                                 />
                                             }
                                             loading={isConnectingGithubMcp}
-                                            onClick={handleConnectGithubMcp}
+                                            onClick={
+                                                githubConfirmModalHandlers.open
+                                            }
                                         >
                                             Connect GitHub
                                         </Button>
@@ -1356,6 +1366,34 @@ export const AiAgentMcpServersInput = ({
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
             />
+            <MantineModal
+                opened={isGithubConfirmModalOpen}
+                onClose={githubConfirmModalHandlers.close}
+                title="Connect GitHub"
+                icon={IconBrandGithub}
+                actions={
+                    <Button
+                        leftSection={<MantineIcon icon={IconBrandGithub} />}
+                        loading={isConnectingGithubMcp || isPersistingSelection}
+                        onClick={handleConnectGithubMcp}
+                    >
+                        Connect GitHub
+                    </Button>
+                }
+            >
+                <Stack gap="sm">
+                    <Text size="sm">
+                        Lightdash will reuse your organization's existing GitHub
+                        connection — the same integration used for your dbt
+                        projects. No additional sign-in is required.
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        This adds a read/write GitHub MCP server to this agent,
+                        scoped to the repositories your GitHub integration can
+                        already access. You can remove it at any time.
+                    </Text>
+                </Stack>
+            </MantineModal>
         </>
     );
 };
