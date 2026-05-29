@@ -1,22 +1,36 @@
-import { agentToolDefinitionsByName, type ToolName } from '@lightdash/common';
+import {
+    agentToolDefinitionsByName,
+    type ToolDefinition,
+    type ToolName,
+} from '@lightdash/common';
 import { type z } from 'zod';
 
 type ParsedToolName = ToolName;
 type ToolArgs<TName extends ParsedToolName> = z.infer<
     (typeof agentToolDefinitionsByName)[TName]['inputSchema']
 >;
-type ToolResult<TName extends ParsedToolName> = z.infer<
-    NonNullable<
-        ReturnType<
-            (typeof agentToolDefinitionsByName)[TName]['for']
-        >['outputSchema']
+type ToolOutputSchema<TName extends ParsedToolName> =
+    (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
+        string,
+        z.ZodObject<z.ZodRawShape>,
+        z.ZodTypeAny,
+        infer TOutputSchema
     >
+        ? TOutputSchema
+        : never;
+type ToolResult<TName extends ParsedToolName> = z.infer<
+    NonNullable<ToolOutputSchema<TName>>
 >;
+
+export type AiAgentToolOutput = {
+    [K in ParsedToolName]: ToolResult<K>;
+}[ParsedToolName];
 
 export type AiAgentToolCall = {
     [K in ParsedToolName]: {
         toolName: K;
         toolArgs: ToolArgs<K>;
+        toolResult?: ToolResult<K> | null;
         isPreliminary?: boolean;
     };
 }[ParsedToolName];

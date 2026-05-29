@@ -389,11 +389,12 @@ type DiscoverFieldsOutputMetadata = {
     trace?: TraceEntry[];
 };
 
-const extractTraceFromMessage = (
+const extractDiscoverFieldsTraceFromStreamingMessage = (
     message: StreamingMessage | undefined,
 ): TraceEntry[] | null => {
     if (!message) return null;
     const entries: TraceEntry[] = [];
+    const seenToolCallIds = new Set<string>();
     for (const part of message.parts) {
         if (
             part.type !== 'tool-findExplores' &&
@@ -402,6 +403,8 @@ const extractTraceFromMessage = (
             continue;
         }
         if (!part.toolCallId) continue;
+        if (seenToolCallIds.has(part.toolCallId)) continue;
+        seenToolCallIds.add(part.toolCallId);
         entries.push({
             toolCallId: part.toolCallId,
             toolName:
@@ -445,7 +448,9 @@ const getDiscoverFieldsTrace = (
     const metadata = toolResult.metadata as
         | DiscoverFieldsOutputMetadata
         | undefined;
-    const fromMessage = extractTraceFromMessage(metadata?.streamingMessage);
+    const fromMessage = extractDiscoverFieldsTraceFromStreamingMessage(
+        metadata?.streamingMessage,
+    );
     if (fromMessage) return fromMessage;
     const legacy = metadata?.trace;
     return Array.isArray(legacy) && legacy.length > 0 ? legacy : null;
@@ -464,7 +469,9 @@ const getDiscoverFieldsTraceFromCall = (
     const output = call.toolOutput as
         | { metadata?: DiscoverFieldsOutputMetadata }
         | undefined;
-    return extractTraceFromMessage(output?.metadata?.streamingMessage);
+    return extractDiscoverFieldsTraceFromStreamingMessage(
+        output?.metadata?.streamingMessage,
+    );
 };
 
 /**

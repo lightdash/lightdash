@@ -1,17 +1,14 @@
-import {
-    type AiAgentToolName,
-    type AiMcpServerConnectionStatus,
-} from '@lightdash/common';
+import { type AiMcpServerConnectionStatus } from '@lightdash/common';
 import {
     createSlice,
     prepareAutoBatched,
     type PayloadAction,
 } from '@reduxjs/toolkit';
+import { type AiAgentToolCall, type AiAgentToolOutput } from '../types';
 
-type ToolCall = {
+type ToolCall = AiAgentToolCall & {
     toolCallId: string;
-    toolName: AiAgentToolName;
-    toolArgs: unknown;
+    toolResult: AiAgentToolOutput | null;
 };
 
 type Reasoning = {
@@ -35,26 +32,32 @@ export type StepProgressMessage = {
 
 export type StreamPart =
     | { type: 'text'; text: string }
-    | {
-          type: 'toolCall';
-          toolCallId: string;
-          toolName: AiAgentToolName;
-          toolArgs: unknown;
-          /**
-           * The tool's output once the call resolves. Populated for live
-           * preliminary updates (tools whose execute is an async generator
-           * like `discoverFields`) and for the final non-preliminary result.
-           * `undefined` while the tool is still streaming its input or before
-           * the first preliminary chunk lands.
-           */
-          toolOutput?: unknown;
-          /**
-           * `true` for AI-SDK preliminary tool-result chunks (each yield from
-           * an async-generator execute). `false` for the final non-preliminary
-           * tool result. `undefined` when toolOutput is absent.
-           */
-          isPreliminary?: boolean;
-      };
+    | (ToolCall & { type: 'toolCall' });
+
+const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
+    const dedupedParts: StreamPart[] = [];
+    const toolCallIndexById = new Map<string, number>();
+
+    for (const part of parts) {
+        if (part.type !== 'toolCall') {
+            dedupedParts.push(part);
+            continue;
+        }
+
+        const existingIndex = toolCallIndexById.get(part.toolCallId);
+        if (existingIndex === undefined) {
+            toolCallIndexById.set(part.toolCallId, dedupedParts.length);
+            dedupedParts.push(part);
+        } else {
+            dedupedParts[existingIndex] = {
+                ...dedupedParts[existingIndex],
+                ...part,
+            } as StreamPart;
+        }
+    }
+
+    return dedupedParts;
+};
 
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
@@ -155,7 +158,7 @@ export const aiAgentThreadStreamSlice = createSlice({
                 const { threadUuid, parts } = action.payload;
                 const streamingThread = state[threadUuid];
                 if (streamingThread) {
-                    streamingThread.parts = parts;
+                    streamingThread.parts = dedupeStreamParts(parts);
                 }
             },
             prepare: prepareAutoBatched<{
@@ -201,25 +204,19 @@ export const aiAgentThreadStreamSlice = createSlice({
                 state,
                 action: PayloadAction<ToolCall & { threadUuid: string }>,
             ) => {
-                const { threadUuid, toolCallId, toolName, toolArgs } =
-                    action.payload;
+                const { threadUuid, ...toolCall } = action.payload;
                 const streamingThread = state[threadUuid];
                 if (streamingThread) {
                     const existingIndex = streamingThread.toolCalls.findIndex(
-                        (tc: ToolCall) => tc.toolCallId === toolCallId,
+                        (tc: ToolCall) => tc.toolCallId === toolCall.toolCallId,
                     );
                     if (existingIndex !== -1) {
                         streamingThread.toolCalls[existingIndex] = {
                             ...streamingThread.toolCalls[existingIndex],
-                            toolName,
-                            toolArgs,
-                        };
+                            ...toolCall,
+                        } as ToolCall;
                     } else {
-                        streamingThread.toolCalls.push({
-                            toolCallId,
-                            toolName,
-                            toolArgs,
-                        });
+                        streamingThread.toolCalls.push(toolCall);
                     }
                 }
             },

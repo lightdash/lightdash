@@ -164,14 +164,44 @@ const getStreamToolCallPart = (
     }
 
     const hasOutput = toolPart.state === 'output-available';
+
+    // Output chunks include both the original args and the tool result. Parse
+    // once through the result schema so toolName, toolArgs, and toolResult stay
+    // correlated in the returned typed stream part.
+    if (hasOutput && toolPart.output !== undefined) {
+        const toolResult = parseStreamRawToolResult({
+            toolName: toolPart.toolName,
+            toolArgs: toolPart.input,
+            toolOutput: toolPart.output,
+            isPreliminary: toolPart.preliminary ?? false,
+        });
+        if (!toolResult) return null;
+
+        return {
+            type: 'toolCall',
+            toolCallId: toolPart.toolCallId,
+            toolName: toolResult.toolName,
+            toolArgs: toolResult.toolArgs,
+            toolResult: toolResult.toolResult,
+            isPreliminary: toolResult.isPreliminary,
+        } as StreamToolCallPart;
+    }
+
+    // Input-only chunks are emitted before any result exists. They still need
+    // typed args for live rendering, while toolResult remains null until an
+    // output chunk for the same toolCallId arrives.
+    const toolCall = parseStreamRawToolCall({
+        toolName: toolPart.toolName,
+        toolArgs: toolPart.input,
+    });
+    if (!toolCall) return null;
+
     return {
         type: 'toolCall',
         toolCallId: toolPart.toolCallId,
-        toolName: toolPart.toolName,
-        toolArgs: toolPart.input,
-        toolOutput: hasOutput ? toolPart.output : undefined,
-        isPreliminary: hasOutput ? (toolPart.preliminary ?? false) : undefined,
-    };
+        ...toolCall,
+        toolResult: null,
+    } as StreamToolCallPart;
 };
 
 export const getMcpUnavailableNoticeFromChunk = (
@@ -345,23 +375,24 @@ export function useAiAgentThreadStreamMutation() {
                         const toolPart = getStreamToolPart(part);
                         const toolCallPart = getStreamToolCallPart(part);
 
+                        if (toolCallPart) {
+                            const { type: _type, ...toolCall } = toolCallPart;
+                            dispatch(addToolCall({ threadUuid, ...toolCall }));
+                        }
+
                         if (
+                            toolCallPart &&
                             toolPart?.toolName &&
                             toolPart.state === 'input-available' &&
                             !notifiedToolCallIds.has(toolPart.toolCallId)
                         ) {
                             notifiedToolCallIds.add(toolPart.toolCallId);
-                            const toolCall = parseStreamRawToolCall({
-                                toolName: toolPart.toolName,
-                                toolArgs: toolPart.input,
-                            });
-                            if (toolCall) {
-                                onToolCall?.(toolCall);
-                            }
+                            onToolCall?.(toolCallPart);
                         }
 
                         if (
-                            toolCallPart?.toolOutput !== undefined &&
+                            toolCallPart &&
+                            toolCallPart.toolResult !== null &&
                             toolCallPart.isPreliminary !== undefined
                         ) {
                             const outputKey = `${toolCallPart.toolCallId}:${String(
@@ -369,15 +400,12 @@ export function useAiAgentThreadStreamMutation() {
                             )}`;
                             if (!notifiedToolOutputIds.has(outputKey)) {
                                 notifiedToolOutputIds.add(outputKey);
-                                const toolResult = parseStreamRawToolResult({
+                                onToolResult?.({
                                     toolName: toolCallPart.toolName,
                                     toolArgs: toolCallPart.toolArgs,
-                                    toolOutput: toolCallPart.toolOutput,
+                                    toolResult: toolCallPart.toolResult,
                                     isPreliminary: toolCallPart.isPreliminary,
-                                });
-                                if (toolResult) {
-                                    onToolResult?.(toolResult);
-                                }
+                                } as AiAgentToolResult);
                             }
                         }
 
@@ -470,16 +498,6 @@ export function useAiAgentThreadStreamMutation() {
 
                                     handledToolInputIds.add(part.toolCallId);
 
-                                    // Store raw tool args (will be validated in rendering components)
-                                    dispatch(
-                                        addToolCall({
-                                            threadUuid,
-                                            toolCallId: part.toolCallId,
-                                            toolName,
-                                            toolArgs: part.input,
-                                        }),
-                                    );
-
                                     // Special handling for improveContext - validate to access suggestedInstruction
                                     if (toolName === 'improveContext') {
                                         const improveContextArgs =
@@ -541,15 +559,6 @@ export function useAiAgentThreadStreamMutation() {
                                     }
 
                                     handledToolInputIds.add(part.toolCallId);
-
-                                    dispatch(
-                                        addToolCall({
-                                            threadUuid,
-                                            toolCallId: part.toolCallId,
-                                            toolName: part.toolName,
-                                            toolArgs: part.input,
-                                        }),
-                                    );
                                 }
                                 break;
                             case 'file':

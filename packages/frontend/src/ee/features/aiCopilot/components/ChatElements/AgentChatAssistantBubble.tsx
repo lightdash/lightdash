@@ -135,7 +135,7 @@ const segmentStreamParts = (
             toolCallId: part.toolCallId,
             toolName: part.toolName,
             toolArgs: part.toolArgs,
-            toolOutput: part.toolOutput,
+            toolOutput: part.toolResult ?? undefined,
             isPreliminary: part.isPreliminary,
         };
         const last = segments[segments.length - 1];
@@ -251,7 +251,7 @@ const getLatestSuccessfulRunSqlLinkState = ({
                 part.type !== 'toolCall' ||
                 part.toolName !== 'runSql' ||
                 part.isPreliminary === true ||
-                getToolOutputStatus(part.toolOutput) !== 'success'
+                getToolOutputStatus(part.toolResult) !== 'success'
             ) {
                 continue;
             }
@@ -433,7 +433,7 @@ const AssistantBubbleContent: FC<{
     //     isToolProposeWritebackResult type predicate.
     //   - Live streaming: pull it from streamingState.parts. The streaming
     //     slice mirrors AI SDK output-available chunks into each part's
-    //     toolOutput, which is the full tool return shape {result,metadata}.
+    //     toolResult, which is the full tool return shape {result,metadata}.
     //     We re-shape to the structured `metadata` the card expects.
     const proposeWritebackMetadata:
         | ToolProposeWritebackOutput['metadata']
@@ -447,10 +447,10 @@ const AssistantBubbleContent: FC<{
             (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
                 p.type === 'toolCall' &&
                 p.toolName === 'proposeWriteback' &&
-                p.toolOutput !== undefined &&
+                p.toolResult !== null &&
                 p.isPreliminary !== true,
         );
-        const liveOutput = livePart?.toolOutput as
+        const liveOutput = livePart?.toolResult as
             | ToolProposeWritebackOutput
             | undefined;
         return liveOutput?.metadata ?? null;

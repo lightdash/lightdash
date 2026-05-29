@@ -6,7 +6,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
-import { type StreamPart } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreSelector } from '../../ee/features/aiCopilot/store/hooks';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -18,34 +17,6 @@ const emptyFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-type ToolOutput = {
-    metadata?: {
-        status?: 'success' | 'error';
-    };
-};
-
-type ToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
-type EditContentToolArgs = {
-    type?: 'dashboard' | 'chart';
-    slug?: string;
-};
-
-const isToolOutput = (value: unknown): value is ToolOutput =>
-    typeof value === 'object' && value !== null;
-
-const isFinalEditContentToolCall = (part: StreamPart): part is ToolCallPart =>
-    part.type === 'toolCall' &&
-    part.toolName === 'editContent' &&
-    part.isPreliminary === false &&
-    part.toolOutput !== undefined;
-
-const getEditContentToolArgs = (
-    value: unknown,
-): EditContentToolArgs | undefined =>
-    typeof value === 'object' && value !== null
-        ? (value as EditContentToolArgs)
-        : undefined;
-
 const DashboardAiAgentContextBridge = () => {
     const queryClient = useQueryClient();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -54,11 +25,6 @@ const DashboardAiAgentContextBridge = () => {
     }>();
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(
@@ -88,44 +54,26 @@ const DashboardAiAgentContextBridge = () => {
         [dashboardUuid, projectUuid],
     );
 
-    const relevantResults = useMemo(
-        () => activeThreadParts.filter(isFinalEditContentToolCall),
+    const successfulEditContentResults = useMemo(
+        () =>
+            activeThreadParts.flatMap((part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'editContent' &&
+                part.isPreliminary === false &&
+                part.toolResult?.metadata.status === 'success'
+                    ? [part]
+                    : [],
+            ),
         [activeThreadParts],
     );
 
     const refreshDashboard = useCallback(async () => {
         if (!projectUuid || !dashboardUuid) return;
 
-        console.log(
-            '[DashboardAiAgentContextBridge] invalidating dashboard query',
-            {
-                slug: currentDashboardSlug,
-                queryKey: dashboardQueryKey,
-                before: {
-                    tiles: dashboardTiles,
-                    tabs: dashboardTabs,
-                    filters: dashboardFilters,
-                    temporaryFilters: dashboardTemporaryFilters,
-                },
-            },
-        );
-
         const freshDashboard = await queryClient.fetchQuery({
             queryKey: dashboardQueryKey,
             queryFn: () => getDashboard(dashboardUuid, projectUuid),
         });
-
-        console.log(
-            '[DashboardAiAgentContextBridge] applying fresh dashboard state',
-            {
-                slug: currentDashboardSlug,
-                after: {
-                    tiles: freshDashboard.tiles,
-                    tabs: freshDashboard.tabs,
-                    filters: freshDashboard.filters,
-                },
-            },
-        );
 
         setDashboardTiles(freshDashboard.tiles);
         setDashboardTabs(freshDashboard.tabs);
@@ -133,12 +81,7 @@ const DashboardAiAgentContextBridge = () => {
         setOriginalDashboardFilters(freshDashboard.filters);
         setDashboardTemporaryFilters(emptyFilters);
     }, [
-        currentDashboardSlug,
-        dashboardFilters,
         dashboardQueryKey,
-        dashboardTabs,
-        dashboardTemporaryFilters,
-        dashboardTiles,
         dashboardUuid,
         projectUuid,
         queryClient,
@@ -170,15 +113,6 @@ const DashboardAiAgentContextBridge = () => {
                 ),
             ];
 
-            console.log(
-                '[DashboardAiAgentContextBridge] refreshing chart tiles',
-                {
-                    slug: chartSlug,
-                    savedChartUuids,
-                    tileUuids: matchingTiles.map((tile) => tile.uuid),
-                },
-            );
-
             await Promise.all(
                 savedChartUuids.map(async (savedChartUuid) => {
                     const freshChart = await queryClient.fetchQuery({
@@ -206,36 +140,19 @@ const DashboardAiAgentContextBridge = () => {
     );
 
     useEffect(() => {
-        if (!currentDashboardSlug) return;
+        if (!currentDashboardSlug || !projectUuid || !dashboardUuid) return;
 
-        for (const part of relevantResults) {
+        for (const part of successfulEditContentResults) {
             if (handledToolCallIdsRef.current.has(part.toolCallId)) continue;
 
             handledToolCallIdsRef.current.add(part.toolCallId);
 
-            const toolArgs = getEditContentToolArgs(part.toolArgs);
-
-            if (toolArgs?.type !== 'dashboard' && toolArgs?.type !== 'chart') {
-                continue;
-            }
-
-            const toolOutput = part.toolOutput;
-            if (
-                !isToolOutput(toolOutput) ||
-                toolOutput.metadata?.status !== 'success' ||
-                !projectUuid ||
-                !dashboardUuid
-            ) {
-                continue;
-            }
-
-            switch (toolArgs.type) {
+            switch (part.toolArgs.type) {
                 case 'chart':
-                    if (!toolArgs.slug) continue;
-                    void refreshChartTiles(toolArgs.slug);
+                    void refreshChartTiles(part.toolArgs.slug);
                     continue;
                 case 'dashboard':
-                    if (toolArgs.slug !== currentDashboardSlug) continue;
+                    if (part.toolArgs.slug !== currentDashboardSlug) continue;
                     void refreshDashboard();
                     continue;
             }
@@ -244,9 +161,9 @@ const DashboardAiAgentContextBridge = () => {
         currentDashboardSlug,
         dashboardUuid,
         projectUuid,
-        relevantResults,
         refreshChartTiles,
         refreshDashboard,
+        successfulEditContentResults,
     ]);
 
     return null;
