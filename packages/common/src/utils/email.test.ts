@@ -105,11 +105,26 @@ describe('isPublicEmailProviderDomain', () => {
         expect(isPublicEmailProviderDomain('google.com')).toBe(true);
         expect(isPublicEmailProviderDomain('microsoft.com')).toBe(true);
         expect(isPublicEmailProviderDomain('onmicrosoft.com')).toBe(true);
+        // sfr.fr is absent from free-email-domains; kept via the additional
+        // list so the swap doesn't regress the old hand-maintained coverage.
+        expect(isPublicEmailProviderDomain('sfr.fr')).toBe(true);
+    });
+
+    it('flags providers from the maintained list that the old hand-list missed', () => {
+        expect(isPublicEmailProviderDomain('proton.me')).toBe(true);
+        expect(isPublicEmailProviderDomain('protonmail.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('gmx.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('zoho.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('qq.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('163.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('yandex.com')).toBe(true);
+        expect(isPublicEmailProviderDomain('fastmail.com')).toBe(true);
     });
 
     it('is case-insensitive and trims', () => {
         expect(isPublicEmailProviderDomain('GMAIL.COM')).toBe(true);
         expect(isPublicEmailProviderDomain('  Gmail.com ')).toBe(true);
+        expect(isPublicEmailProviderDomain('  Proton.ME ')).toBe(true);
     });
 
     it('does not flag corporate domains', () => {

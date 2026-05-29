@@ -1,3 +1,5 @@
+import freeEmailDomains from 'free-email-domains';
+
 export const getEmailDomain = (email: string): string => {
     if (/\s/.test(email)) {
         throw new Error(`Invalid email, contains whitespace: ${email}`);
@@ -11,69 +13,36 @@ export const getEmailDomain = (email: string): string => {
 };
 
 /**
+ * Public-provider domains that the `free-email-domains` list doesn't cover but
+ * that still can't be owned by a single customer org on a shared instance:
+ * - Corporate provider roots that aren't free webmail (Google Workspace /
+ *   Microsoft 365 tenant roots).
+ * - Consumer providers the list happens to omit (e.g. the French ISP `sfr.fr`,
+ *   carried over from the previous hand-maintained list).
+ */
+const ADDITIONAL_PUBLIC_PROVIDER_DOMAINS = [
+    'google.com',
+    'microsoft.com',
+    'onmicrosoft.com',
+    'sfr.fr',
+];
+
+/**
  * Single source of truth for public / consumer email-provider domains that no
  * single organization can legitimately own. Used to block these domains from
  * being claimed as an organization email domain (auto-join) AND from being
  * verified as an SSO routing domain — receiving an OTP at e.g. `gmail.com`
  * proves nothing about owning the provider.
  *
- * Seeded from the previous `EMAIL_PROVIDER_LIST` here plus the corporate
- * domains that `OrganizationSsoService` separately blocked. Can be expanded
- * from a maintained list (e.g. Kickbox `free-email-domains`) if needed — keep
- * it a vendored static set, never a runtime fetch.
+ * Backed by the maintained Kickbox `free-email-domains` package (~10k entries,
+ * updated via the dependency) plus the corporate provider roots above. It's a
+ * vendored static set, never a runtime fetch. Note this is a best-effort
+ * heuristic, not a hard security boundary — a brand-new provider slips through
+ * until the list updates.
  */
-export const PUBLIC_EMAIL_PROVIDER_DOMAINS = new Set([
-    'gmail.com',
-    'googlemail.com',
-    'google.com',
-    'microsoft.com',
-    'onmicrosoft.com',
-    'yahoo.com',
-    'hotmail.com',
-    'aol.com',
-    'hotmail.co.uk',
-    'hotmail.fr',
-    'msn.com',
-    'yahoo.fr',
-    'wanadoo.fr',
-    'orange.fr',
-    'comcast.net',
-    'yahoo.co.uk',
-    'yahoo.com.br',
-    'yahoo.co.in',
-    'live.com',
-    'rediffmail.com',
-    'free.fr',
-    'gmx.de',
-    'web.de',
-    'yandex.ru',
-    'outlook.com',
-    'uol.com.br',
-    'bol.com.br',
-    'mail.ru',
-    'cox.net',
-    'hotmail.it',
-    'sbcglobal.net',
-    'sfr.fr',
-    'live.fr',
-    'verizon.net',
-    'live.co.uk',
-    'yahoo.es',
-    'ig.com.br',
-    'live.nl',
-    'bigpond.com',
-    'terra.com.br',
-    'yahoo.it',
-    'yahoo.de',
-    'rocketmail.com',
-    'yahoo.in',
-    'hotmail.es',
-    'hotmail.de',
-    'shaw.ca',
-    'yahoo.co.jp',
-    'sky.com',
-    'blueyonder.co.uk',
-    'icloud.com',
+export const PUBLIC_EMAIL_PROVIDER_DOMAINS = new Set<string>([
+    ...freeEmailDomains,
+    ...ADDITIONAL_PUBLIC_PROVIDER_DOMAINS,
 ]);
 
 /**
