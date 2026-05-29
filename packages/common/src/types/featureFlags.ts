@@ -219,6 +219,14 @@ export enum FeatureFlags {
      * the features can be toggled separately.
      */
     AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
+
+    /**
+     * Enable one-click "Connect GitHub" setup for AI agent MCP servers. When
+     * enabled (and the org has a GitHub App installation the user can manage),
+     * the agent MCP settings offer a button that provisions the hosted GitHub
+     * MCP using the org's existing installation token — no manual URL/auth.
+     */
+    GithubMcpOneClick = 'github-mcp-one-click',
 }
 
 export type FeatureFlag = {
