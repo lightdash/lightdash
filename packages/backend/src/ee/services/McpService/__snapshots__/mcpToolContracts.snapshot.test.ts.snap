@@ -383,6 +383,31 @@ Configuration Tips:
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 - filters can contain filters on fields from joined tables as well as the base table
 - For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
+- If the query finishes quickly, structuredContent: {
+    result: {
+      status: "done",
+      rows: Array<Record<string, unknown>>,
+      fields: Record<string, unknown>,
+      echartsOption: Record<string, unknown>,
+      exploreUrl: string | null
+    }
+  }
+- If the query is still running, structuredContent: {
+    result: {
+      status: "running",
+      queryUuid: string,
+      nextPollAfterMs: number,
+      heartbeatAt: string
+    }
+  }
+  Use get_query_result with this queryUuid to poll until the query is done.
+  Each run_metric_query and get_query_result call can wait up to 50 seconds before returning a running response.
+
+Notes:
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -5077,36 +5102,85 @@ Empty array or null: single partition (calculations across all rows)., ",
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
-          "echartsOption": {
+          "result": {
             "anyOf": [
-              {},
               {
-                "type": "null",
+                "additionalProperties": false,
+                "properties": {
+                  "echartsOption": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "exploreUrl": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "fields": {
+                    "additionalProperties": {},
+                    "type": "object",
+                  },
+                  "rows": {
+                    "items": {
+                      "additionalProperties": {},
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "status": {
+                    "const": "done",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "rows",
+                  "fields",
+                  "status",
+                  "exploreUrl",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "heartbeatAt": {
+                    "description": "ISO timestamp for when Lightdash last checked this async query and confirmed it is still running.",
+                    "type": "string",
+                  },
+                  "nextPollAfterMs": {
+                    "description": "Suggested delay before polling get_query_result for this query.",
+                    "exclusiveMinimum": 0,
+                    "type": "integer",
+                  },
+                  "queryUuid": {
+                    "description": "Async query UUID to pass to get_query_result when status is running.",
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "status": {
+                    "const": "running",
+                    "description": "Present when the query is still running and should be polled with get_query_result.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "nextPollAfterMs",
+                  "heartbeatAt",
+                ],
+                "type": "object",
               },
             ],
           },
-          "exploreUrl": {
-            "type": [
-              "string",
-              "null",
-            ],
-          },
-          "fields": {
-            "additionalProperties": {},
-            "type": "object",
-          },
-          "rows": {
-            "items": {
-              "additionalProperties": {},
-              "type": "object",
-            },
-            "type": "array",
-          },
         },
         "required": [
-          "rows",
-          "fields",
-          "exploreUrl",
+          "result",
         ],
         "type": "object",
       },
@@ -6792,21 +6866,35 @@ Parameters:
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
-- structuredContent: {
-    rows:     Array<Record<string, unknown>>,  // each row keyed by column name
-    columns:  string[],                        // column names in order
-    rowCount: number                           // total rows returned
+- If the query finishes quickly, structuredContent: {
+    result: {
+      status: "done",
+      rows:     Array<Record<string, unknown>>,  // each row keyed by column name
+      columns:  string[],                        // column names in order
+      rowCount: number                           // total rows returned
+    }
   }
+- If the query is still running, structuredContent: {
+    result: {
+      status: "running",
+      queryUuid: string,
+      nextPollAfterMs: number,
+      heartbeatAt: string
+    }
+  }
+  Use get_query_result with this queryUuid to poll until the query is done.
+  Each run_sql and get_query_result call can wait up to 50 seconds before returning a running response.
 
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.rows over parsing the CSV. Example:
+When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows over parsing the CSV. Example:
 
   const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.columns;  // ['status', 'n', 'total_amount']
+  const rows    = result.structuredContent.result.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
+  const columns = result.structuredContent.result.columns;  // ['status', 'n', 'total_amount']
 
 Notes:
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent with { rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
 - On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 ",
       "inputSchema": {
@@ -6835,35 +6923,270 @@ Notes:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
-          "columns": {
-            "description": "Ordered list of column names matching the keys in each row of \`rows\`.",
-            "items": {
-              "type": "string",
-            },
-            "type": "array",
-          },
-          "rowCount": {
-            "description": "Total number of rows returned. May be less than the requested limit.",
-            "minimum": 0,
-            "type": "integer",
-          },
-          "rows": {
-            "description": "Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).",
-            "items": {
-              "additionalProperties": {},
-              "type": "object",
-            },
-            "type": "array",
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "columns": {
+                    "description": "Ordered list of column names matching the keys in each row of \`rows\`.",
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "rowCount": {
+                    "description": "Total number of rows returned. May be less than the requested limit.",
+                    "minimum": 0,
+                    "type": "integer",
+                  },
+                  "rows": {
+                    "description": "Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).",
+                    "items": {
+                      "additionalProperties": {},
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "status": {
+                    "const": "done",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "rows",
+                  "columns",
+                  "rowCount",
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "heartbeatAt": {
+                    "description": "ISO timestamp for when Lightdash last checked this async query and confirmed it is still running.",
+                    "type": "string",
+                  },
+                  "nextPollAfterMs": {
+                    "description": "Suggested delay before polling get_query_result for this query.",
+                    "exclusiveMinimum": 0,
+                    "type": "integer",
+                  },
+                  "queryUuid": {
+                    "description": "Async query UUID to pass to get_query_result when status is running.",
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "status": {
+                    "const": "running",
+                    "description": "Present when the query is still running and should be polled with get_query_result.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "nextPollAfterMs",
+                  "heartbeatAt",
+                ],
+                "type": "object",
+              },
+            ],
           },
         },
         "required": [
-          "rows",
-          "columns",
-          "rowCount",
+          "result",
         ],
         "type": "object",
       },
       "title": "Run SQL",
+    },
+    {
+      "agentName": null,
+      "description": "Tool: get_query_result
+
+Purpose:
+Poll for the result of a long-running MCP query started by run_sql or run_metric_query.
+
+Use this tool when run_sql or run_metric_query returns structuredContent.result.status = "running".
+This tool waits up to 50 seconds for the query to complete before returning another running response.
+
+Parameters:
+- queryUuid: The async query UUID returned by run_sql or run_metric_query.
+
+Response shape (MCP CallToolResult):
+- Pending result: structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt means Lightdash checked recently and the query is still running.
+- Completed SQL result: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount }.
+- Completed metric query result: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields }.
+- Failed/cancelled/expired result: structuredContent.result contains { status, queryUuid, error }.
+
+Notes:
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "queryUuid": {
+            "description": "Async query UUID returned by run_sql or run_metric_query.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "queryUuid",
+        ],
+        "type": "object",
+      },
+      "name": "get_query_result",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "heartbeatAt": {
+                    "description": "ISO timestamp for when Lightdash last checked this async query and confirmed it is still running.",
+                    "type": "string",
+                  },
+                  "nextPollAfterMs": {
+                    "description": "Suggested delay before polling get_query_result for this query.",
+                    "exclusiveMinimum": 0,
+                    "type": "integer",
+                  },
+                  "queryUuid": {
+                    "description": "Async query UUID to pass to get_query_result when status is running.",
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "status": {
+                    "const": "running",
+                    "description": "Present when the query is still running and should be polled with get_query_result.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "nextPollAfterMs",
+                  "heartbeatAt",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "columns": {
+                    "description": "Ordered list of column names matching the keys in each row of \`rows\`.",
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  "queryUuid": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "rowCount": {
+                    "description": "Total number of rows returned. May be less than the requested limit.",
+                    "minimum": 0,
+                    "type": "integer",
+                  },
+                  "rows": {
+                    "description": "Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).",
+                    "items": {
+                      "additionalProperties": {},
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "status": {
+                    "const": "done",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "rows",
+                  "columns",
+                  "rowCount",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "fields": {
+                    "additionalProperties": {},
+                    "type": "object",
+                  },
+                  "queryUuid": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "rows": {
+                    "items": {
+                      "additionalProperties": {},
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "status": {
+                    "const": "done",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "rows",
+                  "fields",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "error": {
+                    "type": [
+                      "string",
+                      "null",
+                    ],
+                  },
+                  "queryUuid": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "status": {
+                    "enum": [
+                      "error",
+                      "cancelled",
+                      "expired",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                  "queryUuid",
+                  "error",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+        },
+        "required": [
+          "result",
+        ],
+        "type": "object",
+      },
+      "title": "Get query result",
     },
     {
       "agentName": null,
@@ -6966,6 +7289,7 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "search_field_values",
   "run_metric_query",
   "run_sql",
+  "get_query_result",
   "get_lightdash_version",
   "list_explores",
   "list_projects",

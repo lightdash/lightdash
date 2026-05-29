@@ -1679,6 +1679,26 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('getAsyncQueryHistory', () => {
+        it('checks project permission before loading query history', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([]);
+
+            service.queryHistoryModel.get = jest.fn();
+
+            await expect(
+                service.getAsyncQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+        });
+    });
+
     describe('prepareQueuedQueryForExecution', () => {
         const createMockQueryHistory = (
             status: QueryHistoryStatus,

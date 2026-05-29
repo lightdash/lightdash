@@ -10,6 +10,11 @@ import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
+import {
+    createMcpStructuredOutputSchema,
+    mcpMetricQueryCompletedResultSchema,
+    mcpRunningQueryResultSchema,
+} from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
 const queryConfigSchema = z.object({
@@ -164,6 +169,31 @@ Configuration Tips:
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 - filters can contain filters on fields from joined tables as well as the base table
 - For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
+- If the query finishes quickly, structuredContent: {
+    result: {
+      status: "done",
+      rows: Array<Record<string, unknown>>,
+      fields: Record<string, unknown>,
+      echartsOption: Record<string, unknown>,
+      exploreUrl: string | null
+    }
+  }
+- If the query is still running, structuredContent: {
+    result: {
+      status: "running",
+      queryUuid: string,
+      nextPollAfterMs: number,
+      heartbeatAt: string
+    }
+  }
+  Use get_query_result with this queryUuid to poll until the query is done.
+  Each run_metric_query and get_query_result call can wait up to 50 seconds before returning a running response.
+
+Notes:
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema()
@@ -207,11 +237,12 @@ export const toolRunQueryOutputSchema = z.object({
     metadata: baseOutputMetadataSchema,
 });
 
-export const mcpRunMetricQueryStructuredOutputSchema = z.object({
-    rows: z.array(z.record(z.unknown())),
-    fields: z.record(z.unknown()),
-    echartsOption: z.unknown().nullable(),
-    exploreUrl: z.string().nullable(),
-});
+export const mcpRunMetricQueryStructuredOutputSchema =
+    createMcpStructuredOutputSchema(
+        z.discriminatedUnion('status', [
+            mcpMetricQueryCompletedResultSchema,
+            mcpRunningQueryResultSchema,
+        ]),
+    );
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;

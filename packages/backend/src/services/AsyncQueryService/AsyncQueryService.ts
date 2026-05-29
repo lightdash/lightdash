@@ -931,6 +931,37 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    async getAsyncQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<QueryHistory> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { queryUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+    }
+
     async getResultsStream({
         account,
         projectUuid,
@@ -5731,6 +5762,109 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone,
         };
+    }
+
+    async getRawAsyncQueryResults({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<{
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const queryHistory = await this.getAsyncQueryHistory({
+            account,
+            projectUuid,
+            queryUuid,
+        });
+
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Query ${queryUuid} is not ready to fetch results`,
+            );
+        }
+
+        if (
+            queryHistory.resultsExpiresAt &&
+            queryHistory.resultsExpiresAt < new Date()
+        ) {
+            throw new ResultsExpiredError();
+        }
+
+        if (!queryHistory.resultsFileName) {
+            throw new UnexpectedServerError(
+                `No results file found for query ${queryUuid}`,
+            );
+        }
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            fields: queryHistory.fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+            displayTimezone: queryHistory.metricQuery.timezone ?? null,
+        };
+    }
+
+    private static getCalculateTotalMetricQuery(
+        metricQuery: MetricQuery,
+    ): MetricQuery {
+        // PoP additional metrics require their time dimension to be selected
+        // (they join the shifted CTE on that field). The totals query strips
+        // all dimensions to collapse to a single row, so any PoP entries
+        // would fail the "time dim must be selected" check in MetricQueryBuilder.
+        // Totals on a "12 months ago" column aren't meaningful anyway —
+        // strip PoP entries from both metrics and additionalMetrics.
+        const popMetricIds = new Set(
+            (metricQuery.additionalMetrics ?? [])
+                .filter(isPeriodOverPeriodAdditionalMetric)
+                .map(getItemId),
+        );
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            customDimensions: metricQuery.customDimensions,
+            metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
+            additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
+                (am) => !isPeriodOverPeriodAdditionalMetric(am),
+            ),
+        };
+
+        const hasMetricFilters =
+            !!totalQuery.filters.metrics &&
+            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
+        const hasTableCalculationFilters =
+            !!totalQuery.filters.tableCalculations &&
+            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
+
+        if (hasMetricFilters || hasTableCalculationFilters) {
+            throw new NotSupportedError(
+                'Totals cannot be correctly calculated with metric filters or table calculation filters',
+            );
+        }
+
+        return totalQuery;
     }
 
     private async executeMetricQueryAndGetResultsForTotals({

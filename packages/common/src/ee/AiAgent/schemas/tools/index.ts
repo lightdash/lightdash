@@ -17,6 +17,7 @@ export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
 export * from './toolGetDashboardChartsArgs';
+export * from './toolGetQueryResultArgs';
 export * from './toolGetProjectInfoArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';

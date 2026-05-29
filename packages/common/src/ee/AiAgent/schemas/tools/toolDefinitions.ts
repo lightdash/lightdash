@@ -90,6 +90,11 @@ import {
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
+    mcpGetQueryResultStructuredOutputSchema,
+    TOOL_GET_QUERY_RESULT_DESCRIPTION,
+    toolGetQueryResultArgsSchema,
+} from './toolGetQueryResultArgs';
+import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
     toolImproveContextOutputSchema,
@@ -265,6 +270,18 @@ export const runSqlToolDefinition = defineTool({
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunSqlStructuredOutputSchema,
+    },
+});
+
+export const getQueryResultToolDefinition = defineTool({
+    name: 'getQueryResult',
+    title: 'Get query result',
+    description: TOOL_GET_QUERY_RESULT_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetQueryResultArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetQueryResultStructuredOutputSchema,
     },
 });
 
@@ -641,6 +658,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     searchFieldValuesToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    getQueryResultToolDefinition,
     discoverFieldsToolDefinition,
     generateDashboardToolDefinition,
     generateUuidsToolDefinition,
