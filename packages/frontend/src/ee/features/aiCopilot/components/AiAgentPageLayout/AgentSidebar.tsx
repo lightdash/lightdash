@@ -1,4 +1,7 @@
-import { type AiAgent, type AiAgentThreadSummary } from '@lightdash/common';
+import {
+    type AiAgent,
+    type AiAgentProjectThreadSummary,
+} from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -18,26 +21,27 @@ import {
     IconInfoCircle,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
-import { useAiAgentThreads } from '../../hooks/useProjectAiAgents';
+import { useInfiniteAiAgentThreads } from '../../hooks/useProjectAiAgents';
+import { AgentNamePill } from '../AgentNamePill';
+import classes from './agentSidebar.module.css';
 import { SidebarButton } from './SidebarButton';
 
-const INITIAL_MAX_THREADS = 10;
-const MAX_THREADS_INCREMENT = 10;
-
 type ThreadNavLinkProps = {
-    thread: AiAgentThreadSummary;
+    thread: AiAgentProjectThreadSummary;
     isActive: boolean;
     projectUuid: string;
+    showAgentName?: boolean;
 };
 
 const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     thread,
     isActive,
     projectUuid,
+    showAgentName = false,
 }) => (
     <NavLink
         color="gray"
@@ -46,13 +50,20 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
         px="xs"
         py={rem(4)}
-        style={(theme) => ({
-            borderRadius: theme.radius.sm,
-        })}
+        className={classes.threadNavLink}
         label={
-            <Text truncate="end" size="sm" c="ldGray.9">
+            <Text truncate="end" size="sm" fw={500} c="ldGray.9">
                 {thread.title || thread.firstMessage.message}
             </Text>
+        }
+        description={
+            showAgentName ? (
+                <AgentNamePill
+                    name={thread.agentName}
+                    imageUrl={thread.agentImageUrl}
+                    variant="inline"
+                />
+            ) : undefined
         }
         active={isActive}
         rightSection={
@@ -65,6 +76,73 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         viewTransition
     />
 );
+
+type ThreadListProps = {
+    projectUuid: string;
+    threadUuid?: string;
+    agentUuid?: string;
+    showAgentName?: boolean;
+};
+
+const ThreadList: FC<ThreadListProps> = ({
+    projectUuid,
+    threadUuid,
+    agentUuid,
+    showAgentName = false,
+}) => {
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isSuccess } =
+        useInfiniteAiAgentThreads(projectUuid, { agentUuid });
+
+    const threads = data?.pages.flatMap((page) => page.data) ?? [];
+
+    if (!isSuccess) {
+        return null;
+    }
+
+    return (
+        <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
+            <Title order={6} c="dimmed" tt="uppercase" size="xs" ml="xs">
+                Recent
+            </Title>
+
+            <Stack gap={2}>
+                {threads.length === 0 && (
+                    <Paper variant="dotted" p="sm">
+                        <Text truncate="end" size="sm" c="ldGray.6" ta="center">
+                            No threads yet
+                        </Text>
+                    </Paper>
+                )}
+
+                <Box>
+                    {threads.map((thread) => (
+                        <ThreadNavLink
+                            key={thread.uuid}
+                            thread={thread}
+                            isActive={thread.uuid === threadUuid}
+                            projectUuid={projectUuid}
+                            showAgentName={showAgentName}
+                        />
+                    ))}
+                </Box>
+            </Stack>
+
+            <Box>
+                {hasNextPage && (
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        loading={isFetchingNextPage}
+                        onClick={() => fetchNextPage()}
+                        leftSection={<MantineIcon icon={IconChevronDown} />}
+                    >
+                        View more
+                    </Button>
+                )}
+            </Box>
+        </Stack>
+    );
+};
 
 const TrialAlert = () => (
     <Alert
@@ -111,8 +189,6 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
     const isTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         aiOrganizationSettingsQuery.data.isTrial;
-    const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
-    const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
     return (
         <Stack gap="md" style={{ flexGrow: 1, overflowY: 'auto' }}>
@@ -131,63 +207,12 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
                 </SidebarButton>
             </Box>
 
-            {projectUuid && threads && !isAgentSidebarCollapsed && (
-                <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
-                    <Title
-                        order={6}
-                        c="dimmed"
-                        tt="uppercase"
-                        size="xs"
-                        ml="xs"
-                    >
-                        Recent
-                    </Title>
-
-                    <Stack gap={2}>
-                        {threads.length === 0 && (
-                            <Paper variant="dotted" p="sm">
-                                <Text
-                                    truncate="end"
-                                    size="sm"
-                                    c="ldGray.6"
-                                    ta="center"
-                                >
-                                    No threads yet
-                                </Text>
-                            </Paper>
-                        )}
-
-                        <Box>
-                            {threads.slice(0, showMaxItems).map((thread) => (
-                                <ThreadNavLink
-                                    key={thread.uuid}
-                                    thread={thread}
-                                    isActive={thread.uuid === threadUuid}
-                                    projectUuid={projectUuid}
-                                />
-                            ))}
-                        </Box>
-                    </Stack>
-
-                    <Box>
-                        {threads.length >= showMaxItems && (
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                onClick={() =>
-                                    setShowMaxItems(
-                                        (s) => s + MAX_THREADS_INCREMENT,
-                                    )
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconChevronDown} />
-                                }
-                            >
-                                View more
-                            </Button>
-                        )}
-                    </Box>
-                </Stack>
+            {projectUuid && !isAgentSidebarCollapsed && (
+                <ThreadList
+                    projectUuid={projectUuid}
+                    threadUuid={threadUuid}
+                    agentUuid={agent.uuid}
+                />
             )}
             {isTrial && <TrialAlert />}
         </Stack>
@@ -196,11 +221,13 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
 
 type AutoModeSidebarProps = {
     projectUuid: string;
+    threadUuid?: string;
     isAgentSidebarCollapsed: boolean;
 };
 
 export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
     projectUuid,
+    threadUuid,
     isAgentSidebarCollapsed,
 }) => {
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
@@ -224,6 +251,14 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
                     {isAgentSidebarCollapsed ? '' : 'New thread'}
                 </SidebarButton>
             </Box>
+
+            {projectUuid && !isAgentSidebarCollapsed && (
+                <ThreadList
+                    projectUuid={projectUuid}
+                    threadUuid={threadUuid}
+                    showAgentName
+                />
+            )}
 
             {isTrial && <TrialAlert />}
         </Stack>

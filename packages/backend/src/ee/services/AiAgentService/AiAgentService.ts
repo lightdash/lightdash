@@ -8,10 +8,13 @@ import {
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
     AiAgentNotFoundError,
+    AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
     AiAgentSummary,
     AiAgentThread,
+    AiAgentThreadFilters,
     AiAgentThreadSummary,
+    AiAgentUser,
     AiAgentUserPreferences,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
@@ -55,6 +58,7 @@ import {
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashUser,
     NotFoundError,
     NotImplementedError,
@@ -1542,6 +1546,107 @@ export class AiAgentService extends BaseService {
                 },
             };
         });
+    }
+
+    async listProjectThreads(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            filters,
+            paginateArgs,
+        }: {
+            filters?: AiAgentThreadFilters;
+            paginateArgs?: KnexPaginateArgs;
+        },
+    ): Promise<
+        KnexPaginatedData<
+            AiAgentProjectThreadSummary<
+                AiAgentUser & { slackUserId: string | null }
+            >[]
+        >
+    > {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const accessibleAgents = await this.listAgents(user, projectUuid);
+        const accessibleAgentUuids = accessibleAgents.map(
+            (agent) => agent.uuid,
+        );
+
+        if (
+            filters?.agentUuid &&
+            !accessibleAgentUuids.includes(filters.agentUuid)
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this agent',
+            );
+        }
+
+        if (accessibleAgentUuids.length === 0) {
+            return {
+                data: [],
+                pagination: paginateArgs
+                    ? { ...paginateArgs, totalPageCount: 0, totalResults: 0 }
+                    : undefined,
+            };
+        }
+
+        const { data: threads, pagination } =
+            await this.aiAgentModel.findThreadsPaginated({
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                agentUuids: filters?.agentUuid
+                    ? [filters.agentUuid]
+                    : accessibleAgentUuids,
+                createdFrom: filters?.createdFrom
+                    ? [filters.createdFrom]
+                    : ['web_app', 'slack'],
+                search: filters?.search,
+                paginateArgs,
+            });
+
+        const slackUserIds = _.uniq(
+            threads
+                .filter((thread) => thread.createdFrom === 'slack')
+                .filter((thread) => thread.user.slackUserId !== null)
+                .map((thread) => thread.user.slackUserId),
+        );
+
+        const slackUsers = await Promise.all(
+            slackUserIds.map((userId) =>
+                this.slackClient.getUserInfo(organizationUuid, userId!),
+            ),
+        );
+
+        const data = threads.map((thread) => {
+            if (thread.createdFrom !== 'slack') {
+                return thread;
+            }
+
+            const slackUser = slackUsers.find(
+                ({ id }) =>
+                    thread.user.slackUserId !== null &&
+                    id === thread.user.slackUserId,
+            );
+
+            return {
+                ...thread,
+                user: {
+                    ...thread.user,
+                    name: slackUser?.name ?? thread.user.name,
+                },
+            };
+        });
+
+        return { data, pagination };
     }
 
     async getAgentThread(

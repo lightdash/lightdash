@@ -1,5 +1,7 @@
 import type {
     AiAgent,
+    AiAgentThreadFilters,
+    ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -9,7 +11,6 @@ import type {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
-    ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -27,9 +28,12 @@ import type {
 } from '@lightdash/common';
 import { nanoid } from '@reduxjs/toolkit';
 import {
+    useInfiniteQuery,
     useMutation,
     useQuery,
     useQueryClient,
+    type InfiniteData,
+    type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
@@ -317,28 +321,6 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
 };
 
 // Thread-related functionality
-const listAgentThreads = async (
-    projectUuid: string,
-    agentUuid: string,
-    allUsers?: boolean,
-) => {
-    const searchParams = new URLSearchParams();
-    if (allUsers) {
-        searchParams.set('allUsers', 'true');
-    }
-
-    const queryString = searchParams.toString();
-    const url = `/projects/${projectUuid}/aiAgents/${agentUuid}/threads${
-        queryString ? `?${queryString}` : ''
-    }`;
-
-    return lightdashApi<ApiAiAgentThreadSummaryListResponse['results']>({
-        url,
-        method: 'GET',
-        body: undefined,
-    });
-};
-
 const getAgentThread = async (
     projectUuid: string,
     agentUuid: string,
@@ -350,38 +332,70 @@ const getAgentThread = async (
         body: undefined,
     });
 
-export const useAiAgentThreads = (
+const PROJECT_THREADS_KEY = 'project-threads';
+
+const listProjectThreads = async (
     projectUuid: string,
-    agentUuid: string,
-    allUsers?: boolean,
+    filters: AiAgentThreadFilters,
+    pagination: { page: number; pageSize: number },
+) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('page', String(pagination.page));
+    searchParams.set('pageSize', String(pagination.pageSize));
+    if (filters.agentUuid) searchParams.set('agentUuid', filters.agentUuid);
+    if (filters.createdFrom)
+        searchParams.set('createdFrom', filters.createdFrom);
+    if (filters.search) searchParams.set('search', filters.search);
+
+    return lightdashApi<ApiAiAgentProjectThreadSummaryListResponse['results']>({
+        url: `/projects/${projectUuid}/aiAgents/threads?${searchParams.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+const DEFAULT_THREADS_PAGE_SIZE = 20;
+
+export const useInfiniteAiAgentThreads = (
+    projectUuid: string,
+    filters: AiAgentThreadFilters = {},
+    options?: UseInfiniteQueryOptions<
+        ApiAiAgentProjectThreadSummaryListResponse['results'],
+        ApiError
+    >,
 ) => {
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
-    return useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
-        queryKey: [
-            AI_AGENTS_KEY,
-            projectUuid,
-            agentUuid,
-            'threads',
-            allUsers ? 'all' : 'user',
-        ],
-        queryFn: () => listAgentThreads(projectUuid, agentUuid, allUsers),
+    return useInfiniteQuery<
+        ApiAiAgentProjectThreadSummaryListResponse['results'],
+        ApiError
+    >({
+        queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY, filters],
+        queryFn: ({ pageParam }) =>
+            listProjectThreads(projectUuid, filters, {
+                page: (pageParam as number) ?? 1,
+                pageSize: DEFAULT_THREADS_PAGE_SIZE,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (!lastPage.pagination) return undefined;
+            const { page, totalPageCount } = lastPage.pagination;
+            return page < totalPageCount ? page + 1 : undefined;
+        },
         onError: (error) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            }
-            // Don't show error toast for permission errors - let the UI handle it gracefully
-            if (error.error?.statusCode !== 403) {
+            } else {
                 showToastApiError({
                     title: 'Failed to fetch AI agent threads',
                     apiError: error.error,
                 });
             }
         },
-        enabled: !!agentUuid,
+        enabled: !!projectUuid,
+        ...options,
     });
 };
 
@@ -540,20 +554,27 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     >({
         mutationFn: ({ agentUuid, threadUuid }) =>
             generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
-        onSuccess: (data, { agentUuid, threadUuid }) => {
-            queryClient.setQueryData(
-                [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', 'user'],
-                (
-                    currentData:
-                        | ApiAiAgentThreadSummaryListResponse['results']
-                        | undefined,
-                ) => {
+        onSuccess: (data, { threadUuid }) => {
+            queryClient.setQueriesData<
+                | InfiniteData<
+                      ApiAiAgentProjectThreadSummaryListResponse['results']
+                  >
+                | undefined
+            >(
+                { queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY] },
+                (currentData) => {
                     if (!currentData) return currentData;
-                    return currentData.map((thread) =>
-                        thread.uuid === threadUuid
-                            ? { ...thread, title: data.title }
-                            : thread,
-                    );
+                    return {
+                        ...currentData,
+                        pages: currentData.pages.map((page) => ({
+                            ...page,
+                            data: page.data.map((thread) =>
+                                thread.uuid === threadUuid
+                                    ? { ...thread, title: data.title }
+                                    : thread,
+                            ),
+                        })),
+                    };
                 },
             );
         },
@@ -614,6 +635,10 @@ export const useCreateAgentThreadMutation = (
             // Invalidate both user-specific and all-users thread queries
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
+            });
+            // Invalidate the project-scoped paginated thread list (sidebar)
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
             void generateThreadTitle({ agentUuid, threadUuid: thread.uuid });

@@ -1,4 +1,5 @@
 import {
+    AiAgentThreadFilters,
     AiArtifactTSOACompat,
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
@@ -11,6 +12,7 @@ import {
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentModelOptionsResponse,
+    ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
@@ -313,6 +315,43 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/threads')
+    @OperationId('listProjectThreads')
+    async listProjectThreads(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        @Query() agentUuid?: AiAgentThreadFilters['agentUuid'],
+        @Query() createdFrom?: AiAgentThreadFilters['createdFrom'],
+        @Query() search?: AiAgentThreadFilters['search'],
+    ): Promise<ApiAiAgentProjectThreadSummaryListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page !== undefined && pageSize !== undefined
+                ? { page, pageSize }
+                : undefined;
+
+        const { data, pagination } =
+            await this.getAiAgentService().listProjectThreads(
+                toSessionUser(req.account),
+                projectUuid,
+                {
+                    filters: { agentUuid, createdFrom, search },
+                    paginateArgs,
+                },
+            );
+
+        return {
+            status: 'ok',
+            results: { data, pagination },
         };
     }
 
