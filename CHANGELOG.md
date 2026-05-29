@@ -1,3 +1,10 @@
+## [0.3058.1](https://github.com/lightdash/lightdash/compare/0.3058.0...0.3058.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-writeback:** scrub secrets from the dbt compile environment ([#23688](https://github.com/lightdash/lightdash/issues/23688)) ([ccd350a](https://github.com/lightdash/lightdash/commit/ccd350a1b7666178862d61c81c7ac31a1c028f89))
+
 # [0.3058.0](https://github.com/lightdash/lightdash/compare/0.3057.0...0.3058.0) (2026-05-29)
 
 
