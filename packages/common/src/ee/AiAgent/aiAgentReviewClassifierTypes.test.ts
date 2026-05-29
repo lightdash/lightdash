@@ -18,7 +18,6 @@ const baseInput: AiAgentReviewItemFingerprintInput = {
             type: 'metric',
             modelName: 'orders',
             metricName: 'total_order_amount',
-            yamlPath: 'lightdash/models/orders.yml',
         },
     ],
     agentConfigurationSettings: [],
@@ -49,7 +48,6 @@ describe('getAiAgentReviewItemFingerprint', () => {
                     type: 'metric',
                     modelName: 'orders',
                     metricName: 'completed_order_count',
-                    yamlPath: 'lightdash/models/orders.yml',
                 },
             ],
         };

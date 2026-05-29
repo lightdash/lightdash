@@ -5,6 +5,7 @@ import {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
+    ApiAiAgentReviewItemWritebackResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
@@ -23,6 +24,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -187,6 +189,34 @@ export class AiAgentAdminController extends BaseController {
                 fingerprint,
                 body,
             ),
+        };
+    }
+
+    /**
+     * Open a writeback pull request for a semantic-layer review item
+     * @summary Create AI agent review item writeback PR
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-items/{fingerprint}/writeback')
+    @OperationId('createAiAgentReviewItemWriteback')
+    async createReviewItemWriteback(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemWritebackResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().createReviewItemWriteback(
+                    toSessionUser(req.account),
+                    fingerprint,
+                ),
         };
     }
 

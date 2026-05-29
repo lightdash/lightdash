@@ -185,54 +185,48 @@ export type AiAgentEvidenceWindow = {
     previousPromptUuids: string[];
 };
 
+// Refs are by name only — the source file path is resolved from cached_explores at writeback time, not by the LLM.
 export type AiAgentSemanticTargetRef =
-    | { type: 'model'; modelName: string; yamlPath?: string }
+    | { type: 'model'; modelName: string }
     | {
           type: 'explore';
           modelName: string;
           exploreName: string;
-          yamlPath?: string;
       }
     | {
           type: 'join';
           modelName: string;
           joinName: string;
           exploreName?: string;
-          yamlPath?: string;
       }
     | {
           type: 'dimension';
           modelName: string;
           dimensionName: string;
-          yamlPath?: string;
       }
     | {
           type: 'metric';
           modelName: string;
           metricName: string;
           dimensionName?: string;
-          yamlPath?: string;
       }
     | {
           type: 'additional_dimension';
           modelName: string;
           parentDimensionName: string;
           dimensionName: string;
-          yamlPath?: string;
       }
     | {
           type: 'required_filter';
           modelName: string;
           exploreName: string;
           fieldName: string;
-          yamlPath?: string;
       }
     | {
           type: 'ai_hint';
           modelName: string;
           targetType: 'model' | 'dimension' | 'metric';
           targetName: string;
-          yamlPath?: string;
       };
 
 export type AiAgentTargetRef =
@@ -526,6 +520,16 @@ export type UpdateAiAgentReviewItemStatus = {
 };
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
+
+export type AiAgentReviewItemWritebackResult = {
+    reviewItem: AiAgentReviewItemSummary;
+    prUrl: string | null;
+    prCreated: boolean;
+    summary: string;
+};
+
+export type ApiAiAgentReviewItemWritebackResponse =
+    ApiSuccess<AiAgentReviewItemWritebackResult>;
 
 export type AiAgentReviewSignalSummary = {
     uuid: string;
