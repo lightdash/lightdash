@@ -1,3 +1,10 @@
+## [0.3046.1](https://github.com/lightdash/lightdash/compare/0.3046.0...0.3046.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* replace hand-maintained public email domain list with `free-email-domains` package ([#23634](https://github.com/lightdash/lightdash/issues/23634)) ([58800e1](https://github.com/lightdash/lightdash/commit/58800e1d9d08ac9c7c97c243d40ad22c0f0270bf))
+
 # [0.3046.0](https://github.com/lightdash/lightdash/compare/0.3045.0...0.3046.0) (2026-05-29)
 
 
