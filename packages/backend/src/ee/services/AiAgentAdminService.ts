@@ -541,19 +541,14 @@ export class AiAgentAdminService extends BaseService {
         const { fingerprint, organizationUuid, projectUuid, userUuid } =
             payload;
 
-        const setStatus = (
-            status: 'running' | 'completed' | 'failed',
-            message: string | null,
-            agentUuid: string,
-        ) =>
-            this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
-                fingerprint,
-                organizationUuid,
-                projectUuid,
-                agentUuid,
-                status,
-                message,
-            });
+        const setProgress = (message: string) =>
+            this.aiAgentReviewClassifierModel.updateReviewItemWritebackProgress(
+                {
+                    fingerprint,
+                    organizationUuid,
+                    message,
+                },
+            );
 
         const scope =
             await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
@@ -570,9 +565,22 @@ export class AiAgentAdminService extends BaseService {
         }
         const { agentUuid } = scope;
 
+        const setTerminal = (
+            status: 'completed' | 'failed',
+            message: string | null,
+        ) =>
+            this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
+                fingerprint,
+                organizationUuid,
+                projectUuid,
+                agentUuid,
+                status,
+                message,
+            });
+
         try {
             const user = await this.userModel.findSessionUserByUUID(userUuid);
-            await setStatus('running', 'Starting writeback…', agentUuid);
+            await setProgress('Starting writeback…');
 
             const explores = await this.projectModel.findExploresFromCache(
                 projectUuid,
@@ -587,7 +595,7 @@ export class AiAgentAdminService extends BaseService {
                 projectUuid,
                 prompt: plan.promptText,
                 onProgress: (message) => {
-                    void setStatus('running', message, agentUuid);
+                    void setProgress(message);
                 },
             });
 
@@ -600,16 +608,15 @@ export class AiAgentAdminService extends BaseService {
                     linkedPrUrl: result.prUrl,
                     prState: 'open',
                 });
-                await setStatus('completed', 'Opened pull request', agentUuid);
+                await setTerminal('completed', 'Opened pull request');
             } else {
-                await setStatus(
+                await setTerminal(
                     'completed',
                     'Writeback ran — no changes were needed',
-                    agentUuid,
                 );
             }
         } catch (error) {
-            await setStatus('failed', getErrorMessage(error), agentUuid);
+            await setTerminal('failed', getErrorMessage(error));
             throw error;
         }
     }
