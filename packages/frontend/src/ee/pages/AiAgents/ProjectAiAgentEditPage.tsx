@@ -380,7 +380,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     />
                                 }
                                 component={Link}
-                                to={`/ai-agents/admin?projects=${projectUuid}&agents=${actualAgentUuid}`}
+                                to={`/generalSettings/ai/threads?projects=${projectUuid}&agents=${actualAgentUuid}`}
                             >
                                 Conversations
                             </Button>

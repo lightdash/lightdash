@@ -66,7 +66,11 @@ export const useUpdateAiOrganizationSettings = (
             showToastSuccess({
                 title: 'Success! AI organization settings updated',
             });
-            queryClient.setQueryData(['ai-organization-settings'], data);
+            queryClient.setQueryData<
+                ApiAiOrganizationSettingsResponse['results'] | undefined
+            >(['ai-organization-settings'], (previous) =>
+                previous ? { ...previous, ...data } : undefined,
+            );
             await queryClient.invalidateQueries(['ai-organization-settings']);
             mutationOptions?.onSuccess?.(data, variables, context);
         },

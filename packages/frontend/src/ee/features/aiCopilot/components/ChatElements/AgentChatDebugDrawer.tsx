@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import classes from './AgentChatDebugDrawer.module.css';
 import { ToolResults } from './ToolResults';
@@ -108,6 +109,13 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
             onClose={onClose}
             size="lg"
             position="right"
+            classNames={{
+                inner: classes.inner,
+                overlay: classes.overlay,
+            }}
+            __vars={{
+                '--drawer-top-offset': `${NAVBAR_HEIGHT}px`,
+            }}
             styles={{
                 header: {
                     padding: '12px 16px',
