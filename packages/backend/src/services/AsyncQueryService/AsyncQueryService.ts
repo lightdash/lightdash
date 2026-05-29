@@ -3724,20 +3724,16 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
-    async executeAsyncMetricQuery({
-        account,
-        projectUuid,
-        dateZoom,
-        context,
-        metricQuery: inputMetricQuery,
-        invalidateCache,
-        usePreAggregateCache,
-        parameters,
-        pivotConfiguration,
-        userAttributeOverrides,
-        materializationRole,
-        dashboardFilters,
-    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    async executeAsyncMetricQuery(
+        args: ExecuteAsyncMetricQueryArgs,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const {
+            account,
+            projectUuid,
+            context,
+            metricQuery: inputMetricQuery,
+            materializationRole,
+        } = args;
         assertIsAccountWithOrg(account);
 
         if (
@@ -3755,7 +3751,6 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
-
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
             'view',
@@ -3771,6 +3766,32 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            args,
+            organizationUuid,
+        );
+    }
+
+    // Callers MUST authorize the account for this explore/query first.
+    private async runAsyncMetricQueryWithoutPermissionCheck(
+        {
+            account,
+            projectUuid,
+            dateZoom,
+            context,
+            metricQuery: inputMetricQuery,
+            invalidateCache,
+            usePreAggregateCache,
+            parameters,
+            pivotConfiguration,
+            userAttributeOverrides,
+            materializationRole,
+            dashboardFilters,
+        }: ExecuteAsyncMetricQueryArgs,
+        organizationUuid: string,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -3944,9 +3965,6 @@ export class AsyncQueryService extends ProjectService {
      * its queryUuid. The source query's metricQuery + pivotConfiguration are
      * read from query_history; this endpoint stores its own row in query_history
      * so it inherits cancellation, polling, download, and analytics for free.
-     *
-     * Only `kind: 'columnTotal'` is implemented today. Other kinds return
-     * NotSupportedError so the wire-format is stable for future PRs.
      */
     async executeAsyncCalculateTotalFromQueryHistory({
         account,
@@ -3963,23 +3981,23 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        // The `CalculateTotalKind` union is currently single-valued
-        // (`columnTotal`); the runtime guard exists so callers — including
-        // older clients that send `rowTotal`/`grandTotal`/etc. — get a clear
-        // error instead of silently computing column totals.
         if (kind !== 'columnTotal') {
             throw new NotSupportedError(
                 `Calculate-total kind "${kind}" is not yet supported`,
             );
         }
 
-        // Loads the source query and enforces that it belongs to this project
-        // and was created by this account (createdBy check inside `get`).
+        // `get` enforces the query belongs to this project and was created by
+        // this account — that ownership authorizes the totals query, so we skip
+        // the explore-level CASL gate (which embed JWT callers can't pass).
         const source = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const { metricQuery, pivotConfiguration } =
             getColumnTotalQueryFromSource({
@@ -3988,20 +4006,23 @@ export class AsyncQueryService extends ProjectService {
             });
 
         // Reuse the source's parameter values so the totals query sees the
-        // same parameter context as the original. `executeAsyncMetricQuery`
+        // same parameter context as the original. The execution path
         // re-combines these against project defaults.
         const sourceParameters: ParametersValuesMap | undefined =
             source.requestParameters?.parameters;
 
-        return this.executeAsyncMetricQuery({
-            account,
-            projectUuid,
-            context: QueryExecutionContext.CALCULATE_TOTAL,
-            metricQuery,
-            pivotConfiguration,
-            parameters: sourceParameters,
-            invalidateCache,
-        });
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            {
+                account,
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                metricQuery,
+                pivotConfiguration,
+                parameters: sourceParameters,
+                invalidateCache,
+            },
+            organizationUuid,
+        );
     }
 
     async executeAsyncFieldValueSearch({

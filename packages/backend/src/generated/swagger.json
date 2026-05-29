@@ -2613,7 +2613,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["hidden", "order", "name", "uuid"],
+                "required": ["order", "name", "uuid"],
                 "type": "object"
             },
             "SpaceMemberRole": {
@@ -5305,8 +5305,17 @@
             "CartesianChartLayout": {
                 "$ref": "#/components/schemas/Partial_CompleteCartesianChartLayout_"
             },
+            "LegendPlacement": {
+                "type": "string",
+                "enum": ["custom", "outsideRight", "outsideLeft"],
+                "description": "High-level legend placement preset. Set to 'outsideRight' or 'outsideLeft' to\nrender the legend beside the plot with reserved grid space. Undefined behaves\nlike 'custom' (no override of the existing legend position fields)."
+            },
             "EchartsLegend": {
                 "properties": {
+                    "placement": {
+                        "$ref": "#/components/schemas/LegendPlacement",
+                        "description": "High-level placement preset. Overrides orient/top/right/bottom/left\nwhen set to an outside value."
+                    },
                     "icon": {
                         "type": "string",
                         "enum": [
@@ -9523,7 +9532,7 @@
             },
             "DataAppTemplate": {
                 "type": "string",
-                "enum": ["dashboard", "slideshow", "pdf", "custom"]
+                "enum": ["custom", "dashboard", "slideshow", "pdf"]
             },
             "AppChartReference": {
                 "properties": {
@@ -10923,6 +10932,279 @@
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "AiRouter": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "routerUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "projectUuids",
+                    "enabled",
+                    "organizationUuid",
+                    "routerUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiRouter_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiRouter"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiRouterResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiRouter_"
+            },
+            "UpsertAiRouterRequest": {
+                "properties": {
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "AiRouterDecisionConfidence": {
+                "type": "string",
+                "enum": ["high", "medium", "low"]
+            },
+            "AiRouterDecisionCandidate": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "name", "agentUuid"],
+                "type": "object"
+            },
+            "AiRouterRouteDecision": {
+                "properties": {
+                    "candidates": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiRouterDecisionCandidate"
+                        },
+                        "type": "array"
+                    },
+                    "reasoning": {
+                        "type": "string"
+                    },
+                    "confidence": {
+                        "$ref": "#/components/schemas/AiRouterDecisionConfidence"
+                    },
+                    "suggestedAgentUuid": {
+                        "type": "string"
+                    },
+                    "decisionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "candidates",
+                    "reasoning",
+                    "confidence",
+                    "suggestedAgentUuid",
+                    "decisionUuid"
+                ],
+                "type": "object"
+            },
+            "AiRouterRouteNextAction": {
+                "type": "string",
+                "enum": ["create_thread", "show_picker"]
+            },
+            "AiRouterRouteResponseResult": {
+                "properties": {
+                    "nextAction": {
+                        "$ref": "#/components/schemas/AiRouterRouteNextAction"
+                    },
+                    "decision": {
+                        "$ref": "#/components/schemas/AiRouterRouteDecision"
+                    }
+                },
+                "required": ["nextAction", "decision"],
+                "type": "object"
+            },
+            "ApiSuccess_AiRouterRouteResponseResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiRouterRouteResponseResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiRouterRouteResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiRouterRouteResponseResult_"
+            },
+            "AiRouterRouteRequest": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["projectUuid", "prompt"],
+                "type": "object"
+            },
+            "ApiAiRouterDecisionCommitResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "AiRouterDecisionCommitRequest": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "chosenAgentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["threadUuid", "chosenAgentUuid"],
+                "type": "object"
+            },
+            "AiRouterSelectionMode": {
+                "type": "string",
+                "enum": ["auto_routed", "manual_pick"]
+            },
+            "AiRouterDecision": {
+                "properties": {
+                    "committedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "selectionMode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiRouterSelectionMode"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "candidateAgentUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "reasoning": {
+                        "type": "string"
+                    },
+                    "confidence": {
+                        "$ref": "#/components/schemas/AiRouterDecisionConfidence"
+                    },
+                    "chosenAgentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "suggestedAgentUuid": {
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "routerUuid": {
+                        "type": "string"
+                    },
+                    "decisionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "committedAt",
+                    "createdAt",
+                    "selectionMode",
+                    "candidateAgentUuids",
+                    "reasoning",
+                    "confidence",
+                    "chosenAgentUuid",
+                    "suggestedAgentUuid",
+                    "prompt",
+                    "userUuid",
+                    "threadUuid",
+                    "routerUuid",
+                    "decisionUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiRouterDecision-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiRouterDecision"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiRouterDecisionListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiRouterDecision-Array_"
+            },
             "DashboardSummaryTone": {
                 "enum": ["friendly", "formal", "direct", "enthusiastic"],
                 "type": "string"
@@ -12056,6 +12338,138 @@
                 },
                 "type": "object"
             },
+            "AiAgentUser": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "AiAgentThreadSummary_AiAgentUser_": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/AiAgentUser"
+                    },
+                    "firstMessage": {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["message", "uuid"],
+                        "type": "object"
+                    },
+                    "titleGeneratedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "firstMessage",
+                    "titleGeneratedAt",
+                    "title",
+                    "createdFrom",
+                    "createdAt",
+                    "agentUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentProjectThreadSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentThreadSummary_AiAgentUser_"
+                    },
+                    {
+                        "properties": {
+                            "agentImageUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "agentName": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["agentImageUrl", "agentName"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "KnexPaginatedData_AiAgentProjectThreadSummary-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentProjectThreadSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentProjectThreadSummary-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentProjectThreadSummaryListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
+            },
             "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
                     "description": {
@@ -12863,18 +13277,6 @@
                     }
                 ]
             },
-            "AiAgentUser": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "uuid"],
-                "type": "object"
-            },
             "AiAgentThreadSummary": {
                 "properties": {
                     "user": {
@@ -12940,56 +13342,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiAgentThreadSummary_AiAgentUser_": {
-                "properties": {
-                    "user": {
-                        "$ref": "#/components/schemas/AiAgentUser"
-                    },
-                    "firstMessage": {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["message", "uuid"],
-                        "type": "object"
-                    },
-                    "titleGeneratedAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdFrom": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string"
-                    },
-                    "agentUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "user",
-                    "firstMessage",
-                    "titleGeneratedAt",
-                    "title",
-                    "createdFrom",
-                    "createdAt",
-                    "agentUuid",
-                    "uuid"
-                ],
                 "type": "object"
             },
             "AiChartRuntimeOverrides": {
@@ -13283,6 +13635,7 @@
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
                     "generateUuids",
+                    "listContent",
                     "findExplores",
                     "findFields",
                     "discoverFields",
@@ -13292,8 +13645,12 @@
                     "getDashboardCharts",
                     "readContent",
                     "editContent",
+                    "createContent",
                     "improveContext",
+                    "listProjects",
+                    "getProjectInfo",
                     "loadSkill",
+                    "proposeWriteback",
                     "runSavedChart",
                     "listWarehouseTables",
                     "describeWarehouseTable",
@@ -13412,8 +13769,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13507,8 +13864,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13611,8 +13968,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13625,19 +13982,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -13646,9 +14003,229 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "rejected",
                                                             "success",
+                                                            "error",
+                                                            "not_found"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "streamingMessage": {},
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["streaming"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "streamingMessage": {},
+                                                    "discovery": {
+                                                        "anyOf": [
+                                                            {
+                                                                "properties": {
+                                                                    "explore": {
+                                                                        "properties": {
+                                                                            "joinedTables": {
+                                                                                "items": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "type": "array"
+                                                                            },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "label": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "name": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "joinedTables",
+                                                                            "baseTable",
+                                                                            "label",
+                                                                            "name"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "fieldValueType",
+                                                                                "fieldFilterType",
+                                                                                "fieldType",
+                                                                                "description",
+                                                                                "label",
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "status": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "resolved"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "explore",
+                                                                    "fields",
+                                                                    "rationale",
+                                                                    "status"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            {
+                                                                "properties": {
+                                                                    "suggestedQuestion": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "candidates": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "reason": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "exploreLabel": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "exploreName": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "reason",
+                                                                                "exploreLabel",
+                                                                                "exploreName"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "status": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ambiguous"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "suggestedQuestion",
+                                                                    "candidates",
+                                                                    "status"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            {
+                                                                "properties": {
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "status": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "no_match"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "reason",
+                                                                    "status"
+                                                                ],
+                                                                "type": "object"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": [
+                                                    "discovery",
+                                                    "status"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "prUrl": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": ["prUrl", "status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "rejected",
+                                                            "error",
                                                             "timeout"
                                                         ]
                                                     }
@@ -13771,8 +14348,26 @@
             "AiAgentMessageAssistantArtifact": {
                 "$ref": "#/components/schemas/Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_"
             },
+            "AiPromptTokenUsage": {
+                "properties": {
+                    "totalTokens": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalTokens"],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "tokenUsage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptTokenUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "modelConfig": {
                         "properties": {
                             "reasoning": {
@@ -13862,6 +14457,7 @@
                     }
                 },
                 "required": [
+                    "tokenUsage",
                     "modelConfig",
                     "referencedArtifacts",
                     "artifacts",
@@ -18214,6 +18810,158 @@
             "UpsertGoogleSsoConfig": {
                 "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
             },
+            "VerifiedDomain": {
+                "properties": {
+                    "verifiedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verifiedByUserUuid",
+                    "verifiedAt",
+                    "domain",
+                    "organizationUuid"
+                ],
+                "type": "object",
+                "description": "A domain an organization has proven it owns (via a one-time passcode sent to\nan address at the domain). Verified domains are globally unique — the first\norganization to verify a domain owns it."
+            },
+            "ApiVerifiedDomainsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/VerifiedDomain"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EmailOneTimePassword": {
+                "properties": {
+                    "numberOfAttempts": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of times the passcode has been attempted"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Time that the passcode was created"
+                    }
+                },
+                "required": ["numberOfAttempts", "createdAt"],
+                "type": "object"
+            },
+            "Pick_EmailStatusExpiring.otp_": {
+                "properties": {
+                    "otp": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EmailOneTimePassword"
+                            },
+                            {
+                                "properties": {
+                                    "isMaxAttempts": {
+                                        "type": "boolean"
+                                    },
+                                    "isExpired": {
+                                        "type": "boolean"
+                                    },
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                },
+                                "required": [
+                                    "isMaxAttempts",
+                                    "isExpired",
+                                    "expiresAt"
+                                ],
+                                "type": "object"
+                            }
+                        ],
+                        "description": "One time passcode information\nIf there is no active passcode, this will be undefined"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DomainVerificationStatus": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_EmailStatusExpiring.otp_"
+                    },
+                    {
+                        "properties": {
+                            "isVerified": {
+                                "type": "boolean"
+                            },
+                            "domain": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["isVerified", "domain"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Verification status of a single domain. Mirrors {@link EmailStatusExpiring}:\n`otp` is present only while a pending one-time passcode challenge exists."
+            },
+            "ApiDomainVerificationStatusResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DomainVerificationStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RequestDomainVerification": {
+                "properties": {
+                    "challengeEmail": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": ["challengeEmail", "domain"],
+                "type": "object",
+                "description": "Request to verify a domain. `challengeEmail` must be an address at `domain`;\na one-time passcode is sent there and confirmed via\n{@link ConfirmDomainVerification}."
+            },
+            "ConfirmDomainVerification": {
+                "properties": {
+                    "passcode": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": ["passcode", "domain"],
+                "type": "object"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -18397,6 +19145,12 @@
             },
             "AiWritebackRunResult": {
                 "properties": {
+                    "repository": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
                     "prUrl": {
                         "type": "string",
                         "nullable": true
@@ -18409,9 +19163,15 @@
                         "type": "string"
                     }
                 },
-                "required": ["prUrl", "exitCode", "output"],
+                "required": [
+                    "repository",
+                    "projectName",
+                    "prUrl",
+                    "exitCode",
+                    "output"
+                ],
                 "type": "object",
-                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for)."
+                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted."
             },
             "ApiSuccess_AiWritebackRunResult_": {
                 "properties": {
@@ -18641,6 +19401,873 @@
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
+            },
+            "AiAgentRootCause": {
+                "type": "string",
+                "enum": [
+                    "semantic_layer",
+                    "project_context",
+                    "agent_configuration",
+                    "data_gap",
+                    "product_capability",
+                    "runtime_reliability",
+                    "feedback_quality",
+                    "not_a_failure",
+                    "ambiguous"
+                ]
+            },
+            "AiAgentReviewItemStatus": {
+                "type": "string",
+                "enum": [
+                    "open",
+                    "in_progress",
+                    "resolved",
+                    "dismissed",
+                    "duplicate"
+                ]
+            },
+            "AiAgentReviewItemDismissedReason": {
+                "type": "string",
+                "enum": [
+                    "not_actionable",
+                    "expected_behavior",
+                    "duplicate",
+                    "low_confidence",
+                    "other"
+                ]
+            },
+            "AiAgentReviewItemOwnerType": {
+                "type": "string",
+                "enum": [
+                    "semantic_layer_owner",
+                    "agent_admin",
+                    "product",
+                    "support",
+                    "unknown"
+                ]
+            },
+            "AiAgentReviewItem": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "linkedPrUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linkedIssueUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statusUpdatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statusUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "findingCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "assignedToUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ownerType": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemOwnerType"
+                    },
+                    "dismissedReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentReviewItemDismissedReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "primaryRootCause": {
+                        "$ref": "#/components/schemas/AiAgentRootCause"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "fingerprint": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "linkedPrUrl",
+                    "linkedIssueUrl",
+                    "statusUpdatedByUserUuid",
+                    "statusUpdatedAt",
+                    "findingCount",
+                    "lastSeenAt",
+                    "firstSeenAt",
+                    "assignedToUserUuid",
+                    "ownerType",
+                    "dismissedReason",
+                    "status",
+                    "primaryRootCause",
+                    "description",
+                    "title",
+                    "agentUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "fingerprint",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentFixTarget": {
+                "type": "string",
+                "enum": [
+                    "semantic_yaml_patch",
+                    "project_context_rule",
+                    "agent_configuration_change",
+                    "dbt_modeling_ticket",
+                    "semantic_layer_ticket",
+                    "product_capability_ticket",
+                    "runtime_reliability_ticket",
+                    "feedback_needed",
+                    "no_action"
+                ]
+            },
+            "AiAgentSemanticTargetRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["model"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["exploreName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "joinName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["join"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["joinName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dimensionName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "metricName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["metric"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["metricName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "parentDimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["additional_dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dimensionName",
+                            "parentDimensionName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["required_filter"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "fieldName",
+                            "exploreName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "yamlPath": {
+                                "type": "string"
+                            },
+                            "targetName": {
+                                "type": "string"
+                            },
+                            "targetType": {
+                                "type": "string",
+                                "enum": ["model", "dimension", "metric"]
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["ai_hint"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "targetName",
+                            "targetType",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentConfigurationSetting": {
+                "type": "string",
+                "enum": [
+                    "instructions",
+                    "knowledge_documents",
+                    "data_access",
+                    "self_improvement",
+                    "sql_mode",
+                    "mcp_servers",
+                    "explore_tags",
+                    "space_access",
+                    "user_or_group_access",
+                    "unknown"
+                ]
+            },
+            "AiAgentTargetRef": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentSemanticTargetRef"
+                    },
+                    {
+                        "properties": {
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["agentUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "setting": {
+                                "$ref": "#/components/schemas/AiAgentConfigurationSetting"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent_config"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["setting", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "capabilityKey": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["product_capability"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["capabilityKey", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["runtime"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["key", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentEvidenceExcerpt": {
+                "properties": {
+                    "redacted": {
+                        "type": "boolean"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "user_prompt",
+                            "assistant_answer",
+                            "next_user_prompt",
+                            "conversation_context",
+                            "tool_call",
+                            "tool_result",
+                            "agent_config"
+                        ]
+                    }
+                },
+                "required": ["redacted", "text", "source"],
+                "type": "object"
+            },
+            "AiAgentRecommendationAction": {
+                "type": "string",
+                "enum": [
+                    "update_semantic_yaml",
+                    "update_agent_instructions",
+                    "add_knowledge_document",
+                    "enable_data_access",
+                    "enable_sql_mode",
+                    "enable_self_improvement",
+                    "configure_mcp_server",
+                    "adjust_explore_tags",
+                    "update_access",
+                    "route_to_product_work",
+                    "request_more_evidence",
+                    "no_action"
+                ]
+            },
+            "AiAgentRecommendation": {
+                "properties": {
+                    "targetRefs": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                        },
+                        "type": "array"
+                    },
+                    "rationale": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "actionType": {
+                        "$ref": "#/components/schemas/AiAgentRecommendationAction"
+                    }
+                },
+                "required": ["targetRefs", "rationale", "title", "actionType"],
+                "type": "object"
+            },
+            "AiAgentReviewItemSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentReviewItem"
+                    },
+                    {
+                        "properties": {
+                            "latestFinding": {
+                                "properties": {
+                                    "createdAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "recommendation": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentRecommendation"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "evidenceExcerpts": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentEvidenceExcerpt"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "targetRefs": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "fixTargets": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentFixTarget"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "subcategories": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "agentUuid": {
+                                        "type": "string"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    },
+                                    "threadUuid": {
+                                        "type": "string"
+                                    },
+                                    "promptUuid": {
+                                        "type": "string"
+                                    },
+                                    "uuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "createdAt",
+                                    "recommendation",
+                                    "evidenceExcerpts",
+                                    "targetRefs",
+                                    "fixTargets",
+                                    "subcategories",
+                                    "agentUuid",
+                                    "projectUuid",
+                                    "threadUuid",
+                                    "promptUuid",
+                                    "uuid"
+                                ],
+                                "type": "object",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["latestFinding"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AiAgentReviewItemSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewItemSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemSummary-Array_"
+            },
+            "AiAgentTurnSignal": {
+                "type": "string",
+                "enum": [
+                    "normal_refinement",
+                    "implicit_correction",
+                    "explicit_dispute",
+                    "retry_after_failure",
+                    "output_shape_correction",
+                    "new_question",
+                    "acceptance_or_continuation",
+                    "product_capability_request",
+                    "human_intervention",
+                    "ambiguous"
+                ]
+            },
+            "AiAgentImplicitSignalSource": {
+                "type": "string",
+                "enum": [
+                    "next_user_correction",
+                    "next_user_dispute",
+                    "next_user_retry",
+                    "output_shape_correction",
+                    "tool_error",
+                    "assistant_no_answer",
+                    "product_capability_request",
+                    "human_intervention"
+                ]
+            },
+            "AiAgentReviewClassifierConfidence": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+            },
+            "AiAgentReviewClassifierEventType": {
+                "type": "string",
+                "enum": ["response_saved", "feedback_changed"]
+            },
+            "AiAgentReviewClassifierRunScope": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "dryRun": {
+                                "type": "boolean"
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "endedAt": {
+                                "type": "string"
+                            },
+                            "startedAt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["backfill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["endedAt", "startedAt", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "promptUuid": {
+                                "type": "string"
+                            },
+                            "eventType": {
+                                "$ref": "#/components/schemas/AiAgentReviewClassifierEventType"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["live_event"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "agentUuid",
+                            "projectUuid",
+                            "threadUuid",
+                            "promptUuid",
+                            "eventType",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "filters": {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            },
+                            "requestedByUserUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["manual"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["filters", "requestedByUserUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentReviewSignalSummary": {
+                "properties": {
+                    "finding": {
+                        "properties": {
+                            "recommendation": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentRecommendation"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "evidenceExcerpts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentEvidenceExcerpt"
+                                },
+                                "type": "array"
+                            },
+                            "fixTargets": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentFixTarget"
+                                },
+                                "type": "array"
+                            },
+                            "subcategories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "primaryRootCause": {
+                                "$ref": "#/components/schemas/AiAgentRootCause"
+                            },
+                            "reviewItemUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "recommendation",
+                            "evidenceExcerpts",
+                            "fixTargets",
+                            "subcategories",
+                            "primaryRootCause",
+                            "reviewItemUuid",
+                            "uuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "responsePreview": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "runScope": {
+                        "$ref": "#/components/schemas/AiAgentReviewClassifierRunScope"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "promotionReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "promotedToFinding": {
+                        "type": "boolean"
+                    },
+                    "confidence": {
+                        "$ref": "#/components/schemas/AiAgentReviewClassifierConfidence"
+                    },
+                    "implicitSignalSources": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentImplicitSignalSource"
+                        },
+                        "type": "array"
+                    },
+                    "signal": {
+                        "$ref": "#/components/schemas/AiAgentTurnSignal"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "runUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finding",
+                    "errorMessage",
+                    "responsePreview",
+                    "prompt",
+                    "runScope",
+                    "createdAt",
+                    "promotionReason",
+                    "promotedToFinding",
+                    "confidence",
+                    "implicitSignalSources",
+                    "signal",
+                    "agentUuid",
+                    "projectUuid",
+                    "threadUuid",
+                    "promptUuid",
+                    "runUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentReviewSignalSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewSignalSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewSignalsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewSignalSummary-Array_"
             },
             "AiOrganizationSettings": {
                 "properties": {
@@ -19324,22 +20951,6 @@
                         "$ref": "#/components/schemas/CreateUserArgs"
                     }
                 ]
-            },
-            "EmailOneTimePassword": {
-                "properties": {
-                    "numberOfAttempts": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of times the passcode has been attempted"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Time that the passcode was created"
-                    }
-                },
-                "required": ["numberOfAttempts", "createdAt"],
-                "type": "object"
             },
             "EmailStatus": {
                 "properties": {
@@ -22960,6 +24571,7 @@
                 "enum": [
                     "slackAiPrompt",
                     "aiAgentEvalResult",
+                    "aiAgentReviewClassifier",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
@@ -25880,22 +27492,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -26011,7 +27623,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["hidden", "order", "name", "uuid"],
+                "required": ["order", "name", "uuid"],
                 "type": "object"
             },
             "DashboardTileAsCodeBase": {
@@ -26455,22 +28067,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -27941,6 +29553,70 @@
                 },
                 "required": ["data", "type"],
                 "type": "object"
+            },
+            "OrganizationSettings": {
+                "properties": {
+                    "supportImpersonationEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                    },
+                    "oidcToEmailLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link an OIDC identity to an existing user matched by verified\nprimary email, regardless of how they signed up (overrides\n`AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`; `null` inherits it)."
+                    },
+                    "oidcLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link a new OIDC identity to an existing user who already has a\ndifferent OIDC identity with the same email (overrides\n`AUTH_ENABLE_OIDC_LINKING`; `null` inherits it)."
+                    }
+                },
+                "required": [
+                    "supportImpersonationEnabled",
+                    "oidcToEmailLinkingEnabled",
+                    "oidcLinkingEnabled"
+                ],
+                "type": "object",
+                "description": "Per-organization settings migrated from instance-wide env vars. Surfaced in\nthe Pro admin panel and stored in the `organization_settings` table. Starts\nwith the OIDC account-linking toggles; designed to grow as more settings\nmove org-level.\n\nEach value is tri-state: `null` means \"not set — inherit the instance/env\ndefault\", while an explicit `true`/`false` overrides the env. The fallback\nto the env default is resolved in the auth layer, not here."
+            },
+            "ApiOrganizationSettingsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_OrganizationSettings_": {
+                "properties": {
+                    "oidcLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link a new OIDC identity to an existing user who already has a\ndifferent OIDC identity with the same email (overrides\n`AUTH_ENABLE_OIDC_LINKING`; `null` inherits it)."
+                    },
+                    "oidcToEmailLinkingEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Auto-link an OIDC identity to an existing user matched by verified\nprimary email, regardless of how they signed up (overrides\n`AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`; `null` inherits it)."
+                    },
+                    "supportImpersonationEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateOrganizationSettings": {
+                "$ref": "#/components/schemas/Partial_OrganizationSettings_"
             },
             "OrganizationDesignFileKind": {
                 "type": "string",
@@ -35187,7 +36863,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3022.1",
+        "version": "0.3050.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -36587,6 +38263,231 @@
                 "parameters": []
             }
         },
+        "/api/v1/org/aiRouter": {
+            "get": {
+                "operationId": "getAiRouterConfig",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiRouterResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the AI router configuration for the organization. Returns 404 when the\nrouter has not been configured yet — clients use this to detect first-use.",
+                "summary": "Get AI router config",
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "upsertAiRouterConfig",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiRouterResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upsert the AI router configuration. Creates the row lazily on first save.",
+                "summary": "Upsert AI router config",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertAiRouterRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/aiRouter/route": {
+            "post": {
+                "operationId": "routeAiAgent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiRouterRouteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Route a user prompt to the best candidate agent in the current project.",
+                "summary": "Route prompt",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiRouterRouteRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/aiRouter/decisions/{decisionUuid}/commit": {
+            "post": {
+                "operationId": "commitAiRouterDecision",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiRouterDecisionCommitResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Commit a router decision once the user has resolved it (router\nauto-routed and the thread is created, or the user picked an agent\nfrom the picker). Decisions left uncommitted indicate the user\nabandoned the flow.",
+                "summary": "Commit router decision",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "decisionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiRouterDecisionCommitRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/aiRouter/decisions": {
+            "get": {
+                "operationId": "listAiRouterDecisions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiRouterDecisionListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List recent routing decisions for the org's router.",
+                "summary": "List router decisions",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "confidence",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiRouterDecisionConfidence"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "selectionMode",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiRouterSelectionMode"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "fromDate",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "toDate",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/documents": {
             "get": {
                 "operationId": "listAiAgentDocuments",
@@ -37190,6 +39091,87 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/threads": {
+            "get": {
+                "operationId": "listProjectThreads",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentProjectThreadSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "createdFrom",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["web_app", "slack"]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}": {
@@ -40563,6 +42545,163 @@
                 "parameters": []
             }
         },
+        "/api/v1/org/domains": {
+            "get": {
+                "operationId": "ListVerifiedDomains",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifiedDomainsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the domains the current organization has verified ownership of.",
+                "summary": "List verified domains",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/domains/verify": {
+            "post": {
+                "operationId": "RequestDomainVerification",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDomainVerificationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Sends a one-time passcode to an address at the domain to begin verifying\nownership. The domain must not be a public email provider and must not\nalready be verified by another organization.",
+                "summary": "Request domain verification",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestDomainVerification"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/domains/confirm": {
+            "post": {
+                "operationId": "ConfirmDomainVerification",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDomainVerificationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Confirms a domain verification passcode. On success the domain is marked\nverified for the organization.",
+                "summary": "Confirm domain verification",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmDomainVerification"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/domains/{domain}": {
+            "delete": {
+                "operationId": "DeleteVerifiedDomain",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes a verified domain and strips it from any SSO provider that routed\nto it.",
+                "summary": "Delete verified domain",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "domain",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/orgs/{orgUuid}/roles": {
             "post": {
                 "operationId": "CreateOrganizationRole",
@@ -41163,6 +43302,80 @@
                 },
                 "description": "Get all AI agents for admin",
                 "summary": "List AI agents",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items": {
+            "get": {
+                "operationId": "getAiAgentReviewItems",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI agent classifier review items for admin",
+                "summary": "List AI agent review items",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/review-signals": {
+            "get": {
+                "operationId": "getAiAgentReviewSignals",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewSignalsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI agent classifier review signals for admin debugging",
+                "summary": "List AI agent review signals",
                 "security": [],
                 "parameters": []
             }
@@ -49878,6 +52091,78 @@
                                 },
                                 "type": "array",
                                 "description": "the new order of the pinned items"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/settings": {
+            "get": {
+                "operationId": "GetOrganizationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's settings. Defaults are returned when\nno settings have been saved.",
+                "summary": "Get organization settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "patch": {
+                "operationId": "UpdateOrganizationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Updates the current organization's settings. Only the provided fields\nare changed.",
+                "summary": "Update organization settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationSettings"
                             }
                         }
                     }
