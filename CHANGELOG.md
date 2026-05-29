@@ -1,3 +1,10 @@
+## [0.3049.2](https://github.com/lightdash/lightdash/compare/0.3049.1...0.3049.2) (2026-05-29)
+
+
+### Bug Fixes
+
+* preserve service account auth in workers ([#23649](https://github.com/lightdash/lightdash/issues/23649)) ([00e8e52](https://github.com/lightdash/lightdash/commit/00e8e5255173da5d290a8752d306a24fb1561464))
+
 ## [0.3049.1](https://github.com/lightdash/lightdash/compare/0.3049.0...0.3049.1) (2026-05-29)
 
 
