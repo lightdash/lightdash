@@ -640,11 +640,6 @@ export default class SchedulerTask {
                     context,
                 };
 
-                const pivotResultsFlag = await this.featureFlagService.get({
-                    user: account.user,
-                    featureFlagId: FeatureFlags.UseSqlPivotResults,
-                });
-
                 try {
                     if (savedChartUuid) {
                         this.analytics.trackAccount(account, {
@@ -671,9 +666,7 @@ export default class SchedulerTask {
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
-                                    pivotResults:
-                                        pivotResultsFlag.enabled &&
-                                        shouldPivotResults,
+                                    pivotResults: shouldPivotResults,
                                 },
                             );
                         const downloadResult =
@@ -822,9 +815,7 @@ export default class SchedulerTask {
                                             dashboardSorts: [],
                                             parameters: finalParameters,
                                             limit: chartLimit,
-                                            pivotResults:
-                                                pivotResultsFlag.enabled &&
-                                                shouldPivotResults,
+                                            pivotResults: shouldPivotResults,
                                         },
                                     );
                                 const downloadResult =
@@ -4206,11 +4197,6 @@ export default class SchedulerTask {
                         dashboardUuid,
                     );
 
-                const pivotResultsFlag = await this.featureFlagService.get({
-                    user: account.user,
-                    featureFlagId: FeatureFlags.UseSqlPivotResults,
-                });
-
                 const baseAnalyticsProperties: DownloadCsv['properties'] = {
                     jobId,
                     userId: userUuid,
@@ -4250,7 +4236,6 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dateZoom,
-                                pivotResultsFlag,
                                 chartUuid: tile.properties.savedChartUuid!,
                                 tileUuid: tile.uuid,
                             }),
@@ -4455,7 +4440,6 @@ export default class SchedulerTask {
         dashboardUuid,
         dashboardFilters,
         dateZoom,
-        pivotResultsFlag,
         chartUuid,
         tileUuid,
     }: {
@@ -4464,7 +4448,6 @@ export default class SchedulerTask {
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         dateZoom: DateZoom | undefined;
-        pivotResultsFlag: { enabled: boolean };
         chartUuid: string;
         tileUuid: string;
     }): Promise<{
@@ -4493,7 +4476,7 @@ export default class SchedulerTask {
                     formatted: true,
                     limit: 'table',
                 }),
-                pivotResults: pivotResultsFlag.enabled && shouldPivotResults,
+                pivotResults: shouldPivotResults,
             });
         const downloadResult =
             await this.asyncQueryService.downloadSyncQueryResults(

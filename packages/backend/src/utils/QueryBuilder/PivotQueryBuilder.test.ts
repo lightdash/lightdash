@@ -4671,7 +4671,7 @@ SELECT * FROM group_by_query LIMIT 50`);
 
         test('Multiple value columns with metric sort produce frame clauses on every column anchor FIRST_VALUE (#18064)', () => {
             // https://github.com/lightdash/lightdash/issues/18064 / GLITCH-90
-            // Repro: USE_SQL_PIVOT_RESULTS + sort by a value column on
+            // Repro: SQL pivot + sort by a value column on
             // Redshift. Window functions with ORDER BY require explicit frame
             // clauses; missing frames produced "Aggregate window functions
             // with an ORDER BY clause require a frame clause".

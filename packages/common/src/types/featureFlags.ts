@@ -43,11 +43,6 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     /**
-     * Enable SQL pivot results conversion to PivotData format
-     */
-    UseSqlPivotResults = 'use-sql-pivot-results',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
