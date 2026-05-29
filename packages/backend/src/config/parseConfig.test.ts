@@ -153,13 +153,11 @@ test('Should use explicit apps S3 config when set', () => {
     });
 });
 
-test('Should return null apps S3 config when base S3 is not configured', () => {
+test('Should fail fast when base S3 is not configured', () => {
     delete process.env.S3_ENDPOINT;
     delete process.env.S3_BUCKET;
     delete process.env.S3_REGION;
-    process.env.APPS_S3_BUCKET = 'apps_bucket';
-    const config = parseConfig();
-    expect(config.appRuntime.s3).toBeNull();
+    expect(() => parseConfig()).toThrow('S3-compatible storage is required');
 });
 
 test('Should parse rudder config from env', () => {

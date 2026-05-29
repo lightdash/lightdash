@@ -1619,7 +1619,7 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.getResultsPageFromWarehouse = jest
+            serviceWithCache.getResultsPageFromS3 = jest
                 .fn()
                 .mockResolvedValue({
                     rows: [expectedFormattedRow],

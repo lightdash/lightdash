@@ -33,15 +33,6 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
-    }),
     streamQuery: async (_query, streamCallback) => {
         await streamCallback({
             fields: {},
