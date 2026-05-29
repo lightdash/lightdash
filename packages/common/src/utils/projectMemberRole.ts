@@ -12,6 +12,16 @@ import {
 import { SpaceMemberRole } from '../types/space';
 import assertUnreachable from './assertUnreachable';
 
+const projectMemberRoleValues = new Set<string>(
+    Object.values(ProjectMemberRole),
+);
+
+// `ProjectGroupAccess.role` (and other legacy role fields) can hold a custom-role
+// UUID instead of a system `ProjectMemberRole`. Use this guard before passing a
+// role into the system-role helpers below, which only understand the 5 enum values.
+export const isProjectMemberRole = (role: string): role is ProjectMemberRole =>
+    projectMemberRoleValues.has(role);
+
 export const convertOrganizationRoleToProjectRole = (
     organizationRole: OrganizationMemberRole,
 ): ProjectMemberRole | undefined => {
@@ -65,14 +75,20 @@ export const getHighestProjectRole = (
                 return highestRole;
             }
 
+            // A custom-role UUID has no rank in ProjectRoleOrder; treat it as the
+            // lowest system role so it can't crash the comparison or over-grant.
+            const normalizedRole = isProjectMemberRole(role.role)
+                ? role.role
+                : ProjectMemberRole.VIEWER;
+
             if (
                 highestRole?.role === undefined ||
-                ProjectRoleOrder[role.role] >=
+                ProjectRoleOrder[normalizedRole] >=
                     ProjectRoleOrder[highestRole.role]
             ) {
                 return {
                     type: role.type,
-                    role: role.role,
+                    role: normalizedRole,
                 };
             }
 
@@ -92,6 +108,9 @@ export const getHighestSpaceRole = (
 export const convertProjectRoleToSpaceRole = (
     projectRole: ProjectMemberRole,
 ): SpaceMemberRole => {
+    if (!isProjectMemberRole(projectRole)) {
+        return SpaceMemberRole.VIEWER;
+    }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
             return SpaceMemberRole.VIEWER;
@@ -114,6 +133,9 @@ export const convertProjectRoleToSpaceRole = (
 export const convertProjectRoleToOrganizationRole = (
     projectRole: ProjectMemberRole,
 ): OrganizationMemberRole => {
+    if (!isProjectMemberRole(projectRole)) {
+        return OrganizationMemberRole.VIEWER;
+    }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
             return OrganizationMemberRole.VIEWER;
