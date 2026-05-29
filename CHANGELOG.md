@@ -1,3 +1,10 @@
+## [0.3049.1](https://github.com/lightdash/lightdash/compare/0.3049.0...0.3049.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* use advisory lock to deduplicate concurrent forced-slug creates (PROD-7883) ([#23638](https://github.com/lightdash/lightdash/issues/23638)) ([71758b0](https://github.com/lightdash/lightdash/commit/71758b0c33d8cc31e8ccb088105381822f65351e))
+
 # [0.3049.0](https://github.com/lightdash/lightdash/compare/0.3048.0...0.3049.0) (2026-05-29)
 
 
