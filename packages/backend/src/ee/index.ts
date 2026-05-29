@@ -202,6 +202,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiRouterService: ({ models, repository, context }) =>
