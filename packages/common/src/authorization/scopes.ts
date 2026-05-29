@@ -487,8 +487,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:ContentAsCode',
+        description: 'Download content as code',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ContentAsCode',
-        description: 'Manage content as code features',
+        description: 'Download and upload content as code',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         getConditions: addDefaultUuidCondition,

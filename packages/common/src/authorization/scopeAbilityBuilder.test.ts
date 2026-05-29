@@ -2251,4 +2251,60 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(false);
         });
     });
+
+    describe('content as code permissions', () => {
+        const enterpriseContext = {
+            ...baseContext,
+            userUuid: 'user-456',
+            isEnterprise: true,
+        };
+
+        // Read endpoints (download) check `view`; write endpoints (upload)
+        // check `manage`. Splitting the scope lets a custom role grant
+        // download without upload (the PROD-7379 safeguard for production).
+        const contentAsCodeSubject = subject('ContentAsCode', {
+            organizationUuid: 'org-123',
+            projectUuid: 'project-123',
+        });
+
+        const buildAbility = (scopes: string[]) => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes({ ...enterpriseContext, scopes }, builder);
+            return builder.build();
+        };
+
+        it('view:ContentAsCode allows download but not upload (PROD-7379)', () => {
+            const ability = buildAbility(['view:ContentAsCode']);
+
+            // Can download (view) content as code
+            expect(ability.can('view', contentAsCodeSubject)).toBe(true);
+
+            // Cannot upload (manage) — the safeguard this feature adds
+            expect(ability.can('manage', contentAsCodeSubject)).toBe(false);
+        });
+
+        it('manage:ContentAsCode allows download and upload', () => {
+            const ability = buildAbility(['manage:ContentAsCode']);
+
+            // `manage` implies `view`, so existing manage holders keep download
+            expect(ability.can('view', contentAsCodeSubject)).toBe(true);
+            expect(ability.can('manage', contentAsCodeSubject)).toBe(true);
+        });
+
+        it('content as code scopes are gated behind enterprise', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContext,
+                    userUuid: 'user-456',
+                    isEnterprise: false,
+                    scopes: ['view:ContentAsCode', 'manage:ContentAsCode'],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            expect(ability.rules.length).toBe(0);
+        });
+    });
 });
