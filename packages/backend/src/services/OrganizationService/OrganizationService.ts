@@ -11,6 +11,7 @@ import {
     ForbiddenError,
     Group,
     GroupWithMembers,
+    isSystemRole,
     isUserWithOrg,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -288,9 +289,15 @@ export class OrganizationService extends BaseService {
                 );
                 return {
                     ...member,
-                    role: groupAccess?.role
-                        ? convertProjectRoleToOrganizationRole(groupAccess.role)
-                        : member.role,
+                    // A group can carry a custom-role UUID instead of a system
+                    // role. Those aren't convertible to an org role, so fall back
+                    // to the member's own org role rather than throwing.
+                    role:
+                        groupAccess?.role && isSystemRole(groupAccess.role)
+                            ? convertProjectRoleToOrganizationRole(
+                                  groupAccess.role,
+                              )
+                            : member.role,
                 };
             });
         }
