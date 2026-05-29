@@ -271,7 +271,7 @@ const AgentsRouterPage = () => {
                     <Stack align="center" gap="xxs">
                         <Avatar
                             size="lg"
-                            color="violet"
+                            color="ldGray"
                             radius="xl"
                             className={`${classes.heroAvatar} ${
                                 isWorking ? classes.heroAvatarWorking : ''
@@ -280,7 +280,7 @@ const AgentsRouterPage = () => {
                             <MantineIcon
                                 icon={IconSparkles}
                                 size="xl"
-                                color="violet.6"
+                                color="ldGray.6"
                                 className={classes.heroSparkles}
                             />
                         </Avatar>
