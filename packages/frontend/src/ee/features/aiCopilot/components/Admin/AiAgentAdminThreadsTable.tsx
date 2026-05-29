@@ -7,7 +7,6 @@ import {
     Badge,
     Box,
     Group,
-    Paper,
     Text,
     Tooltip,
     useMantineTheme,
@@ -40,7 +39,6 @@ import {
     type UIEvent,
 } from 'react';
 import { useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
     ContentTable,
     useContentTable,
@@ -54,6 +52,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import { AgentNamePill } from '../AgentNamePill';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 
 type AiAgentAdminThreadsTableProps = {
@@ -232,24 +231,10 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Paper px="xs" maw="100%">
-                        <Group gap="two" wrap="nowrap">
-                            <LightdashUserAvatar
-                                size={12}
-                                name={thread.agent.name}
-                                src={thread.agent.imageUrl}
-                            />
-                            <Text
-                                fz="sm"
-                                fw={500}
-                                c="ldGray.7"
-                                truncate
-                                maw={220}
-                            >
-                                {thread.agent.name}
-                            </Text>
-                        </Group>
-                    </Paper>
+                    <AgentNamePill
+                        name={thread.agent.name}
+                        imageUrl={thread.agent.imageUrl}
+                    />
                 );
             },
         },

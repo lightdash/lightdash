@@ -366,6 +366,23 @@ export type ApiAiAgentThreadSummaryListResponse = {
     results: AiAgentThreadSummary[];
 };
 
+export type AiAgentThreadFilters = {
+    agentUuid?: string;
+    createdFrom?: 'web_app' | 'slack';
+    search?: string;
+};
+
+export type AiAgentProjectThreadSummary<
+    TUser extends AiAgentUser = AiAgentUser,
+> = AiAgentThreadSummary<TUser> & {
+    agentName: string;
+    agentImageUrl: string | null;
+};
+
+export type ApiAiAgentProjectThreadSummaryListResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentProjectThreadSummary[]>
+>;
+
 export type ApiAiAgentThreadResponse = {
     status: 'ok';
     results: AiAgentThread;

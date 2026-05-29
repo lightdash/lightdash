@@ -240,6 +240,23 @@ type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
     mcp_server_icon_url: string | null;
 };
 
+type AiThreadSummaryRow = Pick<
+    DbAiThread,
+    | 'ai_thread_uuid'
+    | 'agent_uuid'
+    | 'created_at'
+    | 'created_from'
+    | 'title'
+    | 'title_generated_at'
+> &
+    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
+        user_uuid: DbUser['user_uuid'] | null;
+    } & Pick<DbAiSlackThread, 'slack_user_id'> & {
+        user_name: string | null;
+        agent_name: string | null;
+        agent_image_url: string | null;
+    };
+
 export class AiAgentModel {
     private database: Knex;
 
@@ -2368,22 +2385,8 @@ export class AiAgentModel {
             .delete();
     }
 
-    async findThreads({
-        organizationUuid,
-        agentUuid,
-        threadUuid,
-        userUuid,
-        createdFrom,
-    }: {
-        organizationUuid: string;
-        agentUuid: string;
-        threadUuid?: string;
-        userUuid?: string;
-        createdFrom?: ('web_app' | 'slack' | 'evals')[];
-    }): Promise<
-        AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
-    > {
-        const query = this.database(AiThreadTableName)
+    private buildThreadSummaryQuery(organizationUuid: string) {
+        return this.database(AiThreadTableName)
             .join(
                 AiPromptTableName,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -2399,6 +2402,11 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackThreadTableName}.ai_thread_uuid`,
             )
+            .leftJoin(
+                AiAgentTableName,
+                `${AiThreadTableName}.agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
             .where(
                 `${AiPromptTableName}.created_at`,
                 this.database(AiPromptTableName)
@@ -2411,23 +2419,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .andWhere(`${AiThreadTableName}.agent_uuid`, agentUuid)
-            .select<
-                (Pick<
-                    DbAiThread,
-                    | 'ai_thread_uuid'
-                    | 'agent_uuid'
-                    | 'created_at'
-                    | 'created_from'
-                    | 'title'
-                    | 'title_generated_at'
-                > &
-                    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
-                        user_uuid: DbUser['user_uuid'] | null;
-                    } & Pick<DbAiSlackThread, 'slack_user_id'> & {
-                        user_name: string | null;
-                    })[]
-            >(
+            .select<AiThreadSummaryRow[]>(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiThreadTableName}.created_at`,
@@ -2441,8 +2433,57 @@ export class AiAgentModel {
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
                 `${AiSlackThreadTableName}.slack_user_id`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${AiAgentTableName}.image_url as agent_image_url`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private mapThreadSummaryRow(row: AiThreadSummaryRow): AiAgentThreadSummary<
+        AiAgentUser & { slackUserId: string | null }
+    > & {
+        threadUuid: string;
+    } {
+        return {
+            uuid: row.ai_thread_uuid,
+            threadUuid: row.ai_thread_uuid,
+            agentUuid: row.agent_uuid!,
+            createdAt: row.created_at as unknown as string,
+            createdFrom: row.created_from,
+            title: row.title,
+            titleGeneratedAt: row.title_generated_at?.toString() ?? null,
+            firstMessage: {
+                uuid: row.ai_prompt_uuid,
+                message: row.prompt,
+            },
+            user: {
+                uuid: row.user_uuid ?? '',
+                name: row.user_name || 'Unknown user',
+                slackUserId: row.slack_user_id,
+            },
+        };
+    }
+
+    async findThreads({
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+        userUuid,
+        createdFrom,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+        threadUuid?: string;
+        userUuid?: string;
+        createdFrom?: ('web_app' | 'slack' | 'evals')[];
+    }): Promise<
+        AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
+    > {
+        const query = this.buildThreadSummaryQuery(organizationUuid).andWhere(
+            `${AiThreadTableName}.agent_uuid`,
+            agentUuid,
+        );
 
         if (createdFrom) {
             void query.andWhere(
@@ -2465,24 +2506,69 @@ export class AiAgentModel {
 
         const rows = await query;
 
-        return rows.map((row) => ({
-            uuid: row.ai_thread_uuid,
-            threadUuid: row.ai_thread_uuid,
-            agentUuid: row.agent_uuid!,
-            createdAt: row.created_at as unknown as string,
-            createdFrom: row.created_from,
-            title: row.title,
-            titleGeneratedAt: row.title_generated_at?.toString() ?? null,
-            firstMessage: {
-                uuid: row.ai_prompt_uuid,
-                message: row.prompt,
-            },
-            user: {
-                uuid: row.user_uuid ?? '',
-                name: row.user_name || 'Unknown user',
-                slackUserId: row.slack_user_id,
-            },
-        }));
+        return rows.map((row) => this.mapThreadSummaryRow(row));
+    }
+
+    async findThreadsPaginated({
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        agentUuids,
+        createdFrom,
+        search,
+        paginateArgs,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        agentUuids?: string[];
+        createdFrom?: ('web_app' | 'slack' | 'evals')[];
+        search?: string;
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<
+        KnexPaginatedData<
+            (AiAgentThreadSummary<
+                AiAgentUser & { slackUserId: string | null }
+            > & { agentName: string; agentImageUrl: string | null })[]
+        >
+    > {
+        const query = this.buildThreadSummaryQuery(organizationUuid)
+            .andWhere(`${AiThreadTableName}.project_uuid`, projectUuid)
+            .andWhere(`${UserTableName}.user_uuid`, userUuid);
+
+        if (agentUuids) {
+            void query.whereIn(`${AiThreadTableName}.agent_uuid`, agentUuids);
+        }
+
+        if (createdFrom) {
+            void query.andWhere(
+                `${AiThreadTableName}.created_from`,
+                'in',
+                createdFrom,
+            );
+        }
+
+        if (search) {
+            void query.andWhere(
+                `${AiThreadTableName}.title`,
+                'ILIKE',
+                `%${search}%`,
+            );
+        }
+
+        const { data, pagination } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            data: data.map((row) => ({
+                ...this.mapThreadSummaryRow(row),
+                agentName: row.agent_name ?? '',
+                agentImageUrl: row.agent_image_url ?? null,
+            })),
+            pagination,
+        };
     }
 
     async findAdminThreadsPaginated({
