@@ -34,10 +34,13 @@ import {
 } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
+    type AiAgentReviewItemTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
+    type DbAiAgentReviewItem,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
 
@@ -780,10 +783,6 @@ export class AiAgentReviewClassifierModel {
     async listReviewItems(
         args: ListReviewItemsArgs,
     ): Promise<AiAgentReviewItemSummary[]> {
-        if (args.statuses && !args.statuses.includes('open')) {
-            return [];
-        }
-
         const rows: DbAiAgentTurnSignal[] =
             await this.database<AiAgentTurnSignalTable>(
                 AiAgentTurnSignalTableName,
@@ -810,12 +809,16 @@ export class AiAgentReviewClassifierModel {
             byFingerprint.set(row.fingerprint, group);
         });
 
+        const fingerprints = Array.from(byFingerprint.keys());
+        const persisted = await this.getReviewItemsByFingerprint(fingerprints);
+
         return Array.from(byFingerprint.entries())
             .map(([fingerprint, group]) => {
                 const latest = group[0];
                 const createdAts = group.map((row) => row.created_at.getTime());
                 const firstSeenAt = new Date(Math.min(...createdAts));
                 const lastSeenAt = new Date(Math.max(...createdAts));
+                const item = persisted.get(fingerprint) ?? null;
                 return {
                     uuid: fingerprint,
                     fingerprint,
@@ -825,19 +828,21 @@ export class AiAgentReviewClassifierModel {
                     title: latest.review_item_title ?? 'Review AI agent issue',
                     description: latest.review_item_description ?? '',
                     primaryRootCause: latest.primary_root_cause ?? 'ambiguous',
-                    status: 'open' as const,
-                    dismissedReason: null,
+                    status: item?.status ?? 'open',
+                    dismissedReason: item?.dismissed_reason ?? null,
                     ownerType: latest.owner_type ?? 'unknown',
-                    assignedToUserUuid: null,
+                    assignedToUserUuid: item?.assigned_to_user_uuid ?? null,
                     firstSeenAt,
                     lastSeenAt,
                     findingCount: group.length,
-                    statusUpdatedAt: lastSeenAt,
-                    statusUpdatedByUserUuid: null,
-                    linkedIssueUrl: null,
-                    linkedPrUrl: null,
-                    createdAt: firstSeenAt,
-                    updatedAt: lastSeenAt,
+                    statusUpdatedAt: item?.status_updated_at ?? lastSeenAt,
+                    statusUpdatedByUserUuid:
+                        item?.status_updated_by_user_uuid ?? null,
+                    linkedIssueUrl: item?.linked_issue_url ?? null,
+                    linkedPrUrl: item?.linked_pr_url ?? null,
+                    prState: item?.pr_state ?? null,
+                    createdAt: item?.created_at ?? firstSeenAt,
+                    updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
                         uuid: latest.ai_agent_review_turn_signal_uuid,
                         promptUuid: latest.ai_prompt_uuid,
@@ -853,7 +858,23 @@ export class AiAgentReviewClassifierModel {
                     },
                 };
             })
+            .filter(
+                (reviewItem) =>
+                    !args.statuses || args.statuses.includes(reviewItem.status),
+            )
             .slice(0, Math.min(args.limit ?? 100, 500));
+    }
+
+    async getReviewItemsByFingerprint(
+        fingerprints: string[],
+    ): Promise<Map<string, DbAiAgentReviewItem>> {
+        if (fingerprints.length === 0) {
+            return new Map();
+        }
+        const items = await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        ).whereIn('fingerprint', fingerprints);
+        return new Map(items.map((item) => [item.fingerprint, item]));
     }
 
     async listReviewSignals(
@@ -967,6 +988,32 @@ export class AiAgentReviewClassifierModel {
             })
             .returning('ai_agent_review_turn_signal_uuid');
 
+        if (turnSignal.promotedToFinding && finding) {
+            await this.ensureReviewItem({
+                fingerprint: finding.reviewItem.fingerprint,
+                organizationUuid: turnSignal.subject.organizationUuid,
+                projectUuid: turnSignal.subject.projectUuid,
+                agentUuid: turnSignal.subject.agentUuid,
+            });
+        }
+
         return row.ai_agent_review_turn_signal_uuid;
+    }
+
+    private async ensureReviewItem(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+            })
+            .onConflict('fingerprint')
+            .merge({ updated_at: this.database.fn.now() });
     }
 }
