@@ -1,20 +1,26 @@
 import {
     type AiAgentAdminFilters,
     type AiAgentAdminSort,
+    type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
-    type AiAgentReviewItemStatus,
+    type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useInfiniteQuery,
+    useMutation,
     useQuery,
+    useQueryClient,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import useToaster from '../../../../hooks/toaster/useToaster';
 
 export type AiAgentAdminThreadsArgs = {
     filters: AiAgentAdminFilters;
@@ -133,6 +139,93 @@ export const useAiAgentAdminReviewItems = (
         queryFn: () => getAiAgentAdminReviewItems(args),
         keepPreviousData: true,
         enabled: options?.enabled ?? true,
+    });
+};
+
+const updateAiAgentReviewItemStatus = async (args: {
+    fingerprint: string;
+    body: UpdateAiAgentReviewItemStatus;
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            args.fingerprint,
+        )}`,
+        method: 'PATCH',
+        body: JSON.stringify(args.body),
+    });
+};
+
+export const useUpdateAiAgentReviewItemStatus = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        { fingerprint: string; body: UpdateAiAgentReviewItemStatus }
+    >({
+        mutationFn: updateAiAgentReviewItemStatus,
+        onSuccess: () => {
+            showToastSuccess({ title: 'Review item updated' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-items'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update review item',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const createAiAgentReviewItemWriteback = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/writeback`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+
+export const useCreateAiAgentReviewItemWriteback = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        string
+    >({
+        mutationFn: createAiAgentReviewItemWriteback,
+        onSuccess: (reviewItem) => {
+            showToastSuccess({
+                title: reviewItem.linkedPrUrl
+                    ? 'Pull request opened'
+                    : 'Writeback ran — no changes were needed',
+                ...(reviewItem.linkedPrUrl && {
+                    action: {
+                        children: 'View pull request',
+                        icon: IconArrowRight,
+                        onClick: () =>
+                            window.open(reviewItem.linkedPrUrl!, '_blank'),
+                    },
+                }),
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-items'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to open pull request',
+                apiError: error,
+            });
+        },
     });
 };
 
