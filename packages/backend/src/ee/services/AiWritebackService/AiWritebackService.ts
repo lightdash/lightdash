@@ -650,8 +650,8 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Pre-flight: enforce the feature flag, the project view permission, and
-     * resolve everything from the request that doesn't require a sandbox.
+     * Pre-flight: enforce the feature flag, the `manage:SourceCode` permission,
+     * and resolve everything from the request that doesn't require a sandbox.
      */
     private async prepareTurn({
         user,
@@ -665,14 +665,18 @@ export class AiWritebackService extends BaseService {
         await this.assertEnabled(user);
 
         const project = await this.projectModel.get(projectUuid);
-        const canView = this.createAuditedAbility(user).can(
-            'view',
-            subject('Project', {
+        // Writeback opens a PR from a freshly created feature branch
+        // (`lightdash-ai-writeback/<uuid>`), so `isProtectedBranch: false`
+        // mirrors the gate on GitIntegrationService's PR-creating paths.
+        const canWriteback = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SourceCode', {
                 organizationUuid: project.organizationUuid,
                 projectUuid,
+                isProtectedBranch: false,
             }),
         );
-        if (!canView) {
+        if (!canWriteback) {
             throw new ForbiddenError();
         }
 
