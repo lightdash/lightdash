@@ -19,7 +19,12 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
+import {
+    getInstallationToken,
+    getPullRequest,
+} from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
@@ -34,7 +39,18 @@ type AiAgentAdminServiceDependencies = {
     featureFlagService: FeatureFlagService;
     projectModel: ProjectModel;
     aiWritebackService: AiWritebackService;
+    githubAppInstallationsModel: GithubAppInstallationsModel;
     lightdashConfig: LightdashConfig;
+};
+
+const parsePullRequestUrl = (
+    prUrl: string,
+): { owner: string; repo: string; pullNumber: number } | null => {
+    const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+    if (!match) {
+        return null;
+    }
+    return { owner: match[1], repo: match[2], pullNumber: Number(match[3]) };
 };
 
 export class AiAgentAdminService extends BaseService {
@@ -50,6 +66,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiWritebackService: AiWritebackService;
 
+    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
@@ -58,6 +76,8 @@ export class AiAgentAdminService extends BaseService {
         this.featureFlagService = dependencies.featureFlagService;
         this.projectModel = dependencies.projectModel;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.githubAppInstallationsModel =
+            dependencies.githubAppInstallationsModel;
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
@@ -142,10 +162,98 @@ export class AiAgentAdminService extends BaseService {
             );
         }
 
-        return this.aiAgentReviewClassifierModel.listReviewItems({
+        const items = await this.aiAgentReviewClassifierModel.listReviewItems({
             organizationUuid,
             statuses,
         });
+
+        const overrides = await this.reconcileLinkedPullRequests(
+            organizationUuid,
+            items,
+        );
+        const reconciled = items.map((item) => {
+            const override = overrides.get(item.fingerprint);
+            return override ? { ...item, ...override } : item;
+        });
+
+        if (statuses) {
+            return reconciled.filter((item) => statuses.includes(item.status));
+        }
+        return reconciled;
+    }
+
+    /**
+     * For items with an open linked PR, fetch the live GitHub state and return
+     * the overrides to fold back in: merged → resolved, closed-unmerged →
+     * re-opened. Best effort — a GitHub failure for one item is skipped.
+     */
+    private async reconcileLinkedPullRequests(
+        organizationUuid: string,
+        items: AiAgentReviewItemSummary[],
+    ): Promise<
+        Map<
+            string,
+            { status: AiAgentReviewItemStatus; prState: 'merged' | 'closed' }
+        >
+    > {
+        const overrides = new Map<
+            string,
+            { status: AiAgentReviewItemStatus; prState: 'merged' | 'closed' }
+        >();
+        const open = items.filter(
+            (item) => item.linkedPrUrl && item.prState === 'open',
+        );
+        if (open.length === 0) {
+            return overrides;
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            return overrides;
+        }
+        const token = await getInstallationToken(installationId);
+
+        await Promise.all(
+            open.map(async (item) => {
+                const parsed = parsePullRequestUrl(item.linkedPrUrl!);
+                if (!parsed) {
+                    return;
+                }
+                try {
+                    const pr = await getPullRequest({
+                        owner: parsed.owner,
+                        repo: parsed.repo,
+                        pullNumber: parsed.pullNumber,
+                        token,
+                    });
+                    if (pr.state === 'open') {
+                        return;
+                    }
+                    const status: AiAgentReviewItemStatus = pr.merged
+                        ? 'resolved'
+                        : 'open';
+                    const prState = pr.merged ? 'merged' : 'closed';
+                    await this.aiAgentReviewClassifierModel.reconcileReviewItemPrState(
+                        {
+                            fingerprint: item.fingerprint,
+                            organizationUuid,
+                            status,
+                            prState,
+                        },
+                    );
+                    overrides.set(item.fingerprint, { status, prState });
+                } catch (error) {
+                    this.logger.warn(
+                        `Failed to reconcile PR state for review item ${item.fingerprint}: ${error}`,
+                    );
+                }
+            }),
+        );
+
+        return overrides;
     }
 
     async listReviewSignals(

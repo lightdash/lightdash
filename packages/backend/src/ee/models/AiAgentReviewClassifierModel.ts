@@ -971,6 +971,23 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
+    async reconcileReviewItemPrState(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        status: AiAgentReviewItemStatus;
+        prState: AiAgentReviewItemPrState;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                status: args.status,
+                pr_state: args.prState,
+                status_updated_at: this.database.fn.now() as never,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async listReviewSignals(
         args: ListReviewSignalsArgs,
     ): Promise<AiAgentReviewSignalSummary[]> {
