@@ -52,12 +52,14 @@ import {
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
     WarehouseTypes,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
@@ -1674,6 +1676,27 @@ export class UserService extends BaseService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
+        const sessionUser = await this.getSessionByUserUuid(userUuid);
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(userUuid);
+
+        if (serviceAccount) {
+            return AccountFactory.fromServiceAccount(
+                {
+                    ...sessionUser,
+                    serviceAccount: {
+                        uuid: serviceAccount.uuid,
+                        description: serviceAccount.description,
+                    },
+                },
+                '',
+            );
+        }
+
+        return AccountFactory.fromSession(sessionUser);
     }
 
     private otpExpirationDate(createdAt: Date) {

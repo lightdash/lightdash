@@ -58,6 +58,7 @@ const userModel = {
     findUserByEmail: jest.fn(async () => undefined),
     createPendingUser: jest.fn(async () => newUser),
     findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
+    findServiceAccountByUserUuid: jest.fn(async () => undefined),
     joinOrg: jest.fn(async () => sessionUser),
     hasUsers: jest.fn(async () => false),
 };
@@ -156,6 +157,43 @@ describe('UserService', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
+
+    describe('getAccountByUserUuid', () => {
+        test('should return a session account for normal users', async () => {
+            const account = await userService.getAccountByUserUuid('userUuid');
+
+            expect(userModel.findSessionUserByUUID).toHaveBeenCalledWith(
+                'userUuid',
+            );
+            expect(userModel.findServiceAccountByUserUuid).toHaveBeenCalledWith(
+                'userUuid',
+            );
+            expect(account.isSessionUser()).toBe(true);
+            expect(account.isServiceAccount()).toBe(false);
+        });
+
+        test('should return a service account when the user backs a service account', async () => {
+            (
+                userModel.findServiceAccountByUserUuid as jest.Mock
+            ).mockResolvedValueOnce({
+                uuid: 'service-account-uuid',
+                description: 'CI preview',
+                scopes: ['system:developer'],
+                organizationUuid: sessionUser.organizationUuid,
+            });
+
+            const account = await userService.getAccountByUserUuid('userUuid');
+
+            expect(account.isServiceAccount()).toBe(true);
+            expect(account.authentication).toMatchObject({
+                type: 'service-account',
+                serviceAccountUuid: 'service-account-uuid',
+                serviceAccountDescription: 'CI preview',
+            });
+            expect(account.user.id).toBe('userUuid');
+        });
+    });
+
     test('should return email and no sso (default case)', async () => {
         expect(await userService.getLoginOptions('test@lightdash.com')).toEqual(
             {

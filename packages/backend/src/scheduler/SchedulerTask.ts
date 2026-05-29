@@ -122,7 +122,6 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import * as Account from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
@@ -614,9 +613,8 @@ export default class SchedulerTask {
                 throw new Error("Don't fetch csv for gsheets");
             case SchedulerFormat.CSV:
             case SchedulerFormat.XLSX:
-                const sessionUser =
-                    await this.userService.getSessionByUserUuid(userUuid);
-                const account = Account.fromSession(sessionUser);
+                const account =
+                    await this.userService.getAccountByUserUuid(userUuid);
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
@@ -1917,10 +1915,9 @@ export default class SchedulerTask {
             };
 
         try {
-            const sessionUser = await this.userService.getSessionByUserUuid(
+            const account = await this.userService.getAccountByUserUuid(
                 payload.userUuid,
             );
-            const account = Account.fromSession(sessionUser);
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2274,10 +2271,9 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.STARTED,
             });
 
-            const sessionUser = await this.userService.getSessionByUserUuid(
+            const account = await this.userService.getAccountByUserUuid(
                 payload.userUuid,
             );
-            const account = Account.fromSession(sessionUser);
             this.analytics.trackAccount(account, {
                 event: 'download_results.started',
                 userId: payload.userUuid,
@@ -2942,7 +2938,9 @@ export default class SchedulerTask {
             sessionUser = await this.userService.getSessionByUserUuid(
                 scheduler.createdBy,
             );
-            account = Account.fromSession(sessionUser);
+            account = await this.userService.getAccountByUserUuid(
+                scheduler.createdBy,
+            );
 
             const schedulerUuidParam = setUuidParam(
                 'scheduler_uuid',
@@ -3547,7 +3545,7 @@ export default class SchedulerTask {
 
         const sessionUser =
             await this.userService.getSessionByUserUuid(userUuid);
-        const account = Account.fromSession(sessionUser);
+        const account = await this.userService.getAccountByUserUuid(userUuid);
 
         // If the scheduler is not a gsheets and has no targets, we skip the delivery
         if (
@@ -4201,9 +4199,8 @@ export default class SchedulerTask {
                     projectUuid,
                 } = payload;
 
-                const sessionUser =
-                    await this.userService.getSessionByUserUuid(userUuid);
-                const account = Account.fromSession(sessionUser);
+                const account =
+                    await this.userService.getAccountByUserUuid(userUuid);
                 const dashboard =
                     await this.schedulerService.dashboardModel.getByIdOrSlug(
                         dashboardUuid,
@@ -4690,10 +4687,9 @@ export default class SchedulerTask {
                 },
             },
             async () => {
-                const sessionUser = await this.userService.getSessionByUserUuid(
+                const account = await this.userService.getAccountByUserUuid(
                     payload.userUuid,
                 );
-                const account = Account.fromSession(sessionUser);
                 return this.asyncQueryService.download({
                     account,
                     ...payload,
