@@ -6957,3 +6957,25 @@ Response shape (MCP CallToolResult):
   ],
 }
 `;
+
+exports[`MCP tool contracts matches the shared MCP tool definition names snapshot 1`] = `
+[
+  "find_explores",
+  "find_fields",
+  "find_content",
+  "search_field_values",
+  "run_metric_query",
+  "run_sql",
+  "get_lightdash_version",
+  "list_explores",
+  "list_projects",
+  "set_project",
+  "get_current_project",
+  "list_agents",
+  "set_agent",
+  "clear_agent",
+  "get_current_agent",
+  "list_verified_content",
+  "run_ai_writeback",
+]
+`;

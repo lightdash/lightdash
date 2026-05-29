@@ -1,3 +1,4 @@
+import { mcpToolDefinitions } from '@lightdash/common';
 import type { ZodRawShape, ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -101,10 +102,18 @@ const makeMcpService = (): McpService =>
         userAttributesModel: {},
     } as ConstructorParameters<typeof McpService>[0]);
 
+const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
+    (toolDefinition) => toolDefinition.for('mcp').name,
+);
+
 describe('MCP tool contracts', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
+    });
+
+    it('matches the shared MCP tool definition names snapshot', () => {
+        expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
     it('matches the current MCP tool and prompt contract snapshot', () => {
