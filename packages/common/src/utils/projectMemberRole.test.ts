@@ -4,7 +4,6 @@ import { SpaceMemberRole } from '../types/space';
 import {
     convertProjectRoleToOrganizationRole,
     convertProjectRoleToSpaceRole,
-    getHighestProjectRole,
     getHighestSpaceRole,
     isProjectMemberRole,
 } from './projectMemberRole';
@@ -65,60 +64,34 @@ describe('projectMemberRole', () => {
         });
     });
 
-    describe('getHighestProjectRole with custom roles', () => {
-        it('normalizes an unrankable custom-role UUID to VIEWER instead of crashing', () => {
-            const highestRole = getHighestProjectRole([
-                { type: 'group', role: customRoleAsProjectRole },
-            ]);
-            expect(highestRole).toEqual({
-                type: 'group',
-                role: ProjectMemberRole.VIEWER,
-            });
-        });
-
-        it('still picks a real system role over a custom-role UUID', () => {
-            const highestRole = getHighestProjectRole([
-                { type: 'group', role: customRoleAsProjectRole },
-                { type: 'project', role: ProjectMemberRole.EDITOR },
-            ]);
-            expect(highestRole).toEqual({
-                type: 'project',
-                role: ProjectMemberRole.EDITOR,
-            });
-        });
-    });
-
-    describe('convertProjectRoleToOrganizationRole with custom roles', () => {
-        it('maps system roles as before', () => {
+    // These converters are total over the 5 system roles and must fail fast on a
+    // non-system role (custom-role UUID). Callers are responsible for guarding with
+    // isProjectMemberRole before converting — see useProjectUsersWithRoles.
+    describe('convertProjectRoleToOrganizationRole', () => {
+        it('maps system roles', () => {
             expect(
                 convertProjectRoleToOrganizationRole(ProjectMemberRole.EDITOR),
             ).toBe(OrganizationMemberRole.EDITOR);
         });
 
-        it('falls back to VIEWER for a custom-role UUID instead of throwing', () => {
+        it('throws on a custom-role UUID', () => {
             expect(() =>
                 convertProjectRoleToOrganizationRole(customRoleAsProjectRole),
-            ).not.toThrow();
-            expect(
-                convertProjectRoleToOrganizationRole(customRoleAsProjectRole),
-            ).toBe(OrganizationMemberRole.VIEWER);
+            ).toThrow();
         });
     });
 
-    describe('convertProjectRoleToSpaceRole with custom roles', () => {
-        it('maps system roles as before', () => {
+    describe('convertProjectRoleToSpaceRole', () => {
+        it('maps system roles', () => {
             expect(convertProjectRoleToSpaceRole(ProjectMemberRole.ADMIN)).toBe(
                 SpaceMemberRole.ADMIN,
             );
         });
 
-        it('falls back to VIEWER for a custom-role UUID instead of throwing', () => {
+        it('throws on a custom-role UUID', () => {
             expect(() =>
                 convertProjectRoleToSpaceRole(customRoleAsProjectRole),
-            ).not.toThrow();
-            expect(convertProjectRoleToSpaceRole(customRoleAsProjectRole)).toBe(
-                SpaceMemberRole.VIEWER,
-            );
+            ).toThrow();
         });
     });
 });

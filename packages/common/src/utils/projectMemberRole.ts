@@ -1,3 +1,4 @@
+import { NotSupportedError } from '../types/errors';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import {
     ProjectMemberRole,
@@ -75,20 +76,14 @@ export const getHighestProjectRole = (
                 return highestRole;
             }
 
-            // A custom-role UUID has no rank in ProjectRoleOrder; treat it as the
-            // lowest system role so it can't crash the comparison or over-grant.
-            const normalizedRole = isProjectMemberRole(role.role)
-                ? role.role
-                : ProjectMemberRole.VIEWER;
-
             if (
                 highestRole?.role === undefined ||
-                ProjectRoleOrder[normalizedRole] >=
+                ProjectRoleOrder[role.role] >=
                     ProjectRoleOrder[highestRole.role]
             ) {
                 return {
                     type: role.type,
-                    role: normalizedRole,
+                    role: role.role,
                 };
             }
 
@@ -109,7 +104,9 @@ export const convertProjectRoleToSpaceRole = (
     projectRole: ProjectMemberRole,
 ): SpaceMemberRole => {
     if (!isProjectMemberRole(projectRole)) {
-        return SpaceMemberRole.VIEWER;
+        throw new NotSupportedError(
+            `convertProjectRoleToSpaceRole is not implemented for custom roles (received "${projectRole}")`,
+        );
     }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
@@ -134,7 +131,9 @@ export const convertProjectRoleToOrganizationRole = (
     projectRole: ProjectMemberRole,
 ): OrganizationMemberRole => {
     if (!isProjectMemberRole(projectRole)) {
-        return OrganizationMemberRole.VIEWER;
+        throw new NotSupportedError(
+            `convertProjectRoleToOrganizationRole is not implemented for custom roles (received "${projectRole}")`,
+        );
     }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
