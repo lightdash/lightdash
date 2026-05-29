@@ -20,7 +20,6 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
-import { AiWritebackPromptModel } from './models/AiWritebackPromptModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -97,8 +96,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGithubAppInstallationsModel(),
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
-                    aiWritebackPromptModel:
-                        models.getAiWritebackPromptModel<AiWritebackPromptModel>(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
@@ -530,8 +527,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
-            aiWritebackPromptModel: ({ database }) =>
-                new AiWritebackPromptModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
