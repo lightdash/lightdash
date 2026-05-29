@@ -1,3 +1,10 @@
+## [0.3052.1](https://github.com/lightdash/lightdash/compare/0.3052.0...0.3052.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **content-as-code:** add view scope to split read from write (PROD-7379) ([#23641](https://github.com/lightdash/lightdash/issues/23641)) ([cfc830a](https://github.com/lightdash/lightdash/commit/cfc830a85fe9819d1ebcff1c3d44258485872dd7))
+
 # [0.3052.0](https://github.com/lightdash/lightdash/compare/0.3051.0...0.3052.0) (2026-05-29)
 
 
