@@ -19585,9 +19585,6 @@
                 "anyOf": [
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "modelName": {
                                 "type": "string"
                             },
@@ -19602,9 +19599,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "exploreName": {
                                 "type": "string"
                             },
@@ -19622,9 +19616,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "exploreName": {
                                 "type": "string"
                             },
@@ -19645,9 +19636,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "dimensionName": {
                                 "type": "string"
                             },
@@ -19665,9 +19653,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "dimensionName": {
                                 "type": "string"
                             },
@@ -19688,9 +19673,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "dimensionName": {
                                 "type": "string"
                             },
@@ -19716,9 +19698,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "fieldName": {
                                 "type": "string"
                             },
@@ -19744,9 +19723,6 @@
                     },
                     {
                         "properties": {
-                            "yamlPath": {
-                                "type": "string"
-                            },
                             "targetName": {
                                 "type": "string"
                             },
@@ -20049,6 +20025,42 @@
                 },
                 "required": ["dismissedReason", "status"],
                 "type": "object"
+            },
+            "AiAgentReviewItemWritebackResult": {
+                "properties": {
+                    "summary": {
+                        "type": "string"
+                    },
+                    "prCreated": {
+                        "type": "boolean"
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reviewItem": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemSummary"
+                    }
+                },
+                "required": ["summary", "prCreated", "prUrl", "reviewItem"],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentReviewItemWritebackResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemWritebackResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemWritebackResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemWritebackResult_"
             },
             "AiAgentTurnSignal": {
                 "type": "string",
@@ -43467,6 +43479,46 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/writeback": {
+            "post": {
+                "operationId": "createAiAgentReviewItemWriteback",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemWritebackResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Open a writeback pull request for a semantic-layer review item",
+                "summary": "Create AI agent review item writeback PR",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/aiAgents/admin/review-signals": {

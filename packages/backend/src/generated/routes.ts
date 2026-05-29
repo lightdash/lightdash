@@ -18918,7 +18918,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         modelName: { dataType: 'string', required: true },
                         type: {
                             dataType: 'enum',
@@ -18930,7 +18929,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         exploreName: { dataType: 'string', required: true },
                         modelName: { dataType: 'string', required: true },
                         type: {
@@ -18943,7 +18941,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         exploreName: { dataType: 'string' },
                         joinName: { dataType: 'string', required: true },
                         modelName: { dataType: 'string', required: true },
@@ -18957,7 +18954,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         dimensionName: { dataType: 'string', required: true },
                         modelName: { dataType: 'string', required: true },
                         type: {
@@ -18970,7 +18966,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         dimensionName: { dataType: 'string' },
                         metricName: { dataType: 'string', required: true },
                         modelName: { dataType: 'string', required: true },
@@ -18984,7 +18979,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         dimensionName: { dataType: 'string', required: true },
                         parentDimensionName: {
                             dataType: 'string',
@@ -19001,7 +18995,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         fieldName: { dataType: 'string', required: true },
                         exploreName: { dataType: 'string', required: true },
                         modelName: { dataType: 'string', required: true },
@@ -19015,7 +19008,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        yamlPath: { dataType: 'string' },
                         targetName: { dataType: 'string', required: true },
                         targetType: {
                             dataType: 'union',
@@ -19338,6 +19330,50 @@ const models: TsoaRoute.Models = {
                 },
                 status: { ref: 'AiAgentReviewItemStatus', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentReviewItemWritebackResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                summary: { dataType: 'string', required: true },
+                prCreated: { dataType: 'boolean', required: true },
+                prUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reviewItem: { ref: 'AiAgentReviewItemSummary', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_AiAgentReviewItemWritebackResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'AiAgentReviewItemWritebackResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentReviewItemWritebackResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_AiAgentReviewItemWritebackResult_',
             validators: {},
         },
     },
@@ -48020,6 +48056,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateReviewItemStatus',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentAdminController_createReviewItemWriteback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        fingerprint: {
+            in: 'path',
+            name: 'fingerprint',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/aiAgents/admin/review-items/:fingerprint/writeback',
+        ...fetchMiddlewares<RequestHandler>(AiAgentAdminController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentAdminController.prototype.createReviewItemWriteback,
+        ),
+
+        async function AiAgentAdminController_createReviewItemWriteback(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentAdminController_createReviewItemWriteback,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentAdminController>(
+                        AiAgentAdminController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createReviewItemWriteback',
                     controller,
                     response,
                     next,

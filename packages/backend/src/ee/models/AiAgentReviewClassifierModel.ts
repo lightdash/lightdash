@@ -16,6 +16,7 @@ import type {
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
     AiAgentReviewItemDismissedReason,
+    AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewSignalSummary,
@@ -941,6 +942,31 @@ export class AiAgentReviewClassifierModel {
                 dismissed_reason: args.dismissedReason,
                 status_updated_at: this.database.fn.now(),
                 status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            });
+    }
+
+    async setReviewItemPrLink(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        linkedPrUrl: string;
+        prState: AiAgentReviewItemPrState;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+                linked_pr_url: args.linkedPrUrl,
+                pr_state: args.prState,
+            })
+            .onConflict('fingerprint')
+            .merge({
+                linked_pr_url: args.linkedPrUrl,
+                pr_state: args.prState,
                 updated_at: this.database.fn.now(),
             });
     }
