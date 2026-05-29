@@ -7,10 +7,11 @@ import { McpService, McpToolName } from './McpService';
 type RegisteredMcpTool = {
     name: string;
     config: {
-        description?: string;
-        inputSchema?: ZodRawShape;
+        title: string;
+        description: string;
+        inputSchema: ZodRawShape;
+        annotations: Record<string, unknown>;
         outputSchema?: ZodRawShape;
-        annotations?: Record<string, unknown>;
         _meta?: Record<string, unknown>;
     };
 };
@@ -126,6 +127,7 @@ describe('MCP tool contracts', () => {
                 name,
                 agentName:
                     name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
+                title: config.title,
                 description: config.description,
                 inputSchema: schemaToJson(config.inputSchema),
                 ...(config.outputSchema
