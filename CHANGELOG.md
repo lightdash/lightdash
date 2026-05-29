@@ -1,3 +1,10 @@
+# [0.3058.0](https://github.com/lightdash/lightdash/compare/0.3057.0...0.3058.0) (2026-05-29)
+
+
+### Features
+
+* **ai-agents:** one-click GitHub MCP setup from existing GitHub integration ([#23687](https://github.com/lightdash/lightdash/issues/23687)) ([68fc029](https://github.com/lightdash/lightdash/commit/68fc0292dc907378a5e5cae665b4b84bcb21887e))
+
 # [0.3057.0](https://github.com/lightdash/lightdash/compare/0.3056.1...0.3057.0) (2026-05-29)
 
 
