@@ -317,6 +317,8 @@ export type AiAgentReviewItemOwnerType =
     | 'support'
     | 'unknown';
 
+export type AiAgentReviewItemPrState = 'open' | 'merged' | 'closed';
+
 const aiAgentConfigurationSettingSchema = z.enum([
     'instructions',
     'knowledge_documents',
@@ -493,6 +495,7 @@ export type AiAgentReviewItem = {
     statusUpdatedByUserUuid: string | null;
     linkedIssueUrl: string | null;
     linkedPrUrl: string | null;
+    prState: AiAgentReviewItemPrState | null;
     createdAt: Date;
     updatedAt: Date;
 };

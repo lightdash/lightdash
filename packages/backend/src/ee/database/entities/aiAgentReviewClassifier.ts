@@ -9,7 +9,10 @@ import type {
     AiAgentReviewClassifierConfidence,
     AiAgentReviewClassifierRunScope,
     AiAgentReviewClassifierRunStatus,
+    AiAgentReviewItemDismissedReason,
     AiAgentReviewItemOwnerType,
+    AiAgentReviewItemPrState,
+    AiAgentReviewItemStatus,
     AiAgentRootCause,
     AiAgentRuntimeContextSnapshot,
     AiAgentTargetRef,
@@ -157,5 +160,52 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
         >,
     Partial<
         Pick<DbAiAgentTurnSignal, 'promoted_to_finding' | 'promotion_reason'>
+    >
+>;
+
+export const AiAgentReviewItemTableName = 'ai_agent_review_item';
+
+export type DbAiAgentReviewItem = {
+    ai_agent_review_item_uuid: string;
+    fingerprint: string;
+    organization_uuid: string;
+    project_uuid: string | null;
+    agent_uuid: string | null;
+    status: AiAgentReviewItemStatus;
+    dismissed_reason: AiAgentReviewItemDismissedReason | null;
+    assigned_to_user_uuid: string | null;
+    linked_issue_url: string | null;
+    linked_pr_url: string | null;
+    pr_writeback_thread_uuid: string | null;
+    pr_state: AiAgentReviewItemPrState | null;
+    status_updated_at: Date | null;
+    status_updated_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiAgentReviewItemTable = Knex.CompositeTableType<
+    DbAiAgentReviewItem,
+    Pick<
+        DbAiAgentReviewItem,
+        'fingerprint' | 'organization_uuid' | 'project_uuid' | 'agent_uuid'
+    > &
+        Partial<
+            Omit<
+                DbAiAgentReviewItem,
+                | 'ai_agent_review_item_uuid'
+                | 'created_at'
+                | 'updated_at'
+                | 'fingerprint'
+                | 'organization_uuid'
+                | 'project_uuid'
+                | 'agent_uuid'
+            >
+        >,
+    Partial<
+        Omit<
+            DbAiAgentReviewItem,
+            'ai_agent_review_item_uuid' | 'fingerprint' | 'created_at'
+        >
     >
 >;
