@@ -1018,6 +1018,22 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
+    async failReviewItemWriteback(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        message: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('pr_writeback_status', ['queued', 'running'])
+            .update({
+                pr_writeback_status: 'failed',
+                pr_writeback_message: args.message,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async reconcileReviewItemPrState(args: {
         fingerprint: string;
         organizationUuid: string;
