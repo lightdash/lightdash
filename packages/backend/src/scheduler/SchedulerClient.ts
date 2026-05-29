@@ -5,6 +5,7 @@ import {
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
+    FeatureFlags,
     getSchedulerTargetUuid,
     getSchedulerUuid,
     GoogleChatBatchNotificationPayload,
@@ -62,15 +63,25 @@ import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
+import { OrganizationModel } from '../models/OrganizationModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
+    featureFlagModel: FeatureFlagModel;
+    organizationModel: OrganizationModel;
 };
 
 const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
+
+// Name of the per-org graphile named queue that serializes an organization's
+// recurring scheduled deliveries. One queue per org → at most one delivery
+// render runs at a time for that org, so it can't starve the worker pool.
+export const getOrgDeliveryQueueName = (organizationUuid: string): string =>
+    `delivery:${organizationUuid}`;
 
 type SchedulablePreAggregate = Omit<
     PreAggregateSchedulerDetails,
@@ -116,16 +127,24 @@ export class SchedulerClient {
 
     schedulerModel: SchedulerModel;
 
+    featureFlagModel: FeatureFlagModel;
+
+    organizationModel: OrganizationModel;
+
     private static STUCK_JOB_WINDOW = 1.5;
 
     constructor({
         lightdashConfig,
         analytics,
         schedulerModel,
+        featureFlagModel,
+        organizationModel,
     }: SchedulerClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
+        this.featureFlagModel = featureFlagModel;
+        this.organizationModel = organizationModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
         })
@@ -210,6 +229,7 @@ export class SchedulerClient {
         priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
         explicitJobKey?: string,
+        queueName?: string,
     ) {
         const messageId = nanoid();
         const jobId = await Sentry.startSpan(
@@ -263,6 +283,9 @@ export class SchedulerClient {
                         // JobKeyMode is by default (replace) which means that if the job already exists it will be replaced if having the same key, which is what we want here - https://worker.graphile.org/docs/job-key
                         // Having this we can remove the duplicate jobs deletion logic
                         ...(jobKey && { jobKey }),
+                        // Named queue makes jobs run serially per queue (graphile-worker).
+                        // Used to cap concurrent deliveries per org.
+                        ...(queueName && { queueName }),
                     },
                 );
 
@@ -414,6 +437,7 @@ export class SchedulerClient {
         date: Date,
         scheduler: ScheduledDeliveryPayload,
         schedulerUuid: string | undefined, // This detects if a scheduled delivery is to be sent "now"
+        queueName?: string, // When set, jobs run serially in this named queue (per-org delivery cap)
     ) {
         const graphileClient = await this.graphileUtils;
 
@@ -446,6 +470,8 @@ export class SchedulerClient {
             date,
             JobPriority.LOW,
             maxAttempts,
+            undefined,
+            queueName,
         );
         await this.schedulerModel.logSchedulerJob({
             task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -855,6 +881,28 @@ export class SchedulerClient {
         };
     }
 
+    /**
+     * On multi-org (shared-tenant) instances with the per-org delivery queue flag
+     * enabled for the org, recurring deliveries are routed into a per-org graphile
+     * named queue so they run serially and can't occupy every worker. Returns the
+     * queue name, or undefined to keep the default (fully parallel) behavior.
+     * Gated cheaply by allowMultiOrgs first to avoid a flag lookup on single-tenant
+     * instances.
+     */
+    private async resolveDeliveryQueueName(
+        traceProperties: TraceTaskBase,
+    ): Promise<string | undefined> {
+        if (!this.lightdashConfig.allowMultiOrgs) return undefined;
+        const { organizationUuid, userUuid } = traceProperties;
+        const { name: organizationName } =
+            await this.organizationModel.get(organizationUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { userUuid, organizationUuid, organizationName },
+            featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
+        });
+        return enabled ? getOrgDeliveryQueueName(organizationUuid) : undefined;
+    }
+
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -874,6 +922,9 @@ export class SchedulerClient {
             startingDateTime,
         );
 
+        // Evaluate the per-org queue gate once; the org is constant across all dates.
+        const queueName = await this.resolveDeliveryQueueName(traceProperties);
+
         try {
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
@@ -883,6 +934,7 @@ export class SchedulerClient {
                         ...traceProperties,
                     },
                     scheduler.schedulerUuid,
+                    queueName,
                 ),
             );
 
