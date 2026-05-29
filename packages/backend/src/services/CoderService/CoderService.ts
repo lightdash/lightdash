@@ -685,7 +685,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
@@ -821,7 +821,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
@@ -954,7 +954,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,

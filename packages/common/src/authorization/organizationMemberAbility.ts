@@ -268,6 +268,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'OrganizationWarehouseCredentials', {
             organizationUuid: member.organizationUuid,
         });
+        // Editors can download content as code but not upload it. Upload
+        // stays gated behind `manage:ContentAsCode` (developer+).
+        can('view', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });
