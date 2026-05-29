@@ -191,6 +191,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>

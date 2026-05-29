@@ -19,6 +19,7 @@ import {
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
+    AiMcpGithubAvailability,
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
@@ -53,6 +54,8 @@ import {
     getContentAsCodePathFromLtreePath,
     getItemId,
     getLtreePathFromContentAsCodePath,
+    GITHUB_MCP_SERVER_NAME,
+    GITHUB_MCP_SERVER_URL,
     isExploreError,
     isGitProjectType,
     isSlackPrompt,
@@ -130,6 +133,7 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
+import { getInstallationToken } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -139,6 +143,7 @@ import {
 } from '../../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -310,6 +315,7 @@ type AiAgentServiceDependencies = {
     shareService: ShareService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
+    githubAppInstallationsModel: GithubAppInstallationsModel;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -458,6 +464,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
+    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -572,6 +580,8 @@ export class AiAgentService extends BaseService {
         this.shareService = dependencies.shareService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.githubAppInstallationsModel =
+            dependencies.githubAppInstallationsModel;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -2496,6 +2506,128 @@ export class AiAgentService extends BaseService {
                 );
             });
         }
+
+        return server;
+    }
+
+    /**
+     * Whether the one-click "Connect GitHub" affordance should be offered for
+     * this project. It is available only when the org has a GitHub App
+     * installation AND the caller has the same permission required to manage
+     * that integration (manage:GitIntegration) — so a project-level agent
+     * manager who is not an org admin does not see it.
+     */
+    public async getGithubMcpAvailability(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiMcpGithubAvailability> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageGitIntegration = auditedAbility.can(
+            'manage',
+            subject('GitIntegration', { organizationUuid }),
+        );
+        if (!canManageGitIntegration) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const servers = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            user.userUuid,
+        );
+        const alreadyConnected = servers.some(
+            (server) => server.url === GITHUB_MCP_SERVER_URL,
+        );
+
+        return { available: true, alreadyConnected };
+    }
+
+    /**
+     * One-click GitHub MCP setup: mints the org's GitHub App installation token
+     * and registers a bearer-authed MCP server pointing at the hosted GitHub
+     * MCP. Reuses createMcpServer so the URL validation, connection test and
+     * tool discovery all run. Idempotent — returns the existing server if one
+     * is already connected.
+     */
+    public async connectGithubMcpServer(
+        user: SessionUser,
+        projectUuid: string,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        // Gate on the same permission used to manage the GitHub integration.
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('GitIntegration', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage the GitHub integration',
+            );
+        }
+
+        // Idempotency: if a GitHub MCP server already exists, return it.
+        const existing = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            user.userUuid,
+        );
+        const alreadyConnected = existing.find(
+            (server) => server.url === GITHUB_MCP_SERVER_URL,
+        );
+        if (alreadyConnected) {
+            return alreadyConnected;
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            throw new ForbiddenError(
+                'GitHub App is not installed for this organization',
+            );
+        }
+
+        const bearerToken = await getInstallationToken(installationId);
+
+        // Delegates to createMcpServer, which additionally asserts the caller
+        // can manage MCP servers, validates the URL, tests the connection and
+        // discovers tools.
+        const server = await this.createMcpServer(user, projectUuid, {
+            name: GITHUB_MCP_SERVER_NAME,
+            url: GITHUB_MCP_SERVER_URL,
+            authType: 'bearer',
+            credentialScope: 'shared',
+            credentials: { bearerToken },
+        });
+
+        this.analytics.track({
+            event: 'ai_agent.github_mcp_connected',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                mcpServerId: server.uuid,
+                method: 'one_click',
+            },
+        });
 
         return server;
     }

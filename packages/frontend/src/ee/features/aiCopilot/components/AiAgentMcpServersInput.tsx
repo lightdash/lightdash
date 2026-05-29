@@ -29,6 +29,7 @@ import { useForm, zodResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
+    IconBrandGithub,
     IconChevronDown,
     IconChevronRight,
     IconDots,
@@ -45,7 +46,9 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
+    useConnectGithubMcpServerMutation,
     useDisconnectMcpOAuthConnectionMutation,
+    useGithubMcpAvailability,
     useProjectAiMcpServers,
     useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
@@ -567,6 +570,24 @@ export const AiAgentMcpServersInput = ({
         isLoading: isDisconnectingMcpOAuthConnection,
         variables: disconnectingMcpOAuthConnection,
     } = useDisconnectMcpOAuthConnectionMutation(projectUuid);
+    const { data: githubMcpAvailability } =
+        useGithubMcpAvailability(projectUuid);
+    const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
+        useConnectGithubMcpServerMutation(projectUuid);
+
+    // One-click GitHub: only offered when the org has a GitHub integration the
+    // user can manage, and no GitHub MCP is connected yet.
+    const canOneClickConnectGithub =
+        githubMcpAvailability?.available === true &&
+        githubMcpAvailability?.alreadyConnected === false;
+
+    const handleConnectGithubMcp = useCallback(async () => {
+        const server = await connectGithubMcp();
+        // Attach the new server to this agent so it's usable immediately.
+        if (server && !value.includes(server.uuid)) {
+            onChange([...value, server.uuid]);
+        }
+    }, [connectGithubMcp, onChange, value]);
 
     const selectedMcpServers = useMemo(
         () =>
@@ -955,14 +976,38 @@ export const AiAgentMcpServersInput = ({
                         <BetaBadge />
                     </Group>
                     {selectedMcpServers.length > 0 && (
-                        <Button
-                            variant="default"
-                            size="compact-xs"
-                            onClick={openAttachMcpServersModal}
-                            disabled={isPersistingSelection}
-                        >
-                            + Add
-                        </Button>
+                        <Group align="center" gap="xs">
+                            {canOneClickConnectGithub && (
+                                <Tooltip
+                                    withinPortal
+                                    multiline
+                                    w={260}
+                                    label="Connect the GitHub MCP using your organization's existing GitHub integration — no extra sign-in needed."
+                                >
+                                    <Button
+                                        variant="default"
+                                        size="compact-xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconBrandGithub}
+                                            />
+                                        }
+                                        loading={isConnectingGithubMcp}
+                                        onClick={handleConnectGithubMcp}
+                                    >
+                                        Connect GitHub
+                                    </Button>
+                                </Tooltip>
+                            )}
+                            <Button
+                                variant="default"
+                                size="compact-xs"
+                                onClick={openAttachMcpServersModal}
+                                disabled={isPersistingSelection}
+                            >
+                                + Add
+                            </Button>
+                        </Group>
                     )}
                 </Group>
                 <Stack gap="sm">
@@ -978,17 +1023,34 @@ export const AiAgentMcpServersInput = ({
                                 <Text size="sm" c="dimmed">
                                     No MCP servers attached
                                 </Text>
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    disabled={
-                                        isLoadingMcpServers ||
-                                        isPersistingSelection
-                                    }
-                                    onClick={openAttachMcpServersModal}
-                                >
-                                    + Add
-                                </Button>
+                                <Group gap="xs">
+                                    {canOneClickConnectGithub && (
+                                        <Button
+                                            variant="default"
+                                            size="xs"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconBrandGithub}
+                                                />
+                                            }
+                                            loading={isConnectingGithubMcp}
+                                            onClick={handleConnectGithubMcp}
+                                        >
+                                            Connect GitHub
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        disabled={
+                                            isLoadingMcpServers ||
+                                            isPersistingSelection
+                                        }
+                                        onClick={openAttachMcpServersModal}
+                                    >
+                                        + Add
+                                    </Button>
+                                </Group>
                             </Stack>
                         </Center>
                     )}
