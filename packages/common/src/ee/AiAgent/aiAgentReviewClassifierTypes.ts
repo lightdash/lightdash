@@ -520,6 +520,13 @@ export type ApiAiAgentReviewItemsResponse = ApiSuccess<
     AiAgentReviewItemSummary[]
 >;
 
+export type UpdateAiAgentReviewItemStatus = {
+    status: AiAgentReviewItemStatus;
+    dismissedReason: AiAgentReviewItemDismissedReason | null;
+};
+
+export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
+
 export type AiAgentReviewSignalSummary = {
     uuid: string;
     runUuid: string;
