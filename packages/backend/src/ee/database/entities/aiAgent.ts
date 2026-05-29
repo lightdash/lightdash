@@ -21,10 +21,10 @@ export type DbAiAgent = {
      */
     enable_reasoning?: boolean;
     /**
-     * @deprecated The built-in Slack system agent was removed. New rows are
-     * always inserted with `false`, and the listing filter still excludes
-     * rows where `true`. Column + remaining references drop in a follow-up
-     * migration once this code is deployed.
+     * Built-in fallback agent used when an organization has no configured
+     * agents. Hidden from normal agent listings (so it never counts as "an
+     * agent configured") but usable as a Slack fallback. At most one per
+     * (organization, project).
      */
     is_system: boolean;
     version: number;
