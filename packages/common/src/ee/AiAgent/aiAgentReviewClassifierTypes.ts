@@ -503,6 +503,13 @@ export type AiAgentReviewItem = {
 };
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
+    /**
+     * Server-computed: true only when a writeback PR can actually be opened for
+     * this item — semantic-layer root cause, a GitHub-connected project, and
+     * both the review-writeback and writeback-engine feature flags enabled.
+     * The "Create PR" action is gated on this.
+     */
+    writebackEligible: boolean;
     latestFinding: {
         uuid: string;
         promptUuid: string;
