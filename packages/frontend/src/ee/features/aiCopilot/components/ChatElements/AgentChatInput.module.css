@@ -170,26 +170,37 @@
     margin: 0;
 }
 
-/* ------------------------------------------------------------------ *
- *  Chip reveal wrapper. Chips are present whenever the agent has      *
- *  something to suggest, but we hide them while the user is scrolled  *
- *  up reading history — they only feel useful when the input is in    *
- *  view. Animates opacity + collapse to keep the transition calm.     *
- * ------------------------------------------------------------------ */
 .chipReveal {
+    display: grid;
+    grid-template-rows: 1fr;
     transition:
         opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
-        max-height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
         transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
-    max-height: 80px;
+}
+
+.chipReveal > * {
+    min-height: 0;
     overflow: hidden;
 }
 
 .chipHidden {
     opacity: 0;
-    max-height: 0;
-    transform: translateY(6px);
+    grid-template-rows: 0fr;
+    transform: translateY(-6px);
     pointer-events: none;
+}
+
+/* Full (empty-state) layout: the composer lives in a vertically centered
+ * stack, so any chip row added in normal flow re-centers the block and nudges
+ * the input. Take the row out of flow instead — absolute with no `top` keeps
+ * it at its static position (directly below the input) while carrying zero
+ * layout height, so the input holds still no matter how many lines the chips
+ * wrap to. `.container` is the positioning context. */
+.chipFloat {
+    position: absolute;
+    left: 0;
+    right: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
