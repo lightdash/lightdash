@@ -1,3 +1,15 @@
+# [0.3051.0](https://github.com/lightdash/lightdash/compare/0.3050.0...0.3051.0) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai-writeback:** gate writeback on manage:SourceCode ([#23659](https://github.com/lightdash/lightdash/issues/23659)) ([e784121](https://github.com/lightdash/lightdash/commit/e784121f0f6db33dc5e9612c81911d312796d963))
+
+
+### Features
+
+* make S3 storage required, drop Snowflake-without-S3 fallback ([#23658](https://github.com/lightdash/lightdash/issues/23658)) ([ab63392](https://github.com/lightdash/lightdash/commit/ab63392a98f47f08e2d0aa812b3b712c4b36143a))
+
 # [0.3050.0](https://github.com/lightdash/lightdash/compare/0.3049.3...0.3050.0) (2026-05-29)
 
 
