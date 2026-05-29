@@ -163,6 +163,29 @@ export class AiAgentAdminController extends BaseController {
      * @summary List AI agent review signals
      */
     /**
+     * Get a single AI agent review item (lightweight, for polling progress)
+     * @summary Get AI agent review item
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items/{fingerprint}')
+    @OperationId('getAiAgentReviewItem')
+    async getReviewItem(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewItem(
+                toSessionUser(req.account),
+                fingerprint,
+            ),
+        };
+    }
+
+    /**
      * Update the status of an AI agent review item (e.g. dismiss it)
      * @summary Update AI agent review item status
      */

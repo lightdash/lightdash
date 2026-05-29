@@ -165,6 +165,12 @@ const getTagsForTask: {
         'ai_agent_review.event_type': payload.eventType,
     }),
 
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

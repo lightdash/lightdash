@@ -24,6 +24,8 @@ const baseItem = (
     linkedIssueUrl: null,
     linkedPrUrl: null,
     prState: null,
+    prWritebackStatus: null,
+    prWritebackMessage: null,
     createdAt: new Date('2026-05-26T00:00:00.000Z'),
     updatedAt: new Date('2026-05-26T00:00:00.000Z'),
     latestFinding: {
@@ -61,7 +63,10 @@ const baseItem = (
 
 describe('planReviewWriteback', () => {
     it('builds a deterministic one-shot prompt for semantic_layer items', () => {
-        const plan = planReviewWriteback(baseItem());
+        const plan = planReviewWriteback(
+            baseItem(),
+            new Map([['orders', 'models/orders.yml']]),
+        );
 
         expect(plan.aggregationKey).toBeNull();
         expect(plan.promptText).toContain(
@@ -70,10 +75,19 @@ describe('planReviewWriteback', () => {
         expect(plan.promptText).toContain(
             'Add an ai_hint to average_order_size',
         );
-        expect(plan.promptText).toContain('metric "orders.average_order_size"');
+        expect(plan.promptText).toContain(
+            'metric "orders.average_order_size" (yaml: models/orders.yml)',
+        );
         expect(plan.promptText).toContain(
             'use average_order_size, not total_order_amount',
         );
+    });
+
+    it('omits the yaml path when the model is not in the resolved map', () => {
+        const plan = planReviewWriteback(baseItem());
+
+        expect(plan.promptText).toContain('metric "orders.average_order_size"');
+        expect(plan.promptText).not.toContain('(yaml:');
     });
 
     it('throws for unsupported root causes', () => {

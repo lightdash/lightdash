@@ -19,6 +19,7 @@ import type {
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewItemWritebackStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
     AiAgentTargetRef,
@@ -857,6 +858,8 @@ export class AiAgentReviewClassifierModel {
                     linkedIssueUrl: item?.linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
+                    prWritebackStatus: item?.pr_writeback_status ?? null,
+                    prWritebackMessage: item?.pr_writeback_message ?? null,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
@@ -967,6 +970,31 @@ export class AiAgentReviewClassifierModel {
             .merge({
                 linked_pr_url: args.linkedPrUrl,
                 pr_state: args.prState,
+                updated_at: this.database.fn.now(),
+            });
+    }
+
+    async setReviewItemWritebackStatus(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        status: AiAgentReviewItemWritebackStatus;
+        message: string | null;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+                pr_writeback_status: args.status,
+                pr_writeback_message: args.message,
+            })
+            .onConflict('fingerprint')
+            .merge({
+                pr_writeback_status: args.status,
+                pr_writeback_message: args.message,
                 updated_at: this.database.fn.now(),
             });
     }
