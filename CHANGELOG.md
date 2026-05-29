@@ -1,3 +1,10 @@
+# [0.3052.0](https://github.com/lightdash/lightdash/compare/0.3051.0...0.3052.0) (2026-05-29)
+
+
+### Features
+
+* **pivot:** warehouse-computed column totals for pivot tables ([#23590](https://github.com/lightdash/lightdash/issues/23590)) ([a7e641e](https://github.com/lightdash/lightdash/commit/a7e641e4dc03429325b37de506311c065ce0f661))
+
 # [0.3051.0](https://github.com/lightdash/lightdash/compare/0.3050.0...0.3051.0) (2026-05-29)
 
 
