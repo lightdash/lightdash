@@ -597,16 +597,6 @@ export const AiAgentMcpServersInput = ({
     const canOneClickConnectGithub =
         githubMcpAvailability?.available === true && !isGithubConnectedToAgent;
 
-    const handleConnectGithubMcp = useCallback(async () => {
-        // Reuse the existing project-level server when present; otherwise mint
-        // the installation token and create it.
-        const server = existingGithubMcpServer ?? (await connectGithubMcp());
-        // Attach to this agent so it's usable immediately.
-        if (server && !value.includes(server.uuid)) {
-            onChange([...value, server.uuid]);
-        }
-    }, [existingGithubMcpServer, connectGithubMcp, onChange, value]);
-
     const selectedMcpServers = useMemo(
         () =>
             value
@@ -702,6 +692,22 @@ export const AiAgentMcpServersInput = ({
         },
         [agentUuid, onChange, onPersistedChange, updateAgentMcpServers],
     );
+
+    const handleConnectGithubMcp = useCallback(async () => {
+        // Reuse the existing project-level server when present; otherwise mint
+        // the installation token and create it.
+        const server = existingGithubMcpServer ?? (await connectGithubMcp());
+        // Persist the attachment (not just local form state) so the agent's
+        // tool-permissions panel can load/save immediately, matching "+ Add".
+        if (server && !value.includes(server.uuid)) {
+            await persistMcpServerSelection([...value, server.uuid], value);
+        }
+    }, [
+        existingGithubMcpServer,
+        connectGithubMcp,
+        persistMcpServerSelection,
+        value,
+    ]);
 
     const handleAttachMcpServers = useCallback(async () => {
         const nextValue = Array.from(new Set([...value, ...attachSelection]));
