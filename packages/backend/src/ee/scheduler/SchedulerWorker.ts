@@ -206,6 +206,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS,
                     async (job, e) => {
+                        await this.aiAgentAdminService.failReviewItemWritebackJob(
+                            {
+                                fingerprint: payload.fingerprint,
+                                organizationUuid: payload.organizationUuid,
+                                message: getErrorMessage(e),
+                            },
+                        );
                         await this.schedulerService.logSchedulerJob({
                             task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
                             jobId: job.id,
