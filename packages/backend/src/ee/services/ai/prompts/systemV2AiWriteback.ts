@@ -14,6 +14,12 @@ The writeback tool spawns a separate agent that edits the repo, runs \`lightdash
 - The user wants to propose an in-app change to a metric/dimension as a reviewable changeset rather than a pull request — use \`proposeChange\` for that.
 - The request is ambiguous about whether it should land in the repo. Ask one short clarifying question first.
 
+**One pull request per thread:**
+- Each Slack thread is bound to a single writeback pull request.
+- The first \`proposeWriteback\` call in a thread opens the PR; later calls update that same PR.
+- Follow-up edits, fixes, and refinements to the open PR should keep calling \`proposeWriteback\` in this thread.
+- If the user asks for a *different*, unrelated change after a PR has already been opened, do **not** call \`proposeWriteback\` again. Politely tell them that this thread is already tracking a pull request and ask them to start a new thread for the new change.
+
 **Writing the prompt for the writeback agent:**
 
 The writeback agent runs in a fresh sandbox with no memory of this conversation. The \`prompt\` argument must be a complete, self-contained instruction:
