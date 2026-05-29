@@ -1,4 +1,3 @@
-import { NotSupportedError } from '../types/errors';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import {
     ProjectMemberRole,
@@ -12,16 +11,6 @@ import {
 } from '../types/projectMemberRole';
 import { SpaceMemberRole } from '../types/space';
 import assertUnreachable from './assertUnreachable';
-
-const projectMemberRoleValues = new Set<string>(
-    Object.values(ProjectMemberRole),
-);
-
-// `ProjectGroupAccess.role` (and other legacy role fields) can hold a custom-role
-// UUID instead of a system `ProjectMemberRole`. Use this guard before passing a
-// role into the system-role helpers below, which only understand the 5 enum values.
-export const isProjectMemberRole = (role: string): role is ProjectMemberRole =>
-    projectMemberRoleValues.has(role);
 
 export const convertOrganizationRoleToProjectRole = (
     organizationRole: OrganizationMemberRole,
@@ -103,11 +92,6 @@ export const getHighestSpaceRole = (
 export const convertProjectRoleToSpaceRole = (
     projectRole: ProjectMemberRole,
 ): SpaceMemberRole => {
-    if (!isProjectMemberRole(projectRole)) {
-        throw new NotSupportedError(
-            `convertProjectRoleToSpaceRole is not implemented for custom roles (received "${projectRole}")`,
-        );
-    }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
             return SpaceMemberRole.VIEWER;
@@ -130,11 +114,6 @@ export const convertProjectRoleToSpaceRole = (
 export const convertProjectRoleToOrganizationRole = (
     projectRole: ProjectMemberRole,
 ): OrganizationMemberRole => {
-    if (!isProjectMemberRole(projectRole)) {
-        throw new NotSupportedError(
-            `convertProjectRoleToOrganizationRole is not implemented for custom roles (received "${projectRole}")`,
-        );
-    }
     switch (projectRole) {
         case ProjectMemberRole.VIEWER:
             return OrganizationMemberRole.VIEWER;

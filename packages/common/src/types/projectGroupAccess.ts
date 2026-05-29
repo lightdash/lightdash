@@ -6,7 +6,7 @@ export type ProjectGroupAccess = {
     // System role values surface in IntelliSense while still allowing a custom-role
     // UUID (any string). `string & {}` only stops TS from collapsing the union to
     // `string` for autocomplete — it adds no type safety, so consumers must still
-    // guard with `isProjectMemberRole` before using this as a system role.
+    // guard with `isSystemRole` before using this as a system role.
     role: ProjectMemberRole | (string & {});
 };
 
