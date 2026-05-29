@@ -1,6 +1,7 @@
 import {
     Badge,
     Box,
+    Divider,
     Group,
     Loader,
     Stack,
@@ -11,7 +12,7 @@ import {
 import { IconSparkles } from '@tabler/icons-react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
-import { SettingsGridCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import {
     useAiOrganizationSettings,
     useUpdateAiOrganizationSettings,
@@ -20,6 +21,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 
 export const AiGeneralSettingsPage = () => {
     const { data: settings, isInitialLoading: isSettingsLoading } =
@@ -48,39 +50,44 @@ export const AiGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
-                    <SettingsGridCard>
-                        <Box>
-                            <Group gap="xs" mb={4}>
-                                <Title order={5}>
-                                    Enable AI features for users
-                                </Title>
-                                {settings.isTrial && (
-                                    <Badge
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconSparkles}
-                                                size={12}
-                                            />
-                                        }
-                                        radius="sm"
-                                        variant="light"
-                                        color="indigo"
-                                        size="sm"
-                                        tt="none"
-                                        fw={500}
-                                    >
-                                        Free trial
-                                    </Badge>
-                                )}
-                            </Group>
-                            <Text c="dimmed" fz="xs">
-                                Show AI features (homepage entry, navbar action,
-                                and agent chat) to everyone in this
-                                organization. Disable to hide them while keeping
-                                existing data intact.
-                            </Text>
-                        </Box>
-                        <Group justify="flex-end">
+                    <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Group gap="xs" mb={4}>
+                                    <Title order={5}>
+                                        Enable AI features for users
+                                    </Title>
+                                    {settings.isTrial && (
+                                        <Badge
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSparkles}
+                                                    size={12}
+                                                />
+                                            }
+                                            radius="sm"
+                                            variant="light"
+                                            color="gray"
+                                            size="sm"
+                                            tt="none"
+                                            fw={500}
+                                        >
+                                            Free trial
+                                        </Badge>
+                                    )}
+                                </Group>
+                                <Text c="dimmed" fz="xs">
+                                    Show AI features (homepage entry, navbar
+                                    action, and agent chat) to everyone in this
+                                    organization. Disable to hide them while
+                                    keeping existing data intact.
+                                </Text>
+                            </Box>
                             <Switch
                                 size="md"
                                 checked={settings.aiAgentsVisible}
@@ -93,36 +100,51 @@ export const AiGeneralSettingsPage = () => {
                                 }
                             />
                         </Group>
-                    </SettingsGridCard>
+                    </SettingsCard>
 
-                    <SettingsGridCard>
-                        <Box>
-                            <Title order={5} mb={4}>
-                                AI Router
-                            </Title>
-                            <Text c="dimmed" fz="xs">
-                                {settings.aiAgentsVisible
-                                    ? 'Route user questions to the best agent automatically, instead of asking users to pick.'
-                                    : 'Enable AI features first to use the Router.'}
-                            </Text>
-                        </Box>
-                        <Group justify="flex-end">
-                            <Switch
-                                size="md"
-                                checked={isRouterEnabled}
-                                disabled={
-                                    isUpdatingRouter ||
-                                    isRouterLoading ||
-                                    !settings.aiAgentsVisible
-                                }
-                                onChange={(event) =>
-                                    upsertRouter({
-                                        enabled: event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
-                    </SettingsGridCard>
+                    <SettingsCard>
+                        <Stack gap="md">
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                align="flex-start"
+                                gap="md"
+                            >
+                                <Box maw={620}>
+                                    <Title order={5} mb={4}>
+                                        AI Router
+                                    </Title>
+                                    <Text c="dimmed" fz="xs">
+                                        {settings.aiAgentsVisible
+                                            ? 'Route user questions to the best agent automatically, instead of asking users to pick.'
+                                            : 'Enable AI features first to use the Router.'}
+                                    </Text>
+                                </Box>
+                                <Switch
+                                    size="md"
+                                    checked={isRouterEnabled}
+                                    disabled={
+                                        isUpdatingRouter ||
+                                        isRouterLoading ||
+                                        !settings.aiAgentsVisible
+                                    }
+                                    onChange={(event) =>
+                                        upsertRouter({
+                                            enabled:
+                                                event.currentTarget.checked,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            {settings.aiAgentsVisible && isRouterEnabled && (
+                                <>
+                                    <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
+                                    <AiRouterInstructionsCard />
+                                </>
+                            )}
+                        </Stack>
+                    </SettingsCard>
                 </>
             )}
         </Stack>
