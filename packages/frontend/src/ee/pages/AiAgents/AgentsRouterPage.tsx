@@ -6,6 +6,7 @@ import {
     ActionIcon,
     Avatar,
     Badge,
+    Box,
     Center,
     Group,
     Popover,
@@ -370,74 +371,82 @@ const AgentsRouterPage = () => {
                                 )}
                             </div>
 
-                            {sortedCandidates.map((c) => {
-                                const agent = agentsByUuid.get(c.agentUuid);
-                                const isRecommended =
-                                    c.agentUuid ===
-                                    phase.decision.decision.suggestedAgentUuid;
-                                return (
-                                    <UnstyledButton
-                                        key={c.agentUuid}
-                                        onClick={() => confirmPick(c.agentUuid)}
-                                        className={`${classes.candidateButton} ${
-                                            isRecommended
-                                                ? classes.recommended
-                                                : ''
-                                        }`}
-                                        aria-label={`Send to ${c.name}`}
-                                    >
-                                        <Group
-                                            gap="sm"
-                                            wrap="nowrap"
-                                            align="center"
+                            <Box className={classes.pickerScroll}>
+                                {sortedCandidates.map((c) => {
+                                    const agent = agentsByUuid.get(c.agentUuid);
+                                    const isRecommended =
+                                        c.agentUuid ===
+                                        phase.decision.decision
+                                            .suggestedAgentUuid;
+                                    return (
+                                        <UnstyledButton
+                                            key={c.agentUuid}
+                                            onClick={() =>
+                                                confirmPick(c.agentUuid)
+                                            }
+                                            className={`${classes.candidateButton} ${
+                                                isRecommended
+                                                    ? classes.recommended
+                                                    : ''
+                                            }`}
+                                            aria-label={`Send to ${c.name}`}
                                         >
-                                            <LightdashUserAvatar
-                                                size={32}
-                                                name={c.name}
-                                                src={agent?.imageUrl}
-                                            />
-                                            <Stack gap={2} miw={0} flex={1}>
-                                                <Group gap="xs" wrap="nowrap">
-                                                    <Text
-                                                        size="sm"
-                                                        fw={600}
-                                                        truncate="end"
+                                            <Group
+                                                gap="sm"
+                                                wrap="nowrap"
+                                                align="center"
+                                            >
+                                                <LightdashUserAvatar
+                                                    size={32}
+                                                    name={c.name}
+                                                    src={agent?.imageUrl}
+                                                />
+                                                <Stack gap={2} miw={0} flex={1}>
+                                                    <Group
+                                                        gap="xs"
+                                                        wrap="nowrap"
                                                     >
-                                                        {c.name}
-                                                    </Text>
-                                                    {isRecommended && (
-                                                        <Badge
-                                                            size="xs"
-                                                            color="violet"
-                                                            variant="light"
-                                                            radius="sm"
+                                                        <Text
+                                                            size="sm"
+                                                            fw={600}
+                                                            truncate="end"
                                                         >
-                                                            Recommended
-                                                        </Badge>
+                                                            {c.name}
+                                                        </Text>
+                                                        {isRecommended && (
+                                                            <Badge
+                                                                size="xs"
+                                                                color="violet"
+                                                                variant="light"
+                                                                radius="sm"
+                                                            >
+                                                                Recommended
+                                                            </Badge>
+                                                        )}
+                                                    </Group>
+                                                    {c.description && (
+                                                        <Text
+                                                            size="xs"
+                                                            c="dimmed"
+                                                            truncate="end"
+                                                            className={
+                                                                classes.candidateDescription
+                                                            }
+                                                        >
+                                                            {c.description}
+                                                        </Text>
                                                     )}
-                                                </Group>
-                                                {c.description && (
-                                                    <Text
-                                                        size="xs"
-                                                        c="dimmed"
-                                                        truncate="end"
-                                                        className={
-                                                            classes.candidateDescription
-                                                        }
-                                                    >
-                                                        {c.description}
-                                                    </Text>
-                                                )}
-                                            </Stack>
-                                            <MantineIcon
-                                                icon={IconChevronRight}
-                                                size={16}
-                                                className={classes.chevron}
-                                            />
-                                        </Group>
-                                    </UnstyledButton>
-                                );
-                            })}
+                                                </Stack>
+                                                <MantineIcon
+                                                    icon={IconChevronRight}
+                                                    size={16}
+                                                    className={classes.chevron}
+                                                />
+                                            </Group>
+                                        </UnstyledButton>
+                                    );
+                                })}
+                            </Box>
                         </Stack>
                     )}
                 </Stack>
