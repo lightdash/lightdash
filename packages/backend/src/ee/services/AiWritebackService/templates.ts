@@ -1,4 +1,5 @@
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -85,8 +86,9 @@ finish:
      commit every file change in the working tree, so the original must stay
      unchanged.
 
-4. From the repo root, run:
-     lightdash compile --skip-warehouse-catalog \\
+4. From the repo root, run (use this exact wrapper command — it is the only
+   compile command available to you):
+     ${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog \\
        --profiles-dir ${TMP_PROFILES_DIR} \\
        --project-dir ${dbtProjectDir}
    Capture the exit code and the last meaningful line of output.

@@ -36,6 +36,8 @@ import {
     CLAUDE_MODEL,
     COMMIT_AUTHOR_EMAIL,
     COMMIT_AUTHOR_NAME,
+    COMPILE_STRIPPED_ENV_VARS,
+    COMPILE_WRAPPER_PATH,
     CWD,
     GIT_TIMEOUT_MS,
     GIT_USERNAME,
@@ -914,6 +916,21 @@ export class AiWritebackService extends BaseService {
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
+
+        // Install the compile wrapper. The agent runs ${COMPILE_WRAPPER_PATH}
+        // (allowlisted) instead of `lightdash compile` directly, and the wrapper
+        // drops secrets from the environment before exec'ing the real CLI — so a
+        // malicious dbt model in the checkout cannot read them via Jinja
+        // `env_var(...)` during the compile. `exec` keeps the process tree flat;
+        // the `unset` list is fixed (no interpolation of untrusted input).
+        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
+            (name) => `-u ${name}`,
+        ).join(' ');
+        await sandbox.files.write(
+            COMPILE_WRAPPER_PATH,
+            `#!/usr/bin/env bash\nexec env ${unsetFlags} lightdash compile "$@"\n`,
+        );
+        await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
 
         // Parse Claude Code's stream-json output line-by-line so the agent
         // stage stops being a black box: we log every tool the agent uses
