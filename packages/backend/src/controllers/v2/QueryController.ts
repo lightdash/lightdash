@@ -20,6 +20,7 @@ import {
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -123,6 +124,39 @@ export class QueryController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. For pivoted source queries, produces one warehouse-computed total per pivoted column. For non-pivoted source queries, produces a single-row grand total. Currently only `kind: 'columnTotal'` is supported.
+     * @summary Calculate totals
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{queryUuid}/calculate-total')
+    @OperationId('executeAsyncCalculateTotal')
+    async executeAsyncCalculateTotal(
+        @Path() projectUuid: string,
+        /** The UUID of the previously-executed query to compute totals from */
+        @Path() queryUuid: string,
+        @Body() body: ExecuteAsyncCalculateTotalRequestParams,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncCalculateTotalFromQueryHistory({
+                account: req.account!,
+                projectUuid,
+                queryUuid,
+                kind: body.kind,
+                invalidateCache: body.invalidateCache,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 

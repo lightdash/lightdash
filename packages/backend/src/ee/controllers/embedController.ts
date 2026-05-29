@@ -423,6 +423,11 @@ export class EmbedController extends BaseController {
         };
     }
 
+    /**
+     * Calculate totals from an embedded saved chart.
+     * @summary Calculate totals for embed saved chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
+     */
     @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-total')
     @OperationId('embedCalculateTotalFromSavedChart')
@@ -496,6 +501,7 @@ export class EmbedController extends BaseController {
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
      * @summary Calculate totals for embed query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
      */
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')

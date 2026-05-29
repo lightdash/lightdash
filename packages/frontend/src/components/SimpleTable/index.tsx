@@ -316,6 +316,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                columnTotalsAreWarehouseComputed={
+                                    visualizationConfig.chartConfig
+                                        .columnTotalsAreWarehouseComputed
+                                }
                                 {...rest}
                             />
                         ) : (
@@ -338,6 +342,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                columnTotalsAreWarehouseComputed={
+                                    visualizationConfig.chartConfig
+                                        .columnTotalsAreWarehouseComputed
+                                }
                                 {...rest}
                             />
                         )}

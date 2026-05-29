@@ -146,3 +146,19 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams;
+
+/**
+ * Kinds of totals derivable from an executed pivot query. Only `columnTotal`
+ * is implemented today; follow-up PRs will widen the union to enable the
+ * commented-out variants below.
+ */
+export type CalculateTotalKind = 'columnTotal';
+// | 'rowTotal'
+// | 'columnSubtotal'
+// | 'rowSubtotal'
+// | 'grandTotal';
+
+export type ExecuteAsyncCalculateTotalRequestParams = {
+    kind: CalculateTotalKind;
+    invalidateCache?: boolean;
+};

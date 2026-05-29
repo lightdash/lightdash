@@ -13769,8 +13769,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13802,10 +13802,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -13814,8 +13814,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -13864,8 +13864,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13927,10 +13927,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -13939,8 +13939,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -13968,8 +13968,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13982,19 +13982,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14003,8 +14003,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
+                                                            "error",
                                                             "not_found"
                                                         ]
                                                     }
@@ -14031,10 +14031,6 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "joinedTables": {
@@ -14073,27 +14069,27 @@
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "label": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -14101,16 +14097,20 @@
                                                                                 "isFromJoinedTable",
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "description",
                                                                                 "fieldType",
-                                                                                "table",
-                                                                                "fieldId",
+                                                                                "description",
                                                                                 "label",
-                                                                                "name"
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
+                                                                    },
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
                                                                     },
                                                                     "status": {
                                                                         "type": "string",
@@ -14121,9 +14121,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "rationale",
                                                                     "explore",
                                                                     "fields",
+                                                                    "rationale",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -14136,10 +14136,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -14147,8 +14147,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -14223,9 +14223,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
                                                             "rejected",
+                                                            "error",
                                                             "timeout"
                                                         ]
                                                     }
@@ -34438,6 +34438,24 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "CalculateTotalKind": {
+                "type": "string",
+                "enum": ["columnTotal"],
+                "nullable": false,
+                "description": "Kinds of totals derivable from an executed pivot query. Only `columnTotal`\nis implemented today; follow-up PRs will widen the union to enable the\ncommented-out variants below."
+            },
+            "ExecuteAsyncCalculateTotalRequestParams": {
+                "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/CalculateTotalKind"
+                    }
+                },
+                "required": ["kind"],
+                "type": "object"
+            },
             "QueryExecutionContext": {
                 "enum": [
                     "dashboardView",
@@ -36845,7 +36863,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3046.1",
+        "version": "0.3050.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -48570,6 +48588,7 @@
                 "description": "Calculate metric totals from a saved chart",
                 "summary": "Calculate total from saved chart",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -49743,6 +49762,7 @@
                 "description": "Calculate all metric totals from a metricQuery",
                 "summary": "Calculate total from query",
                 "tags": ["Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -59800,6 +59820,66 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total": {
+            "post": {
+                "operationId": "executeAsyncCalculateTotal",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. For pivoted source queries, produces one warehouse-computed total per pivoted column. For non-pivoted source queries, produces a single-row grand total. Currently only `kind: 'columnTotal'` is supported.",
+                "summary": "Calculate totals",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The UUID of the previously-executed query to compute totals from",
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncCalculateTotalRequestParams"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/query/metric-query": {

@@ -89,6 +89,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
+    type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
@@ -172,6 +173,10 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { getPivotedColumns } from './getPivotedColumns';
+import {
+    getColumnTotalQueryFromSource,
+    getGrandTotalMetricQuery,
+} from './getTotalsQueryFromSource';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     NoOpPreAggregateStrategy,
@@ -3670,20 +3675,16 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
-    async executeAsyncMetricQuery({
-        account,
-        projectUuid,
-        dateZoom,
-        context,
-        metricQuery: inputMetricQuery,
-        invalidateCache,
-        usePreAggregateCache,
-        parameters,
-        pivotConfiguration,
-        userAttributeOverrides,
-        materializationRole,
-        dashboardFilters,
-    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    async executeAsyncMetricQuery(
+        args: ExecuteAsyncMetricQueryArgs,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const {
+            account,
+            projectUuid,
+            context,
+            metricQuery: inputMetricQuery,
+            materializationRole,
+        } = args;
         assertIsAccountWithOrg(account);
 
         if (
@@ -3701,7 +3702,6 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
-
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
             'view',
@@ -3717,6 +3717,32 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            args,
+            organizationUuid,
+        );
+    }
+
+    // Callers MUST authorize the account for this explore/query first.
+    private async runAsyncMetricQueryWithoutPermissionCheck(
+        {
+            account,
+            projectUuid,
+            dateZoom,
+            context,
+            metricQuery: inputMetricQuery,
+            invalidateCache,
+            usePreAggregateCache,
+            parameters,
+            pivotConfiguration,
+            userAttributeOverrides,
+            materializationRole,
+            dashboardFilters,
+        }: ExecuteAsyncMetricQueryArgs,
+        organizationUuid: string,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -3883,6 +3909,71 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: usedParameters,
             resolvedTimezone: displayTimezone,
         };
+    }
+
+    /**
+     * Calculate totals for a previously-executed async query referenced by
+     * its queryUuid. The source query's metricQuery + pivotConfiguration are
+     * read from query_history; this endpoint stores its own row in query_history
+     * so it inherits cancellation, polling, download, and analytics for free.
+     */
+    async executeAsyncCalculateTotalFromQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+        kind,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        kind: CalculateTotalKind;
+        invalidateCache?: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        if (kind !== 'columnTotal') {
+            throw new NotSupportedError(
+                `Calculate-total kind "${kind}" is not yet supported`,
+            );
+        }
+
+        // `get` enforces the query belongs to this project and was created by
+        // this account — that ownership authorizes the totals query, so we skip
+        // the explore-level CASL gate (which embed JWT callers can't pass).
+        const source = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const { metricQuery, pivotConfiguration } =
+            getColumnTotalQueryFromSource({
+                metricQuery: source.metricQuery,
+                pivotConfiguration: source.pivotConfiguration,
+            });
+
+        // Reuse the source's parameter values so the totals query sees the
+        // same parameter context as the original. The execution path
+        // re-combines these against project defaults.
+        const sourceParameters: ParametersValuesMap | undefined =
+            source.requestParameters?.parameters;
+
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            {
+                account,
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                metricQuery,
+                pivotConfiguration,
+                parameters: sourceParameters,
+                invalidateCache,
+            },
+            organizationUuid,
+        );
     }
 
     async executeAsyncFieldValueSearch({
@@ -5642,49 +5733,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private static getCalculateTotalMetricQuery(
-        metricQuery: MetricQuery,
-    ): MetricQuery {
-        // PoP additional metrics require their time dimension to be selected
-        // (they join the shifted CTE on that field). The totals query strips
-        // all dimensions to collapse to a single row, so any PoP entries
-        // would fail the "time dim must be selected" check in MetricQueryBuilder.
-        // Totals on a "12 months ago" column aren't meaningful anyway —
-        // strip PoP entries from both metrics and additionalMetrics.
-        const popMetricIds = new Set(
-            (metricQuery.additionalMetrics ?? [])
-                .filter(isPeriodOverPeriodAdditionalMetric)
-                .map(getItemId),
-        );
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
-            additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
-                (am) => !isPeriodOverPeriodAdditionalMetric(am),
-            ),
-        };
-
-        const hasMetricFilters =
-            !!totalQuery.filters.metrics &&
-            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
-        const hasTableCalculationFilters =
-            !!totalQuery.filters.tableCalculations &&
-            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
-
-        if (hasMetricFilters || hasTableCalculationFilters) {
-            throw new NotSupportedError(
-                'Totals cannot be correctly calculated with metric filters or table calculation filters',
-            );
-        }
-
-        return totalQuery;
-    }
-
     private async executeMetricQueryAndGetResultsForTotals({
         account,
         projectUuid,
@@ -5967,8 +6015,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache?: boolean;
         userAccessControls?: UserAccessControls;
     }): Promise<Record<string, unknown> | undefined> {
-        const totalMetricQuery =
-            AsyncQueryService.getCalculateTotalMetricQuery(metricQuery);
+        const totalMetricQuery = getGrandTotalMetricQuery(metricQuery);
 
         const { rows } = await this.executeMetricQueryAndGetResultsForTotals({
             account,
