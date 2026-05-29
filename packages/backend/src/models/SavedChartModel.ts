@@ -84,7 +84,7 @@ import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
-import { generateUniqueSlug } from '../utils/SlugUtils';
+import { acquireProjectSlugLock, generateUniqueSlug } from '../utils/SlugUtils';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceModel } from './SpaceModel';
 
@@ -411,6 +411,45 @@ export const createSavedChart = async (
     },
 ): Promise<string> =>
     db.transaction(async (trx) => {
+        if (forceSlug) {
+            // Forced slugs (content-as-code / promotion) skip unique-slug
+            // generation, and there is no DB unique constraint on the slug.
+            // Serialize concurrent creates of the same (project, slug) and
+            // dedupe against a row a racing upsert already created, so we never
+            // insert a duplicate slug (PROD-7883). Resolves the chart's project
+            // through either its space or its parent dashboard's space.
+            await acquireProjectSlugLock(trx, projectUuid, slug);
+            const [existing] = await trx(SavedChartsTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .where(`${SavedChartsTableName}.slug`, slug)
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .select(`${SavedChartsTableName}.saved_query_uuid`);
+            if (existing) {
+                return existing.saved_query_uuid;
+            }
+        }
+
         let chart: InsertChart;
         const baseChart = {
             name,
