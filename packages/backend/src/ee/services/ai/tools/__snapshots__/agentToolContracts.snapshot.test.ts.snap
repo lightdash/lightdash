@@ -4576,10 +4576,15 @@ Response shape (MCP CallToolResult):
     result: {
       status: "running",
       queryUuid: string,
-      nextPollAfterMs: number
+      nextPollAfterMs: number,
+      heartbeatAt: string
     }
   }
   Use get_query_result with this queryUuid to poll until the query is done.
+  Each run_metric_query and get_query_result call can wait up to 50 seconds before returning a running response.
+
+Notes:
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6255,10 +6260,12 @@ Response shape (MCP CallToolResult):
     result: {
       status: "running",
       queryUuid: string,
-      nextPollAfterMs: number
+      nextPollAfterMs: number,
+      heartbeatAt: string
     }
   }
   Use get_query_result with this queryUuid to poll until the query is done.
+  Each run_sql and get_query_result call can wait up to 50 seconds before returning a running response.
 
 When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows over parsing the CSV. Example:
 
@@ -6269,6 +6276,7 @@ When writing code that consumes this tool (e.g. inside a live artifact), prefer 
 Notes:
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
 - Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
 - On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 ",
     "inputSchema": {
