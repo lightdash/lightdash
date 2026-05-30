@@ -1695,7 +1695,34 @@ describe('AsyncQueryService', () => {
                 }),
             ).rejects.toThrow(ForbiddenError);
 
+            // Security regression guard: permission checks must happen before
+            // reading query history.
             expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getRawAsyncQueryResults', () => {
+        it('checks project permission before loading raw query results', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([]);
+
+            service.queryHistoryModel.get = jest.fn();
+
+            await expect(
+                service.getRawAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            // A forbidden caller must not reach either query history lookup or
+            // result-file storage.
+            expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+            expect(
+                service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
         });
     });
 
