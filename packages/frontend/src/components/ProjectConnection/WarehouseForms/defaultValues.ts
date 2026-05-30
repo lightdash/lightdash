@@ -171,6 +171,8 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     numRetries: 5,
     startOfWeek: undefined,
     dataTimezone: undefined,
+    resultReuseEnabled: false,
+    resultReuseMaxAgeInMinutes: 12 * 60,
 };
 
 export const DuckdbMotherduckDefaultValues: CreateDuckdbMotherduckCredentials =

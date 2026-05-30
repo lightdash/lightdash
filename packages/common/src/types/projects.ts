@@ -215,6 +215,8 @@ export type CreateAthenaCredentials = {
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
+    resultReuseEnabled?: boolean;
+    resultReuseMaxAgeInMinutes?: number;
 };
 
 export type AthenaCredentials = Omit<
