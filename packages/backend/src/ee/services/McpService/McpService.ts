@@ -3,6 +3,7 @@ import {
     Account,
     AiResultType,
     ApiKeyAccount,
+    assertUnreachable,
     buildRunSqlDescription,
     CatalogType,
     clearAgentToolDefinition,
@@ -173,9 +174,7 @@ const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
 
 const MCP_QUERY_SYNC_WAIT_MS = 50_000;
-const MCP_QUERY_NEXT_POLL_AFTER_MS = 1000;
-const MCP_QUERY_INITIAL_POLL_DELAY_MS = 500;
-const MCP_QUERY_MAX_POLL_DELAY_MS = 2000;
+const MCP_QUERY_POLL_INTERVAL_MS = 1000;
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -380,25 +379,6 @@ export class McpService extends BaseService {
         return result.result;
     }
 
-    private static sleep(ms: number, signal?: AbortSignal) {
-        if (signal?.aborted) {
-            throw new Error('MCP request was aborted');
-        }
-
-        return new Promise<void>((resolve, reject) => {
-            let timeout: ReturnType<typeof setTimeout>;
-            const onAbort = () => {
-                clearTimeout(timeout);
-                reject(new Error('MCP request was aborted'));
-            };
-            timeout = setTimeout(() => {
-                signal?.removeEventListener('abort', onAbort);
-                resolve();
-            }, ms);
-            signal?.addEventListener('abort', onAbort, { once: true });
-        });
-    }
-
     private static getMcpQueryWaitMs(
         _extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
     ) {
@@ -431,44 +411,8 @@ export class McpService extends BaseService {
             case QueryHistoryStatus.EXPIRED:
                 return 'expired' as const;
             default:
-                return status;
+                return assertUnreachable(status, 'Unknown query status');
         }
-    }
-
-    private static unwrapAsyncResultCell(cell: unknown): unknown {
-        if (cell && typeof cell === 'object' && 'value' in cell) {
-            const inner = (cell as { value: unknown }).value;
-            if (inner && typeof inner === 'object' && 'raw' in inner) {
-                return (inner as { raw: unknown }).raw;
-            }
-            return inner;
-        }
-        return cell;
-    }
-
-    private static unwrapAsyncResultRows(
-        rows: Record<string, unknown>[],
-    ): Record<string, unknown>[] {
-        return rows.map((row) =>
-            Object.fromEntries(
-                Object.entries(row).map(([key, value]) => [
-                    key,
-                    McpService.unwrapAsyncResultCell(value),
-                ]),
-            ),
-        );
-    }
-
-    private static getSqlColumns(
-        rows: Record<string, unknown>[],
-        columns?: Record<string, { reference: string }>,
-    ) {
-        if (rows[0]) {
-            return Object.keys(rows[0]);
-        }
-        return columns
-            ? Object.values(columns).map((column) => column.reference)
-            : [];
     }
 
     private static getRunningQueryResponse(queryUuid: string) {
@@ -485,52 +429,11 @@ export class McpService extends BaseService {
                 result: {
                     status: 'running' as const,
                     queryUuid,
-                    nextPollAfterMs: MCP_QUERY_NEXT_POLL_AFTER_MS,
+                    nextPollAfterMs: MCP_QUERY_POLL_INTERVAL_MS,
                     heartbeatAt,
                 },
             },
         };
-    }
-
-    private async waitForQueryUntilDeadline({
-        account,
-        projectUuid,
-        queryUuid,
-        deadlineMs,
-        signal,
-    }: {
-        account: Account;
-        projectUuid: string;
-        queryUuid: string;
-        deadlineMs: number;
-        signal?: AbortSignal;
-    }) {
-        let delayMs = MCP_QUERY_INITIAL_POLL_DELAY_MS;
-
-        /* eslint-disable no-await-in-loop */
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            const queryHistory =
-                await this.asyncQueryService.getAsyncQueryHistory({
-                    account,
-                    projectUuid,
-                    queryUuid,
-                });
-
-            if (!McpService.isQueryRunningStatus(queryHistory.status)) {
-                return queryHistory;
-            }
-
-            const remainingMs = deadlineMs - Date.now();
-            if (remainingMs <= 0) {
-                return queryHistory;
-            }
-
-            // eslint-disable-next-line no-await-in-loop
-            await McpService.sleep(Math.min(delayMs, remainingMs), signal);
-            delayMs = Math.min(delayMs * 2, MCP_QUERY_MAX_POLL_DELAY_MS);
-        }
-        /* eslint-enable no-await-in-loop */
     }
 
     private async buildCompletedMetricQueryResponse({
@@ -736,10 +639,14 @@ export class McpService extends BaseService {
             );
         }
 
-        const rows = McpService.unwrapAsyncResultRows(
-            result.rows as Record<string, unknown>[],
+        const rows = result.rows.map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
+            ),
         );
-        const columns = McpService.getSqlColumns(rows, result.columns);
+        const columns = Object.values(result.columns).map(
+            (column) => column.reference,
+        );
 
         if (rows.length === 0) {
             const header =
@@ -1650,13 +1557,17 @@ export class McpService extends BaseService {
                             userAttributeOverrides,
                         });
 
-                    const queryHistory = await this.waitForQueryUntilDeadline({
-                        account,
-                        projectUuid,
-                        queryUuid,
-                        deadlineMs,
-                        signal: extra.signal,
-                    });
+                    const queryHistory =
+                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                            {
+                                account,
+                                projectUuid,
+                                queryUuid,
+                                deadlineMs,
+                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                signal: extra.signal,
+                            },
+                        );
 
                     if (McpService.isQueryRunningStatus(queryHistory.status)) {
                         return McpService.getRunningQueryResponse(queryUuid);
@@ -1784,13 +1695,17 @@ export class McpService extends BaseService {
                             context: QueryExecutionContext.MCP_RUN_SQL,
                         });
 
-                    const queryHistory = await this.waitForQueryUntilDeadline({
-                        account,
-                        projectUuid,
-                        queryUuid,
-                        deadlineMs,
-                        signal: extra.signal,
-                    });
+                    const queryHistory =
+                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                            {
+                                account,
+                                projectUuid,
+                                queryUuid,
+                                deadlineMs,
+                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                signal: extra.signal,
+                            },
+                        );
 
                     if (McpService.isQueryRunningStatus(queryHistory.status)) {
                         return McpService.getRunningQueryResponse(queryUuid);
@@ -1870,15 +1785,19 @@ export class McpService extends BaseService {
                     }
 
                     if (McpService.isQueryRunningStatus(queryHistory.status)) {
-                        queryHistory = await this.waitForQueryUntilDeadline({
-                            account,
-                            projectUuid,
-                            queryUuid: args.queryUuid,
-                            deadlineMs:
-                                Date.now() +
-                                McpService.getMcpQueryWaitMs(extra),
-                            signal: extra.signal,
-                        });
+                        queryHistory =
+                            await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: args.queryUuid,
+                                    deadlineMs:
+                                        Date.now() +
+                                        McpService.getMcpQueryWaitMs(extra),
+                                    pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                    signal: extra.signal,
+                                },
+                            );
 
                         if (
                             McpService.isQueryRunningStatus(queryHistory.status)

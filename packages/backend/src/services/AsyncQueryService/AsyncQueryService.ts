@@ -29,7 +29,6 @@ import {
     ExploreCompiler,
     ExploreType,
     FieldType,
-    flattenFilterGroup,
     ForbiddenError,
     formatItemValue,
     formatRawRows,
@@ -57,7 +56,6 @@ import {
     isField,
     isJwtUser,
     isMetric,
-    isPeriodOverPeriodAdditionalMetric,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -267,6 +265,62 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 };
 
 export class AsyncQueryService extends ProjectService {
+    private static sleep(ms: number, signal?: AbortSignal) {
+        if (signal?.aborted) {
+            throw new Error('Query polling request was aborted');
+        }
+
+        return new Promise<void>((resolve, reject) => {
+            let timeout: ReturnType<typeof setTimeout>;
+            const onAbort = () => {
+                clearTimeout(timeout);
+                reject(new Error('Query polling request was aborted'));
+            };
+
+            timeout = setTimeout(() => {
+                signal?.removeEventListener('abort', onAbort);
+                resolve();
+            }, ms);
+            signal?.addEventListener('abort', onAbort, { once: true });
+        });
+    }
+
+    private async *streamQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): AsyncGenerator<QueryHistory> {
+        const intervalMs = Math.max(1, pollIntervalMs);
+
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop
+            yield await this.getAsyncQueryHistory({
+                account,
+                projectUuid,
+                queryUuid,
+            });
+
+            const remainingMs = deadlineMs - Date.now();
+            if (remainingMs <= 0) return;
+
+            // eslint-disable-next-line no-await-in-loop
+            await AsyncQueryService.sleep(
+                Math.min(intervalMs, remainingMs),
+                signal,
+            );
+        }
+    }
+
     queryHistoryModel: QueryHistoryModel;
 
     downloadAuditModel: DownloadAuditModel;
@@ -713,22 +767,24 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
 
-        const auditedAbility = this.createAuditedAbility(account);
         const isForbidden =
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            ) &&
+            !canViewProject &&
             auditedAbility.cannot(
                 'view',
                 subject('Explore', {
@@ -976,12 +1032,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -995,6 +1045,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const { status, resultsFileName } = queryHistory;
 
@@ -1145,12 +1201,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -1164,6 +1214,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -5680,6 +5736,58 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async pollQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): Promise<QueryHistory> {
+        let lastQueryHistory: QueryHistory | undefined;
+
+        for await (const queryHistory of this.streamQueryHistoryUntilDeadline({
+            account,
+            projectUuid,
+            queryUuid,
+            deadlineMs,
+            pollIntervalMs,
+            signal,
+        })) {
+            lastQueryHistory = queryHistory;
+
+            switch (queryHistory.status) {
+                case QueryHistoryStatus.PENDING:
+                case QueryHistoryStatus.QUEUED:
+                case QueryHistoryStatus.EXECUTING:
+                    break;
+                case QueryHistoryStatus.CANCELLED:
+                case QueryHistoryStatus.ERROR:
+                case QueryHistoryStatus.EXPIRED:
+                case QueryHistoryStatus.READY:
+                    return queryHistory;
+                default:
+                    return assertUnreachable(
+                        queryHistory.status,
+                        'Unknown query status',
+                    );
+            }
+        }
+
+        if (!lastQueryHistory) {
+            throw new UnexpectedServerError('Query polling did not run');
+        }
+
+        return lastQueryHistory;
+    }
+
     /**
      * Execute metric query and wait for all results.
      * Returns raw rows from warehouse
@@ -5822,49 +5930,6 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone: queryHistory.metricQuery.timezone ?? null,
         };
-    }
-
-    private static getCalculateTotalMetricQuery(
-        metricQuery: MetricQuery,
-    ): MetricQuery {
-        // PoP additional metrics require their time dimension to be selected
-        // (they join the shifted CTE on that field). The totals query strips
-        // all dimensions to collapse to a single row, so any PoP entries
-        // would fail the "time dim must be selected" check in MetricQueryBuilder.
-        // Totals on a "12 months ago" column aren't meaningful anyway —
-        // strip PoP entries from both metrics and additionalMetrics.
-        const popMetricIds = new Set(
-            (metricQuery.additionalMetrics ?? [])
-                .filter(isPeriodOverPeriodAdditionalMetric)
-                .map(getItemId),
-        );
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
-            additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
-                (am) => !isPeriodOverPeriodAdditionalMetric(am),
-            ),
-        };
-
-        const hasMetricFilters =
-            !!totalQuery.filters.metrics &&
-            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
-        const hasTableCalculationFilters =
-            !!totalQuery.filters.tableCalculations &&
-            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
-
-        if (hasMetricFilters || hasTableCalculationFilters) {
-            throw new NotSupportedError(
-                'Totals cannot be correctly calculated with metric filters or table calculation filters',
-            );
-        }
-
-        return totalQuery;
     }
 
     private async executeMetricQueryAndGetResultsForTotals({

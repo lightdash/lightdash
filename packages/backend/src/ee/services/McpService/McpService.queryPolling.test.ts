@@ -77,6 +77,7 @@ const makeMcpService = () => {
         getAsyncQueryHistory: jest.fn(),
         getAsyncQueryResults: jest.fn(),
         getRawAsyncQueryResults: jest.fn(),
+        pollQueryHistoryUntilDeadline: jest.fn(),
     };
 
     const mcpContextModel = {
@@ -151,7 +152,7 @@ describe('MCP async query polling', () => {
     it('returns running with heartbeatAt from run_sql', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.executeAsyncSqlQuery.mockResolvedValue({ queryUuid });
-        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
             makeQueryHistory(QueryHistoryStatus.QUEUED),
         );
 
@@ -177,7 +178,7 @@ describe('MCP async query polling', () => {
         asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
             queryUuid,
         });
-        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
             makeQueryHistory(
                 QueryHistoryStatus.QUEUED,
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
@@ -230,9 +231,12 @@ describe('MCP async query polling', () => {
 
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
-        asyncQueryService.getAsyncQueryHistory
-            .mockResolvedValueOnce(makeQueryHistory(QueryHistoryStatus.QUEUED))
-            .mockResolvedValueOnce(makeQueryHistory(QueryHistoryStatus.QUEUED));
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
+            makeQueryHistory(QueryHistoryStatus.QUEUED),
+        );
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(QueryHistoryStatus.QUEUED),
+        );
 
         const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
             { queryUuid },
@@ -257,12 +261,15 @@ describe('MCP async query polling', () => {
 
     it('returns final SQL rows when get_query_result sees readiness during its wait', async () => {
         const { asyncQueryService } = makeMcpService();
-        asyncQueryService.getAsyncQueryHistory
-            .mockResolvedValueOnce(makeQueryHistory(QueryHistoryStatus.QUEUED))
-            .mockResolvedValueOnce(makeQueryHistory(QueryHistoryStatus.READY));
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
+            makeQueryHistory(QueryHistoryStatus.QUEUED),
+        );
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(QueryHistoryStatus.READY),
+        );
         asyncQueryService.getAsyncQueryResults.mockResolvedValue({
             status: QueryHistoryStatus.READY,
-            rows: [{ one: 1 }],
+            rows: [{ one: { value: { raw: 1, formatted: '1' } } }],
             columns: { one: { reference: 'one' } },
         });
 
@@ -293,19 +300,18 @@ describe('MCP async query polling', () => {
 
     it('returns final metric rows when get_query_result sees readiness during its wait', async () => {
         const { asyncQueryService } = makeMcpService();
-        asyncQueryService.getAsyncQueryHistory
-            .mockResolvedValueOnce(
-                makeQueryHistory(
-                    QueryHistoryStatus.QUEUED,
-                    QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-                ),
-            )
-            .mockResolvedValueOnce(
-                makeQueryHistory(
-                    QueryHistoryStatus.READY,
-                    QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-                ),
-            );
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
+            makeQueryHistory(
+                QueryHistoryStatus.QUEUED,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
         asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
             rows: [{ orders_count: 1 }],
             fields: {},
@@ -354,6 +360,9 @@ describe('MCP async query polling', () => {
             },
         });
         expect(asyncQueryService.getAsyncQueryHistory).toHaveBeenCalledTimes(1);
+        expect(
+            asyncQueryService.pollQueryHistoryUntilDeadline,
+        ).not.toHaveBeenCalled();
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
     });
 });

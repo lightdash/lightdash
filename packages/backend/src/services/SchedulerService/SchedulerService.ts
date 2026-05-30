@@ -21,7 +21,6 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
-    JobPollTimeoutError,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -41,7 +40,6 @@ import {
     SchedulerTaskName,
     SchedulerWithLogs,
     SessionUser,
-    sleep,
     UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
@@ -1340,65 +1338,6 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
         return { status: job.status, details: job.details };
-    }
-
-    /**
-     * Yields the job's status on a backoff cadence, stopping when the deadline
-     * is reached. Consumers iterate with `for await` and break out when they
-     * see a status they care about; the generator handles the sleep/backoff
-     * plumbing.
-     */
-    async *streamJobStatus(
-        account: Account,
-        jobId: string,
-        {
-            initialBackoffMs = 500,
-            maxBackoffMs = 2000,
-            timeoutMs = 5 * 60 * 1000,
-        }: {
-            initialBackoffMs?: number;
-            maxBackoffMs?: number;
-            timeoutMs?: number;
-        } = {},
-    ): AsyncGenerator<Pick<SchedulerLogDb, 'status' | 'details'>> {
-        const deadline = Date.now() + timeoutMs;
-        let backoffMs = initialBackoffMs;
-        while (Date.now() < deadline) {
-            // eslint-disable-next-line no-await-in-loop
-            yield await this.getJobStatus(account, jobId);
-            // eslint-disable-next-line no-await-in-loop
-            await sleep(backoffMs);
-            backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
-        }
-    }
-
-    /**
-     * Polls a scheduler job until it reaches COMPLETED or ERROR. Returns the
-     * final job state; throws if the timeout elapses first. Caller decides
-     * how to interpret COMPLETED vs ERROR.
-     */
-    async pollJobToCompletion(
-        account: Account,
-        jobId: string,
-        options: {
-            initialBackoffMs?: number;
-            maxBackoffMs?: number;
-            timeoutMs?: number;
-        } = {},
-    ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
-        const { timeoutMs = 5 * 60 * 1000 } = options;
-        for await (const job of this.streamJobStatus(account, jobId, {
-            ...options,
-            timeoutMs,
-        })) {
-            if (
-                job.status === SchedulerJobStatus.COMPLETED ||
-                job.status === SchedulerJobStatus.ERROR
-            ) {
-                return job;
-            }
-        }
-        throw new JobPollTimeoutError(jobId, timeoutMs);
     }
 
     async setJobStatus(

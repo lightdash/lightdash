@@ -1701,6 +1701,149 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('pollQueryHistoryUntilDeadline', () => {
+        const createMockQueryHistory = (
+            status: QueryHistoryStatus,
+        ): QueryHistory => ({
+            createdAt: new Date(),
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            createdByUserUuid: sessionAccount.user.id,
+            createdBy: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            queryUuid: 'test-query-uuid',
+            projectUuid,
+            status,
+            error: null,
+            erroredAt: null,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.MCP_RUN_SQL,
+            fields: validExplore.tables.a.dimensions,
+            compiledSql: 'SELECT * FROM test.table',
+            warehouseQueryId: 'test-warehouse-query-id',
+            warehouseQueryMetadata: null,
+            requestParameters: {} as ExecuteAsyncQueryRequestParams,
+            totalRowCount: null,
+            warehouseExecutionTimeMs: null,
+            defaultPageSize: 10,
+            cacheKey: 'test-query-key',
+            pivotConfiguration: null,
+            pivotTotalColumnCount: null,
+            pivotValuesColumns: null,
+            resultsFileName: null,
+            resultsCreatedAt: null,
+            resultsUpdatedAt: null,
+            resultsExpiresAt: null,
+            columns: null,
+            originalColumns: null,
+            preAggregateCompiledSql: null,
+            processingStartedAt: null,
+        });
+
+        const getPollArgs = (
+            overrides: Partial<{
+                deadlineMs: number;
+                pollIntervalMs: number;
+                signal: AbortSignal;
+            }> = {},
+        ) => ({
+            account: sessionAccount,
+            projectUuid,
+            queryUuid: 'test-query-uuid',
+            deadlineMs: Date.now() + 100,
+            pollIntervalMs: 1,
+            ...overrides,
+        });
+
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('returns the ready query history when the query completes before the deadline', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const queuedQueryHistory = createMockQueryHistory(
+                QueryHistoryStatus.QUEUED,
+            );
+            const readyQueryHistory = createMockQueryHistory(
+                QueryHistoryStatus.READY,
+            );
+            const getAsyncQueryHistory = jest
+                .spyOn(service, 'getAsyncQueryHistory')
+                .mockResolvedValueOnce(queuedQueryHistory)
+                .mockResolvedValueOnce(readyQueryHistory);
+
+            await expect(
+                service.pollQueryHistoryUntilDeadline(getPollArgs()),
+            ).resolves.toBe(readyQueryHistory);
+
+            expect(getAsyncQueryHistory).toHaveBeenCalledTimes(2);
+        });
+
+        it('returns the latest running query history when the deadline is reached', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const queuedQueryHistory = createMockQueryHistory(
+                QueryHistoryStatus.QUEUED,
+            );
+            const getAsyncQueryHistory = jest
+                .spyOn(service, 'getAsyncQueryHistory')
+                .mockResolvedValueOnce(queuedQueryHistory);
+
+            await expect(
+                service.pollQueryHistoryUntilDeadline(
+                    getPollArgs({ deadlineMs: Date.now() - 1 }),
+                ),
+            ).resolves.toBe(queuedQueryHistory);
+
+            expect(getAsyncQueryHistory).toHaveBeenCalledTimes(1);
+        });
+
+        it.each([
+            QueryHistoryStatus.CANCELLED,
+            QueryHistoryStatus.ERROR,
+            QueryHistoryStatus.EXPIRED,
+        ])(
+            'returns terminal %s query history without waiting',
+            async (status) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const terminalQueryHistory = createMockQueryHistory(status);
+                const getAsyncQueryHistory = jest
+                    .spyOn(service, 'getAsyncQueryHistory')
+                    .mockResolvedValueOnce(terminalQueryHistory);
+
+                await expect(
+                    service.pollQueryHistoryUntilDeadline(getPollArgs()),
+                ).resolves.toBe(terminalQueryHistory);
+
+                expect(getAsyncQueryHistory).toHaveBeenCalledTimes(1);
+            },
+        );
+
+        it('stops polling when the request is aborted', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const abortController = new AbortController();
+            const queuedQueryHistory = createMockQueryHistory(
+                QueryHistoryStatus.QUEUED,
+            );
+            const getAsyncQueryHistory = jest
+                .spyOn(service, 'getAsyncQueryHistory')
+                .mockResolvedValue(queuedQueryHistory);
+
+            const pollPromise = service.pollQueryHistoryUntilDeadline(
+                getPollArgs({
+                    deadlineMs: Date.now() + 10_000,
+                    pollIntervalMs: 10_000,
+                    signal: abortController.signal,
+                }),
+            );
+            abortController.abort();
+
+            await expect(pollPromise).rejects.toThrow(
+                'Query polling request was aborted',
+            );
+            expect(getAsyncQueryHistory).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('getRawAsyncQueryResults', () => {
         it('checks project permission before loading raw query results', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
