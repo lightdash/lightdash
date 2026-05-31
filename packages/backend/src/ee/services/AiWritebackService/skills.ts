@@ -65,15 +65,19 @@ export type LoadedSkills = {
  */
 export const loadWarehouseSkills = async (
     skillKey: WarehouseSkillKey | null,
+    readFileFn: (
+        filePath: string,
+        encoding: BufferEncoding,
+    ) => Promise<string> = readFile,
 ): Promise<LoadedSkills> => {
-    const shared = await readFile(
+    const shared = await readFileFn(
         path.join(SKILLS_SOURCE_DIR, SHARED_SKILL_FILE),
         'utf8',
     );
     const warehouse =
         skillKey === null
             ? null
-            : await readFile(
+            : await readFileFn(
                   path.join(SKILLS_SOURCE_DIR, `${skillKey}.md`),
                   'utf8',
               );
