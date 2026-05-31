@@ -4,6 +4,14 @@ export const CWD = '/home/user/repo';
 export const PROMPT_PATH = '/tmp/prompt.txt';
 export const SYSTEM_PROMPT_PATH = '/tmp/system_prompt.txt';
 
+// Warehouse-specific guidance the host pushes into the sandbox before the agent
+// runs. Kept OUTSIDE the cloned repo (CWD) so `git add --all` can't sweep them
+// into the PR. The agent reads them on demand — the system prompt points it
+// here before any `type:`/SQL edit that changes a column's emitted type.
+export const SKILLS_DIR = '/home/user/.lightdash-skills';
+export const WAREHOUSE_SKILL_PATH = `${SKILLS_DIR}/warehouse.md`;
+export const SHARED_SKILL_PATH = `${SKILLS_DIR}/shared.md`;
+
 // Files the agent writes for the host to open a PR from. Kept as a fallback
 // — the primary channel is now structured output blocks in the agent's stdout
 // (see PR_TITLE_OPEN/CLOSE etc.).
@@ -84,6 +92,10 @@ export const ALLOWED_TOOLS = [
     `Read(/${TMP_PROFILES_DIR}/**)`,
     `Write(/${TMP_PROFILES_DIR}/**)`,
     `Edit(/${TMP_PROFILES_DIR}/**)`,
+    // Read-only access to the warehouse skill files. Like /tmp below, the
+    // skills dir also has to be passed via `--add-dir` (see runAgentInSandbox)
+    // or Claude Code confines reads to the cwd workspace and refuses these.
+    `Read(/${SKILLS_DIR}/**)`,
     // PR metadata files live directly in /tmp. This permission alone is not
     // enough: Claude Code also confines Write/Edit to the cwd workspace, so
     // /tmp must additionally be passed via `--add-dir /tmp` (see
