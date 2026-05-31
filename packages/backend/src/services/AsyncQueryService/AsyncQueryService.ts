@@ -391,6 +391,9 @@ export class AsyncQueryService extends ProjectService {
                     projectUuid: savedChart.project.projectUuid,
                     inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: ctx.access,
+                    metadata: {
+                        spaceUuid: savedChart.space.uuid,
+                    },
                 }),
             )
         ) {
@@ -4737,6 +4740,9 @@ export class AsyncQueryService extends ProjectService {
                 subject('UnderlyingData', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        underlyingDataSourceQueryUuid,
+                    },
                 }),
             )
         ) {
@@ -6406,6 +6412,9 @@ export class AsyncQueryService extends ProjectService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        exploreName: filters?.exploreName,
+                    },
                 }),
             )
         ) {
@@ -6434,7 +6443,17 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

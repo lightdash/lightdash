@@ -660,6 +660,11 @@ export class ProjectService extends BaseService {
                                 upstreamProjectUuid:
                                     upstreamProject.projectUuid,
                                 type: ProjectType.PREVIEW,
+                                metadata: {
+                                    upstreamProjectUuid:
+                                        upstreamProject.projectUuid,
+                                    upstreamProjectName: upstreamProject.name,
+                                },
                             }),
                         )
                     ) {
@@ -2559,6 +2564,10 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        createdByUserUuid: project.createdByUserUuid,
+                        type: project.type,
+                    },
                 }),
             )
         ) {
@@ -3099,6 +3108,10 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     projectUuid: project.projectUuid,
                     createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        createdByUserUuid: project.createdByUserUuid,
+                        type: project.type,
+                    },
                 }),
             )
         ) {
@@ -3693,7 +3706,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3771,7 +3788,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3881,7 +3902,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('UnderlyingData', { organizationUuid, projectUuid }),
+                subject('UnderlyingData', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3961,6 +3986,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid, versionUuid },
                 }),
             )
         ) {
@@ -4060,6 +4086,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid, dashboardUuid },
                 }),
             )
         ) {
@@ -4570,6 +4597,7 @@ export class ProjectService extends BaseService {
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid,
+                                metadata: { chartUuid, exploreName },
                             }),
                         )
                     ) {
@@ -5094,7 +5122,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { fileId },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5526,6 +5558,7 @@ export class ProjectService extends BaseService {
                     subject('Project', {
                         organizationUuid,
                         projectUuid: job.projectUuid,
+                        metadata: { jobUuid },
                     }),
                 )
             ) {
@@ -6089,6 +6122,7 @@ export class ProjectService extends BaseService {
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
+                            metadata: { exploreNames },
                         }),
                     ) &&
                     auditedAbility.cannot(
@@ -6097,6 +6131,7 @@ export class ProjectService extends BaseService {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                             exploreNames,
+                            metadata: { exploreNames },
                         }),
                     );
 
@@ -6344,7 +6379,16 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        tableName,
+                        schemaName,
+                        databaseName,
+                        queryContext,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6809,6 +6853,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid },
                 }),
             )
         ) {
@@ -6863,6 +6908,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { role: data.role },
                 }),
             )
         ) {
@@ -6904,6 +6950,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid, role: data.role },
                 }),
             )
         ) {
@@ -6977,7 +7024,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { colorPaletteUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7016,7 +7067,15 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        spaceUuid: context.spaceUuid,
+                        dashboardUuid: context.dashboardUuid,
+                        chartUuid: context.chartUuid,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7044,6 +7103,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid },
                 }),
             )
         ) {
@@ -7150,7 +7210,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7732,7 +7796,15 @@ export class ProjectService extends BaseService {
         }
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('Project', project))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    ...project,
+                    metadata: { userWarehouseCredentialsUuid },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
@@ -7799,7 +7871,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'create',
-                subject('VirtualView', { organizationUuid, projectUuid }),
+                subject('VirtualView', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { name: payload.name },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -8107,6 +8183,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
+                    metadata: { name },
                 }),
             )
         ) {
@@ -8153,6 +8230,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    metadata: { tagUuid },
                 }),
             )
         ) {
@@ -8184,6 +8262,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    metadata: { tagUuid },
                 }),
             )
         ) {
@@ -8253,6 +8332,7 @@ export class ProjectService extends BaseService {
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    metadata: { createdByUserUuid },
                 }),
             )
         ) {
@@ -8285,6 +8365,7 @@ export class ProjectService extends BaseService {
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    metadata: { createdByUserUuid },
                 }),
             )
         ) {
@@ -8320,6 +8401,7 @@ export class ProjectService extends BaseService {
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    metadata: { createdByUserUuid },
                 }),
             )
         ) {

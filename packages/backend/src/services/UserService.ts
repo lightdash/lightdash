@@ -486,6 +486,7 @@ export class UserService extends BaseService {
                     'delete',
                     subject('OrganizationMemberProfile', {
                         organizationUuid: userToDelete.organizationUuid,
+                        metadata: { userUuid: userUuidToDelete },
                     }),
                 )
             ) {
@@ -1634,6 +1635,9 @@ export class UserService extends BaseService {
                 'view',
                 subject('PersonalAccessToken', {
                     organizationUuid: user.organizationUuid!,
+                    metadata: {
+                        personalAccessTokenUuid: personalAccessToken.uuid,
+                    },
                 }),
             )
         ) {
@@ -2953,6 +2957,7 @@ export class UserService extends BaseService {
                 subject('User', {
                     organizationUuid: targetUser.organizationUuid!,
                     isActive: targetUser.isActive,
+                    metadata: { targetUserUuid },
                 }),
             )
         ) {

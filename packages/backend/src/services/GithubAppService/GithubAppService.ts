@@ -243,6 +243,7 @@ export class GithubAppService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { installationId },
                 }),
             )
         ) {
@@ -335,6 +336,7 @@ export class GithubAppService extends BaseService {
                 'manage',
                 subject('GitIntegration', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { repoName: name },
                 }),
             )
         ) {

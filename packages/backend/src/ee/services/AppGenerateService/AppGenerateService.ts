@@ -4611,6 +4611,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 subject('DataApp', {
                     organizationUuid: app.organization_uuid,
                     projectUuid: app.project_uuid,
+                    metadata: { appUuid },
                 }),
             )
         ) {

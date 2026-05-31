@@ -722,6 +722,10 @@ export class DashboardService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        spaceUuid: space.uuid,
+                        dashboardName: dashboard.name,
+                    },
                 }),
             )
         ) {
@@ -1644,6 +1648,10 @@ export class DashboardService
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                     userUuid: scheduler.createdBy,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        schedulerUuid,
+                    },
                 }),
             )
         ) {
@@ -1771,6 +1779,9 @@ export class DashboardService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                    },
                 }),
             )
         ) {

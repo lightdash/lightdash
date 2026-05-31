@@ -279,6 +279,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { spaceUuid: sqlChart.spaceUuid },
                 }),
             )
         ) {

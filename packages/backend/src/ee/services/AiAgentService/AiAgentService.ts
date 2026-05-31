@@ -932,6 +932,10 @@ export class AiAgentService extends BaseService {
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        agentUuid,
+                        threadUuid,
+                    },
                 }),
             );
         const canManageAgent = auditedAbility.can(
@@ -1834,6 +1838,11 @@ export class AiAgentService extends BaseService {
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        threadUuid,
+                        toolCallId,
+                    },
                 }),
             )
         ) {
@@ -5925,6 +5934,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     subject('SqlRunner', {
                         organizationUuid: user.organizationUuid,
                         projectUuid: prompt.projectUuid,
+                        metadata: {
+                            promptUuid: prompt.promptUuid,
+                            threadUuid: prompt.threadUuid,
+                            agentUuid: prompt.agentUuid,
+                        },
                     }),
                 )
             ) {
