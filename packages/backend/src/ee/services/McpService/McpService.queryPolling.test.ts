@@ -161,6 +161,13 @@ describe('MCP async query polling', () => {
             extra,
         );
 
+        expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sql: 'select 1',
+                limit: 10,
+                context: QueryExecutionContext.MCP_RUN_SQL,
+            }),
+        );
         expect(result).toMatchObject({
             structuredContent: {
                 result: {
@@ -323,6 +330,12 @@ describe('MCP async query polling', () => {
         );
 
         expect(result).toMatchObject({
+            content: [
+                {
+                    type: 'text',
+                    text: 'orders_count\n1\n',
+                },
+            ],
             structuredContent: {
                 result: {
                     status: 'done',

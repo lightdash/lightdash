@@ -29,6 +29,8 @@ import {
     listAgentsToolDefinition,
     listExploresToolDefinition,
     listVerifiedContentToolDefinition,
+    MCP_QUERY_POLL_INTERVAL_MS,
+    MCP_QUERY_SYNC_WAIT_MS,
     mcpListProjectsToolDefinition,
     MetricQuery,
     MissingConfigError,
@@ -101,7 +103,6 @@ import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -121,7 +122,6 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
-import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
@@ -172,9 +172,6 @@ const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
-
-const MCP_QUERY_SYNC_WAIT_MS = 50_000;
-const MCP_QUERY_POLL_INTERVAL_MS = 1000;
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -456,7 +453,7 @@ export class McpService extends BaseService {
                 content: [
                     {
                         type: 'text' as const,
-                        text: NO_RESULTS_RETRY_PROMPT,
+                        text: 'Query returned 0 rows.',
                     },
                 ],
                 structuredContent: {
@@ -543,7 +540,7 @@ export class McpService extends BaseService {
         const content = [
             {
                 type: 'text' as const,
-                text: serializeData(csv, 'csv'),
+                text: csv,
             },
         ];
         if (scopeInfo) {
@@ -594,10 +591,7 @@ export class McpService extends BaseService {
             content: [
                 {
                     type: 'text' as const,
-                    text:
-                        rows.length === 0
-                            ? 'Query returned 0 rows.'
-                            : serializeData(csv, 'csv'),
+                    text: rows.length === 0 ? 'Query returned 0 rows.' : csv,
                 },
             ],
             structuredContent: {

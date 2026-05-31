@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
-    createMcpStructuredOutputSchema,
-    mcpRunningQueryResultSchema,
-    mcpSqlQueryCompletedResultSchema,
-} from './toolQueryResultSchemas';
+    buildMcpQueryRunResponseDescription,
+    MCP_QUERY_COMMON_NOTES,
+} from './toolMcpQueryResultDescription';
 
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
@@ -26,38 +25,29 @@ Parameters:
 - sql: The SQL query to execute. Must be a valid SELECT statement.
 - limit: Maximum number of rows to return (default ${defaultLimit}, max ${maxLimit}).
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
-- If the query finishes quickly, structuredContent: {
-    result: {
+${buildMcpQueryRunResponseDescription({
+    contentDescription:
+        'header row + data rows, comma-separated. Empty results return prose text like "Query returned 0 rows.".',
+    completedResultShape: `    result: {
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
       columns:  string[],                        // column names in order
       rowCount: number                           // total rows returned
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done.
-  Each run_sql and get_query_result call can wait up to 50 seconds before returning a running response.
+    }`,
+})}
 
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows over parsing the CSV. Example:
+When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows when available. Example:
 
   const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.result.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.result.columns;  // ['status', 'n', 'total_amount']
+  const rows    = result.structuredContent.result.rows;     // [{ order_id: 94, total_amount: 2397 }, ...]
+  const columns = result.structuredContent.result.columns;  // ['order_id', 'total_amount']
 
 Notes:
+${MCP_QUERY_COMMON_NOTES}
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
 - Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
-- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
-- On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
+- Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
+- On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 `;
 
 type CreateToolRunSqlArgsSchemaOptions = {
@@ -96,13 +86,6 @@ export const toolRunSqlOutputSchema = z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
     }),
 });
-
-export const mcpRunSqlStructuredOutputSchema = createMcpStructuredOutputSchema(
-    z.discriminatedUnion('status', [
-        mcpSqlQueryCompletedResultSchema,
-        mcpRunningQueryResultSchema,
-    ]),
-);
 
 export type ToolRunSqlArgs = z.infer<typeof toolRunSqlArgsSchema>;
 export type ToolRunSqlOutput = z.infer<typeof toolRunSqlOutputSchema>;

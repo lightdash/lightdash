@@ -385,8 +385,9 @@ Configuration Tips:
 - For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
 
 Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
-- If the query finishes quickly, structuredContent: {
+- content: [{ type: "text", text: "<CSV string>" }] — bare CSV text for human/LLM display and as a fallback. CSV headers are display labels, not stable field IDs.
+- Direct MCP clients that support structured tool results also receive structuredContent.
+- If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
       rows: Array<Record<string, unknown>>,
@@ -403,11 +404,12 @@ Response shape (MCP CallToolResult):
       heartbeatAt: string
     }
   }
-  Use get_query_result with this queryUuid to poll until the query is done.
-  Each run_metric_query and get_query_result call can wait up to 50 seconds before returning a running response.
+  Use get_query_result with this queryUuid to poll until the query is done. A running response includes heartbeatAt, an ISO timestamp for the most recent Lightdash check that confirmed the query was still running.
 
 Notes:
-- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
+- Client support note: some MCP clients expose structuredContent and some connector-style clients expose only content text plus isError. Prefer structuredContent.result when present; otherwise parse the content text fallback and use isError as the success/failure signal.
+- Timing and timeouts: each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side before returning a running response. If unfinished, call get_query_result again with the queryUuid after nextPollAfterMs. Even simple accepted queries can require at least one poll because queue/warehouse startup latency can exceed the first wait window. The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout. If the client or transport times out while waiting for a response, retry polling with the same queryUuid instead of treating it as warehouse query failure.
+- Error handling: schema/input validation errors fail before a query starts and should be fixed rather than retried. Application errors such as unknown queryUuid/explore and warehouse execution errors such as SQL syntax failures are terminal until the request is corrected. Transport/client timeouts are retryable.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6865,8 +6867,9 @@ Parameters:
 - limit: Maximum number of rows to return (default 500, max 500).
 
 Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Provided for human/LLM display and as a fallback.
-- If the query finishes quickly, structuredContent: {
+- content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Empty results return prose text like "Query returned 0 rows.".
+- Direct MCP clients that support structured tool results also receive structuredContent.
+- If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
@@ -6882,20 +6885,22 @@ Response shape (MCP CallToolResult):
       heartbeatAt: string
     }
   }
-  Use get_query_result with this queryUuid to poll until the query is done.
-  Each run_sql and get_query_result call can wait up to 50 seconds before returning a running response.
+  Use get_query_result with this queryUuid to poll until the query is done. A running response includes heartbeatAt, an ISO timestamp for the most recent Lightdash check that confirmed the query was still running.
 
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows over parsing the CSV. Example:
+When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows when available. Example:
 
   const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.result.rows;     // [{ status: 'completed', n: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.result.columns;  // ['status', 'n', 'total_amount']
+  const rows    = result.structuredContent.result.rows;     // [{ order_id: 94, total_amount: 2397 }, ...]
+  const columns = result.structuredContent.result.columns;  // ['order_id', 'total_amount']
 
 Notes:
+- Client support note: some MCP clients expose structuredContent and some connector-style clients expose only content text plus isError. Prefer structuredContent.result when present; otherwise parse the content text fallback and use isError as the success/failure signal.
+- Timing and timeouts: each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side before returning a running response. If unfinished, call get_query_result again with the queryUuid after nextPollAfterMs. Even simple accepted queries can require at least one poll because queue/warehouse startup latency can exceed the first wait window. The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout. If the client or transport times out while waiting for a response, retry polling with the same queryUuid instead of treating it as warehouse query failure.
+- Error handling: schema/input validation errors fail before a query starts and should be fixed rather than retried. Application errors such as unknown queryUuid/explore and warehouse execution errors such as SQL syntax failures are terminal until the request is corrected. Transport/client timeouts are retryable.
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
 - Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
-- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
-- On error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
+- Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
+- On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7009,20 +7014,22 @@ Notes:
 Purpose:
 Poll for the result of a long-running MCP query started by run_sql or run_metric_query.
 
-Use this tool when run_sql or run_metric_query returns structuredContent.result.status = "running".
-This tool waits up to 50 seconds for the query to complete before returning another running response.
+Use this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
+This tool waits for the query to complete before returning another running response.
 
 Parameters:
 - queryUuid: The async query UUID returned by run_sql or run_metric_query.
 
 Response shape (MCP CallToolResult):
-- Pending result: structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt means Lightdash checked recently and the query is still running.
+- Pending result: structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. A running response includes heartbeatAt, an ISO timestamp for the most recent Lightdash check that confirmed the query was still running.
 - Completed SQL result: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount }.
-- Completed metric query result: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields }.
+- Completed metric query result: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields }.
 - Failed/cancelled/expired result: structuredContent.result contains { status, queryUuid, error }.
 
 Notes:
-- The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout.
+- Client support note: some MCP clients expose structuredContent and some connector-style clients expose only content text plus isError. Prefer structuredContent.result when present; otherwise parse the content text fallback and use isError as the success/failure signal.
+- Timing and timeouts: each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side before returning a running response. If unfinished, call get_query_result again with the queryUuid after nextPollAfterMs. Even simple accepted queries can require at least one poll because queue/warehouse startup latency can exceed the first wait window. The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout. If the client or transport times out while waiting for a response, retry polling with the same queryUuid instead of treating it as warehouse query failure.
+- Error handling: schema/input validation errors fail before a query starts and should be fixed rather than retried. Application errors such as unknown queryUuid/explore and warehouse execution errors such as SQL syntax failures are terminal until the request is corrected. Transport/client timeouts are retryable.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",

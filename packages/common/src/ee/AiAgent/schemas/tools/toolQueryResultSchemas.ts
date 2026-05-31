@@ -88,3 +88,32 @@ export const createMcpStructuredOutputSchema = <TResult extends z.ZodTypeAny>(
     z.object({
         result,
     });
+
+export const createMcpAsyncQueryRunStructuredOutputSchema = <
+    TCompletedResult extends z.ZodTypeAny,
+>(
+    completedResult: TCompletedResult,
+) =>
+    createMcpStructuredOutputSchema(
+        z.union([completedResult, mcpRunningQueryResultSchema]),
+    );
+
+export const mcpRunSqlStructuredOutputSchema =
+    createMcpAsyncQueryRunStructuredOutputSchema(
+        mcpSqlQueryCompletedResultSchema,
+    );
+
+export const mcpRunMetricQueryStructuredOutputSchema =
+    createMcpAsyncQueryRunStructuredOutputSchema(
+        mcpMetricQueryCompletedResultSchema,
+    );
+
+export const mcpGetQueryResultStructuredOutputSchema =
+    createMcpStructuredOutputSchema(
+        z.union([
+            mcpRunningQueryResultSchema,
+            mcpQueryResultDoneSqlResultSchema,
+            mcpQueryResultDoneMetricQueryResultSchema,
+            mcpQueryResultTerminalResultSchema,
+        ]),
+    );

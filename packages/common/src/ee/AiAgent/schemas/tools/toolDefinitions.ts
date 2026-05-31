@@ -90,7 +90,6 @@ import {
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
-    mcpGetQueryResultStructuredOutputSchema,
     TOOL_GET_QUERY_RESULT_DESCRIPTION,
     toolGetQueryResultArgsSchema,
 } from './toolGetQueryResultArgs';
@@ -135,6 +134,11 @@ import {
     toolProposeWritebackOutputSchema,
 } from './toolProposeWritebackArgs';
 import {
+    mcpGetQueryResultStructuredOutputSchema,
+    mcpRunMetricQueryStructuredOutputSchema,
+    mcpRunSqlStructuredOutputSchema,
+} from './toolQueryResultSchemas';
+import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
@@ -145,7 +149,6 @@ import {
     toolRunMetricQueryOutputSchema,
 } from './toolRunMetricQueryArgs';
 import {
-    mcpRunMetricQueryStructuredOutputSchema,
     TOOL_RUN_QUERY_DESCRIPTION,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
@@ -160,7 +163,6 @@ import {
     buildRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
-    mcpRunSqlStructuredOutputSchema,
     toolRunSqlArgsSchema,
     toolRunSqlOutputSchema,
 } from './toolRunSqlArgs';
