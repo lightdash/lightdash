@@ -1680,12 +1680,43 @@ describe('AsyncQueryService', () => {
     });
 
     describe('getAsyncQueryHistory', () => {
-        it('checks project permission before loading query history', async () => {
+        const createQueryHistory = (): QueryHistory =>
+            ({
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: metricQueryMock,
+            }) as QueryHistory;
+
+        it('allows caller-owned query history with explore-level access', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Explore' },
+            ]);
+            const queryHistory = createQueryHistory();
+
+            (service.queryHistoryModel.get as jest.Mock).mockResolvedValue(
+                queryHistory,
+            );
+
+            await expect(
+                service.getAsyncQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                }),
+            ).resolves.toBe(queryHistory);
+        });
+
+        it('rejects caller-owned query history without project or explore access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
             account.user.ability = new Ability<PossibleAbilities>([]);
 
-            service.queryHistoryModel.get = jest.fn();
+            (service.queryHistoryModel.get as jest.Mock).mockResolvedValue(
+                createQueryHistory(),
+            );
 
             await expect(
                 service.getAsyncQueryHistory({
@@ -1694,10 +1725,6 @@ describe('AsyncQueryService', () => {
                     queryUuid: 'test-query-uuid',
                 }),
             ).rejects.toThrow(ForbiddenError);
-
-            // Security regression guard: permission checks must happen before
-            // reading query history.
-            expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
         });
     });
 
@@ -1845,12 +1872,17 @@ describe('AsyncQueryService', () => {
     });
 
     describe('getRawAsyncQueryResults', () => {
-        it('checks project permission before loading raw query results', async () => {
+        it('rejects raw query results without project or explore access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
             account.user.ability = new Ability<PossibleAbilities>([]);
 
-            service.queryHistoryModel.get = jest.fn();
+            (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: metricQueryMock,
+            } as QueryHistory);
 
             await expect(
                 service.getRawAsyncQueryResults({
@@ -1860,9 +1892,8 @@ describe('AsyncQueryService', () => {
                 }),
             ).rejects.toThrow(ForbiddenError);
 
-            // A forbidden caller must not reach either query history lookup or
-            // result-file storage.
-            expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+            // Query history is caller-scoped and needed to evaluate explore
+            // access; a forbidden caller must still not reach result storage.
             expect(
                 service.resultsStorageClient.getDownloadStream,
             ).not.toHaveBeenCalled();

@@ -1002,20 +1002,43 @@ export class AsyncQueryService extends ProjectService {
             await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
+        if (canViewProject) {
+            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', {
+                subject('Explore', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { queryUuid },
+                    exploreNames: [queryHistory.metricQuery.exploreName],
+                    metadata: {
+                        queryUuid,
+                        exploreName: queryHistory.metricQuery.exploreName,
+                    },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        return queryHistory;
     }
 
     async getResultsStream({
