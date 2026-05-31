@@ -1,6 +1,20 @@
-import type { SessionUser } from '@lightdash/common';
+import type { SessionUser, WarehouseTypes } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { DbAiWritebackThread } from '../../database/entities/ai';
+
+/**
+ * The canonical warehouse keys we ship a skill file for. Several
+ * `WarehouseTypes` map onto one key (e.g. `athena` → `trino`); warehouses with
+ * no dedicated file (`clickhouse`, `duckdb`) resolve to `null` and the agent
+ * gets `shared.md` only. Matches the filenames under `skills/warehouses/`.
+ */
+export type WarehouseSkillKey =
+    | 'bigquery'
+    | 'snowflake'
+    | 'postgres'
+    | 'redshift'
+    | 'databricks'
+    | 'trino';
 
 export type GithubConnection = {
     owner: string;
@@ -21,6 +35,12 @@ export type TurnContext = {
     githubConnection: GithubConnection;
     existingRow: DbAiWritebackThread | null;
     isResume: boolean;
+    /**
+     * The project's warehouse dialect, used to pick the warehouse skill file
+     * and stamped on every `ai_writeback.run.*` event for failure-rate-by-
+     * warehouse slicing. `null` when the project has no warehouse connection.
+     */
+    warehouseType: WarehouseTypes | null;
 };
 
 export type AppliedChanges = {

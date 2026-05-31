@@ -1,11 +1,36 @@
+import type { WarehouseTypes } from '@lightdash/common';
 import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
+    SHARED_SKILL_PATH,
     TMP_PROFILES_DIR,
+    WAREHOUSE_SKILL_PATH,
 } from './constants';
+
+// Warehouse-aware guidance injected mid-prompt. Points the agent at the skill
+// files before any edit that changes a column's emitted type — the class of
+// edit behind type-coercion incidents (e.g. flipping a numeric `type:` to
+// boolean without checking the warehouse column's real type).
+const buildWarehouseSkillGuidance = (
+    warehouseType: WarehouseTypes | null,
+    hasWarehouseSkill: boolean,
+): string => {
+    const trigger =
+        'BEFORE editing a `schema.yml` `type:` field or modifying SQL that ' +
+        "changes a column's emitted type, you MUST read";
+    const consequence =
+        'Skipping this step has produced PRs that broke filters and silently ' +
+        'changed query results.';
+    if (hasWarehouseSkill && warehouseType) {
+        return `This Lightdash project's warehouse is **${warehouseType}**. ${trigger} ${WAREHOUSE_SKILL_PATH} and ${SHARED_SKILL_PATH}. They contain warehouse-specific type-coercion rules. ${consequence}`;
+    }
+    // No dedicated skill file for this warehouse (or none connected) — the
+    // agent still gets the cross-warehouse rules.
+    return `${trigger} ${SHARED_SKILL_PATH}. It contains cross-warehouse type-coercion rules. ${consequence}`;
+};
 
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
@@ -30,6 +55,8 @@ export const buildSystemPrompt = (
         projectName: string;
         repository: string;
         repoContext: string | null;
+        warehouseType: WarehouseTypes | null;
+        hasWarehouseSkill: boolean;
     },
 ): string =>
     `
@@ -47,6 +74,8 @@ You are an autonomous coding agent working inside a checkout of a git repository
 - The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
   is your working directory).
 - Do NOT commit, push, or run any git commands — the host handles git.
+
+${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill)}
 ${
     context.repoContext
         ? `

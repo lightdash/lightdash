@@ -8,6 +8,7 @@ import {
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
+    WarehouseTypes,
     type AiWritebackRunResult,
     type DbtProjectConfig,
     type SessionUser,
@@ -51,9 +52,13 @@ import {
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
+    SHARED_SKILL_PATH,
+    SKILLS_DIR,
     SYSTEM_PROMPT_PATH,
+    WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { buildGatherRepoContextScript } from './scripts';
+import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
     AiWritebackRunArgs,
@@ -63,6 +68,7 @@ import type {
     GithubInstallation,
     SetStage,
     TurnContext,
+    WarehouseSkillKey,
 } from './types';
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
@@ -485,6 +491,7 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             aiThreadUuid: aiThreadUuid ?? null,
             isResume: turn.isResume,
+            warehouseType: turn.warehouseType,
         });
 
         const repository = `${turn.githubConnection.owner}/${turn.githubConnection.repo}`;
@@ -539,12 +546,15 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 turn.githubConnection.projectSubPath,
             );
+            const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
             const systemPrompt = buildSystemPrompt(
                 turn.githubConnection.projectSubPath,
                 {
                     projectName: turn.projectName,
                     repository,
                     repoContext,
+                    warehouseType: turn.warehouseType,
+                    hasWarehouseSkill: skillKey !== null,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -554,6 +564,8 @@ export class AiWritebackService extends BaseService {
                 isResume: turn.isResume,
                 source,
                 reportProgress,
+                skillKey,
+                warehouseType: turn.warehouseType,
             });
 
             const {
@@ -579,6 +591,7 @@ export class AiWritebackService extends BaseService {
                         failureStage,
                         exitCode: agent.exitCode,
                         errorMessage: 'Agent CLI exited non-zero',
+                        warehouseType: turn.warehouseType,
                         totalDurationMs: Math.round(
                             performance.now() - runStartedAt,
                         ),
@@ -627,6 +640,7 @@ export class AiWritebackService extends BaseService {
                 hasChanges,
                 prCreated: applied.prCreated,
                 prUrl: applied.prUrl ?? null,
+                warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
 
@@ -646,6 +660,7 @@ export class AiWritebackService extends BaseService {
                 sandboxId: sandbox?.sandboxId ?? null,
                 failureStage,
                 errorMessage: getErrorMessage(error),
+                warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
             Sentry.captureException(error, {
@@ -713,12 +728,18 @@ export class AiWritebackService extends BaseService {
             ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
             : null;
 
+        // `get()` returns the (de-sensitised) warehouse credentials with the
+        // discriminant `type` intact. Null when the project has no warehouse
+        // connection — the agent then gets `shared.md` only.
+        const warehouseType = project.warehouseConnection?.type ?? null;
+
         return {
             organizationUuid: user.organizationUuid,
             projectName: project.name,
             githubConnection,
             existingRow,
             isResume: existingRow !== null,
+            warehouseType,
         };
     }
 
@@ -906,6 +927,8 @@ export class AiWritebackService extends BaseService {
         isResume,
         source,
         reportProgress,
+        skillKey,
+        warehouseType,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
@@ -913,6 +936,8 @@ export class AiWritebackService extends BaseService {
         isResume: boolean;
         source: AiWritebackSource;
         reportProgress: (message: string) => void;
+        skillKey: WarehouseSkillKey | null;
+        warehouseType: WarehouseTypes | null;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
@@ -931,6 +956,15 @@ export class AiWritebackService extends BaseService {
             `#!/usr/bin/env bash\nexec env ${unsetFlags} lightdash compile "$@"\n`,
         );
         await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
+
+        // Push the warehouse skill files alongside the prompts. `shared.md`
+        // always; the dialect file only when one exists for this warehouse.
+        // The system prompt points the agent here before any `type:`/SQL edit.
+        const skills = await loadWarehouseSkills(skillKey);
+        await sandbox.files.write(SHARED_SKILL_PATH, skills.shared);
+        if (skills.warehouse !== null) {
+            await sandbox.files.write(WAREHOUSE_SKILL_PATH, skills.warehouse);
+        }
 
         // Parse Claude Code's stream-json output line-by-line so the agent
         // stage stops being a black box: we log every tool the agent uses
@@ -1058,6 +1092,7 @@ export class AiWritebackService extends BaseService {
                     source,
                     sandboxId: sandbox.sandboxId,
                     costUsd: e.total_cost_usd ?? null,
+                    warehouseType,
                     toolCounts,
                 });
             }
@@ -1094,7 +1129,9 @@ export class AiWritebackService extends BaseService {
                     // Claude Code confines Write/Edit to the cwd workspace, so the
                     // agent cannot write the PR metadata to /tmp (it silently falls
                     // back to the repo root) unless /tmp is an added directory.
-                    '--add-dir /tmp ' +
+                    // The skills dir is outside the repo too, so it likewise needs
+                    // to be added or the agent's Read of warehouse.md is refused.
+                    `--add-dir /tmp --add-dir ${SKILLS_DIR} ` +
                     `--allowedTools "${ALLOWED_TOOLS}"`,
                 {
                     cwd: CWD,
