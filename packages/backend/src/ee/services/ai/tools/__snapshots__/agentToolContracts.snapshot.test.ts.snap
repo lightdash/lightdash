@@ -4529,41 +4529,18 @@ Even if only the part is being changed, make sure to pass the entire value with 
     },
   },
   {
-    "description": "Tool: runQuery
+    "description": "Execute a metric query and create a chart artifact. Results can be viewed as table, bar, horizontal bar, line, scatter, pie, or funnel.
 
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
-
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
-
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
-- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
+Configuration tips:
+- Specify exploreName, dimensions, metrics, and sorts.
+- dimensions[0] is the primary grouping/x-axis; extra dimensions add grouping levels.
+- chartConfig selects the default visualization plus x/y fields, labels, series split, stacking, line type, and funnel input mode.
+- Use groupBy only for categorical series splits. Do not group by a time dimension to simulate period comparisons.
+- For year-over-year, month-over-month, previous period, or N-period comparisons, use a kind: "periodComparison" customMetric with the time dimension and base metric.
+- filters can reference fields from joined tables as well as the base table.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<CSV string>" }] — bare CSV text for human/LLM display and as a fallback. CSV headers are display labels, not stable field IDs.
-- Direct MCP clients that support structured tool results also receive structuredContent.
 - If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
@@ -4581,12 +4558,12 @@ Response shape (MCP CallToolResult):
       heartbeatAt: string
     }
   }
-  Use get_query_result with this queryUuid to poll until the query is done. A running response includes heartbeatAt, an ISO timestamp for the most recent Lightdash check that confirmed the query was still running.
+  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
 
 Notes:
-- Client support note: some MCP clients expose structuredContent and some connector-style clients expose only content text plus isError. Prefer structuredContent.result when present; otherwise parse the content text fallback and use isError as the success/failure signal.
-- Timing and timeouts: each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side before returning a running response. If unfinished, call get_query_result again with the queryUuid after nextPollAfterMs. Even simple accepted queries can require at least one poll because queue/warehouse startup latency can exceed the first wait window. The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout. If the client or transport times out while waiting for a response, retry polling with the same queryUuid instead of treating it as warehouse query failure.
-- Error handling: schema/input validation errors fail before a query starts and should be fixed rather than retried. Application errors such as unknown queryUuid/explore and warehouse execution errors such as SQL syntax failures are terminal until the request is corrected. Transport/client timeouts are retryable.
+- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
+- Each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
+- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6234,10 +6211,7 @@ custom metrics are applied automatically.
     },
   },
   {
-    "description": "Tool: run_sql
-
-Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
+    "description": "Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
@@ -6250,7 +6224,6 @@ Parameters:
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<CSV string>" }] — header row + data rows, comma-separated. Empty results return prose text like "Query returned 0 rows.".
-- Direct MCP clients that support structured tool results also receive structuredContent.
 - If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
@@ -6267,18 +6240,12 @@ Response shape (MCP CallToolResult):
       heartbeatAt: string
     }
   }
-  Use get_query_result with this queryUuid to poll until the query is done. A running response includes heartbeatAt, an ISO timestamp for the most recent Lightdash check that confirmed the query was still running.
-
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows when available. Example:
-
-  const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.result.rows;     // [{ order_id: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.result.columns;  // ['order_id', 'total_amount']
+  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
 
 Notes:
-- Client support note: some MCP clients expose structuredContent and some connector-style clients expose only content text plus isError. Prefer structuredContent.result when present; otherwise parse the content text fallback and use isError as the success/failure signal.
-- Timing and timeouts: each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side before returning a running response. If unfinished, call get_query_result again with the queryUuid after nextPollAfterMs. Even simple accepted queries can require at least one poll because queue/warehouse startup latency can exceed the first wait window. The warehouse execution timeout is the warehouse connection timeout configured in Lightdash, not an MCP-specific timeout. If the client or transport times out while waiting for a response, retry polling with the same queryUuid instead of treating it as warehouse query failure.
-- Error handling: schema/input validation errors fail before a query starts and should be fixed rather than retried. Application errors such as unknown queryUuid/explore and warehouse execution errors such as SQL syntax failures are terminal until the request is corrected. Transport/client timeouts are retryable.
+- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
+- Each run_sql, run_metric_query, and get_query_result call waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
+- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
 - Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.

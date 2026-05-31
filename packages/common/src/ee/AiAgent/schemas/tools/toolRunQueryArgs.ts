@@ -137,37 +137,15 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Tool: runQuery
+export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query and create a chart artifact. Results can be viewed as table, bar, horizontal bar, line, scatter, pie, or funnel.
 
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
-
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
-
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
-- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
+Configuration tips:
+- Specify exploreName, dimensions, metrics, and sorts.
+- dimensions[0] is the primary grouping/x-axis; extra dimensions add grouping levels.
+- chartConfig selects the default visualization plus x/y fields, labels, series split, stacking, line type, and funnel input mode.
+- Use groupBy only for categorical series splits. Do not group by a time dimension to simulate period comparisons.
+- For year-over-year, month-over-month, previous period, or N-period comparisons, use a kind: "periodComparison" customMetric with the time dimension and base metric.
+- filters can reference fields from joined tables as well as the base table.
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:

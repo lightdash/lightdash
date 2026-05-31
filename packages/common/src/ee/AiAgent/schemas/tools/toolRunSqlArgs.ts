@@ -11,10 +11,7 @@ export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 export const buildRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,
-) => `Tool: run_sql
-
-Purpose:
-Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
+) => `Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
@@ -35,12 +32,6 @@ ${buildMcpQueryRunResponseDescription({
       rowCount: number                           // total rows returned
     }`,
 })}
-
-When writing code that consumes this tool (e.g. inside a live artifact), prefer structuredContent.result.rows when available. Example:
-
-  const result = await callMcpTool('run_sql', { sql, limit });
-  const rows    = result.structuredContent.result.rows;     // [{ order_id: 94, total_amount: 2397 }, ...]
-  const columns = result.structuredContent.result.columns;  // ['order_id', 'total_amount']
 
 Notes:
 ${MCP_QUERY_COMMON_NOTES}
