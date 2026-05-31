@@ -1,3 +1,10 @@
+# [0.3059.0](https://github.com/lightdash/lightdash/compare/0.3058.1...0.3059.0) (2026-05-31)
+
+
+### Features
+
+* **ai-writeback:** warehouse-aware type-coercion skills for the agent ([#23689](https://github.com/lightdash/lightdash/issues/23689)) ([31e85d4](https://github.com/lightdash/lightdash/commit/31e85d419165f94cd243cce1d796ff7511cf3e16))
+
 ## [0.3058.1](https://github.com/lightdash/lightdash/compare/0.3058.0...0.3058.1) (2026-05-29)
 
 
