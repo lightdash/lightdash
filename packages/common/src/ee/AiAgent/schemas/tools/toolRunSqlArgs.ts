@@ -24,7 +24,7 @@ Parameters:
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
-        'header row + data rows, comma-separated. Empty results return prose text like "Query returned 0 rows.".',
+        'CSV with a header row plus data rows. Empty results return prose text like "Query returned 0 rows."',
     completedResultShape: `    result: {
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name

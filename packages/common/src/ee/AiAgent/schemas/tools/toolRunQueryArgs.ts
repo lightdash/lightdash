@@ -137,19 +137,11 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query and create a chart artifact. Results can be viewed as table, bar, horizontal bar, line, scatter, pie, or funnel.
-
-Configuration tips:
-- Specify exploreName, dimensions, metrics, and sorts.
-- dimensions[0] is the primary grouping/x-axis; extra dimensions add grouping levels.
-- chartConfig selects the default visualization plus x/y fields, labels, series split, stacking, line type, and funnel input mode.
-- Use groupBy only for categorical series splits. Do not group by a time dimension to simulate period comparisons.
-- For year-over-year, month-over-month, previous period, or N-period comparisons, use a kind: "periodComparison" customMetric with the time dimension and base metric.
-- filters can reference fields from joined tables as well as the base table.
+export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query and create a chart artifact.
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
-        'bare CSV text for human/LLM display and as a fallback. CSV headers are display labels, not stable field IDs.',
+        'bare CSV text. CSV headers are display labels, not stable field IDs',
     completedResultShape: `    result: {
       status: "done",
       rows: Array<Record<string, unknown>>,
