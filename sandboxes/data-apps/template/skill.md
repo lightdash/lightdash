@@ -1083,3 +1083,4 @@ function DrillResults({ query: q }) {
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |
