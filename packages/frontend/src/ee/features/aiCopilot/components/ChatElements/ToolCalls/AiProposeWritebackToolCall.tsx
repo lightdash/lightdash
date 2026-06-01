@@ -3,13 +3,16 @@ import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconExternalLink,
+    IconEye,
     IconGitPullRequest,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { usePullRequestPreview } from '../../../hooks/usePullRequestPreview';
 
 type Props = {
     metadata: ToolProposeWritebackOutput['metadata'];
+    projectUuid: string;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
@@ -40,7 +43,15 @@ const summarisePrUrl = (prUrl: string): string | null => {
  * it instead — matching the Slack experience where the user's mention gets
  * a green-tick reaction plus the PR link in the agent message body.
  */
-export const AiProposeWritebackToolCall: FC<Props> = ({ metadata }) => {
+export const AiProposeWritebackToolCall: FC<Props> = ({
+    metadata,
+    projectUuid,
+}) => {
+    // Poll for the preview environment once a PR exists. The hook is disabled
+    // until there's a PR URL, so it's a no-op for the error / no-PR branches.
+    const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
+    const { data: preview } = usePullRequestPreview(projectUuid, prUrl);
+
     if (metadata.status === 'error') {
         return (
             <Paper withBorder p="sm" radius="md" bg="red.0">
@@ -120,19 +131,36 @@ export const AiProposeWritebackToolCall: FC<Props> = ({ metadata }) => {
                         )}
                     </Stack>
                 </Group>
-                <Button
-                    component="a"
-                    href={metadata.prUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="filled"
-                    size="compact-sm"
-                    rightSection={
-                        <MantineIcon icon={IconExternalLink} size={14} />
-                    }
-                >
-                    View pull request
-                </Button>
+                <Group gap="xs" wrap="nowrap">
+                    {preview?.previewUrl && (
+                        <Button
+                            component="a"
+                            href={preview.previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="default"
+                            size="compact-sm"
+                            leftSection={
+                                <MantineIcon icon={IconEye} size={14} />
+                            }
+                        >
+                            View preview
+                        </Button>
+                    )}
+                    <Button
+                        component="a"
+                        href={metadata.prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="filled"
+                        size="compact-sm"
+                        rightSection={
+                            <MantineIcon icon={IconExternalLink} size={14} />
+                        }
+                    >
+                        View pull request
+                    </Button>
+                </Group>
             </Group>
         </Paper>
     );
