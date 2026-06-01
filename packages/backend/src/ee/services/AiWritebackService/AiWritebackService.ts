@@ -17,6 +17,7 @@ import {
     WarehouseTypes,
     type AiWritebackRunResult,
     type DbtProjectConfig,
+    type PreviewDeploySecret,
     type ProjectCiStatus,
     type SessionUser,
     type WorkflowFile,
@@ -748,13 +749,22 @@ export class AiWritebackService extends BaseService {
     async setupPreviewDeploy(args: {
         user: SessionUser;
         projectUuid: string;
-    }): Promise<AiWritebackRunResult> {
-        return this.run({
+    }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
+        const result = await this.run({
             user: args.user,
             projectUuid: args.projectUuid,
             prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
             source: 'preview_deploy_setup',
         });
+        // Pre-fill the secrets we know server-side (instance URL + project UUID)
+        // so the caller can surface concrete values, not generic descriptions.
+        return {
+            ...result,
+            secrets: getPreviewDeploySecrets({
+                projectUuid: args.projectUuid,
+                siteUrl: this.lightdashConfig.siteUrl,
+            }),
+        };
     }
 
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
@@ -840,10 +850,16 @@ export class AiWritebackService extends BaseService {
 
             // Secondary task: detect & record whether the repo already deploys
             // preview projects via GitHub Actions. Best-effort, never blocks.
-            const previewDeployStatus = await this.detectAndRecordPreviewDeploy(
-                sandbox,
-                projectUuid,
-            );
+            // Gated by its own ai-preview-deploy-setup flag (independent of the
+            // ai-writeback flag that gates the run itself).
+            const { enabled: previewDeploySetupEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                });
+            const previewDeployStatus = previewDeploySetupEnabled
+                ? await this.detectAndRecordPreviewDeploy(sandbox, projectUuid)
+                : null;
             // When it's not set up, hand the agent the exact files + secrets so
             // it can offer to open a PR adding the preview workflow.
             const previewDeployGuidance =

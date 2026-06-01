@@ -213,6 +213,16 @@ export enum FeatureFlags {
     AiWriteback = 'ai-writeback',
 
     /**
+     * Enable the AI writeback sandbox agent's preview-deploy secondary task:
+     * detecting whether a repo deploys Lightdash preview projects via GitHub
+     * Actions, offering to set it up during a writeback, and the
+     * setupPreviewDeploy tool (direct or on consent). Off by default and
+     * independent of AiWriteback, so this outward-facing behaviour (it opens
+     * extra PRs) can be dark-launched and killed without touching writeback.
+     */
+    AiPreviewDeploySetup = 'ai-preview-deploy-setup',
+
+    /**
      * Enable the built-in system agent fallback in Slack. When enabled, if a
      * Slack channel has no configured agent, the system will use the built-in
      * system agent instead of showing an error. Independent of AiWriteback so

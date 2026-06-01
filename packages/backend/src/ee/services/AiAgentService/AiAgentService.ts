@@ -6219,6 +6219,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             aiWritebackEnabled = false;
         }
 
+        // Preview-deploy setup rides the writeback infra, so it requires both
+        // the writeback flag (and trusted identity, applied above) and its own
+        // ai-preview-deploy-setup flag.
+        const { enabled: aiPreviewDeploySetupFlag } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+            });
+        const aiPreviewDeploySetupEnabled =
+            aiWritebackEnabled && aiPreviewDeploySetupFlag;
+
         const canUseContentTools =
             agentRevampEnabled &&
             agentSettings.enableContentTools &&
@@ -6265,6 +6276,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
             enableAiWriteback: aiWritebackEnabled,
+            enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql

@@ -279,7 +279,7 @@ const getAgentTools = (
           })
         : null;
 
-    const setupPreviewDeploy = args.enableAiWriteback
+    const setupPreviewDeploy = args.enablePreviewDeploySetup
         ? getSetupPreviewDeploy({
               setupPreviewDeploy: dependencies.setupPreviewDeploy,
           })

@@ -22,6 +22,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     ParametersValuesMap,
+    PreviewDeploySecret,
     ProjectType,
     SavedChart,
     SlackPrompt,
@@ -370,7 +371,9 @@ export type ProposeWritebackFn = (args: {
     prompt: string;
 }) => Promise<AiWritebackRunResult>;
 
-export type SetupPreviewDeployFn = () => Promise<AiWritebackRunResult>;
+export type SetupPreviewDeployFn = () => Promise<
+    AiWritebackRunResult & { secrets: PreviewDeploySecret[] }
+>;
 
 export type ListProjectsFn = () => Promise<
     {

@@ -85,6 +85,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableAiWriteback: boolean;
+    enablePreviewDeploySetup: boolean;
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
