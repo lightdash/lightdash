@@ -1,3 +1,19 @@
+# [0.3069.0](https://github.com/lightdash/lightdash/compare/0.3068.1...0.3069.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **favorites:** store canonical uuid when favouriting by slug ([#23730](https://github.com/lightdash/lightdash/issues/23730)) ([386e39e](https://github.com/lightdash/lightdash/commit/386e39e1da44185823d23ebe365c9a0919ef27e1))
+* **scheduler:** enforce underlying-resource view access on send-now (PROD-8037) ([#23728](https://github.com/lightdash/lightdash/issues/23728)) ([e518df4](https://github.com/lightdash/lightdash/commit/e518df4987bdd7c4ad4ed6af9a6e47e7cecb2321))
+
+
+### Features
+
+* **ai-writeback:** record pull request rows for the AI write-back path ([#23725](https://github.com/lightdash/lightdash/issues/23725)) ([5ad725f](https://github.com/lightdash/lightdash/commit/5ad725ff1889c60e6370e359d60ada047d6820f0))
+* **pivot:** replace group-header rows with `rowSpan`-merged dimension cells (PROD-7938) ([#23680](https://github.com/lightdash/lightdash/issues/23680)) ([689cc2d](https://github.com/lightdash/lightdash/commit/689cc2d58bf3f53dfd5b7a588bd71209a2486f33))
+* **pull-requests:** polish pull requests table UX ([#23732](https://github.com/lightdash/lightdash/issues/23732)) ([e432727](https://github.com/lightdash/lightdash/commit/e43272740458fe2063c503d3d4baac45bea7a0ee))
+* track edit content version metadata ([#23592](https://github.com/lightdash/lightdash/issues/23592)) ([ba2db9b](https://github.com/lightdash/lightdash/commit/ba2db9bdf5419852a9470b391423063b54731272))
+
 ## [0.3068.1](https://github.com/lightdash/lightdash/compare/0.3068.0...0.3068.1) (2026-06-01)
 
 
