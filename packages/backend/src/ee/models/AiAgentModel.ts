@@ -373,6 +373,7 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -506,6 +507,7 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -1666,6 +1668,7 @@ export class AiAgentModel {
             | 'spaceAccess'
             | 'enableDataAccess'
             | 'enableSelfImprovement'
+            | 'enableContentTools'
             | 'version'
             | 'mcpServerUuids'
         > & {
@@ -1691,6 +1694,7 @@ export class AiAgentModel {
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
+                    enable_content_tools: args.enableContentTools ?? false,
                     version: args.version,
                     is_system: args.isSystem ?? false,
                 })
@@ -1790,6 +1794,7 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
+                enableContentTools: agent.enable_content_tools,
                 version: agent.version,
             };
         });
@@ -1841,6 +1846,7 @@ export class AiAgentModel {
                 spaceAccess: [],
                 enableDataAccess: true,
                 enableSelfImprovement: false,
+                enableContentTools: false,
                 version: 1,
                 mcpServerUuids: [],
                 isSystem: true,
@@ -1893,6 +1899,9 @@ export class AiAgentModel {
                               enable_self_improvement:
                                   args.enableSelfImprovement,
                           }
+                        : {}),
+                    ...(args.enableContentTools !== undefined
+                        ? { enable_content_tools: args.enableContentTools }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -2030,6 +2039,7 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
+                enableContentTools: agent.enable_content_tools,
                 version: agent.version,
             };
         });

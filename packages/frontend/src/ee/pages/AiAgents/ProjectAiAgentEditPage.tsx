@@ -68,6 +68,7 @@ const formSchema = z.object({
     mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableContentTools: z.boolean(),
     version: z.number(),
 });
 
@@ -120,6 +121,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             mcpServerUuids: [],
             enableDataAccess: true,
             enableSelfImprovement: false,
+            enableContentTools: false,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -144,6 +146,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
+                enableContentTools: agent.enableContentTools ?? false,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);

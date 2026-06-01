@@ -2058,6 +2058,7 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            enableContentTools: body.enableContentTools,
             version: body.version,
         });
 
@@ -2873,6 +2874,7 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            enableContentTools: body.enableContentTools,
             version: body.version,
         });
 
@@ -5957,24 +5959,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const enableSqlMode = options.enableSqlMode ?? false;
 
-        // Whether this prompt's caller identity can be trusted as the real
-        // sender. For Slack prompts that's only true when the org has
-        // `aiRequireOAuth` on; otherwise every message runs as the
-        // workspace installer and downstream CASL checks would evaluate
-        // against the installer's ability. Non-Slack callers are always
-        // the real sender, so default to true.
-        let aiRequireOAuth = true;
+        // Permission-sensitive tools need the prompt actor to be the real
+        // sender. Web prompts always are; Slack prompts are only trusted when
+        // Slack OAuth is required, otherwise the actor is the workspace
+        // installer.
+        let hasTrustedPromptUserIdentity = true;
         if (isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
-            aiRequireOAuth = !!slackSettings?.aiRequireOAuth;
+            hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
         }
+        const promptProject = await this.projectModel.get(prompt.projectUuid);
 
         let canRunSql = enableSqlMode;
-        // Fail-closed: CASL would evaluate against the installer, not the sender.
-        if (canRunSql && !aiRequireOAuth) {
+        // Fail closed when CASL would evaluate against the installer.
+        if (canRunSql && !hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
@@ -5992,8 +5993,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 auditedAbility.cannot(
                     'manage',
                     subject('SqlRunner', {
-                        organizationUuid: user.organizationUuid,
-                        projectUuid: prompt.projectUuid,
+                        organizationUuid: promptProject.organizationUuid,
+                        projectUuid: promptProject.projectUuid,
                         metadata: {
                             promptUuid: prompt.promptUuid,
                             threadUuid: prompt.threadUuid,
@@ -6060,13 +6061,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 featureFlagId: FeatureFlags.AiWriteback,
             },
         );
-        if (aiWritebackEnabled && !aiRequireOAuth) {
+        if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling proposeWriteback for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
             aiWritebackEnabled = false;
         }
-        const availableSkills = agentRevampEnabled
+
+        const canUseContentTools =
+            agentRevampEnabled &&
+            agentSettings.enableContentTools &&
+            hasTrustedPromptUserIdentity &&
+            this.createAuditedAbility(user).can(
+                'manage',
+                subject('ContentAsCode', {
+                    organizationUuid: promptProject.organizationUuid,
+                    projectUuid: promptProject.projectUuid,
+                    metadata: {
+                        promptUuid: prompt.promptUuid,
+                        threadUuid: prompt.threadUuid,
+                        agentUuid: agentSettings.uuid,
+                    },
+                }),
+            );
+        const availableSkills = canUseContentTools
             ? await BuiltInSkills.getAiAgentSkills()
             : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
@@ -6094,6 +6112,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
+            enableContentTools: canUseContentTools,
             enableAiWriteback: aiWritebackEnabled,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,

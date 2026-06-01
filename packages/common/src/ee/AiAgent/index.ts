@@ -140,6 +140,7 @@ export const baseAgentSchema = z.object({
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableContentTools: z.boolean(),
     version: z.number(),
 });
 
@@ -163,6 +164,7 @@ export type AiAgent = Pick<
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableContentTools'
     | 'version'
 >;
 
@@ -184,6 +186,7 @@ export type AiAgentSummary = Pick<
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableContentTools'
     | 'version'
 >;
 
@@ -303,6 +306,7 @@ export type ApiCreateAiAgent = Pick<
     | 'enableSelfImprovement'
     | 'version'
 > & {
+    enableContentTools?: boolean;
     mcpServerUuids?: string[];
 };
 
@@ -321,6 +325,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'spaceAccess'
         | 'enableDataAccess'
         | 'enableSelfImprovement'
+        | 'enableContentTools'
         | 'version'
     >
 > & {

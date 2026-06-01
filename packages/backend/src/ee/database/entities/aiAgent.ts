@@ -13,6 +13,7 @@ export type DbAiAgent = {
     tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
+    enable_content_tools: boolean;
     /**
      * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
      * `agent-reasoning` was never enabled so this column was effectively

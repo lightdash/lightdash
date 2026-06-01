@@ -10397,7 +10397,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
+    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -10482,6 +10482,10 @@ const models: TsoaRoute.Models = {
                         dataType: 'boolean',
                         required: true,
                     },
+                    enableContentTools: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
                     version: { dataType: 'double', required: true },
                 },
                 validators: {},
@@ -10491,7 +10495,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_',
             validators: {},
         },
     },
@@ -10997,7 +11001,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -11082,6 +11086,10 @@ const models: TsoaRoute.Models = {
                         dataType: 'boolean',
                         required: true,
                     },
+                    enableContentTools: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
                     version: { dataType: 'double', required: true },
                 },
                 validators: {},
@@ -11091,7 +11099,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_',
             validators: {},
         },
     },
@@ -11680,6 +11688,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: { dataType: 'string' },
                         },
+                        enableContentTools: { dataType: 'boolean' },
                     },
                 },
             ],
@@ -11687,7 +11696,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__':
+    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__':
         {
             dataType: 'refAlias',
             type: {
@@ -11809,6 +11818,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    enableContentTools: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     version: {
                         dataType: 'union',
                         subSchemas: [
@@ -11827,7 +11843,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__',
+                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
