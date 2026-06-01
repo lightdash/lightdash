@@ -1821,9 +1821,12 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
-            // Should calculate total_columns correctly using subquery approach
-            expect(result).toContain(
-                'SELECT COUNT(*) AS total_columns FROM (SELECT DISTINCT "category" FROM filtered_rows) AS distinct_groups',
+            // Should calculate total_columns via a top-level distinct_groups CTE
+            expect(replaceWhitespace(result)).toContain(
+                'distinct_groups AS (SELECT DISTINCT "category" FROM filtered_rows)',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
             );
         });
 
@@ -4872,16 +4875,67 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Subquery-DISTINCT shape — both groupBy refs appear in the
-            // SELECT DISTINCT list inside the inner subquery.
+            // Distinct-groups CTE shape — both groupBy refs appear in the
+            // SELECT DISTINCT list of the top-level distinct_groups CTE, and
+            // total_columns counts over it directly (no CONCAT, no
+            // DISTINCT-CONCAT).
             expect(replaceWhitespace(result)).toContain(
-                'total_columns AS (SELECT COUNT(*) AS total_columns FROM (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows) AS distinct_groups)',
+                'distinct_groups AS (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows)',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
             );
 
             // Negative: the bugged Redshift-incompatible form must not
             // appear anywhere. CONCAT-based counting was the original bug.
             expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
             expect(result).not.toContain('COUNT(DISTINCT concat(');
+        });
+
+        test('total_columns counts via a top-level distinct_groups CTE, never a subquery nesting filtered_rows', () => {
+            // distinct_groups is its own top-level CTE so both references are
+            // direct CTE -> CTE (distinct_groups -> filtered_rows,
+            // total_columns -> distinct_groups), rather than nesting a subquery
+            // that references filtered_rows inside a later CTE.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'order_date_year' },
+                    { reference: 'payment_method' },
+                ],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // distinct_groups is a top-level CTE referencing filtered_rows directly.
+            expect(replaceWhitespace(result)).toContain(
+                'distinct_groups AS (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows)',
+            );
+            // total_columns counts over the distinct_groups CTE directly.
+            expect(replaceWhitespace(result)).toContain(
+                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
+            );
+
+            // Negative: filtered_rows must never be referenced from inside a
+            // subquery within another CTE definition.
+            expect(result).not.toContain(
+                'FROM filtered_rows) AS distinct_groups',
+            );
+            // And no COUNT(DISTINCT CONCAT(...)).
+            expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
         });
 
         test('Named time-interval index columns sort chronologically via CASE WHEN, not alphabetically (#18245)', () => {
