@@ -22,9 +22,24 @@ export type GithubConnection = {
     projectSubPath: string;
 };
 
+export type GithubCommitAuthor = {
+    name: string;
+    email: string;
+};
+
 export type GithubInstallation = {
     installationId: string;
+    /** Installation access token — authenticates the in-sandbox clone/push. */
     token: string;
+    /**
+     * OAuth user token used to open/update the pull request so it is attributed
+     * to the GitHub user who connected the app for the org, not the Lightdash
+     * app itself. `null` when no user identity could be resolved, in which case
+     * the PR falls back to being opened by the app installation.
+     */
+    prToken: string | null;
+    /** Author stamped on the writeback commits — the GitHub user, or the bot fallback. */
+    commitAuthor: GithubCommitAuthor;
 };
 
 export type SetStage = (stage: AiWritebackFailureStage) => void;

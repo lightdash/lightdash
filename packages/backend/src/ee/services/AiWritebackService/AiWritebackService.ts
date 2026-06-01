@@ -24,7 +24,9 @@ import type {
 } from '../../../analytics/LightdashAnalytics';
 import {
     createPullRequest,
+    getAuthenticatedUser,
     getInstallationToken,
+    getOrRefreshToken,
     updatePullRequest,
 } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -69,6 +71,7 @@ import type {
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
+    GithubCommitAuthor,
     GithubConnection,
     GithubInstallation,
     SetStage,
@@ -194,9 +197,13 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Resolve a GitHub App installation access token for the organization.
-     * The token authenticates the in-sandbox clone/push and the pull request
-     * creation. Throws if no installation exists.
+     * Resolve GitHub auth for the organization. The installation access token
+     * authenticates the in-sandbox clone/push. We additionally resolve the
+     * OAuth user identity (the user who connected the GitHub App for the org)
+     * so the pull request is opened — and the commits authored — as a real
+     * user instead of the Lightdash app. Best-effort: any failure resolving the
+     * user identity falls back to the app installation + bot author. Throws only
+     * when no installation exists at all.
      */
     private async getGithubInstallation(
         organizationUuid: string,
@@ -213,7 +220,42 @@ export class AiWritebackService extends BaseService {
             );
         }
         const token = await getInstallationToken(installationId);
-        return { installationId, token };
+
+        let prToken: string | null = null;
+        let commitAuthor: GithubCommitAuthor = {
+            name: COMMIT_AUTHOR_NAME,
+            email: COMMIT_AUTHOR_EMAIL,
+        };
+        try {
+            const { token: oauthToken, refreshToken } =
+                await this.githubAppInstallationsModel.getAuth(
+                    organizationUuid,
+                );
+            const refreshed = await getOrRefreshToken(oauthToken, refreshToken);
+            if (refreshed.token !== oauthToken) {
+                await this.githubAppInstallationsModel.updateAuth(
+                    organizationUuid,
+                    refreshed.token,
+                    refreshed.refreshToken,
+                );
+            }
+            const githubUser = await getAuthenticatedUser(refreshed.token);
+            prToken = refreshed.token;
+            // Use the GitHub-provided noreply email so we never need the user's
+            // real address and the commit still links to their profile.
+            commitAuthor = {
+                name: githubUser.login,
+                email: `${githubUser.id}+${githubUser.login}@users.noreply.github.com`,
+            };
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: could not resolve GitHub user identity for org ${organizationUuid}; the PR will be opened by the app. ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
+        return { installationId, token, prToken, commitAuthor };
     }
 
     private static elapsed(start: number): number {
@@ -1282,6 +1324,8 @@ export class AiWritebackService extends BaseService {
                 githubConnection: turn.githubConnection,
                 installationId: github.installationId,
                 token: github.token,
+                prToken: github.prToken,
+                commitAuthor: github.commitAuthor,
                 setStage,
                 prTitle,
                 prDescription,
@@ -1301,6 +1345,8 @@ export class AiWritebackService extends BaseService {
             githubConnection: turn.githubConnection,
             token: github.token,
             installationId: github.installationId,
+            prToken: github.prToken,
+            commitAuthor: github.commitAuthor,
             setStage,
             prTitle,
             prDescription,
@@ -1350,6 +1396,8 @@ export class AiWritebackService extends BaseService {
         githubConnection,
         token,
         installationId,
+        prToken,
+        commitAuthor,
         setStage,
         prTitle,
         prDescription,
@@ -1358,6 +1406,8 @@ export class AiWritebackService extends BaseService {
         githubConnection: GithubConnection;
         token: string;
         installationId: string;
+        prToken: string | null;
+        commitAuthor: GithubCommitAuthor;
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
@@ -1391,8 +1441,8 @@ export class AiWritebackService extends BaseService {
         await sandbox.git.createBranch(CWD, branch);
         await this.stageChanges(sandbox, githubConnection.projectSubPath);
         await sandbox.git.commit(CWD, title, {
-            authorName: COMMIT_AUTHOR_NAME,
-            authorEmail: COMMIT_AUTHOR_EMAIL,
+            authorName: commitAuthor.name,
+            authorEmail: commitAuthor.email,
         });
 
         setStage('push');
@@ -1405,6 +1455,9 @@ export class AiWritebackService extends BaseService {
         });
 
         setStage('pull_request');
+        // Open the PR as the user when we resolved their OAuth token (passing a
+        // user token and omitting installationId makes getOctokit auth as the
+        // user); otherwise fall back to the app installation.
         const pr = await createPullRequest({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
@@ -1412,7 +1465,7 @@ export class AiWritebackService extends BaseService {
             body: description,
             head: branch,
             base: baseBranch,
-            installationId,
+            ...(prToken ? { token: prToken } : { installationId }),
         });
         return pr.html_url;
     }
@@ -1430,6 +1483,8 @@ export class AiWritebackService extends BaseService {
         githubConnection,
         installationId,
         token,
+        prToken,
+        commitAuthor,
         setStage,
         prTitle,
         prDescription,
@@ -1439,6 +1494,8 @@ export class AiWritebackService extends BaseService {
         githubConnection: GithubConnection;
         installationId: string;
         token: string;
+        prToken: string | null;
+        commitAuthor: GithubCommitAuthor;
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
@@ -1461,8 +1518,8 @@ export class AiWritebackService extends BaseService {
         setStage('commit');
         await this.stageChanges(sandbox, githubConnection.projectSubPath);
         await sandbox.git.commit(CWD, title, {
-            authorName: COMMIT_AUTHOR_NAME,
-            authorEmail: COMMIT_AUTHOR_EMAIL,
+            authorName: commitAuthor.name,
+            authorEmail: commitAuthor.email,
         });
 
         setStage('push');
@@ -1479,13 +1536,15 @@ export class AiWritebackService extends BaseService {
         }
 
         setStage('pull_request');
+        // Patch the PR as the user when their OAuth token is available; fall
+        // back to the app installation otherwise.
         await updatePullRequest({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
             pullNumber: AiWritebackService.parsePullNumber(existingRow.pr_url),
             title,
             body: description,
-            installationId,
+            ...(prToken ? { token: prToken } : { installationId }),
         });
     }
 

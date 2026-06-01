@@ -52,6 +52,20 @@ export const getOctokitRestForUser = (
     };
 };
 
+/** Resolve the GitHub account behind a user OAuth token. Used to attribute
+ * writeback PRs and commits to the user rather than the app. */
+export const getAuthenticatedUser = async (
+    token: string,
+): Promise<{ login: string; id: number }> => {
+    const { octokit, headers } = getOctokitRestForUser(token);
+    try {
+        const { data } = await octokit.rest.users.getAuthenticated({ headers });
+        return { login: data.login, id: data.id };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const getOctokitRestForApp = (installationId: string): OctokitRest => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
