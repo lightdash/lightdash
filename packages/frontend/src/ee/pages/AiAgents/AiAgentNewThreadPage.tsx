@@ -39,10 +39,14 @@ const AiAgentNewThreadPage: FC = () => {
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
 
-    const { contextInput, previewItems } = usePinnedContext({
+    const {
+        contextInput,
+        previewItems,
+        isReady: isPinnedContextReady,
+    } = usePinnedContext({
         projectUuid,
-        chartUuid,
-        dashboardUuid,
+        chartUuidOrSlug: chartUuid,
+        dashboardUuidOrSlug: dashboardUuid,
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
@@ -109,6 +113,7 @@ const AiAgentNewThreadPage: FC = () => {
     const onSubmit = useCallback(
         ({ message, toolHints }: { message: string; toolHints: string[] }) => {
             if (!agentUuid) return;
+            if (!isPinnedContextReady) return;
             setPendingPrompt('');
             void createAgentThread({
                 agentUuid,
@@ -140,6 +145,7 @@ const AiAgentNewThreadPage: FC = () => {
             selectedModel,
             showExtendedThinking,
             extendedThinking,
+            isPinnedContextReady,
         ],
     );
 
@@ -262,6 +268,7 @@ const AiAgentNewThreadPage: FC = () => {
                     <AgentChatInput
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
+                        disabled={!isPinnedContextReady}
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
