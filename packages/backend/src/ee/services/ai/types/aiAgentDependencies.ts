@@ -370,6 +370,8 @@ export type ProposeWritebackFn = (args: {
     prompt: string;
 }) => Promise<AiWritebackRunResult>;
 
+export type SetupPreviewDeployFn = () => Promise<AiWritebackRunResult>;
+
 export type ListProjectsFn = () => Promise<
     {
         projectUuid: string;

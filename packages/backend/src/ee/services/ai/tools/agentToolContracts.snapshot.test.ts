@@ -27,6 +27,7 @@ import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
+import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 
 const schemaToJson = (schema: ZodTypeAny | undefined): unknown => {
     if (!schema) {
@@ -142,6 +143,9 @@ const makeAgentTools = () => {
         }),
         proposeWriteback: getProposeWriteback({
             proposeWriteback: noop,
+        }),
+        setupPreviewDeploy: getSetupPreviewDeploy({
+            setupPreviewDeploy: noop,
         }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({

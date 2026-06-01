@@ -35,6 +35,7 @@ import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
+import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -278,6 +279,12 @@ const getAgentTools = (
           })
         : null;
 
+    const setupPreviewDeploy = args.enableAiWriteback
+        ? getSetupPreviewDeploy({
+              setupPreviewDeploy: dependencies.setupPreviewDeploy,
+          })
+        : null;
+
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
     });
@@ -333,6 +340,7 @@ const getAgentTools = (
             ? { proposeChange }
             : {}),
         ...(proposeWriteback ? { proposeWriteback } : {}),
+        ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),

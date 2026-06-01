@@ -181,6 +181,11 @@ import {
     toolSearchFieldValuesOutputSchema,
 } from './toolSearchFieldValuesArgs';
 import {
+    TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
+    toolSetupPreviewDeployArgsSchema,
+    toolSetupPreviewDeployOutputSchema,
+} from './toolSetupPreviewDeployArgs';
+import {
     TOOL_TABLE_VIZ_DESCRIPTION,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
@@ -479,6 +484,15 @@ export const proposeWritebackToolDefinition = defineTool({
     agent: { outputSchema: toolProposeWritebackOutputSchema },
 });
 
+export const setupPreviewDeployToolDefinition = defineTool({
+    name: 'setupPreviewDeploy',
+    title: 'Set up preview deploys',
+    description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolSetupPreviewDeployArgsSchema,
+    agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
+});
+
 export const runSavedChartToolDefinition = defineTool({
     name: 'runSavedChart',
     title: 'Run saved chart',
@@ -715,6 +729,7 @@ type AgentToolDefinitionsByName = {
     loadSkill: typeof loadSkillToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     proposeWriteback: typeof proposeWritebackToolDefinition;
+    setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -750,6 +765,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadSkill: loadSkillToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     proposeWriteback: proposeWritebackToolDefinition,
+    setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -787,6 +803,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadSkillToolDefinition,
     proposeChangeToolDefinition,
     proposeWritebackToolDefinition,
+    setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,

@@ -260,6 +260,7 @@ export const ToolCallDescription: FC<{
         case 'proposeChange':
         case 'proposeWriteback':
         case 'runContentQuery':
+        case 'setupPreviewDeploy':
         case 'runSavedChart':
             return <> </>;
         default:

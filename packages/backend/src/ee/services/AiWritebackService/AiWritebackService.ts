@@ -96,6 +96,16 @@ export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
 const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
+// Synthetic prompt for the dedicated preview-deploy setup run. It leans on the
+// "Secondary task" section that run()'s system prompt already injects (with the
+// exact workflow files + secrets) when the repo has no preview-deploy workflow.
+const PREVIEW_DEPLOY_SETUP_PROMPT = [
+    'The user has agreed to set up Lightdash preview deploys for this project.',
+    'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
+    "Create those workflow files (you may adapt the Node version, project-dir, or model selection to match this repo's existing CI conventions). Do NOT modify any dbt models, YAML, or other files.",
+    'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
+].join(' ');
+
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -725,6 +735,26 @@ export class AiWritebackService extends BaseService {
             );
             return null;
         }
+    }
+
+    /**
+     * Consent action behind the preview-deploy offer: open a dedicated pull
+     * request that adds the Lightdash preview workflow. Runs a second sandbox
+     * via run() with a synthetic prompt — the system prompt already carries the
+     * exact files + secrets because detection finds the workflow missing — so
+     * the workflow files land on their own PR, separate from any semantic-layer
+     * change.
+     */
+    async setupPreviewDeploy(args: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<AiWritebackRunResult> {
+        return this.run({
+            user: args.user,
+            projectUuid: args.projectUuid,
+            prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
+            source: 'preview_deploy_setup',
+        });
     }
 
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {

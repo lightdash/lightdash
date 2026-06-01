@@ -42,6 +42,7 @@ import {
     SearchFieldValuesFn,
     SendFileFn,
     SendSlackBlocksFn,
+    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -148,6 +149,7 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
     proposeWriteback: ProposeWritebackFn;
+    setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;

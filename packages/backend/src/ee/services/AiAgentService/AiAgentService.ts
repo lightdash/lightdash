@@ -236,6 +236,7 @@ import {
     SearchFieldValuesFn,
     SendFileFn,
     SendSlackBlocksFn,
+    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -5864,6 +5865,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return result;
         };
 
+        const setupPreviewDeploy: SetupPreviewDeployFn = () =>
+            wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
+                this.aiWritebackService.setupPreviewDeploy({
+                    user,
+                    projectUuid,
+                }),
+            );
+
         const listProjects: ListProjectsFn = () =>
             wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
                 const projects =
@@ -5964,6 +5973,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
             getExploreCompiler,
@@ -6083,6 +6093,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
         } = this.getAiAgentDependencies(user, prompt, {
@@ -6311,6 +6322,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),
