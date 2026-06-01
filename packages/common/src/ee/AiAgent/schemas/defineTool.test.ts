@@ -130,6 +130,7 @@ describe('defineTool', () => {
 
         expect(structuredMcpToolNames).toEqual([
             'get_query_result',
+            'render_chart',
             'run_ai_writeback',
             'run_metric_query',
             'run_sql',

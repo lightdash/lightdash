@@ -29,14 +29,15 @@ ${buildMcpQueryRunResponseDescription({
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
       columns:  string[],                        // column names in order
-      rowCount: number                           // total rows returned
+      rowCount: number,                          // total rows returned
+      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
     }`,
 })}
 
 Notes:
 ${MCP_QUERY_COMMON_NOTES}
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
 - On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 `;

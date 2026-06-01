@@ -207,37 +207,61 @@ function renderExploreButton(url: string): void {
 
 const app = new App({ name: 'Lightdash Chart', version: '1.0.0' });
 
+type ChartToolResult = {
+    status?: string;
+    echartsOption?: echarts.EChartsOption | null;
+    rows?: Record<string, unknown>[];
+    fields?: Record<string, { label?: string }>;
+    exploreUrl?: string | null;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function getStructuredResult(structuredContent: unknown): ChartToolResult {
+    if (!isRecord(structuredContent)) {
+        return {};
+    }
+
+    // Keep old app payloads working while MCP tool results move under
+    // structuredContent.result.
+    const { result } = structuredContent;
+    if (isRecord(result)) {
+        return result as ChartToolResult;
+    }
+
+    return structuredContent as ChartToolResult;
+}
+
+function removeExploreButton(): void {
+    document.getElementById('explore-btn')?.remove();
+}
+
+function clearRenderedContent(): void {
+    chartContainer.style.display = 'none';
+    tableFallback.style.display = 'none';
+    tableFallback.innerHTML = '';
+    removeExploreButton();
+}
+
 app.ontoolresult = (result) => {
-    const structured = result.structuredContent as
-        | {
-              echartsOption?: echarts.EChartsOption;
-              rows?: Record<string, unknown>[];
-              fields?: Record<string, { label?: string }>;
-              exploreUrl?: string;
-          }
-        | undefined;
+    const structured = getStructuredResult(result.structuredContent);
 
     if (structured?.echartsOption) {
         renderChart(structured.echartsOption);
     } else if (structured?.rows) {
         renderTable(structured.rows ?? [], structured.fields ?? {});
     } else {
-        // Fall back to text content
-        const text = result.content?.find(
-            (c: { type: string }) => c.type === 'text',
-        ) as { type: string; text: string } | undefined;
-        if (text?.text) {
-            tableFallback.style.display = 'block';
-            chartContainer.style.display = 'none';
-            tableFallback.innerHTML = `<pre style="white-space: pre-wrap; font-size: 13px;">${escapeHtml(
-                text.text,
-            )}</pre>`;
-        }
+        clearRenderedContent();
+        return;
     }
 
     // Show "Explore from here" button if URL is present
     if (structured?.exploreUrl) {
         renderExploreButton(structured.exploreUrl);
+    } else {
+        removeExploreButton();
     }
 };
 

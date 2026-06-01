@@ -41,6 +41,6 @@ ${completedResultShape}
 
 export const MCP_GET_QUERY_RESULT_RESPONSE_DESCRIPTION = `Response shape (MCP CallToolResult):
 - Running: content contains polling status text and structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. ${MCP_QUERY_STRUCTURED_RUNNING_NOTE}
-- Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount }.
-- Completed metric query: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields }.
+- Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount, sqlRunnerUrl }.
+- Completed metric query: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields, exploreUrl }.
 - Failed/cancelled/expired: content contains status/error text and structuredContent.result contains { status, queryUuid, error }.`;

@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     buildRunSqlDescription,
     CatalogType,
+    ChartType,
     clearAgentToolDefinition,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
@@ -39,6 +40,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    renderChartToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
@@ -50,6 +52,7 @@ import {
     ToolFindContentArgs,
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
+    toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
     ToolSearchFieldValuesArgs,
@@ -147,6 +150,7 @@ export enum McpToolName {
     CLEAR_AGENT = 'clear_agent',
     GET_CURRENT_AGENT = 'get_current_agent',
     RUN_METRIC_QUERY = 'run_metric_query',
+    RENDER_CHART = 'render_chart',
     RUN_SQL = 'run_sql',
     GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
@@ -168,6 +172,7 @@ const mcpSetAgentTool = setAgentToolDefinition.for('mcp');
 const mcpClearAgentTool = clearAgentToolDefinition.for('mcp');
 const mcpGetCurrentAgentTool = getCurrentAgentToolDefinition.for('mcp');
 const mcpRunMetricQueryTool = runQueryToolDefinition.for('mcp');
+const mcpRenderChartTool = renderChartToolDefinition.for('mcp');
 const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
@@ -433,8 +438,148 @@ export class McpService extends BaseService {
         };
     }
 
-    private async buildCompletedMetricQueryResponse({
+    private async buildMcpMetricQuery({
         ctx,
+        projectUuid,
+        queryTool,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        queryTool: ToolRunQueryArgsTransformed;
+    }): Promise<{
+        query: MetricQuery;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+    }> {
+        const { agentContext, userAttributeOverrides } =
+            await this.getRunMetricQueryDependencies({ projectUuid }, ctx);
+        const explore = agentContext.getExplore(
+            queryTool.queryConfig.exploreName,
+        );
+
+        // Full validation including groupBy, axis, and tableCalcs
+        validateRunQueryTool(queryTool, explore);
+
+        const maxLimit = this.lightdashConfig.ai.copilot.maxQueryLimit;
+
+        const additionalMetrics = populateCustomMetricsSQL(
+            queryTool.customMetrics,
+            explore,
+        );
+
+        return {
+            query: {
+                exploreName: queryTool.queryConfig.exploreName,
+                dimensions: queryTool.queryConfig.dimensions,
+                metrics: expandMetricsWithPopAdditionalMetrics(
+                    queryTool.queryConfig.metrics,
+                    additionalMetrics,
+                ),
+                sorts: queryTool.queryConfig.sorts.map((sort) => ({
+                    ...sort,
+                    nullsFirst: sort.nullsFirst ?? undefined,
+                })),
+                limit: getValidAiQueryLimit(
+                    queryTool.queryConfig.limit,
+                    maxLimit,
+                ),
+                filters: queryTool.filters,
+                additionalMetrics,
+                tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                    queryTool.tableCalculations,
+                ),
+            },
+            userAttributeOverrides,
+        };
+    }
+
+    private async buildMetricExploreUrl({
+        ctx,
+        projectUuid,
+        metricQuery,
+        fieldsMap,
+        columnOrder,
+        queryTool,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        metricQuery: MetricQuery;
+        fieldsMap: ItemsMap;
+        columnOrder: string[];
+        queryTool?: ToolRunQueryArgsTransformed;
+    }) {
+        try {
+            const exploreConfigState = queryTool
+                ? buildMcpExploreConfigState({
+                      queryTool,
+                      metricQuery,
+                      fieldsMap,
+                      columnOrder,
+                  })
+                : {
+                      tableName: metricQuery.exploreName,
+                      metricQuery,
+                      tableConfig: {
+                          columnOrder,
+                      },
+                      chartConfig: {
+                          type: ChartType.TABLE,
+                      },
+                  };
+
+            const explorePath = `/projects/${projectUuid}/tables/${metricQuery.exploreName}`;
+            const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
+                JSON.stringify(exploreConfigState),
+            )}&isExploreFromHere=true`;
+
+            const { user } = McpService.getAccount(ctx);
+            const shareUrl = await this.shareService.createShareUrl(
+                user,
+                explorePath,
+                exploreParams,
+            );
+            return `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    private async buildSqlRunnerUrl({
+        ctx,
+        projectUuid,
+        sql,
+        limit,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        sql: string;
+        limit?: number;
+    }) {
+        try {
+            const sqlRunnerPath = `/projects/${projectUuid}/sql-runner`;
+            const sqlRunnerParams = JSON.stringify({
+                sqlRunnerState: {
+                    projectUuid,
+                    sql,
+                    limit,
+                },
+                chartConfig: null,
+            });
+
+            const { user } = McpService.getAccount(ctx);
+            const shareUrl = await this.shareService.createShareUrl(
+                user,
+                sqlRunnerPath,
+                sqlRunnerParams,
+            );
+            return `${this.lightdashConfig.siteUrl}${sqlRunnerPath}?share=${shareUrl.nanoid}`;
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    private async buildRenderChartResponse({
+        ctx,
+        queryUuid,
         projectUuid,
         queryTool,
         query,
@@ -442,12 +587,23 @@ export class McpService extends BaseService {
         fields,
     }: {
         ctx: McpProtocolContext;
+        queryUuid: string;
         projectUuid: string;
         queryTool: ToolRunQueryArgsTransformed;
         query: MetricQuery;
         rows: Record<string, unknown>[];
         fields: ItemsMap;
     }) {
+        const fieldIds = rows[0] ? Object.keys(rows[0]) : Object.keys(fields);
+        const exploreUrl = await this.buildMetricExploreUrl({
+            ctx,
+            projectUuid,
+            metricQuery: query,
+            fieldsMap: fields,
+            columnOrder: fieldIds,
+            queryTool,
+        });
+
         if (rows.length === 0) {
             return {
                 content: [
@@ -459,16 +615,16 @@ export class McpService extends BaseService {
                 structuredContent: {
                     result: {
                         status: 'done' as const,
+                        queryUuid,
                         rows: [],
                         fields,
                         echartsOption: null,
-                        exploreUrl: null,
+                        exploreUrl,
                     },
                 },
             };
         }
 
-        const fieldIds = Object.keys(rows[0]);
         const csvHeaders = fieldIds.map((fieldId) => {
             const item = fields[fieldId];
             if (!item) return fieldId;
@@ -508,25 +664,6 @@ export class McpService extends BaseService {
               }
             : null;
 
-        const exploreConfigState = buildMcpExploreConfigState({
-            queryTool,
-            metricQuery: query,
-            fieldsMap: fields,
-            columnOrder: Object.keys(rows[0] ?? {}),
-        });
-        const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
-        const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
-            JSON.stringify(exploreConfigState),
-        )}&isExploreFromHere=true`;
-
-        const { user } = McpService.getAccount(ctx);
-        const shareUrl = await this.shareService.createShareUrl(
-            user,
-            explorePath,
-            exploreParams,
-        );
-        const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
-
         const metadata = await this.getActiveContextMetadata(ctx);
         const scopeInfo = [
             metadata.agentName ? `Active agent: ${metadata.agentName}` : null,
@@ -555,6 +692,7 @@ export class McpService extends BaseService {
             structuredContent: {
                 result: {
                     status: 'done' as const,
+                    queryUuid,
                     rows,
                     fields,
                     echartsOption: mcpEchartsOption,
@@ -568,10 +706,12 @@ export class McpService extends BaseService {
         queryUuid,
         rows,
         fields,
+        exploreUrl,
     }: {
         queryUuid: string;
         rows: Record<string, unknown>[];
         fields: ItemsMap;
+        exploreUrl: string | null;
     }) {
         const fieldIds = rows[0] ? Object.keys(rows[0]) : Object.keys(fields);
         const csvHeaders = fieldIds.map((fieldId) => {
@@ -600,6 +740,7 @@ export class McpService extends BaseService {
                     queryUuid,
                     rows,
                     fields,
+                    exploreUrl,
                 },
             },
         };
@@ -611,12 +752,14 @@ export class McpService extends BaseService {
         projectUuid,
         pageSize,
         includeStatus,
+        sqlRunnerUrl,
     }: {
         ctx: McpProtocolContext;
         queryUuid: string;
         projectUuid: string;
         pageSize?: number;
         includeStatus: boolean;
+        sqlRunnerUrl: string | null;
     }) {
         const { account } = McpService.getAccount(ctx);
         const result = await this.asyncQueryService.getAsyncQueryResults({
@@ -655,6 +798,7 @@ export class McpService extends BaseService {
                         rows: [],
                         columns,
                         rowCount: 0,
+                        sqlRunnerUrl,
                     },
                 },
             );
@@ -672,6 +816,7 @@ export class McpService extends BaseService {
                 rows,
                 columns,
                 rowCount: rows.length,
+                sqlRunnerUrl,
             },
         });
     }
@@ -1436,7 +1581,7 @@ export class McpService extends BaseService {
         );
 
         // Register chart app resource for the MCP App UI
-        const chartResourceUri = 'ui://run-metric-query/chart.html';
+        const chartResourceUri = 'ui://render-chart/chart.html';
         registerAppResource(
             this.mcpServer,
             chartResourceUri,
@@ -1462,8 +1607,7 @@ export class McpService extends BaseService {
             },
         );
 
-        registerAppTool(
-            this.mcpServer,
+        this.mcpServer.registerTool(
             mcpRunMetricQueryTool.name,
             {
                 title: mcpRunMetricQueryTool.title,
@@ -1473,7 +1617,6 @@ export class McpService extends BaseService {
                 ),
                 outputSchema: mcpRunMetricQueryTool.outputSchema,
                 annotations: mcpRunMetricQueryTool.annotations,
-                _meta: { ui: { resourceUri: chartResourceUri } },
             },
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
@@ -1491,62 +1634,22 @@ export class McpService extends BaseService {
                     const deadlineMs =
                         Date.now() + McpService.getMcpQueryWaitMs(extra);
                     const { account } = McpService.getAccount(ctx);
-                    const { agentContext, userAttributeOverrides } =
-                        await this.getRunMetricQueryDependencies(
-                            { projectUuid },
-                            ctx,
-                        );
-
                     const queryTool =
                         toolRunQueryArgsSchemaTransformed.parse(
                             argsWithProject,
                         );
-                    const explore = agentContext.getExplore(
-                        queryTool.queryConfig.exploreName,
-                    );
-
-                    // Full validation including groupBy, axis, and tableCalcs
-                    validateRunQueryTool(queryTool, explore);
-
-                    const maxLimit =
-                        this.lightdashConfig.ai.copilot.maxQueryLimit;
-
-                    const additionalMetrics = populateCustomMetricsSQL(
-                        queryTool.customMetrics,
-                        explore,
-                    );
-
-                    const query = {
-                        exploreName: queryTool.queryConfig.exploreName,
-                        dimensions: queryTool.queryConfig.dimensions,
-                        metrics: expandMetricsWithPopAdditionalMetrics(
-                            queryTool.queryConfig.metrics,
-                            additionalMetrics,
-                        ),
-                        sorts: queryTool.queryConfig.sorts.map((sort) => ({
-                            ...sort,
-                            nullsFirst: sort.nullsFirst ?? undefined,
-                        })),
-                        limit: getValidAiQueryLimit(
-                            queryTool.queryConfig.limit,
-                            maxLimit,
-                        ),
-                        filters: queryTool.filters,
-                        additionalMetrics,
-                        tableCalculations:
-                            convertAiTableCalcsSchemaToTableCalcs(
-                                queryTool.tableCalculations,
-                            ),
-                    };
+                    const { query, userAttributeOverrides } =
+                        await this.buildMcpMetricQuery({
+                            ctx,
+                            projectUuid,
+                            queryTool,
+                        });
 
                     const { queryUuid } =
                         await this.asyncQueryService.executeAsyncMetricQuery({
                             account,
                             projectUuid,
-                            metricQuery: {
-                                ...query,
-                                additionalMetrics,
-                            },
+                            metricQuery: query,
                             context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                             userAttributeOverrides,
                         });
@@ -1580,9 +1683,110 @@ export class McpService extends BaseService {
                             projectUuid,
                             queryUuid,
                         });
-
-                    return await this.buildCompletedMetricQueryResponse({
+                    const exploreUrl = await this.buildMetricExploreUrl({
                         ctx,
+                        projectUuid,
+                        metricQuery: query,
+                        fieldsMap: results.fields,
+                        columnOrder: results.rows[0]
+                            ? Object.keys(results.rows[0])
+                            : Object.keys(results.fields),
+                        queryTool,
+                    });
+
+                    return McpService.buildMetricQueryPollResult({
+                        queryUuid,
+                        rows: results.rows,
+                        fields: results.fields,
+                        exploreUrl,
+                    });
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error running metric query: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+
+        registerAppTool(
+            this.mcpServer,
+            mcpRenderChartTool.name,
+            {
+                title: mcpRenderChartTool.title,
+                description: mcpRenderChartTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpRenderChartTool.inputSchema,
+                ),
+                outputSchema: mcpRenderChartTool.outputSchema,
+                annotations: mcpRenderChartTool.annotations,
+                _meta: { ui: { resourceUri: chartResourceUri } },
+            },
+            async (_args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ..._args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.RENDER_CHART, projectUuid);
+
+                try {
+                    const { account } = McpService.getAccount(ctx);
+                    const renderTool =
+                        toolRenderChartArgsSchemaTransformed.parse(
+                            argsWithProject,
+                        );
+                    const queryTool =
+                        toolRunQueryArgsSchemaTransformed.parse(
+                            argsWithProject,
+                        );
+
+                    const queryHistory =
+                        await this.asyncQueryService.getAsyncQueryHistory({
+                            account,
+                            projectUuid,
+                            queryUuid: renderTool.queryUuid,
+                        });
+
+                    if (
+                        queryHistory.context !==
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY
+                    ) {
+                        throw new ParameterError(
+                            'render_chart currently supports queries started by run_metric_query',
+                        );
+                    }
+
+                    if (queryHistory.status !== QueryHistoryStatus.READY) {
+                        throw new UnexpectedServerError(
+                            queryHistory.error ??
+                                `Query is not ready to render; current status is ${queryHistory.status}`,
+                        );
+                    }
+
+                    const { query } = await this.buildMcpMetricQuery({
+                        ctx,
+                        projectUuid,
+                        queryTool,
+                    });
+
+                    const results =
+                        await this.asyncQueryService.getRawAsyncQueryResults({
+                            account,
+                            projectUuid,
+                            queryUuid: renderTool.queryUuid,
+                        });
+
+                    return await this.buildRenderChartResponse({
+                        ctx,
+                        queryUuid: renderTool.queryUuid,
                         projectUuid,
                         queryTool,
                         query,
@@ -1596,7 +1800,7 @@ export class McpService extends BaseService {
                         content: [
                             {
                                 type: 'text' as const,
-                                text: `Error running metric query: ${errorMessage}`,
+                                text: `Error rendering chart: ${errorMessage}`,
                             },
                         ],
                         isError: true,
@@ -1712,12 +1916,20 @@ export class McpService extends BaseService {
                         );
                     }
 
+                    const sqlRunnerUrl = await this.buildSqlRunnerUrl({
+                        ctx,
+                        projectUuid,
+                        sql: args.sql,
+                        limit: args.limit ?? 500,
+                    });
+
                     return await this.buildSqlQueryResultResponse({
                         ctx,
                         queryUuid,
                         projectUuid,
                         pageSize: args.limit ?? 500,
                         includeStatus: false,
+                        sqlRunnerUrl,
                     });
                 } catch (e) {
                     const errorMessage =
@@ -1824,11 +2036,19 @@ export class McpService extends BaseService {
                     }
 
                     if (isMcpSqlQuery) {
+                        const sqlRunnerUrl = await this.buildSqlRunnerUrl({
+                            ctx,
+                            projectUuid,
+                            sql: queryHistory.compiledSql,
+                            limit: queryHistory.metricQuery.limit ?? undefined,
+                        });
+
                         return await this.buildSqlQueryResultResponse({
                             ctx,
                             queryUuid: args.queryUuid,
                             projectUuid,
                             includeStatus: true,
+                            sqlRunnerUrl,
                         });
                     }
 
@@ -1841,11 +2061,21 @@ export class McpService extends BaseService {
                                     queryUuid: args.queryUuid,
                                 },
                             );
+                        const exploreUrl = await this.buildMetricExploreUrl({
+                            ctx,
+                            projectUuid,
+                            metricQuery: queryHistory.metricQuery,
+                            fieldsMap: results.fields,
+                            columnOrder: results.rows[0]
+                                ? Object.keys(results.rows[0])
+                                : Object.keys(results.fields),
+                        });
 
                         return McpService.buildMetricQueryPollResult({
                             queryUuid: args.queryUuid,
                             rows: results.rows,
                             fields: results.fields,
+                            exploreUrl,
                         });
                     }
 

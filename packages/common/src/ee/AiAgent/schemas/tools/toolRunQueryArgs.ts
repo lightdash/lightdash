@@ -14,6 +14,7 @@ import {
     buildMcpQueryRunResponseDescription,
     MCP_QUERY_COMMON_NOTES,
 } from './toolMcpQueryResultDescription';
+import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
 const queryConfigSchema = z.object({
@@ -137,16 +138,18 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query and create a chart artifact.
+export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
+
+This tool returns metric query data only. It does not render charts. To visualize a completed query in MCP App-capable clients, call render_chart with the queryUuid and chart configuration after this tool or get_query_result returns done.
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
         'bare CSV text. CSV headers are display labels, not stable field IDs',
     completedResultShape: `    result: {
       status: "done",
+      queryUuid: string,
       rows: Array<Record<string, unknown>>,
       fields: Record<string, unknown>,
-      echartsOption: Record<string, unknown>,
       exploreUrl: string | null
     }`,
 })}
@@ -189,6 +192,45 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
+>;
+
+export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
+
+Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid plus the same query and chart configuration used for the completed query.
+
+Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: string }] — bare CSV text for human/LLM display.
+- structuredContent: {
+    result: {
+      status: "done",
+      queryUuid: string,
+      rows: Array<Record<string, unknown>>,
+      fields: Record<string, unknown>,
+      exploreUrl: string | null,
+      echartsOption: Record<string, unknown> | null
+    }
+  }`;
+
+export const toolRenderChartArgsSchema = toolRunQueryArgsSchema
+    .extend({
+        queryUuid: mcpAsyncQueryUuidSchema.describe(
+            'Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
+        ),
+    })
+    .describe('Render chart input for a completed query.');
+
+export const toolRenderChartArgsSchemaTransformed =
+    toolRenderChartArgsSchema.transform((data) => ({
+        ...toolRunQueryArgsSchemaTransformed.parse(data),
+        queryUuid: data.queryUuid,
+    }));
+
+export type ToolRenderChartArgs = z.infer<typeof toolRenderChartArgsSchema>;
+
+export type ToolRenderChartArgsTransformed = z.infer<
+    typeof toolRenderChartArgsSchemaTransformed
 >;
 
 export const toolRunQueryOutputSchema = z.object({

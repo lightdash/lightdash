@@ -10,6 +10,7 @@ export const TOOL_GET_QUERY_RESULT_DESCRIPTION = `Poll for the result of a long-
 
 Use this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
 Each call waits up to the MCP wait window before returning another running response.
+If this returns done and the user wants a visual chart in an MCP App-capable client, call render_chart with the queryUuid and chart configuration. render_chart currently supports completed results from run_metric_query.
 
 Parameters:
 - queryUuid: The async query UUID returned by run_sql or run_metric_query.

@@ -135,6 +135,7 @@ import {
 } from './toolProposeWritebackArgs';
 import {
     mcpGetQueryResultStructuredOutputSchema,
+    mcpRenderChartStructuredOutputSchema,
     mcpRunMetricQueryStructuredOutputSchema,
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
@@ -154,7 +155,10 @@ import {
     toolRunMetricQueryOutputSchema,
 } from './toolRunMetricQueryArgs';
 import {
+    TOOL_RENDER_CHART_DESCRIPTION,
     TOOL_RUN_QUERY_DESCRIPTION,
+    toolRenderChartArgsSchema,
+    toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryOutputSchema,
@@ -299,6 +303,19 @@ export const getQueryResultToolDefinition = defineTool({
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpGetQueryResultStructuredOutputSchema,
+    },
+});
+
+export const renderChartToolDefinition = defineTool({
+    name: 'renderChart',
+    title: 'Render chart',
+    description: TOOL_RENDER_CHART_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolRenderChartArgsSchema,
+    inputSchemaTransformed: toolRenderChartArgsSchemaTransformed,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpRenderChartStructuredOutputSchema,
     },
 });
 
@@ -756,6 +773,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runQueryToolDefinition,
     runSqlToolDefinition,
     getQueryResultToolDefinition,
+    renderChartToolDefinition,
     discoverFieldsToolDefinition,
     generateDashboardToolDefinition,
     generateUuidsToolDefinition,
