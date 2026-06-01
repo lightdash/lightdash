@@ -57,12 +57,10 @@ export class OrganizationSettingsService extends BaseService {
     }
 
     /**
-     * Sanity-checks the numeric overrides (scheduled-delivery expiries and
-     * export limits) before they're persisted. A `null` clears an override
-     * (back to inheriting the env default). We don't cap the values — they feed
-     * the existing mechanisms as-is (expiries over 7 days transparently use
-     * persistent URLs; limits match what instance admins set uncapped via env) —
-     * we only reject nonsense (non-integers, zero, negatives).
+     * Validates the numeric overrides before they're persisted: each must be a
+     * positive integer within the Postgres column ceiling, and the two export
+     * limits additionally cannot exceed their instance env ceilings. A `null`
+     * clears an override (back to inheriting the env default).
      */
     private assertValidPatch(data: UpdateOrganizationSettings): void {
         const positiveIntegerFields: Array<keyof UpdateOrganizationSettings> = [
