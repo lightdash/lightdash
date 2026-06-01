@@ -370,8 +370,13 @@ describe('Pivot Tables', () => {
 
         cy.dragAndDrop(dragSelector, dropSelector);
 
-        // Pivoting runs in SQL, so re-run the query to fetch pivoted results.
+        // Pivoting runs in SQL, so re-run the query and wait for the pivoted
+        // results to be ready before asserting the pivot rendered.
+        cy.intercept('GET', '**/api/v2/projects/*/query/*').as(
+            'pivotQueryResults',
+        );
         cy.get('button').contains('Run query').click();
+        waitForReadyPivotResults(() => {});
 
         cy.get('[data-testid="visualization"]').as('chartArea'); // Using an alias aviod querying the DOM for the same element multiple times
 
