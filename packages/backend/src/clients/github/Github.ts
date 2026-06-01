@@ -109,10 +109,7 @@ export const getOrRefreshToken = async (
         });
         if (tokenResponse.status === 200) return { token, refreshToken };
     } catch {
-        console.debug(
-            'Refreshing expired or invalid github token',
-            refreshToken,
-        );
+        console.debug('Refreshing expired or invalid github token');
     }
 
     const auth = await getGithubApp().oauth.refreshToken({
