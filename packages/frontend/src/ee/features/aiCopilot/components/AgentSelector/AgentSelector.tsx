@@ -20,7 +20,12 @@ import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiRouterConfig } from '../../hooks/useAiRouter';
 import styles from './AgentSelector.module.css';
-import { getAgentOptions, type Agent } from './AgentSelectorUtils';
+import {
+    AI_ROUTING_AUTO_VALUE,
+    AI_ROUTING_SEARCH_PARAM,
+    getAgentOptions,
+    type Agent,
+} from './AgentSelectorUtils';
 
 type Props = {
     agents: Agent[];
@@ -65,15 +70,22 @@ export const AgentSelector = ({
                 viewTransition: true,
             });
         } else if (value === AUTO_VALUE) {
+            const autoSearch = new URLSearchParams(search);
+            autoSearch.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);
             void navigate(
-                { pathname: `/projects/${projectUuid}/ai-agents`, search },
+                {
+                    pathname: `/projects/${projectUuid}/ai-agents`,
+                    search: autoSearch.toString(),
+                },
                 { viewTransition: true },
             );
         } else {
+            const agentSearch = new URLSearchParams(search);
+            agentSearch.delete(AI_ROUTING_SEARCH_PARAM);
             void navigate(
                 {
                     pathname: `/projects/${projectUuid}/ai-agents/${value}/threads`,
-                    search,
+                    search: agentSearch.toString(),
                 },
                 {
                     viewTransition: true,
