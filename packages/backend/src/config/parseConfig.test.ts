@@ -998,3 +998,22 @@ describe('feature flag env-var allowlists', () => {
         expect(config.dashboardComments.enabled).toBe(false);
     });
 });
+
+describe('persistentDownloadUrls.enabled', () => {
+    test('defaults to false when PERSISTENT_DOWNLOAD_URLS_ENABLED is unset', () => {
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(false);
+    });
+
+    test('is true only when explicitly set to "true"', () => {
+        process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED = 'true';
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(true);
+    });
+
+    test('is false when set to "false"', () => {
+        process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED = 'false';
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(false);
+    });
+});

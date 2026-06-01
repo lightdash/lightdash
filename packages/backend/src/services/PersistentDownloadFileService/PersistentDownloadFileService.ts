@@ -1,4 +1,7 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    NotFoundError,
+    S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS,
+} from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { type Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -40,11 +43,27 @@ export class PersistentDownloadFileService extends BaseService {
         createdByUserUuid: string | null;
         expirationSeconds?: number;
     }): Promise<string> {
-        if (!this.lightdashConfig.persistentDownloadUrls.enabled) {
+        // Use the persistent-URL system when the instance enables it
+        // (PERSISTENT_DOWNLOAD_URLS_ENABLED, off by default), or transparently
+        // when the requested expiry exceeds what a raw S3 presigned URL can do
+        // (7 days) — that's the only way a link can live that long, so it wins
+        // even when the instance hasn't opted in. Otherwise hand back a raw
+        // presigned URL honoring the requested expiry (undefined falls back to
+        // the S3 default).
+        const exceedsS3Limit =
+            data.expirationSeconds !== undefined &&
+            data.expirationSeconds > S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS;
+        const usePersistent =
+            this.lightdashConfig.persistentDownloadUrls.enabled ||
+            exceedsS3Limit;
+        if (!usePersistent) {
             this.logger.debug(
                 'Persistent download URLs disabled, returning raw S3 URL',
             );
-            return this.fileStorageClient.getFileUrl(data.s3Key);
+            return this.fileStorageClient.getFileUrl(
+                data.s3Key,
+                data.expirationSeconds,
+            );
         }
 
         const fileNanoid = nanoid();

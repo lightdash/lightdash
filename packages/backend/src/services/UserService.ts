@@ -92,6 +92,7 @@ import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredential
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
+import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -769,8 +770,10 @@ export class UserService extends BaseService {
             ? await this.organizationSettingsModel.get(organizationUuid)
             : {};
         return (
-            resolveEffectiveOrganizationSettings(raw, this.lightdashConfig.auth)
-                .oidcLinkingEnabled ?? false
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcLinkingEnabled ?? false
         );
     }
 
@@ -787,8 +790,10 @@ export class UserService extends BaseService {
             ? await this.organizationSettingsModel.get(organizationUuid)
             : {};
         return (
-            resolveEffectiveOrganizationSettings(raw, this.lightdashConfig.auth)
-                .oidcToEmailLinkingEnabled ?? false
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcToEmailLinkingEnabled ?? false
         );
     }
 
