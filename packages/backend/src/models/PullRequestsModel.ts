@@ -4,6 +4,7 @@ import {
     PullRequest,
     PullRequestProvider,
     PullRequestSource,
+    UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -131,6 +132,55 @@ export class PullRequestsModel {
 
         // A newly created PR has no ai_writeback_thread link yet.
         return mapDbPullRequest(row, null);
+    }
+
+    /**
+     * Record a PR, tolerating an existing row for the same
+     * (provider, owner, repo, pr_number). Callers that record a PR *after* it
+     * has already been opened on the provider (e.g. AI write-back) must not
+     * fail the whole run on a duplicate — a retry, or the same PR already
+     * recorded by another path, would otherwise throw on the unique
+     * constraint. The insert-or-ignore is atomic, so concurrent callers are
+     * safe; the existing row's attribution (source/user) is preserved rather
+     * than overwritten.
+     */
+    async findOrCreate(data: CreatePullRequest): Promise<PullRequest> {
+        const inserted = await this.database(PullRequestsTableName)
+            .insert({
+                organization_uuid: data.organizationUuid,
+                project_uuid: data.projectUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+                provider: data.provider,
+                source: data.source,
+                owner: data.owner,
+                repo: data.repo,
+                pr_number: data.prNumber,
+                pr_url: data.prUrl,
+            })
+            .onConflict(['provider', 'owner', 'repo', 'pr_number'])
+            .ignore()
+            .returning('*');
+
+        if (inserted.length > 0) {
+            return mapDbPullRequest(inserted[0], null);
+        }
+
+        // The insert was ignored because a row already exists — return it.
+        const existing = await this.database(PullRequestsTableName)
+            .where({
+                provider: data.provider,
+                owner: data.owner,
+                repo: data.repo,
+                pr_number: data.prNumber,
+            })
+            .first();
+        if (!existing) {
+            // Shouldn't happen: a conflict implies a row exists.
+            throw new UnexpectedDatabaseError(
+                'Failed to record pull request: row neither inserted nor found',
+            );
+        }
+        return mapDbPullRequest(existing, null);
     }
 
     async getByProject(

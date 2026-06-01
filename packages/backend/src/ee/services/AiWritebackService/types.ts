@@ -1,6 +1,6 @@
 import type { SessionUser, WarehouseTypes } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
-import type { DbAiWritebackThread } from '../../database/entities/ai';
+import type { AiWritebackThreadWithPrUrl } from '../../models/AiWritebackThreadModel';
 
 /**
  * The canonical warehouse keys we ship a skill file for. Several
@@ -33,7 +33,7 @@ export type TurnContext = {
     organizationUuid: string;
     projectName: string;
     githubConnection: GithubConnection;
-    existingRow: DbAiWritebackThread | null;
+    existingRow: AiWritebackThreadWithPrUrl | null;
     isResume: boolean;
     /**
      * The project's warehouse dialect, used to pick the warehouse skill file

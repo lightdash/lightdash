@@ -96,6 +96,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGithubAppInstallationsModel(),
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
+                    pullRequestsModel: models.getPullRequestsModel(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({

@@ -8,6 +8,8 @@ import {
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
+    PullRequestProvider,
+    PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
     type DbtProjectConfig,
@@ -29,9 +31,12 @@ import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { BaseService } from '../../../services/BaseService';
-import type { DbAiWritebackThread } from '../../database/entities/ai';
-import type { AiWritebackThreadModel } from '../../models/AiWritebackThreadModel';
+import type {
+    AiWritebackThreadModel,
+    AiWritebackThreadWithPrUrl,
+} from '../../models/AiWritebackThreadModel';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
@@ -82,6 +87,7 @@ type AiWritebackServiceDeps = {
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
+    pullRequestsModel: PullRequestsModel;
 };
 
 export class AiWritebackService extends BaseService {
@@ -97,6 +103,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    private readonly pullRequestsModel: PullRequestsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -104,6 +112,7 @@ export class AiWritebackService extends BaseService {
         featureFlagModel,
         githubAppInstallationsModel,
         aiWritebackThreadModel,
+        pullRequestsModel,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -112,6 +121,7 @@ export class AiWritebackService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
+        this.pullRequestsModel = pullRequestsModel;
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -616,6 +626,8 @@ export class AiWritebackService extends BaseService {
                 github,
                 hasChanges,
                 turn,
+                user,
+                projectUuid,
                 aiThreadUuid,
                 setStage,
                 prTitle,
@@ -815,7 +827,7 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         githubConnection: GithubConnection;
         token: string;
-        existingRow: DbAiWritebackThread | null;
+        existingRow: AiWritebackThreadWithPrUrl | null;
         setStage: SetStage;
     }): Promise<Sandbox> {
         setStage('sandbox');
@@ -1234,6 +1246,8 @@ export class AiWritebackService extends BaseService {
         github,
         hasChanges,
         turn,
+        user,
+        projectUuid,
         aiThreadUuid,
         setStage,
         prTitle,
@@ -1243,6 +1257,8 @@ export class AiWritebackService extends BaseService {
         github: GithubInstallation;
         hasChanges: boolean;
         turn: TurnContext;
+        user: SessionUser;
+        projectUuid: string;
         aiThreadUuid: string | undefined;
         setStage: SetStage;
         prTitle: string | null;
@@ -1293,11 +1309,27 @@ export class AiWritebackService extends BaseService {
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
 
+        // Record the PR so it shows up in the project's "Pull requests" view,
+        // attributed to the user who drove the writeback. The thread row links
+        // to it via pull_request_uuid (the PR URL is no longer stored on the
+        // thread itself).
+        const pullRequest = await this.pullRequestsModel.findOrCreate({
+            organizationUuid: turn.organizationUuid,
+            projectUuid,
+            createdByUserUuid: user.userUuid,
+            provider: PullRequestProvider.GITHUB,
+            source: PullRequestSource.AI_AGENT,
+            owner: turn.githubConnection.owner,
+            repo: turn.githubConnection.repo,
+            prNumber: AiWritebackService.parsePullNumber(prUrl),
+            prUrl,
+        });
+
         if (aiThreadUuid) {
             await this.aiWritebackThreadModel.create({
                 aiThreadUuid,
                 sandboxId: sandbox.sandboxId,
-                prUrl,
+                pullRequestUuid: pullRequest.pullRequestUuid,
             });
         }
 
@@ -1403,7 +1435,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
     }: {
         sandbox: Sandbox;
-        existingRow: DbAiWritebackThread;
+        existingRow: AiWritebackThreadWithPrUrl;
         githubConnection: GithubConnection;
         installationId: string;
         token: string;
@@ -1439,6 +1471,12 @@ export class AiWritebackService extends BaseService {
             username: GIT_USERNAME,
             password: token,
         });
+
+        if (!existingRow.pr_url) {
+            throw new ParameterError(
+                'Cannot update pull request: the writeback thread is not linked to a pull request',
+            );
+        }
 
         setStage('pull_request');
         await updatePullRequest({
