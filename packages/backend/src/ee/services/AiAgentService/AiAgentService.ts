@@ -4724,9 +4724,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
     }
 
-    private async canManageContentAsCode(
+    private async canContentAsCode(
         user: SessionUser,
         projectUuid: string,
+        action: 'view' | 'manage',
     ): Promise<boolean> {
         if (!user.organizationUuid) {
             return false;
@@ -4735,12 +4736,41 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         return auditedAbility.can(
-            'manage',
+            action,
             subject('ContentAsCode', {
                 organizationUuid: project.organizationUuid,
                 projectUuid,
             }),
         );
+    }
+
+    private async canViewContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        return this.canContentAsCode(user, projectUuid, 'view');
+    }
+
+    private async canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        return this.canContentAsCode(user, projectUuid, 'manage');
+    }
+
+    private async assertCanViewContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        if (!(await this.canViewContentAsCode(user, projectUuid))) {
+            throw new ForbiddenError(
+                'You do not have permission to view content as code',
+            );
+        }
     }
 
     private async assertCanManageContentAsCode(
@@ -4777,7 +4807,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.readContent`,
                 { slug, type },
                 async () => {
-                    await this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanViewContentAsCode(user, projectUuid);
 
                     switch (type) {
                         case 'dashboard': {
@@ -4964,7 +4994,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `${sentryPrefix}.listContent`,
                 { spaceSlug, page },
                 async () => {
-                    await this.assertCanManageContentAsCode(user, projectUuid);
+                    await this.assertCanViewContentAsCode(user, projectUuid);
 
                     const pageSize = 25;
                     const agentSpaceAccess = getAgentSpaceAccess

@@ -139,7 +139,8 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpPrompts.length = 0;
         mcpService.createServer({
             aiWritebackEnabled: true,
-            mcpContentAsCodeEnabled: true,
+            mcpContentAsCodeReadEnabled: true,
+            mcpContentAsCodeWriteEnabled: true,
         });
 
         expect({
@@ -169,7 +170,7 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
-        mcpService.createServer({ mcpContentAsCodeEnabled: false });
+        mcpService.createServer({ mcpContentAsCodeReadEnabled: false });
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toEqual(
             expect.arrayContaining([
                 McpToolName.LIST_CONTENT,
@@ -180,7 +181,25 @@ describe('MCP tool contracts', () => {
         );
 
         mockRegisteredMcpTools.length = 0;
-        mcpService.createServer({ mcpContentAsCodeEnabled: true });
+        mcpService.createServer({ mcpContentAsCodeReadEnabled: true });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toEqual(
+            expect.arrayContaining([
+                McpToolName.LIST_CONTENT,
+                McpToolName.READ_CONTENT,
+            ]),
+        );
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toEqual(
+            expect.arrayContaining([
+                McpToolName.CREATE_CONTENT,
+                McpToolName.EDIT_CONTENT,
+            ]),
+        );
+
+        mockRegisteredMcpTools.length = 0;
+        mcpService.createServer({
+            mcpContentAsCodeReadEnabled: true,
+            mcpContentAsCodeWriteEnabled: true,
+        });
         expect(mockRegisteredMcpTools.map(({ name }) => name)).toEqual(
             expect.arrayContaining([
                 McpToolName.LIST_CONTENT,

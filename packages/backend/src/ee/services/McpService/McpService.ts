@@ -761,7 +761,9 @@ export class McpService extends BaseService {
         );
     }
 
-    private registerMcpContentAsCodeTools(): void {
+    private registerMcpContentAsCodeTools(options: {
+        writeEnabled: boolean;
+    }): void {
         this.mcpServer.registerTool(
             mcpListContentTool.name,
             {
@@ -834,6 +836,10 @@ export class McpService extends BaseService {
                 );
             },
         );
+
+        if (!options.writeEnabled) {
+            return;
+        }
 
         this.mcpServer.registerTool(
             mcpCreateContentTool.name,
@@ -916,11 +922,13 @@ export class McpService extends BaseService {
         options: {
             projectPinned: boolean;
             aiWritebackEnabled: boolean;
-            mcpContentAsCodeEnabled: boolean;
+            mcpContentAsCodeReadEnabled: boolean;
+            mcpContentAsCodeWriteEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
-            mcpContentAsCodeEnabled: false,
+            mcpContentAsCodeReadEnabled: false,
+            mcpContentAsCodeWriteEnabled: false,
         },
     ): void {
         this.mcpServer.registerTool(
@@ -2072,8 +2080,10 @@ export class McpService extends BaseService {
         );
 
         // Dark-launched content-as-code tools.
-        if (options.mcpContentAsCodeEnabled) {
-            this.registerMcpContentAsCodeTools();
+        if (options.mcpContentAsCodeReadEnabled) {
+            this.registerMcpContentAsCodeTools({
+                writeEnabled: options.mcpContentAsCodeWriteEnabled,
+            });
         }
 
         // Dark-launched writeback tool.
@@ -2758,7 +2768,8 @@ export class McpService extends BaseService {
     public createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-        mcpContentAsCodeEnabled?: boolean;
+        mcpContentAsCodeReadEnabled?: boolean;
+        mcpContentAsCodeWriteEnabled?: boolean;
     }): McpServer {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -2790,7 +2801,10 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
-            mcpContentAsCodeEnabled: options?.mcpContentAsCodeEnabled ?? false,
+            mcpContentAsCodeReadEnabled:
+                options?.mcpContentAsCodeReadEnabled ?? false,
+            mcpContentAsCodeWriteEnabled:
+                options?.mcpContentAsCodeWriteEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -2880,35 +2894,39 @@ export class McpService extends BaseService {
         return flag.enabled;
     }
 
-    public async isMcpContentAsCodeEnabled(
+    public async getMcpContentAsCodeAccess(
         user: SessionUser,
         projectUuid?: string,
-    ): Promise<boolean> {
+    ): Promise<{
+        read: boolean;
+        write: boolean;
+    }> {
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.McpContentAsCode,
         });
         if (!flag.enabled) {
-            return false;
+            return { read: false, write: false };
         }
 
         if (!user.organizationUuid) {
-            return false;
+            return { read: false, write: false };
         }
 
         if (!projectUuid) {
-            return true;
+            return { read: false, write: false };
         }
 
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        return auditedAbility.can(
-            'manage',
-            subject('ContentAsCode', {
-                organizationUuid: project.organizationUuid,
-                projectUuid,
-            }),
-        );
+        const contentAsCode = subject('ContentAsCode', {
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+        });
+        return {
+            read: auditedAbility.can('view', contentAsCode),
+            write: auditedAbility.can('manage', contentAsCode),
+        };
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
