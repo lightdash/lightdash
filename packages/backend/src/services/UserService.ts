@@ -1689,6 +1689,11 @@ export class UserService extends BaseService {
 
     async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
         const sessionUser = await this.getSessionByUserUuid(userUuid);
+
+        if (!this.lightdashConfig.serviceAccount.enabled) {
+            return AccountFactory.fromSession(sessionUser);
+        }
+
         const serviceAccount =
             await this.userModel.findServiceAccountByUserUuid(userUuid);
 
