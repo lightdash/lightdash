@@ -1,3 +1,10 @@
+## [0.3060.1](https://github.com/lightdash/lightdash/compare/0.3060.0...0.3060.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ai-agents:** disable chat input until pinned context is ready ([#23692](https://github.com/lightdash/lightdash/issues/23692)) ([8fdea00](https://github.com/lightdash/lightdash/commit/8fdea00cdcf994f7081856d35e7c88e5d4e70178))
+
 # [0.3060.0](https://github.com/lightdash/lightdash/compare/0.3059.0...0.3060.0) (2026-06-01)
 
 
