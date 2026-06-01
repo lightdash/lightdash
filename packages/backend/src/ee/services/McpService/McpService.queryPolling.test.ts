@@ -68,7 +68,11 @@ const makeQueryHistory = (
     status,
     context,
     error,
-    compiledSql: 'select 1',
+    compiledSql: 'select * from (select 1) limit 10',
+    requestParameters: {
+        sql: 'select 1',
+        limit: 10,
+    },
     metricQuery: {
         exploreName: 'orders',
         dimensions: [],
@@ -103,6 +107,10 @@ const makeMcpService = () => {
         }),
     };
 
+    const shareService = {
+        createShareUrl: jest.fn().mockResolvedValue({ nanoid: 'share-id' }),
+    };
+
     const service = new McpService({
         aiAgentService: {},
         aiOrganizationSettingsService: {},
@@ -128,14 +136,12 @@ const makeMcpService = () => {
         projectModel: {},
         projectService: {},
         searchModel: {},
-        shareService: {
-            createShareUrl: jest.fn().mockResolvedValue({ nanoid: 'share-id' }),
-        },
+        shareService,
         spaceService: {},
         userAttributesModel: {},
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
-    return { asyncQueryService, mcpContextModel, service };
+    return { asyncQueryService, mcpContextModel, service, shareService };
 };
 
 const getToolCallback = (toolName: McpToolName) => {
@@ -431,7 +437,7 @@ describe('MCP async query polling', () => {
     });
 
     it('returns final SQL rows when get_query_result sees readiness during its wait', async () => {
-        const { asyncQueryService } = makeMcpService();
+        const { asyncQueryService, shareService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
             makeQueryHistory(QueryHistoryStatus.QUEUED),
         );
@@ -468,6 +474,11 @@ describe('MCP async query polling', () => {
                 page: 1,
                 pageSize: undefined,
             }),
+        );
+        expect(shareService.createShareUrl).toHaveBeenCalledWith(
+            user,
+            '/projects/project-uuid/sql-runner',
+            expect.stringContaining('"sql":"select 1"'),
         );
     });
 

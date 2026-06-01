@@ -2071,12 +2071,16 @@ export class McpService extends BaseService {
                     }
 
                     if (isMcpSqlQuery) {
-                        const sqlRunnerUrl = await this.buildSqlRunnerUrl({
-                            ctx,
-                            projectUuid,
-                            sql: queryHistory.compiledSql,
-                            limit: queryHistory.metricQuery.limit ?? undefined,
-                        });
+                        const { requestParameters } = queryHistory;
+                        const sqlRunnerUrl =
+                            requestParameters && 'sql' in requestParameters
+                                ? await this.buildSqlRunnerUrl({
+                                      ctx,
+                                      projectUuid,
+                                      sql: requestParameters.sql,
+                                      limit: requestParameters.limit,
+                                  })
+                                : null;
 
                         return await this.buildSqlQueryResultResponse({
                             ctx,

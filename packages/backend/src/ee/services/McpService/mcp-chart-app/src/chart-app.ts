@@ -15,8 +15,8 @@ import { lightdashTheme } from './lightdash-theme';
 echarts.registerTheme('lightdash', lightdashTheme);
 
 const chartContainer = document.getElementById('chart') as HTMLDivElement;
-const tableFallback = document.getElementById(
-    'table-fallback',
+const resultContainer = document.getElementById(
+    'result-container',
 ) as HTMLDivElement;
 
 let chart: echarts.ECharts | null = null;
@@ -25,7 +25,7 @@ let chart: echarts.ECharts | null = null;
 // Tooltip formatter helpers (client-side, functions can't be serialized)
 // ---------------------------------------------------------------------------
 
-/** Extract color string from ECharts marker HTML or fallback. */
+/** Extract color string from ECharts marker HTML or default. */
 function extractColor(
     param: echarts.DefaultLabelFormatterCallbackParams,
 ): string {
@@ -129,7 +129,7 @@ function initChart(): echarts.ECharts {
 
 function renderChart(echartsOption: echarts.EChartsOption): void {
     chartContainer.style.display = 'block';
-    tableFallback.style.display = 'none';
+    resultContainer.style.display = 'none';
 
     const instance = chart ?? initChart();
 
@@ -156,10 +156,10 @@ function renderTable(
     fields: Record<string, { label?: string }>,
 ): void {
     chartContainer.style.display = 'none';
-    tableFallback.style.display = 'block';
+    resultContainer.style.display = 'block';
 
     if (rows.length === 0) {
-        tableFallback.innerHTML = '<p>No data available.</p>';
+        resultContainer.innerHTML = '<p>No data available.</p>';
         return;
     }
 
@@ -178,7 +178,7 @@ function renderTable(
         )
         .join('');
 
-    tableFallback.innerHTML = `<table><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+    resultContainer.innerHTML = `<table><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table>`;
 }
 
 function escapeHtml(str: string): string {
@@ -207,13 +207,17 @@ function renderExploreButton(url: string): void {
 
 const app = new App({ name: 'Lightdash Chart', version: '1.0.0' });
 
+type ChartToolStatus = 'done' | 'running' | 'error' | 'cancelled' | 'expired';
+
 type ChartToolResult = {
-    status?: string;
+    status?: ChartToolStatus;
     echartsOption?: echarts.EChartsOption | null;
     rows?: Record<string, unknown>[];
     fields?: Record<string, { label?: string }>;
     exploreUrl?: string | null;
 };
+
+type MessageKind = 'loading' | 'error' | 'info';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -256,9 +260,53 @@ function removeExploreButton(): void {
 
 function clearRenderedContent(): void {
     chartContainer.style.display = 'none';
-    tableFallback.style.display = 'none';
-    tableFallback.innerHTML = '';
+    resultContainer.style.display = 'none';
+    resultContainer.innerHTML = '';
     removeExploreButton();
+}
+
+function getTextContent(result: unknown): string | null {
+    if (!isRecord(result) || !Array.isArray(result.content)) {
+        return null;
+    }
+
+    const textParts = result.content.flatMap((item) => {
+        if (!isRecord(item) || item.type !== 'text') {
+            return [];
+        }
+
+        return typeof item.text === 'string' ? [item.text] : [];
+    });
+
+    return textParts.length > 0 ? textParts.join('\n') : null;
+}
+
+function getMessageKind(
+    result: unknown,
+    structured: ChartToolResult,
+): MessageKind {
+    if (structured.status === 'running') {
+        return 'loading';
+    }
+
+    if (
+        structured.status === 'error' ||
+        structured.status === 'cancelled' ||
+        structured.status === 'expired' ||
+        (isRecord(result) && result.isError === true)
+    ) {
+        return 'error';
+    }
+
+    return 'info';
+}
+
+function renderMessageContent(text: string, kind: MessageKind): void {
+    chartContainer.style.display = 'none';
+    resultContainer.style.display = 'block';
+    resultContainer.innerHTML = `<div class="message message--${kind}"><pre>${escapeHtml(
+        text,
+    )}</pre></div>`;
 }
 
 app.ontoolresult = (result) => {
@@ -269,7 +317,12 @@ app.ontoolresult = (result) => {
     } else if (structured?.rows) {
         renderTable(structured.rows ?? [], structured.fields ?? {});
     } else {
-        clearRenderedContent();
+        const text = getTextContent(result);
+        if (text) {
+            renderMessageContent(text, getMessageKind(result, structured));
+        } else {
+            clearRenderedContent();
+        }
         return;
     }
 

@@ -26,8 +26,10 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
    - Use multiple search queries in one call to find related fields efficiently
    - Look for both dimensions (for grouping) and metrics (for aggregation)
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` to execute queries and generate visualizations
-5. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+7. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 
@@ -56,6 +58,7 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Visualization
+- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
 - Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
 - For time series: use \`line\` with \`xAxisType: 'time'\`
 - For categorical comparisons: use \`bar\` or \`horizontal_bar\`
