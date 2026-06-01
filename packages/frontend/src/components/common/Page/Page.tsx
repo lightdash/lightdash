@@ -19,6 +19,7 @@ import {
     PAGE_CONTENT_WIDTH,
     PAGE_HEADER_HEIGHT,
     PAGE_MIN_CONTENT_WIDTH,
+    SIDEBAR_TOGGLE_RESERVE,
 } from './constants';
 import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
@@ -44,6 +45,7 @@ type StyleProps = {
     noContentPadding?: boolean;
     noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
+    reserveSidebarToggle?: boolean;
     backgroundColor?: string;
     fullPageScroll?: boolean;
 };
@@ -164,6 +166,12 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   }
                 : {}),
 
+            ...(params.reserveSidebarToggle
+                ? {
+                      paddingLeft: `calc(${theme.spacing.lg} + ${SIDEBAR_TOGGLE_RESERVE}px)`,
+                  }
+                : {}),
+
             ...(params.withXLargePaddedContent
                 ? {
                       padding: theme.spacing.xxl,
@@ -199,6 +207,9 @@ type Props = {
     title?: string;
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
+    isSidebarCollapsed?: boolean;
+    isSidebarCollapsible?: boolean;
+    collapsedSidebarContent?: React.ReactNode;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
@@ -210,6 +221,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
+    isSidebarCollapsed = false,
+    isSidebarCollapsible = false,
+    collapsedSidebarContent,
     rightSidebar,
     isRightSidebarOpen = false,
     rightSidebarWidthProps,
@@ -269,6 +283,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             noContentPadding,
             flexContent,
             isSidebarResizing,
+            reserveSidebarToggle: isSidebarCollapsible && isSidebarCollapsed,
             backgroundColor,
             fullPageScroll,
         },
@@ -286,6 +301,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}
                         isOpen={isSidebarOpen}
+                        isCollapsed={isSidebarCollapsed}
+                        collapsible={isSidebarCollapsible}
+                        collapsedContent={collapsedSidebarContent}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >

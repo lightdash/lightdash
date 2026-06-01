@@ -16,3 +16,9 @@ export const SIDEBAR_DEFAULT_WIDTH = 400;
 export const SIDEBAR_MIN_WIDTH = 320;
 
 export const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
+
+// Left gutter reserved on full-width content so the floating collapse toggle
+// (rendered at the top-left when the sidebar is collapsed) clears the page title.
+export const SIDEBAR_TOGGLE_RESERVE = 48;
+
+export const SIDEBAR_ANIMATION_DURATION = 150;
