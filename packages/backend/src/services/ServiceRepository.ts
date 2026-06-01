@@ -427,6 +427,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    pullRequestsModel: this.models.getPullRequestsModel(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );
