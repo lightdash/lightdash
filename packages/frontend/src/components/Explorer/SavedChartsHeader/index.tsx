@@ -846,7 +846,8 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 {userCanManageChart &&
-                                    hasGoogleDriveEnabled && (
+                                    hasGoogleDriveEnabled &&
+                                    userCanCreateDeliveriesAndAlerts && (
                                         <Can
                                             I="manage"
                                             this={subject('GoogleSheets', {

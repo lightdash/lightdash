@@ -17,6 +17,7 @@ import {
     Project,
     QueryExecutionContext,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     SqlChart,
     SqlRunnerPivotQueryBody,
@@ -867,11 +868,27 @@ export class SavedSqlService
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        await this.checkCreateScheduledDeliveryAccess(
-            user,
-            projectUuid,
-            savedSqlUuid,
-        );
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
 
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
