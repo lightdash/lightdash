@@ -218,9 +218,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
         queryUuid: mcpAsyncQueryUuidSchema.describe(
             'Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
-        chartConfig: chartConfigSchema.describe(
-            'Chart configuration to use when rendering the completed metric query.',
-        ),
+        chartConfig: chartConfigSchema,
         title: z
             .string()
             .optional()
