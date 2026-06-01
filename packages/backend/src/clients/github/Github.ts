@@ -5,6 +5,7 @@ import {
     LightdashError,
     NotFoundError,
     ParameterError,
+    PullRequestState,
     UnexpectedGitError,
 } from '@lightdash/common';
 import { App } from '@octokit/app';
@@ -430,6 +431,90 @@ export const getPullRequest = async ({
             state: response.data.state === 'closed' ? 'closed' : 'open',
             merged: response.data.merged === true,
         };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+export type PullRequestMetadata = {
+    title: string;
+    state: PullRequestState;
+};
+
+const GITHUB_GRAPHQL_BATCH_SIZE = 100;
+
+const mapGithubPrState = (state: string): PullRequestState => {
+    switch (state) {
+        case 'MERGED':
+            return PullRequestState.MERGED;
+        case 'CLOSED':
+            return PullRequestState.CLOSED;
+        default:
+            return PullRequestState.OPEN;
+    }
+};
+
+/**
+ * Batch-resolve the live title/state for many pull requests in a single repo.
+ * Uses the GraphQL API with aliased `pullRequest(number:)` lookups so the whole
+ * batch costs one request instead of one REST call per PR. Numbers that cannot
+ * be resolved (deleted PR, no access) are simply absent from the result.
+ */
+export const getPullRequests = async ({
+    owner,
+    repo,
+    pullNumbers,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumbers: number[];
+    installationId?: string;
+    token?: string;
+}): Promise<Record<number, PullRequestMetadata>> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    const chunks: number[][] = [];
+    for (let i = 0; i < pullNumbers.length; i += GITHUB_GRAPHQL_BATCH_SIZE) {
+        chunks.push(pullNumbers.slice(i, i + GITHUB_GRAPHQL_BATCH_SIZE));
+    }
+
+    try {
+        const responses = await Promise.all(
+            chunks.map((chunk) => {
+                const aliases = chunk
+                    .map(
+                        (n) =>
+                            `pr${n}: pullRequest(number: ${n}) { number title state }`,
+                    )
+                    .join('\n');
+                const query = `query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                        ${aliases}
+                    }
+                }`;
+                return octokit.graphql<{
+                    repository: Record<
+                        string,
+                        { number: number; title: string; state: string } | null
+                    >;
+                }>(query, { owner, repo, headers });
+            }),
+        );
+
+        const result: Record<number, PullRequestMetadata> = {};
+        responses.forEach((response) => {
+            Object.values(response.repository ?? {}).forEach((pr) => {
+                if (pr) {
+                    result[pr.number] = {
+                        title: pr.title,
+                        state: mapGithubPrState(pr.state),
+                    };
+                }
+            });
+        });
+        return result;
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
     }

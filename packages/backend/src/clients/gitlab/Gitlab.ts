@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     NotFoundError,
     ParameterError,
+    PullRequestState,
     UnexpectedGitError,
 } from '@lightdash/common';
 
@@ -295,6 +296,68 @@ export const createPullRequest = async ({
         title: mergeRequest.title,
         number: mergeRequest.iid,
     };
+};
+
+const GITLAB_MR_BATCH_SIZE = 100;
+
+const mapGitlabMrState = (state: string): PullRequestState => {
+    switch (state) {
+        case 'merged':
+            return PullRequestState.MERGED;
+        case 'closed':
+        case 'locked':
+            return PullRequestState.CLOSED;
+        default:
+            return PullRequestState.OPEN;
+    }
+};
+
+/**
+ * Batch-resolve the live title/state for many merge requests in a single
+ * project. Uses the `iids[]` filter so the whole batch costs one request per
+ * project. `iid`s that cannot be resolved are simply absent from the result.
+ */
+export const getMergeRequests = async ({
+    owner,
+    repo,
+    iids,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iids: number[] }): Promise<
+    Record<number, { title: string; state: PullRequestState }>
+> => {
+    const projectId = getProjectId(owner, repo);
+
+    const chunks: number[][] = [];
+    for (let i = 0; i < iids.length; i += GITLAB_MR_BATCH_SIZE) {
+        chunks.push(iids.slice(i, i + GITLAB_MR_BATCH_SIZE));
+    }
+
+    const responses: Array<
+        Array<{ iid: number; title: string; state: string }>
+    > = await Promise.all(
+        chunks.map((chunk) => {
+            const params = chunk.map((iid) => `iids[]=${iid}`).join('&');
+            const url = getApiUrl(
+                hostDomain,
+                `/projects/${projectId}/merge_requests?${params}&per_page=${GITLAB_MR_BATCH_SIZE}`,
+            );
+            return makeGitlabRequest(url, token);
+        }),
+    );
+
+    const result: Record<number, { title: string; state: PullRequestState }> =
+        {};
+    responses.forEach((mergeRequests) => {
+        mergeRequests.forEach((mr) => {
+            result[mr.iid] = {
+                title: mr.title,
+                state: mapGitlabMrState(mr.state),
+            };
+        });
+    });
+
+    return result;
 };
 
 export const getBranches = async ({

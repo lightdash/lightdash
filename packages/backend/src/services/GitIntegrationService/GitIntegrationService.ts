@@ -492,42 +492,9 @@ Affected charts:
         projectUuid: string,
         quoteChar: `"` | `'`,
     ) {
-        const { owner, repo, branch, path, hostDomain, type } =
-            await this.getProjectRepo(projectUuid);
-        let token: string = '';
-        let installationId: string | undefined;
-
-        if (type === DbtProjectType.GITHUB) {
-            // GitHub logic - try app installation first, fallback to PAT
-            try {
-                installationId = await this.getInstallationId(user);
-                token = await this.getOrUpdateToken(user.organizationUuid!);
-            } catch {
-                const project =
-                    await this.projectModel.getWithSensitiveFields(projectUuid);
-                const connection =
-                    project.dbtConnection as DbtGithubProjectConfig;
-                token = connection.personal_access_token || '';
-                if (!token) {
-                    throw new ParameterError(
-                        'Invalid personal access token for GitHub project',
-                    );
-                }
-            }
-        } else if (type === DbtProjectType.GITLAB) {
-            // GitLab logic - only personal access tokens supported
-            const project =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
-            const connection = project.dbtConnection as DbtGitlabProjectConfig;
-            token = connection.personal_access_token || '';
-            if (!token) {
-                throw new ParameterError(
-                    'Invalid personal access token for GitLab project',
-                );
-            }
-        } else {
-            throw new ParameterError(`Unsupported project type: ${type}`);
-        }
+        const { branch, path } = await this.getProjectRepo(projectUuid);
+        const { owner, repo, hostDomain, type, token, installationId } =
+            await this.getGitCredentials(user, projectUuid);
 
         const userName = `${snakeCaseName(
             user.firstName[0] || '',
@@ -1166,7 +1133,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
      * Get git credentials for a project (without generating a new branch name)
      * This is used for read/write operations on existing branches
      */
-    private async getGitCredentials(
+    async getGitCredentials(
         user: SessionUser,
         projectUuid: string,
     ): Promise<{

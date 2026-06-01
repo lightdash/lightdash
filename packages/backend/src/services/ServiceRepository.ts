@@ -440,6 +440,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     pullRequestsModel: this.models.getPullRequestsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    gitIntegrationService: this.getGitIntegrationService(),
                 }),
         );
     }
