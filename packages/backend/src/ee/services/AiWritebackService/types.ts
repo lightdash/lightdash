@@ -40,6 +40,13 @@ export type GithubInstallation = {
     prToken: string | null;
     /** Author stamped on the writeback commits — the GitHub user, or the bot fallback. */
     commitAuthor: GithubCommitAuthor;
+    /**
+     * `Co-authored-by:` trailer appended to the commit message to credit the
+     * Lightdash app bot (resolved to its avatar-backed GitHub identity), so the
+     * agent's involvement is visible even though the commit is authored as the
+     * user.
+     */
+    coAuthorTrailer: string;
 };
 
 export type SetStage = (stage: AiWritebackFailureStage) => void;

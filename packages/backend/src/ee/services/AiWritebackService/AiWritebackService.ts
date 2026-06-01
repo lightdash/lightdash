@@ -26,6 +26,7 @@ import {
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
+    getAppBotIdentity,
     getAuthenticatedUser,
     getBranchHeadSha,
     getInstallationToken,
@@ -260,7 +261,25 @@ export class AiWritebackService extends BaseService {
             );
         }
 
-        return { installationId, token, prToken, commitAuthor };
+        let coAuthorTrailer = CO_AUTHOR_TRAILER;
+        try {
+            const bot = await getAppBotIdentity(installationId);
+            coAuthorTrailer = `Co-authored-by: ${bot.login} <${bot.id}+${bot.login}@users.noreply.github.com>`;
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: could not resolve GitHub app bot identity for the co-author trailer; using the default. ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
+        return {
+            installationId,
+            token,
+            prToken,
+            commitAuthor,
+            coAuthorTrailer,
+        };
     }
 
     private static elapsed(start: number): number {
@@ -555,6 +574,7 @@ export class AiWritebackService extends BaseService {
         title,
         description,
         commitAuthor,
+        coAuthorTrailer,
         prToken,
         installationId,
         setStage,
@@ -566,6 +586,7 @@ export class AiWritebackService extends BaseService {
         title: string;
         description: string;
         commitAuthor: GithubCommitAuthor;
+        coAuthorTrailer: string;
         prToken: string | null;
         installationId: string;
         setStage: SetStage;
@@ -581,8 +602,8 @@ export class AiWritebackService extends BaseService {
 
         setStage('push');
         const body = description
-            ? `${description}\n\n${CO_AUTHOR_TRAILER}`
-            : CO_AUTHOR_TRAILER;
+            ? `${description}\n\n${coAuthorTrailer}`
+            : coAuthorTrailer;
         await createSignedCommitOnBranch({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
@@ -1422,6 +1443,7 @@ export class AiWritebackService extends BaseService {
                 installationId: github.installationId,
                 prToken: github.prToken,
                 commitAuthor: github.commitAuthor,
+                coAuthorTrailer: github.coAuthorTrailer,
                 setStage,
                 prTitle,
                 prDescription,
@@ -1442,6 +1464,7 @@ export class AiWritebackService extends BaseService {
             installationId: github.installationId,
             prToken: github.prToken,
             commitAuthor: github.commitAuthor,
+            coAuthorTrailer: github.coAuthorTrailer,
             setStage,
             prTitle,
             prDescription,
@@ -1492,6 +1515,7 @@ export class AiWritebackService extends BaseService {
         installationId,
         prToken,
         commitAuthor,
+        coAuthorTrailer,
         setStage,
         prTitle,
         prDescription,
@@ -1501,6 +1525,7 @@ export class AiWritebackService extends BaseService {
         installationId: string;
         prToken: string | null;
         commitAuthor: GithubCommitAuthor;
+        coAuthorTrailer: string;
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
@@ -1557,6 +1582,7 @@ export class AiWritebackService extends BaseService {
             title,
             description,
             commitAuthor,
+            coAuthorTrailer,
             prToken,
             installationId,
             setStage,
@@ -1592,6 +1618,7 @@ export class AiWritebackService extends BaseService {
         installationId,
         prToken,
         commitAuthor,
+        coAuthorTrailer,
         setStage,
         prTitle,
         prDescription,
@@ -1602,6 +1629,7 @@ export class AiWritebackService extends BaseService {
         installationId: string;
         prToken: string | null;
         commitAuthor: GithubCommitAuthor;
+        coAuthorTrailer: string;
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
@@ -1653,6 +1681,7 @@ export class AiWritebackService extends BaseService {
             title,
             description,
             commitAuthor,
+            coAuthorTrailer,
             prToken,
             installationId,
             setStage,

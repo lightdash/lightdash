@@ -80,6 +80,29 @@ export const getOctokitRestForApp = (installationId: string): OctokitRest => {
     });
 };
 
+/** Resolve the GitHub App's bot account (login + numeric id) for an
+ * installation, so it can be referenced as a co-author with its avatar. */
+export const getAppBotIdentity = async (
+    installationId: string,
+): Promise<{ login: string; id: number }> => {
+    const octokit = getOctokitRestForApp(installationId);
+    try {
+        const { data: installation } = await octokit.rest.apps.getInstallation({
+            installation_id: parseInt(installationId, 10),
+        });
+        const slug = installation.app_slug;
+        if (!slug) {
+            throw new ParameterError('GitHub installation has no app_slug');
+        }
+        const { data: bot } = await octokit.rest.users.getByUsername({
+            username: `${slug}[bot]`,
+        });
+        return { login: bot.login, id: bot.id };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 /** Wrapper to get the right octokit client for the authentication provided
  * If available, use the installation id as a bot
  * otherwise use the token as a user
