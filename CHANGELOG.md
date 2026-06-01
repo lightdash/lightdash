@@ -1,3 +1,15 @@
+# [0.3064.0](https://github.com/lightdash/lightdash/compare/0.3063.1...0.3064.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **scheduler:** require manage:GoogleSheets to create google sheets syncs ([#23707](https://github.com/lightdash/lightdash/issues/23707)) ([8ff1cf5](https://github.com/lightdash/lightdash/commit/8ff1cf5486626bd5a6e09c341d85031bc2cb9704))
+
+
+### Features
+
+* **ai-router:** respect user's default agent ([#23712](https://github.com/lightdash/lightdash/issues/23712)) ([323e691](https://github.com/lightdash/lightdash/commit/323e691b07b92b2ea14f6066013f929e6b8ce4d2))
+
 ## [0.3063.1](https://github.com/lightdash/lightdash/compare/0.3063.0...0.3063.1) (2026-06-01)
 
 
