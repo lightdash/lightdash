@@ -1,3 +1,10 @@
+## [0.3068.1](https://github.com/lightdash/lightdash/compare/0.3068.0...0.3068.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* skip service account lookup when feature is disabled ([#23723](https://github.com/lightdash/lightdash/issues/23723)) ([8ad579c](https://github.com/lightdash/lightdash/commit/8ad579c3918f18a4bdce0c4783fc11bc15c106f4))
+
 # [0.3068.0](https://github.com/lightdash/lightdash/compare/0.3067.0...0.3068.0) (2026-06-01)
 
 
