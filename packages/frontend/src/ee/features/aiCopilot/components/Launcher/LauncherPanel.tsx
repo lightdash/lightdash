@@ -1,6 +1,7 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
-import { useState, type CSSProperties, type FC } from 'react';
+import { useCallback, useState, type CSSProperties, type FC } from 'react';
+import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
@@ -20,6 +21,8 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { type AiAgentToolResult } from '../../types';
+import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/contentToolResultNavigation';
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
@@ -84,6 +87,7 @@ const NewThreadPanel: FC<{
     agents: AiAgentSummary[];
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, style }) => {
+    const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
@@ -103,6 +107,24 @@ const NewThreadPanel: FC<{
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
     });
+
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    // New threads have no uuid yet — keep the toggle in local state and seed
+    // the per-thread slice entry once the thread is created.
+    const [sqlMode, setSqlMode] = useState(false);
+    const dispatchToStore = useAiAgentStoreDispatch();
+    const handleToolResult = useCallback(
+        (toolResult: AiAgentToolResult) => {
+            const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
+                projectUuid,
+                toolResult,
+            );
+            if (!dashboardUrl) return;
+
+            void navigate(dashboardUrl, { viewTransition: true });
+        },
+        [navigate, projectUuid],
+    );
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid, {
@@ -130,13 +152,8 @@ const NewThreadPanel: FC<{
                     }),
                 );
             },
+            onToolResult: handleToolResult,
         });
-
-    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    // New threads have no uuid yet — keep the toggle in local state and seed
-    // the per-thread slice entry once the thread is created.
-    const [sqlMode, setSqlMode] = useState(false);
-    const dispatchToStore = useAiAgentStoreDispatch();
 
     const handleSubmit = ({
         message,
@@ -238,6 +255,8 @@ const ExistingThreadPanel: FC<{
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
     const { user } = useApp();
+    const navigate = useNavigate();
+    const location = useLocation();
     const {
         data: thread,
         isLoading: isLoadingThread,
@@ -250,10 +269,25 @@ const ExistingThreadPanel: FC<{
         refetch,
     );
 
+    const handleToolResult = useCallback(
+        (toolResult: AiAgentToolResult) => {
+            const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
+                projectUuid,
+                toolResult,
+            );
+            if (!dashboardUrl) return;
+
+            void navigate(dashboardUrl, { viewTransition: true });
+        },
+        [navigate, projectUuid],
+    );
+
     const {
         mutateAsync: createAgentThreadMessage,
         isLoading: isCreatingMessage,
-    } = useCreateAgentThreadMessageMutation(projectUuid, agent.uuid, threadId);
+    } = useCreateAgentThreadMessageMutation(projectUuid, agent.uuid, threadId, {
+        onToolResult: handleToolResult,
+    });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
@@ -282,6 +316,19 @@ const ExistingThreadPanel: FC<{
 
     const headerTitle =
         thread?.title || thread?.firstMessage?.message || agent.name;
+
+    const handleDashboardLinkClick = useCallback(
+        (dashboardUrl: string) => {
+            const currentUrl = createPath({
+                pathname: location.pathname,
+                search: location.search,
+            });
+            if (dashboardUrl !== currentUrl) {
+                void navigate(dashboardUrl, { viewTransition: true });
+            }
+        },
+        [location.pathname, location.search, navigate],
+    );
 
     if (isLoadingThread || !thread) {
         return (
@@ -317,6 +364,7 @@ const ExistingThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agent.uuid}
                     renderArtifactsInline
+                    onDashboardLinkClick={handleDashboardLinkClick}
                 >
                     <AgentChatInput
                         disabled={

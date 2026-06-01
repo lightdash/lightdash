@@ -21,6 +21,10 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                     result: JSON.stringify(result.content, null, 2),
                     metadata: {
                         status: 'success' as const,
+                        slug: result.content.slug,
+                        name: result.content.name,
+                        uuid: result.uuid,
+                        url: result.url,
                     },
                 };
             } catch (error) {

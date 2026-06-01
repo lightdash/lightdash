@@ -159,10 +159,14 @@ export type EditContentFn = (args: {
     | {
           type: 'dashboard';
           content: DashboardAsCode;
+          uuid: string;
+          url: string;
       }
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          url: string;
       }
 >;
 
@@ -180,10 +184,14 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
     | {
           type: 'dashboard';
           content: DashboardAsCode;
+          uuid: string;
+          url: string;
       }
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          url: string;
       }
 >;
 

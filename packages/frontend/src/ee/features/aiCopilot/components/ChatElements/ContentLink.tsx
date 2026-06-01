@@ -6,8 +6,8 @@ import {
     IconLayoutDashboard,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { type FC, type MouseEvent, type ReactNode } from 'react';
+import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { setArtifact } from '../../store/aiArtifactSlice';
@@ -30,6 +30,12 @@ type ContentLinkProps = {
     projectUuid: string;
     agentUuid: string;
     sqlRunnerLinkState?: SqlRunnerLinkState | null;
+    onDashboardLinkClick?: (url: string) => void;
+};
+
+const getDashboardRouteKey = (pathname: string) => {
+    const match = pathname.match(/^\/projects\/([^/]+)\/dashboards\/([^/]+)/);
+    return match ? `${match[1]}/${match[2]}` : null;
 };
 
 export const ContentLink: FC<ContentLinkProps> = ({
@@ -40,11 +46,52 @@ export const ContentLink: FC<ContentLinkProps> = ({
     projectUuid,
     agentUuid,
     sqlRunnerLinkState,
+    onDashboardLinkClick,
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const dashboardHref = typeof props.href === 'string' ? props.href : '';
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
     );
+
+    const handleDashboardClick = (e: MouseEvent<HTMLAnchorElement>) => {
+        if (
+            !dashboardHref ||
+            e.defaultPrevented ||
+            e.button !== 0 ||
+            e.metaKey ||
+            e.altKey ||
+            e.ctrlKey ||
+            e.shiftKey
+        ) {
+            return;
+        }
+
+        e.preventDefault();
+
+        const currentPath = createPath({
+            pathname: location.pathname,
+            search: location.search,
+        });
+        const targetUrl = new URL(dashboardHref, window.location.origin);
+        const targetPath = createPath({
+            pathname: targetUrl.pathname,
+            search: targetUrl.search,
+        });
+        const isCurrentDashboard =
+            getDashboardRouteKey(location.pathname) ===
+            getDashboardRouteKey(targetUrl.pathname);
+
+        if (isCurrentDashboard) return;
+
+        if (onDashboardLinkClick) {
+            onDashboardLinkClick(targetPath);
+        } else if (targetPath !== currentPath) {
+            void navigate(targetPath, { viewTransition: true });
+        }
+    };
 
     switch (contentType) {
         case 'dashboard-link':
@@ -52,7 +99,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 <Anchor
                     {...props}
                     data-content-link="true"
-                    target="_blank"
+                    onClick={handleDashboardClick}
                     fz="xs"
                     fw={500}
                     c="ldGray.8"

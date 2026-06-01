@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_EDIT_CONTENT_DESCRIPTION =
     'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.';
@@ -16,9 +15,20 @@ export const toolEditContentArgsSchema = z.object({
         ),
 });
 
+const toolEditContentMetadataSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('error') }),
+    z.object({
+        status: z.literal('success'),
+        slug: z.string(),
+        name: z.string(),
+        uuid: z.string(),
+        url: z.string(),
+    }),
+]);
+
 export const toolEditContentOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: toolEditContentMetadataSchema,
 });
 
 export type ToolEditContentArgs = z.infer<typeof toolEditContentArgsSchema>;
