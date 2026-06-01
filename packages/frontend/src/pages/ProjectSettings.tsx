@@ -8,6 +8,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import CompilationHistory from '../components/CompilationHistory';
 import { DataOps } from '../components/DataOps';
 import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
+import { useIsGitProject } from '../components/Explorer/WriteBackModal/hooks';
 import PreAggregateAudit from '../components/PreAggregateAudit';
 import PreAggregateMaterializations from '../components/PreAggregateMaterializations';
 import ProjectUserAccess from '../components/ProjectAccess';
@@ -39,6 +40,9 @@ const ProjectSettings: FC = () => {
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
     const isPullRequestsEnabled = useIsPullRequestsEnabled();
+    // Only relevant when the project's code lives in a Git provider, since the
+    // section lists PRs opened against that repo.
+    const isGitProject = useIsGitProject(projectUuid ?? '');
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -117,7 +121,7 @@ const ProjectSettings: FC = () => {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
-            ...(isPullRequestsEnabled
+            ...(isPullRequestsEnabled && isGitProject
                 ? [
                       {
                           path: `/pullRequests`,
@@ -164,7 +168,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid, isSoftDeleteEnabled, isPullRequestsEnabled]);
+    }, [projectUuid, isSoftDeleteEnabled, isPullRequestsEnabled, isGitProject]);
     const routesElements = useRoutes(routes);
 
     if (error) {

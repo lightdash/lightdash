@@ -55,6 +55,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
+import { useIsGitProject } from '../components/Explorer/WriteBackModal/hooks';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -196,6 +197,8 @@ const Settings: FC = () => {
         isInitialLoading: isProjectLoading,
         error: projectError,
     } = useProject(activeProjectUuid);
+
+    const isGitProject = useIsGitProject(activeProjectUuid ?? '');
 
     const allowPasswordAuthentication =
         !health?.auth.disablePasswordAuthentication;
@@ -1502,6 +1505,7 @@ const Settings: FC = () => {
                                     ) : null}
 
                                     {isPullRequestsEnabled &&
+                                    isGitProject &&
                                     user.ability?.can(
                                         'view',
                                         subject('SourceCode', {

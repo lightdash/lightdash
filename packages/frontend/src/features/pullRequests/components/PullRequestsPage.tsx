@@ -3,9 +3,10 @@ import {
     ActionIcon,
     Alert,
     Badge,
+    Box,
     Center,
     Group,
-    Pagination,
+    Loader,
     Paper,
     Skeleton,
     Stack,
@@ -24,13 +25,12 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, type FC, type UIEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
-    DEFAULT_PULL_REQUESTS_PAGE_SIZE,
     EMPTY_VALUE,
     getProviderLabel,
     getSourceColor,
@@ -151,11 +151,7 @@ const PullRequestRowItem: FC<{ row: PullRequestRow }> = ({ row }) => {
                             <MantineIcon icon={IconMessageCircle} />
                         </ActionIcon>
                     </Tooltip>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        {EMPTY_VALUE}
-                    </Text>
-                )}
+                ) : null}
             </Table.Td>
             <Table.Td>
                 <Tooltip
@@ -213,15 +209,20 @@ const PullRequestSkeletonRow: FC = () => (
 
 const PullRequestsTableShell: FC<{
     children: React.ReactNode;
-    dimmed: boolean;
-}> = ({ children, dimmed }) => (
+    containerRef?: React.Ref<HTMLDivElement>;
+    onScroll?: (event: UIEvent<HTMLDivElement>) => void;
+}> = ({ children, containerRef, onScroll }) => (
     <Paper
         withBorder
         shadow="subtle"
         radius="md"
         className={classes.tablePaper}
     >
-        <Table.ScrollContainer minWidth={720}>
+        <Box
+            ref={containerRef}
+            onScroll={onScroll}
+            className={classes.scrollArea}
+        >
             <Table
                 verticalSpacing="sm"
                 horizontalSpacing="sm"
@@ -234,42 +235,56 @@ const PullRequestsTableShell: FC<{
                             aria-label="Pull request"
                         />
                         <Table.Th className={classes.th}>Created</Table.Th>
-                        <Table.Th className={classes.th}>Author</Table.Th>
+                        <Table.Th className={classes.th}>User</Table.Th>
                         <Table.Th className={classes.th}>Title</Table.Th>
                         <Table.Th className={classes.th}>State</Table.Th>
                         <Table.Th className={classes.th}>Thread</Table.Th>
                         <Table.Th className={classes.th}>PR</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
-                <Table.Tbody
-                    className={dimmed ? classes.tbodyFetching : undefined}
-                >
-                    {children}
-                </Table.Tbody>
+                <Table.Tbody>{children}</Table.Tbody>
             </Table>
-        </Table.ScrollContainer>
+        </Box>
     </Paper>
 );
 
 const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
-    const [page, setPage] = useState(1);
-    const { rows, pagination, isLoading, isFetching, error } =
-        usePullRequestsTable(projectUuid, {
-            page,
-            pageSize: DEFAULT_PULL_REQUESTS_PAGE_SIZE,
-        });
+    const {
+        rows,
+        totalResults,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+        error,
+    } = usePullRequestsTable(projectUuid);
 
-    const totalResults = pagination?.totalResults ?? rows.length;
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+
+    // Fetch the next page once the user scrolls near the bottom of the table.
+    const fetchMoreOnBottomReached = useCallback(
+        (container?: HTMLDivElement | null) => {
+            if (!container) return;
+            const { scrollHeight, scrollTop, clientHeight } = container;
+            if (
+                scrollHeight - scrollTop - clientHeight < 400 &&
+                !isFetchingNextPage &&
+                hasNextPage
+            ) {
+                void fetchNextPage();
+            }
+        },
+        [fetchNextPage, isFetchingNextPage, hasNextPage],
+    );
+
+    // The first page may not fill the viewport — fetch more on mount if so.
+    useEffect(() => {
+        fetchMoreOnBottomReached(tableContainerRef.current);
+    }, [fetchMoreOnBottomReached]);
 
     return (
         <Stack gap="md">
-            <Stack gap="two">
-                <Title order={5}>Pull requests</Title>
-                <Text size="sm" c="dimmed">
-                    Pull requests opened from this project, including changes
-                    proposed by AI agents and the in-app editors.
-                </Text>
-            </Stack>
+            <Title order={5}>Pull requests</Title>
 
             {error ? (
                 <Alert
@@ -280,7 +295,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                     {error.error.message}
                 </Alert>
             ) : isLoading ? (
-                <PullRequestsTableShell dimmed={false}>
+                <PullRequestsTableShell>
                     {SKELETON_ROW_KEYS.map((key) => (
                         <PullRequestSkeletonRow key={key} />
                     ))}
@@ -304,12 +319,12 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 </Center>
             ) : (
                 <Stack gap="sm">
-                    <Text size="xs" c="dimmed">
-                        {totalResults} pull request
-                        {totalResults === 1 ? '' : 's'}
-                    </Text>
-
-                    <PullRequestsTableShell dimmed={isFetching}>
+                    <PullRequestsTableShell
+                        containerRef={tableContainerRef}
+                        onScroll={(event) =>
+                            fetchMoreOnBottomReached(event.currentTarget)
+                        }
+                    >
                         {rows.map((row) => (
                             <PullRequestRowItem
                                 key={row.pullRequestUuid}
@@ -318,16 +333,22 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                         ))}
                     </PullRequestsTableShell>
 
-                    {(pagination?.totalPageCount ?? 1) > 1 ? (
-                        <Group justify="flex-end">
-                            <Pagination
-                                size="sm"
-                                total={pagination?.totalPageCount ?? 1}
-                                value={page}
-                                onChange={setPage}
-                            />
-                        </Group>
-                    ) : null}
+                    <Group justify="center" gap="xs" h={20}>
+                        {isFetchingNextPage ? (
+                            <>
+                                <Loader size="xs" />
+                                <Text size="xs" c="dimmed">
+                                    Loading more...
+                                </Text>
+                            </>
+                        ) : (
+                            <Text size="xs" c="dimmed">
+                                {hasNextPage
+                                    ? 'Scroll for more'
+                                    : `All ${totalResults} loaded`}
+                            </Text>
+                        )}
+                    </Group>
                 </Stack>
             )}
         </Stack>
