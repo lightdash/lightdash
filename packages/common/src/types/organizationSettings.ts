@@ -84,6 +84,13 @@ export type OrganizationSettings = {
  */
 export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
 
+/**
+ * Postgres `integer` column ceiling. Every numeric org setting is stored in an
+ * `integer` column, so a value above this overflows the column (a DB error, not
+ * a clean validation failure). Used as the hard upper bound for all of them.
+ */
+export const POSTGRES_INTEGER_MAX = 2147483647;
+
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
 export type ApiOrganizationSettingsResponse = {

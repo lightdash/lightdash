@@ -1,4 +1,5 @@
 import {
+    POSTGRES_INTEGER_MAX,
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
@@ -53,6 +54,8 @@ const LimitsForm: FC<{
                     label="Maximum query rows"
                     description="The most rows a single query or export can return for your organization."
                     min={1}
+                    max={POSTGRES_INTEGER_MAX}
+                    clampBehavior="strict"
                     allowDecimal={false}
                     allowNegative={false}
                     thousandSeparator=","

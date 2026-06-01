@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     OrganizationSettings,
     ParameterError,
+    POSTGRES_INTEGER_MAX,
     resolveEffectiveOrganizationSettings,
     UpdateOrganizationSettings,
     type RegisteredAccount,
@@ -73,15 +74,18 @@ export class OrganizationSettingsService extends BaseService {
             'queryMaxLimit',
             'csvCellsLimit',
         ];
+        // Bounded by the integer column ceiling — above it the DB insert throws
+        // an out-of-range error (a 500) instead of a clean validation failure.
         const isInvalid = (value: number | boolean | null | undefined) =>
             value !== undefined &&
             value !== null &&
             (typeof value !== 'number' ||
                 !Number.isInteger(value) ||
-                value <= 0);
+                value <= 0 ||
+                value > POSTGRES_INTEGER_MAX);
         if (positiveIntegerFields.some((field) => isInvalid(data[field]))) {
             throw new ParameterError(
-                'Scheduled delivery expiry and export limits must be positive whole numbers.',
+                `Scheduled delivery expiry and export limits must be whole numbers between 1 and ${POSTGRES_INTEGER_MAX}.`,
             );
         }
         // The CSV cells limit is capped at LIGHTDASH_CSV_MAX_LIMIT — but never
