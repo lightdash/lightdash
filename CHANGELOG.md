@@ -1,3 +1,10 @@
+# [0.3071.0](https://github.com/lightdash/lightdash/compare/0.3070.0...0.3071.0) (2026-06-01)
+
+
+### Features
+
+* **ai-agents:** one-click GitHub connect in chat empty state (PROD-8049) ([#23739](https://github.com/lightdash/lightdash/issues/23739)) ([09b0018](https://github.com/lightdash/lightdash/commit/09b00181751fe70a59497701aa32b4e14b8c06c3))
+
 # [0.3070.0](https://github.com/lightdash/lightdash/compare/0.3069.1...0.3070.0) (2026-06-01)
 
 
