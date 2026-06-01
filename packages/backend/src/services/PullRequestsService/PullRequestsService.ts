@@ -233,20 +233,34 @@ export class PullRequestsService extends BaseService {
         }
 
         try {
-            const credentials =
-                await this.gitIntegrationService.getGitCredentials(
-                    user,
-                    projectUuid,
-                );
-            if (credentials.type !== DbtProjectType.GITHUB) {
-                return { previewUrl: null };
+            // Read the PR's comments using the GitHub App installation — the
+            // same identity the write-back used to open the PR — so a stale
+            // OAuth user token can't block the lookup. Fall back to the
+            // project's stored credentials (e.g. a personal access token) only
+            // when there is no installation.
+            let installationId: string | undefined;
+            let token: string | undefined;
+            try {
+                installationId =
+                    await this.gitIntegrationService.getInstallationId(user);
+            } catch {
+                const credentials =
+                    await this.gitIntegrationService.getGitCredentials(
+                        user,
+                        projectUuid,
+                    );
+                if (credentials.type !== DbtProjectType.GITHUB) {
+                    return { previewUrl: null };
+                }
+                installationId = credentials.installationId;
+                token = credentials.token;
             }
             const comments = await GithubClient.getPullRequestComments({
                 owner: pullRequest.owner,
                 repo: pullRequest.repo,
                 pullNumber: pullRequest.prNumber,
-                installationId: credentials.installationId,
-                token: credentials.token,
+                installationId,
+                token,
             });
             return {
                 previewUrl: extractPreviewUrlFromComments(
