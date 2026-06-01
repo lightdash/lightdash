@@ -178,6 +178,7 @@ const MyAppsPanel: FC = () => {
                             c="inherit"
                             underline="hover"
                             truncate="end"
+                            display="block"
                         >
                             {displayName}
                         </Anchor>
@@ -232,6 +233,7 @@ const MyAppsPanel: FC = () => {
                             c="inherit"
                             underline="hover"
                             truncate="end"
+                            display="block"
                         >
                             {spaceName}
                         </Anchor>
