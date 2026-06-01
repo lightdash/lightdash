@@ -16,10 +16,11 @@ import {
  * form's initial values are captured from the loaded settings exactly once
  * (keyed remount on the effective values), never clobbered by a refetch.
  *
- * The caps come from /health (instance env): `queryRowsCap` is
- * LIGHTDASH_QUERY_MAX_LIMIT and `csvCellsCap` is
- * max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT). Both are always ≥ the
- * org's current value, so they can be used directly as the input max.
+ * The caps are the instance ceilings from /health: `queryRowsCap` is
+ * LIGHTDASH_QUERY_MAX_LIMIT (`query.queryMaxLimit`) and `csvCellsCap` is
+ * max(LIGHTDASH_CSV_CELLS_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)
+ * (`query.csvCellsMaxLimit`). Both are always ≥ the org's current value, so
+ * they can be used directly as the input max.
  */
 const LimitsForm: FC<{
     settings: OrganizationSettings;
@@ -31,21 +32,21 @@ const LimitsForm: FC<{
     // The API returns effective numbers (org override resolved against the env),
     // so these are always set; the shared type is nullable for the raw row.
     const initial = {
-        queryMaxLimit: settings.queryMaxLimit ?? 5000,
+        queryLimit: settings.queryLimit ?? 5000,
         csvCellsLimit: settings.csvCellsLimit ?? 100000,
     };
     const form = useForm({ initialValues: initial });
 
     const handleSubmit = form.onSubmit((values) => {
         const patch: UpdateOrganizationSettings = {
-            queryMaxLimit: values.queryMaxLimit,
+            queryLimit: values.queryLimit,
             csvCellsLimit: values.csvCellsLimit,
         };
         update.mutate(patch);
     });
 
     const isUnchanged =
-        form.values.queryMaxLimit === initial.queryMaxLimit &&
+        form.values.queryLimit === initial.queryLimit &&
         form.values.csvCellsLimit === initial.csvCellsLimit;
 
     return (
@@ -60,7 +61,7 @@ const LimitsForm: FC<{
                     allowDecimal={false}
                     allowNegative={false}
                     thousandSeparator=","
-                    {...form.getInputProps('queryMaxLimit')}
+                    {...form.getInputProps('queryLimit')}
                 />
                 <NumberInput
                     label="Maximum CSV / Excel cells"
@@ -99,10 +100,10 @@ const LimitsPanel: FC = () => {
     // state without a clobbering useEffect.
     return (
         <LimitsForm
-            key={`${data.queryMaxLimit}-${data.csvCellsLimit}`}
+            key={`${data.queryLimit}-${data.csvCellsLimit}`}
             settings={data}
-            queryRowsCap={health.data.query.maxLimit}
-            csvCellsCap={health.data.query.csvMaxLimit}
+            queryRowsCap={health.data.query.queryMaxLimit}
+            csvCellsCap={health.data.query.csvCellsMaxLimit}
         />
     );
 };

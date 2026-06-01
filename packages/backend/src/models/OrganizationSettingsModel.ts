@@ -56,7 +56,7 @@ export class OrganizationSettingsModel {
                 row?.scheduled_delivery_expiration_seconds_msteams ?? null,
             scheduledDeliveryExpirationSecondsGoogleChat:
                 row?.scheduled_delivery_expiration_seconds_googlechat ?? null,
-            queryMaxLimit: row?.query_max_limit ?? null,
+            queryLimit: row?.query_limit ?? null,
             csvCellsLimit: row?.csv_cells_limit ?? null,
         };
     }
@@ -84,7 +84,7 @@ export class OrganizationSettingsModel {
                 patch.scheduledDeliveryExpirationSecondsMsTeams,
             scheduled_delivery_expiration_seconds_googlechat:
                 patch.scheduledDeliveryExpirationSecondsGoogleChat,
-            query_max_limit: patch.queryMaxLimit,
+            query_limit: patch.queryLimit,
             csv_cells_limit: patch.csvCellsLimit,
         };
         const toWrite = omitBy(

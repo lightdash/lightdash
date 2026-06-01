@@ -218,7 +218,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxLimit: 5000,
         defaultLimit: 500,
         csvCellsLimit: 100000,
-        csvMaxLimit: 5000000,
+        csvCellsMaxLimit: 5000000,
         timezone: undefined,
         retryQueryOnTransientErrors: true,
         enableTimezoneSupport: undefined,

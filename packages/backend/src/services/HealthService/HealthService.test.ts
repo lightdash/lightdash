@@ -4,6 +4,7 @@ import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
@@ -25,11 +26,18 @@ const migrationModel = {
     })),
 };
 
+// No per-org overrides — effective limits fall back to the instance defaults.
+const organizationSettingsModel = {
+    get: jest.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
+};
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: lightdashConfigMock,
         migrationModel: migrationModel as unknown as MigrationModel,
+        organizationSettingsModel:
+            organizationSettingsModel as unknown as OrganizationSettingsModel,
     });
 
     afterEach(() => {
@@ -73,6 +81,8 @@ describe('health', () => {
                 mode: LightdashMode.CLOUD_BETA,
             },
             migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -122,6 +132,8 @@ describe('health', () => {
                     },
                 },
                 migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
             });
 
             const result = await service.getHealthState(userMock);
@@ -140,6 +152,8 @@ describe('health', () => {
                     },
                 },
                 migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
             });
 
             const userWithEmail = { ...userMock, email: testEmail };

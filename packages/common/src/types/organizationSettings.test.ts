@@ -7,7 +7,7 @@ const INSTANCE_DEFAULTS: OrganizationSettingsInstanceDefaults = {
     enableOidcLinking: false,
     enableOidcToEmailLinking: true,
     scheduledDeliveryExpirationSeconds: 259200, // 3 days (env default)
-    queryMaxLimit: 5000,
+    queryLimit: 5000,
     csvCellsLimit: 100000,
 };
 
@@ -24,7 +24,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             scheduledDeliveryExpirationSecondsSlack: null,
             scheduledDeliveryExpirationSecondsMsTeams: null,
             scheduledDeliveryExpirationSecondsGoogleChat: null,
-            queryMaxLimit: 5000,
+            queryLimit: 5000,
             csvCellsLimit: 100000,
         });
     });
@@ -34,13 +34,13 @@ describe('resolveEffectiveOrganizationSettings', () => {
             {},
             INSTANCE_DEFAULTS,
         );
-        expect(inherited.queryMaxLimit).toBe(5000);
+        expect(inherited.queryLimit).toBe(5000);
         expect(inherited.csvCellsLimit).toBe(100000);
         const overridden = resolveEffectiveOrganizationSettings(
-            { queryMaxLimit: 250000, csvCellsLimit: 50000000 },
+            { queryLimit: 250000, csvCellsLimit: 50000000 },
             INSTANCE_DEFAULTS,
         );
-        expect(overridden.queryMaxLimit).toBe(250000);
+        expect(overridden.queryLimit).toBe(250000);
         expect(overridden.csvCellsLimit).toBe(50000000);
     });
 

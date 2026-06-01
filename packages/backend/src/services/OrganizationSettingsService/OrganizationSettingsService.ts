@@ -71,7 +71,7 @@ export class OrganizationSettingsService extends BaseService {
             'scheduledDeliveryExpirationSecondsSlack',
             'scheduledDeliveryExpirationSecondsMsTeams',
             'scheduledDeliveryExpirationSecondsGoogleChat',
-            'queryMaxLimit',
+            'queryLimit',
             'csvCellsLimit',
         ];
         // Bounded by the integer column ceiling — above it the DB insert throws
@@ -88,11 +88,11 @@ export class OrganizationSettingsService extends BaseService {
                 `Scheduled delivery expiry and export limits must be whole numbers between 1 and ${POSTGRES_INTEGER_MAX}.`,
             );
         }
-        // The CSV cells limit is capped at LIGHTDASH_CSV_MAX_LIMIT — but never
-        // below the instance's own default, so an instance whose env default
-        // already exceeds the cap is never forced to lower its limit.
+        // The CSV cells limit is capped at LIGHTDASH_CSV_CELLS_MAX_LIMIT — but
+        // never below the instance's own default, so an instance whose env
+        // default already exceeds the cap is never forced to lower its limit.
         const csvCellsCap = Math.max(
-            this.lightdashConfig.query.csvMaxLimit,
+            this.lightdashConfig.query.csvCellsMaxLimit,
             this.lightdashConfig.query.csvCellsLimit,
         );
         if (
@@ -104,16 +104,16 @@ export class OrganizationSettingsService extends BaseService {
                 `CSV cells limit cannot exceed ${csvCellsCap}.`,
             );
         }
-        // The query row limit can only be restricted below the instance max
-        // (LIGHTDASH_QUERY_MAX_LIMIT) — the instance's hard ceiling.
-        const queryRowsCap = this.lightdashConfig.query.maxLimit;
+        // The query row limit can only be restricted below the instance ceiling
+        // (LIGHTDASH_QUERY_MAX_LIMIT).
+        const queryLimitCap = this.lightdashConfig.query.maxLimit;
         if (
-            data.queryMaxLimit !== undefined &&
-            data.queryMaxLimit !== null &&
-            data.queryMaxLimit > queryRowsCap
+            data.queryLimit !== undefined &&
+            data.queryLimit !== null &&
+            data.queryLimit > queryLimitCap
         ) {
             throw new ParameterError(
-                `Maximum query rows cannot exceed ${queryRowsCap}.`,
+                `Maximum query rows cannot exceed ${queryLimitCap}.`,
             );
         }
     }

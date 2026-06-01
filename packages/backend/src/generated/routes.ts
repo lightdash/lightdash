@@ -29134,7 +29134,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                queryMaxLimit: {
+                queryLimit: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },
@@ -29292,7 +29292,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                queryMaxLimit: {
+                queryLimit: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },

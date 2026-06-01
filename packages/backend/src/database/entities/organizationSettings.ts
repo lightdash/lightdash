@@ -26,7 +26,7 @@ export type DbOrganizationSettings = {
     scheduled_delivery_expiration_seconds_googlechat: number | null;
     // Per-org export limits; NULL/absent inherits the instance env defaults
     // (LIGHTDASH_QUERY_MAX_LIMIT / LIGHTDASH_CSV_CELLS_LIMIT).
-    query_max_limit: number | null;
+    query_limit: number | null;
     csv_cells_limit: number | null;
     created_at: Date;
     updated_at: Date;

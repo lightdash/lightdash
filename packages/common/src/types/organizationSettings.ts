@@ -63,16 +63,17 @@ export type OrganizationSettings = {
      */
     scheduledDeliveryExpirationSecondsGoogleChat: number | null;
     /**
-     * Max number of rows a query/export may return for this org (overrides the
-     * instance-wide `LIGHTDASH_QUERY_MAX_LIMIT`; `null` inherits it). Always
-     * resolved to an effective number in API responses so the frontend can
-     * display it directly.
+     * Max number of rows a query may return for this org. Inherits and is
+     * capped by the instance-wide `LIGHTDASH_QUERY_MAX_LIMIT` (the ceiling);
+     * `null` inherits it. Always resolved to an effective number in API
+     * responses so the frontend can display it directly.
      */
-    queryMaxLimit: number | null;
+    queryLimit: number | null;
     /**
      * Max number of cells (rows × columns) a CSV/Excel export may contain for
-     * this org (overrides `LIGHTDASH_CSV_CELLS_LIMIT`; `null` inherits it).
-     * Always resolved to an effective number in API responses.
+     * this org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by
+     * `LIGHTDASH_CSV_CELLS_MAX_LIMIT` (the ceiling); `null` inherits the
+     * default. Always resolved to an effective number in API responses.
      */
     csvCellsLimit: number | null;
 };
@@ -108,7 +109,7 @@ export type OrganizationSettingsInstanceDefaults = {
     enableOidcLinking: boolean;
     enableOidcToEmailLinking: boolean;
     scheduledDeliveryExpirationSeconds: number;
-    queryMaxLimit: number;
+    queryLimit: number;
     csvCellsLimit: number;
 };
 
@@ -147,6 +148,6 @@ export const resolveEffectiveOrganizationSettings = (
     scheduledDeliveryExpirationSecondsGoogleChat:
         raw.scheduledDeliveryExpirationSecondsGoogleChat ?? null,
     // Limits resolve to an effective number (fall back to the env default).
-    queryMaxLimit: raw.queryMaxLimit ?? instanceDefaults.queryMaxLimit,
+    queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
 });

@@ -283,7 +283,7 @@ const getMockedAsyncQueryService = (
             persistentDownloadFileService: {} as PersistentDownloadFileService,
             organizationSettingsModel: {
                 get: jest.fn(async () => ({
-                    queryMaxLimit: null,
+                    queryLimit: null,
                     csvCellsLimit: null,
                 })),
             } as unknown as OrganizationSettingsModel,
@@ -296,7 +296,7 @@ const getMockedAsyncQueryService = (
         spacePermissionService: {} as SpacePermissionService,
         organizationSettingsModel: {
             get: jest.fn(async () => ({
-                queryMaxLimit: null,
+                queryLimit: null,
                 csvCellsLimit: null,
             })),
         } as unknown as OrganizationSettingsModel,

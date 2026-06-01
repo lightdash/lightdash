@@ -22,7 +22,7 @@ export const resolveOrganizationExportLimits = async (
 ): Promise<OrganizationExportLimits> => {
     const settings = await organizationSettingsModel.get(organizationUuid);
     return {
-        maxLimit: settings.queryMaxLimit ?? query.maxLimit,
+        maxLimit: settings.queryLimit ?? query.maxLimit,
         csvCellsLimit: settings.csvCellsLimit ?? query.csvCellsLimit,
     };
 };
