@@ -1,9 +1,11 @@
 import {
     type AiRouter,
     type AiRouterDecisionCommitRequest,
+    type AiRouterInstruction,
     type AiRouterRouteRequest,
     type AiRouterRouteResponseResult,
     type ApiError,
+    type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -81,3 +83,54 @@ export const useAiRouterCommit = () =>
     >({
         mutationFn: commitDecision,
     });
+
+const instructionQueryKey = (projectUuid: string) => [
+    'ai-router-instruction',
+    projectUuid,
+];
+
+const getAiRouterInstruction = (projectUuid: string) =>
+    lightdashApi<AiRouterInstruction | null>({
+        url: `${ROUTER_BASE}/instructions/${projectUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiRouterInstruction = (projectUuid: string | undefined) =>
+    useQuery<AiRouterInstruction | null, ApiError>({
+        queryKey: instructionQueryKey(projectUuid ?? ''),
+        queryFn: () => getAiRouterInstruction(projectUuid!),
+        enabled: !!projectUuid,
+        retry: false,
+    });
+
+const upsertAiRouterInstruction = (
+    projectUuid: string,
+    body: UpsertAiRouterInstructionRequest,
+) =>
+    lightdashApi<AiRouterInstruction>({
+        url: `${ROUTER_BASE}/instructions/${projectUuid}`,
+        method: 'PUT',
+        body: JSON.stringify(body),
+    });
+
+export const useUpsertAiRouterInstruction = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+    return useMutation<
+        AiRouterInstruction,
+        ApiError,
+        UpsertAiRouterInstructionRequest
+    >({
+        mutationFn: (body) => upsertAiRouterInstruction(projectUuid, body),
+        onSuccess: (data) => {
+            queryClient.setQueryData(instructionQueryKey(projectUuid), data);
+            showToastSuccess({ title: 'Routing instructions saved' });
+        },
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Failed to save routing instructions',
+                apiError: error,
+            }),
+    });
+};
