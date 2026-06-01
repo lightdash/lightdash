@@ -899,6 +899,8 @@ export class AiWritebackService extends BaseService {
                     prUrl: turn.existingRow?.pr_url ?? null,
                     projectName: turn.projectName,
                     repository,
+                    previewDeployConfigured:
+                        previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
                 };
             }
 
@@ -943,6 +945,8 @@ export class AiWritebackService extends BaseService {
                 prUrl: applied.prUrl,
                 projectName: turn.projectName,
                 repository,
+                previewDeployConfigured:
+                    previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
             };
         } catch (error) {
             this.logger.error('AI writeback run failed', {
