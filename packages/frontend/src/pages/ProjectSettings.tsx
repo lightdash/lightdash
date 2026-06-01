@@ -23,6 +23,8 @@ import { SettingsValidator } from '../components/SettingsValidator';
 import VerifiedContentPanel from '../components/VerifiedContent/VerifiedContentPanel';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
+import PullRequestsPage from '../features/pullRequests/components/PullRequestsPage';
+import { useIsPullRequestsEnabled } from '../features/pullRequests/hooks/useIsPullRequestsEnabled';
 import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
@@ -36,6 +38,7 @@ const ProjectSettings: FC = () => {
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const isPullRequestsEnabled = useIsPullRequestsEnabled();
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -114,6 +117,16 @@ const ProjectSettings: FC = () => {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
+            ...(isPullRequestsEnabled
+                ? [
+                      {
+                          path: `/pullRequests`,
+                          element: (
+                              <PullRequestsPage projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/preAggregates`,
                 children: [
@@ -151,7 +164,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid, isSoftDeleteEnabled]);
+    }, [projectUuid, isSoftDeleteEnabled, isPullRequestsEnabled]);
     const routesElements = useRoutes(routes);
 
     if (error) {
