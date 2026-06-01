@@ -77,7 +77,8 @@ describe('aiAgentThreadStreamSlice', () => {
                 threadUuid: 'thread-1',
                 toolCallId: 'tool-1',
                 toolName: 'findExplores',
-                toolArgs: {},
+                toolArgs: { searchQuery: 'orders' },
+                toolResult: null,
             }).meta,
         ).toEqual(expectedMeta);
         expect(
@@ -248,6 +249,61 @@ describe('aiAgentThreadStreamSlice', () => {
         );
         expect(afterText['thread-1']?.stepProgressMessages).toEqual([
             { message: 'Committing changes', toolName: 'proposeWriteback' },
+        ]);
+    });
+
+    it('dedupes stream tool parts by toolCallId when setting parts', () => {
+        const startedState = aiAgentThreadStreamSlice.reducer(
+            undefined,
+            startStreaming({
+                threadUuid: 'thread-1',
+                messageUuid: 'message-1',
+            }),
+        );
+
+        const state = aiAgentThreadStreamSlice.reducer(
+            startedState,
+            setParts({
+                threadUuid: 'thread-1',
+                parts: [
+                    { type: 'text', text: 'before' },
+                    {
+                        type: 'toolCall',
+                        toolCallId: 'tool-1',
+                        toolName: 'findExplores',
+                        toolArgs: { searchQuery: 'orders' },
+                        toolResult: null,
+                    },
+                    {
+                        type: 'toolCall',
+                        toolCallId: 'tool-1',
+                        toolName: 'findExplores',
+                        toolArgs: { searchQuery: 'orders' },
+                        toolResult: {
+                            result: '<searchResults />',
+                            metadata: { status: 'success' },
+                        },
+                        isPreliminary: false,
+                    },
+                    { type: 'text', text: 'after' },
+                ],
+            }),
+        );
+
+        expect(state['thread-1']?.parts).toEqual([
+            { type: 'text', text: 'before' },
+            {
+                type: 'toolCall',
+                toolCallId: 'tool-1',
+                toolName: 'findExplores',
+                toolArgs: { searchQuery: 'orders' },
+                toolResult: {
+                    result: '<searchResults />',
+                    metadata: { status: 'success' },
+                },
+                isPreliminary: false,
+            },
+            { type: 'text', text: 'after' },
         ]);
     });
 });
