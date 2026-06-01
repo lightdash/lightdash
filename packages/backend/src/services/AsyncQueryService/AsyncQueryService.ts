@@ -1412,7 +1412,6 @@ export class AsyncQueryService extends ProjectService {
                         ? await ExcelService.downloadAsyncPivotTableXlsx({
                               resultsFileName,
                               fields,
-                              metricQuery: queryHistory.metricQuery,
                               resultsStorageClient,
                               exportsStorageClient: this.exportsStorageClient,
                               lightdashConfig: this.lightdashConfig,

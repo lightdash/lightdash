@@ -1371,7 +1371,6 @@ export const buildCartesianTooltipFormatter =
                     );
                     let formatKey = ref;
                     // Fallback: try translated pivot ref for SQL pivot support
-                    // TODO :: remove fallback logic in PR 3 (GLITCH-28) when the legacy JS-pivot code paths are deleted
                     if (val === undefined) {
                         const translatedKey = translatePivotRef(
                             ref,

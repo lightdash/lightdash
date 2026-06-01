@@ -17,7 +17,7 @@ import {
  *
  * Fields that appear in metricQuery.dimensions are treated as dimensions; all
  * others (metrics, table calculations, pivot dims, etc.) are treated as metrics
- * for the purpose of the hidden-field filter in pivotQueryResults.
+ * for the purpose of the hidden-field filter in convertSqlPivotedRowsToPivotData.
  */
 function splitHiddenTableFieldsByKind(
     tableChartConfig: TableChartConfig,

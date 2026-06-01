@@ -3,7 +3,10 @@ import {
     FieldType,
     getFormatExpression,
     ItemsMap,
+    SortByDirection,
     TimeFrames,
+    VizAggregationOptions,
+    VizIndexType,
     type Dimension,
 } from '@lightdash/common';
 import moment from 'moment';
@@ -857,41 +860,64 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
+            // SQL-pivoted rows: one row per unique index value, one column per
+            // pivot value keyed by pivotColumnName.
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [indexDimension]: '2023-01-01',
-                    [metric]: 202811,
+                    [creditCardColumn]: 202811,
+                    [bankTransferColumn]: 2028,
                 },
                 {
-                    [pivotDimension]: 'bank_transfer',
-                    [indexDimension]: '2023-01-01',
-                    [metric]: 2028,
-                },
-                {
-                    [pivotDimension]: 'credit_card',
                     [indexDimension]: '2023-02-01',
-                    [metric]: 20281101,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [indexDimension]: '2023-02-01',
-                    [metric]: 141312,
+                    [creditCardColumn]: 20281101,
+                    [bankTransferColumn]: 141312,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, indexDimension],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: indexDimension, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: indexDimension,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: indexDimension,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -902,12 +928,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1009,33 +1033,64 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
+            // Single SQL-pivoted row: both index dims share the same value,
+            // pivot values become columns.
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: '2023-01-01',
                     [timestampIndex]: '2023-01-15T14:30:00.000Z',
-                    [metric]: 202811,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: '2023-01-01',
-                    [timestampIndex]: '2023-01-15T14:30:00.000Z',
-                    [metric]: 5000,
+                    [creditCardColumn]: 202811,
+                    [bankTransferColumn]: 5000,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, dateIndex, timestampIndex],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: dateIndex, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: dateIndex,
+                    },
+                    {
+                        type: VizIndexType.TIME,
+                        reference: timestampIndex,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: dateIndex,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -1046,12 +1101,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1131,41 +1184,62 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: '2023-01-01',
-                    [metric]: 202811,
+                    [creditCardColumn]: 202811,
+                    [bankTransferColumn]: 5000,
                 },
                 {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: '2023-01-01',
-                    [metric]: 5000,
-                },
-                {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: '2023-02-01',
-                    [metric]: 141312,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: '2023-02-01',
-                    [metric]: 3000,
+                    [creditCardColumn]: 141312,
+                    [bankTransferColumn]: 3000,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, dateIndex],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: dateIndex, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: dateIndex,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: dateIndex,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -1176,12 +1250,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1255,41 +1327,62 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: '2023-01-01',
-                    [metric]: 100,
+                    [creditCardColumn]: 100,
+                    [bankTransferColumn]: 300,
                 },
                 {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: 'N/A',
-                    [metric]: 200,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: '2023-01-01',
-                    [metric]: 300,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: 'N/A',
-                    [metric]: 400,
+                    [creditCardColumn]: 200,
+                    [bankTransferColumn]: 400,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, dateIndex],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: dateIndex, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: dateIndex,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: dateIndex,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -1300,12 +1393,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1380,31 +1471,57 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [dateIndex]: '2023-01-01',
-                    [metric]: 100,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [dateIndex]: '2023-01-01',
-                    [metric]: 200,
+                    [creditCardColumn]: 100,
+                    [bankTransferColumn]: 200,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, dateIndex],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: dateIndex, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: dateIndex,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: dateIndex,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -1415,12 +1532,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: true,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1481,31 +1596,57 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [weekIndex]: '2023-01-02',
-                    [metric]: 100,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [weekIndex]: '2023-01-02',
-                    [metric]: 200,
+                    [creditCardColumn]: 100,
+                    [bankTransferColumn]: 200,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, weekIndex],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: weekIndex, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.TIME,
+                        reference: weekIndex,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: weekIndex,
+                    },
+                ],
+                originalColumns: {},
             };
 
             const pivotConfig = {
@@ -1516,12 +1657,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 
@@ -1586,41 +1725,64 @@ describe('ExcelService', () => {
                 },
             };
 
+            const creditCardColumn = `${metric}_any_credit_card`;
+            const bankTransferColumn = `${metric}_any_bank_transfer`;
+
+            // The hidden dimension still appears in the SQL-pivoted rows and
+            // pivotDetails.indexColumn — the converter must drop it from output.
             const rows = [
                 {
-                    [pivotDimension]: 'credit_card',
                     [indexDimension]: '2023-01',
-                    [metric]: 100,
+                    [creditCardColumn]: 100,
+                    [bankTransferColumn]: 200,
                 },
                 {
-                    [pivotDimension]: 'bank_transfer',
-                    [indexDimension]: '2023-01',
-                    [metric]: 200,
-                },
-                {
-                    [pivotDimension]: 'credit_card',
                     [indexDimension]: '2023-02',
-                    [metric]: 150,
-                },
-                {
-                    [pivotDimension]: 'bank_transfer',
-                    [indexDimension]: '2023-02',
-                    [metric]: 250,
+                    [creditCardColumn]: 150,
+                    [bankTransferColumn]: 250,
                 },
             ];
 
-            const metricQuery = {
-                exploreName: 'payments',
-                dimensions: [pivotDimension, indexDimension],
-                metrics: [metric],
-                filters: {},
-                sorts: [{ fieldId: indexDimension, descending: false }],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
+            const pivotDetails = {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'credit_card',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: creditCardColumn,
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: 'bank_transfer',
+                                referenceField: pivotDimension,
+                            },
+                        ],
+                        referenceField: metric,
+                        pivotColumnName: bankTransferColumn,
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.CATEGORY,
+                        reference: indexDimension,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotDimension }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: indexDimension,
+                    },
+                ],
+                originalColumns: {},
             };
 
             // Hide the row-index dimension via hiddenDimensionFieldIds
@@ -1633,12 +1795,10 @@ describe('ExcelService', () => {
             const buffer = await ExcelService.downloadPivotTableXlsx({
                 rows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw: false,
                 customLabels: undefined,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails,
                 enableImprovedExcelDates: true,
             });
 

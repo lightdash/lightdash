@@ -165,7 +165,6 @@ export class PivotTableService extends BaseService {
             projectUuid,
             rows,
             itemMap: fields,
-            metricQuery,
             pivotConfig,
             exploreId: metricQuery.exploreName || 'explore',
             onlyRaw,
@@ -194,7 +193,6 @@ export class PivotTableService extends BaseService {
         projectUuid,
         rows,
         itemMap,
-        metricQuery,
         pivotConfig,
         exploreId,
         onlyRaw,
@@ -210,7 +208,6 @@ export class PivotTableService extends BaseService {
         projectUuid: string;
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         exploreId: string;
@@ -225,15 +222,20 @@ export class PivotTableService extends BaseService {
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
+        if (!pivotDetails) {
+            throw new Error(
+                'Cannot export pivot table CSV without SQL pivot details',
+            );
+        }
+
         const pivotValuesColumnsMap = Object.fromEntries(
-            pivotDetails?.valuesColumns?.map((column) => [
+            pivotDetails.valuesColumns?.map((column) => [
                 column.pivotColumnName,
                 column,
             ]) ?? [],
         );
 
-        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-        // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+        // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
         const formattedRows = formatRows(
             rows,
             itemMap,
@@ -248,10 +250,8 @@ export class PivotTableService extends BaseService {
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
             timezone,
             formatTemporalsForSpreadsheet: true,

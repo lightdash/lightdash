@@ -1,16 +1,17 @@
-import type { ItemsMap } from '../types/field';
+import { type ItemsMap } from '../types/field';
 import type { ResultRow } from '../types/results';
 import { pivotResultsAsCsv, pivotResultsAsData } from './pivotQueryResults';
 import {
     getFieldMock,
-    METRIC_QUERY_2DIM_2METRIC,
-    RESULT_ROWS_2DIM_2METRIC,
+    SQL_PIVOT_DETAILS,
+    SQL_PIVOTED_ROWS,
 } from './pivotQueryResults.mock';
 
 const buildItemsMap = (): ItemsMap => {
     const fieldIds = [
-        ...METRIC_QUERY_2DIM_2METRIC.dimensions,
-        ...METRIC_QUERY_2DIM_2METRIC.metrics,
+        'payments_payment_method',
+        'orders_order_date_year',
+        'payments_total_revenue',
     ];
     const map: ItemsMap = {};
     fieldIds.forEach((id) => {
@@ -20,29 +21,25 @@ const buildItemsMap = (): ItemsMap => {
     return map;
 };
 
+const PIVOT_CONFIG = {
+    pivotDimensions: ['payments_payment_method'],
+    metricsAsRows: false,
+    columnOrder: [
+        'payments_payment_method',
+        'orders_order_date_year',
+        'payments_total_revenue',
+    ],
+};
+
 describe('pivotResultsAsCsv', () => {
     it('returns string[][] with headers and formatted data rows', () => {
         const result = pivotResultsAsCsv({
-            pivotConfig: {
-                pivotDimensions: ['page'],
-                metricsAsRows: false,
-            },
-            rows: RESULT_ROWS_2DIM_2METRIC,
+            pivotConfig: PIVOT_CONFIG,
+            rows: SQL_PIVOTED_ROWS,
             itemMap: buildItemsMap(),
-            metricQuery: {
-                exploreName: 'test',
-                ...METRIC_QUERY_2DIM_2METRIC,
-                filters: {},
-                sorts: [],
-                limit: 500,
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
-            },
             customLabels: undefined,
             onlyRaw: false,
-            maxColumnLimit: 60,
-            pivotDetails: null,
+            pivotDetails: SQL_PIVOT_DETAILS,
         });
 
         // Result should be a 2D string array
@@ -60,30 +57,16 @@ describe('pivotResultsAsCsv', () => {
 
     it('applies customLabels to headers', () => {
         const result = pivotResultsAsCsv({
-            pivotConfig: {
-                pivotDimensions: ['page'],
-                metricsAsRows: false,
-            },
-            rows: RESULT_ROWS_2DIM_2METRIC,
+            pivotConfig: PIVOT_CONFIG,
+            rows: SQL_PIVOTED_ROWS,
             itemMap: buildItemsMap(),
-            metricQuery: {
-                exploreName: 'test',
-                ...METRIC_QUERY_2DIM_2METRIC,
-                filters: {},
-                sorts: [],
-                limit: 500,
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
-            },
-            customLabels: { views: 'Page Views' },
+            customLabels: { payments_total_revenue: 'Total Revenue!!' },
             onlyRaw: false,
-            maxColumnLimit: 60,
-            pivotDetails: null,
+            pivotDetails: SQL_PIVOT_DETAILS,
         });
 
         const allValues = result.flat();
-        expect(allValues).toContain('Page Views');
+        expect(allValues).toContain('Total Revenue!!');
     });
 
     it('returns empty cells for rows missing an expected pivot field instead of throwing (#16866)', () => {
@@ -97,40 +80,25 @@ describe('pivotResultsAsCsv', () => {
         // The safe accessor lives in pivotResultsAsData and reads
         // `row[fieldId]?.value?.raw ?? ''` — locking the empty-string
         // fallback prevents a regression that re-introduces the throw.
-        const partialRows: ResultRow[] = RESULT_ROWS_2DIM_2METRIC.map(
-            (row, idx) => {
-                if (idx === 1) {
-                    // Strip the devices metric on one row to simulate a
-                    // results-set missing a field that valuesColumns expects.
-                    const { devices, ...rest } = row;
-                    return rest;
-                }
-                return row;
-            },
-        );
+        const partialRows: ResultRow[] = SQL_PIVOTED_ROWS.map((row, idx) => {
+            if (idx === 1) {
+                // Strip one pivot value column on one row to simulate a
+                // results set missing a field that valuesColumns expects.
+                const rest = { ...row };
+                delete rest.payments_total_revenue_any_coupon;
+                return rest;
+            }
+            return row;
+        });
 
         const callPivot = () =>
             pivotResultsAsCsv({
-                pivotConfig: {
-                    pivotDimensions: ['page'],
-                    metricsAsRows: false,
-                },
+                pivotConfig: PIVOT_CONFIG,
                 rows: partialRows,
                 itemMap: buildItemsMap(),
-                metricQuery: {
-                    exploreName: 'test',
-                    ...METRIC_QUERY_2DIM_2METRIC,
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    customDimensions: [],
-                    metricOverrides: {},
-                    dimensionOverrides: {},
-                },
                 customLabels: undefined,
                 onlyRaw: false,
-                maxColumnLimit: 60,
-                pivotDetails: null,
+                pivotDetails: SQL_PIVOT_DETAILS,
                 undefinedCharacter: '',
             });
 
@@ -152,26 +120,12 @@ describe('pivotResultsAsCsv', () => {
 
     it('produces same number of columns as pivotResultsAsData', () => {
         const params = {
-            pivotConfig: {
-                pivotDimensions: ['page'],
-                metricsAsRows: false,
-            },
-            rows: RESULT_ROWS_2DIM_2METRIC,
+            pivotConfig: PIVOT_CONFIG,
+            rows: SQL_PIVOTED_ROWS,
             itemMap: buildItemsMap(),
-            metricQuery: {
-                exploreName: 'test',
-                ...METRIC_QUERY_2DIM_2METRIC,
-                filters: {},
-                sorts: [],
-                limit: 500,
-                customDimensions: [],
-                metricOverrides: {},
-                dimensionOverrides: {},
-            },
             customLabels: undefined,
             onlyRaw: false,
-            maxColumnLimit: 60,
-            pivotDetails: null,
+            pivotDetails: SQL_PIVOT_DETAILS,
         };
 
         const csvResult = pivotResultsAsCsv(params);
@@ -184,112 +138,6 @@ describe('pivotResultsAsCsv', () => {
         // Each CSV data row should have same length as corresponding data row
         csvDataRows.forEach((csvRow, i) => {
             expect(csvRow.length).toBe(dataResult.dataRows[i].length);
-        });
-    });
-
-    describe('hidden dimension filtering', () => {
-        it('omits a hidden pivot-column-header dimension from CSV headers', () => {
-            // METRIC_QUERY_2DIM_2METRIC has dimensions ['page', 'site'].
-            // When both are in pivotDimensions, 'site' becomes a pivot-column-header.
-            // Hiding 'site' via hiddenDimensionFieldIds must remove it from the output.
-            const result = pivotResultsAsCsv({
-                pivotConfig: {
-                    pivotDimensions: ['page', 'site'],
-                    metricsAsRows: false,
-                    hiddenDimensionFieldIds: ['site'],
-                },
-                rows: RESULT_ROWS_2DIM_2METRIC,
-                itemMap: buildItemsMap(),
-                metricQuery: {
-                    exploreName: 'test',
-                    ...METRIC_QUERY_2DIM_2METRIC,
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    customDimensions: [],
-                    metricOverrides: {},
-                    dimensionOverrides: {},
-                },
-                customLabels: undefined,
-                onlyRaw: false,
-                maxColumnLimit: 60,
-                pivotDetails: null,
-            });
-
-            const allValues = result.flat();
-            // The hidden dim's field id must not appear anywhere in the output
-            expect(allValues).not.toContain('site');
-            // The hidden dim's formatted values must not appear in the output
-            expect(allValues).not.toContain('Blog');
-            expect(allValues).not.toContain('Docs');
-            // The visible dim should still appear
-            expect(allValues).toContain('/home');
-        });
-
-        it('omits a hidden row-index dimension from CSV row values', () => {
-            // With pivotDimensions: ['page'], 'site' is a row-index dimension.
-            // Hiding 'site' via hiddenDimensionFieldIds must remove it from row cells.
-            const result = pivotResultsAsCsv({
-                pivotConfig: {
-                    pivotDimensions: ['page'],
-                    metricsAsRows: false,
-                    hiddenDimensionFieldIds: ['site'],
-                },
-                rows: RESULT_ROWS_2DIM_2METRIC,
-                itemMap: buildItemsMap(),
-                metricQuery: {
-                    exploreName: 'test',
-                    ...METRIC_QUERY_2DIM_2METRIC,
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    customDimensions: [],
-                    metricOverrides: {},
-                    dimensionOverrides: {},
-                },
-                customLabels: undefined,
-                onlyRaw: false,
-                maxColumnLimit: 60,
-                pivotDetails: null,
-            });
-
-            const allValues = result.flat();
-            // 'site' field values ('Blog', 'Docs') must not appear in the output
-            expect(allValues).not.toContain('Blog');
-            expect(allValues).not.toContain('Docs');
-            // Metric values like '6.0' (from views) and '7.0' (from devices) should be present
-            expect(allValues).toContain('6.0');
-        });
-
-        it('shows all dimensions when hiddenDimensionFieldIds is empty', () => {
-            const result = pivotResultsAsCsv({
-                pivotConfig: {
-                    pivotDimensions: ['page'],
-                    metricsAsRows: false,
-                    hiddenDimensionFieldIds: [],
-                },
-                rows: RESULT_ROWS_2DIM_2METRIC,
-                itemMap: buildItemsMap(),
-                metricQuery: {
-                    exploreName: 'test',
-                    ...METRIC_QUERY_2DIM_2METRIC,
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    customDimensions: [],
-                    metricOverrides: {},
-                    dimensionOverrides: {},
-                },
-                customLabels: undefined,
-                onlyRaw: false,
-                maxColumnLimit: 60,
-                pivotDetails: null,
-            });
-
-            const allValues = result.flat();
-            // With no hidden dims, the row-index dimension values should appear
-            expect(allValues).toContain('Blog');
-            expect(allValues).toContain('Docs');
         });
     });
 
@@ -331,19 +179,8 @@ describe('pivotResultsAsCsv', () => {
                 },
                 rows,
                 itemMap: buildItemsMap(),
-                metricQuery: {
-                    exploreName: 'test',
-                    ...METRIC_QUERY_2DIM_2METRIC,
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    customDimensions: [],
-                    metricOverrides: {},
-                    dimensionOverrides: {},
-                },
                 customLabels: undefined,
                 onlyRaw: false,
-                maxColumnLimit: 60,
                 pivotDetails: {
                     totalColumnCount: 1,
                     valuesColumns: [

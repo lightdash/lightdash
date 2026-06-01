@@ -10,7 +10,6 @@ import {
     isField,
     isNumber,
     ItemsMap,
-    MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
     pivotResultsAsData,
@@ -139,26 +138,28 @@ export class ExcelService {
     static async downloadPivotTableXlsx({
         rows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
         enableImprovedExcelDates = false,
         timezone,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
+        if (!pivotDetails) {
+            throw new Error(
+                'Cannot export pivot table XLSX without SQL pivot details',
+            );
+        }
+
         const formattedRows = formatRows(
             rows,
             itemMap,
@@ -171,11 +172,9 @@ export class ExcelService {
             return ExcelService.downloadPivotTableXlsxLegacy({
                 formattedRows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw,
                 customLabels,
-                maxColumnLimit,
                 pivotDetails,
                 timezone,
             });
@@ -185,10 +184,8 @@ export class ExcelService {
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
         });
 
@@ -304,32 +301,26 @@ export class ExcelService {
     private static async downloadPivotTableXlsxLegacy({
         formattedRows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
         timezone,
     }: {
         formattedRows: ResultRow[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
-        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
         });
 
@@ -379,7 +370,6 @@ export class ExcelService {
     static async downloadAsyncPivotTableXlsx({
         resultsFileName,
         fields,
-        metricQuery,
         resultsStorageClient,
         exportsStorageClient,
         lightdashConfig,
@@ -389,7 +379,6 @@ export class ExcelService {
     }: {
         resultsFileName: string;
         fields: ItemsMap;
-        metricQuery: MetricQuery;
         resultsStorageClient: S3ResultsFileStorageClient;
         exportsStorageClient: FileStorageClient;
         lightdashConfig: LightdashConfig;
@@ -446,11 +435,9 @@ export class ExcelService {
         const excelBuffer = await ExcelService.downloadPivotTableXlsx({
             rows,
             itemMap: fields,
-            metricQuery,
             pivotConfig,
             onlyRaw,
             customLabels,
-            maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
