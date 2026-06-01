@@ -358,28 +358,47 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates query that counts total distinct column combinations for pivot.
-     * Uses a subquery with SELECT DISTINCT for warehouse-agnostic counting.
+     * Generates the distinct_groups CTE body: the set of unique pivot-column
+     * combinations present in the filtered rows. Kept as a standalone CTE
+     * (rather than an inline subquery inside total_columns) so the reference to
+     * filteredRowsTable is a direct CTE -> CTE reference. ClickHouse's v24+
+     * analyzer cannot resolve a CTE identifier nested inside a subquery within
+     * a later CTE definition (PROD-8019 / #23697).
      * @param groupByColumns - Columns that are being pivoted
-     * @param valuesColumns - Value columns to multiply count by (only when metricsAsRows is false)
      * @param filteredRowsTable - Name of the CTE containing filtered rows
-     * @returns SQL query for counting total columns
+     * @returns SQL selecting distinct pivot-column combinations
      */
-    private getTotalColumnsSQL(
+    private getDistinctGroupsSQL(
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
         filteredRowsTable: string,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        // Fallback to 1 when no valuesColumns to ensure at least one column per distinct group
-        // This maintains consistent pivot behavior even when only grouping without aggregations
-        const valuesCount = valuesColumns?.length || 1;
 
-        // Use subquery with SELECT DISTINCT to count unique column combinations
-        // This approach works across all warehouses without type casting issues
+        // SELECT DISTINCT over the groupBy columns counts unique column
+        // combinations without type casting — works across all warehouses
+        // (no COUNT(DISTINCT CONCAT(...)), which Redshift rejects — see #19767).
         const columnRefs = groupByColumns
             .map((col) => `${q}${col.reference}${q}`)
             .join(', ');
+
+        return `SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}`;
+    }
+
+    /**
+     * Generates query that counts total distinct column combinations for pivot.
+     * Counts over the distinct_groups CTE (which already holds the unique
+     * pivot-column combinations) via a direct CTE reference.
+     * @param valuesColumns - Value columns to multiply count by (only when metricsAsRows is false)
+     * @param distinctGroupsTable - Name of the CTE containing distinct pivot-column combinations
+     * @returns SQL query for counting total columns
+     */
+    private getTotalColumnsSQL(
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        distinctGroupsTable: string,
+    ): string {
+        // Fallback to 1 when no valuesColumns to ensure at least one column per distinct group
+        // This maintains consistent pivot behavior even when only grouping without aggregations
+        const valuesCount = valuesColumns?.length || 1;
 
         // When metricsAsRows is true, metrics become rows (not columns),
         // so we don't multiply by valuesCount
@@ -387,7 +406,7 @@ export class PivotQueryBuilder {
             !this.pivotConfiguration.metricsAsRows && valuesCount > 1;
         const multiplier = shouldMultiplyByValues ? ` * ${valuesCount}` : '';
 
-        return `SELECT COUNT(*)${multiplier} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
+        return `SELECT COUNT(*)${multiplier} AS total_columns FROM ${distinctGroupsTable}`;
     }
 
     /**
@@ -1590,10 +1609,13 @@ export class PivotQueryBuilder {
             maxColumnsPerValueColumnSql = ` and p.${q}column_index${q} <= ${maxColumnsPerValueColumn}`;
         }
 
-        const totalColumnsQuery = this.getTotalColumnsSQL(
+        const distinctGroupsQuery = this.getDistinctGroupsSQL(
             groupByColumns,
-            valuesColumns,
             'filtered_rows',
+        );
+        const totalColumnsQuery = this.getTotalColumnsSQL(
+            valuesColumns,
+            'distinct_groups',
         );
 
         // Build CTEs in correct dependency order:
@@ -1602,7 +1624,7 @@ export class PivotQueryBuilder {
         // 3. column_ranking, anchor_column (for metric-based row sorting - identifies first pivot column)
         // 4. row anchor CTEs (uses anchor_column to get metric value at first column only)
         // 5. row_ranking (when precomputed rankings are used)
-        // 6. pivot_query, filtered_rows, total_columns
+        // 6. pivot_query, filtered_rows, distinct_groups, total_columns
         // 7. pivot_table_calculations (if there are any pivot table calculations)
         const ctes = [
             `original_query AS (${userSql})`,
@@ -1627,6 +1649,7 @@ export class PivotQueryBuilder {
 
         ctes.push(
             `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${q}row_index${q} <= ${rowLimit})`,
+            `distinct_groups AS (${distinctGroupsQuery})`,
             `total_columns AS (${totalColumnsQuery})`,
         );
 
