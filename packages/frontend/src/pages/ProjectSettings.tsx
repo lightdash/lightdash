@@ -25,7 +25,6 @@ import VerifiedContentPanel from '../components/VerifiedContent/VerifiedContentP
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
 import PullRequestsPage from '../features/pullRequests/components/PullRequestsPage';
-import { useIsPullRequestsEnabled } from '../features/pullRequests/hooks/useIsPullRequestsEnabled';
 import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
@@ -39,7 +38,6 @@ const ProjectSettings: FC = () => {
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
-    const isPullRequestsEnabled = useIsPullRequestsEnabled();
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
     const isGitProject = useIsGitProject(projectUuid ?? '');
@@ -121,7 +119,7 @@ const ProjectSettings: FC = () => {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
-            ...(isPullRequestsEnabled && isGitProject
+            ...(isGitProject
                 ? [
                       {
                           path: `/pullRequests`,
@@ -168,7 +166,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid, isSoftDeleteEnabled, isPullRequestsEnabled, isGitProject]);
+    }, [projectUuid, isSoftDeleteEnabled, isGitProject]);
     const routesElements = useRoutes(routes);
 
     if (error) {

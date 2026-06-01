@@ -100,7 +100,6 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
-import { useIsPullRequestsEnabled } from '../features/pullRequests/hooks/useIsPullRequestsEnabled';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -139,8 +138,6 @@ const Settings: FC = () => {
     );
     const isServiceAccountFeatureFlagEnabled =
         serviceAccountsFlag?.enabled ?? false;
-
-    const isPullRequestsEnabled = useIsPullRequestsEnabled();
 
     const {
         health: {
@@ -1504,8 +1501,7 @@ const Settings: FC = () => {
                                         />
                                     ) : null}
 
-                                    {isPullRequestsEnabled &&
-                                    isGitProject &&
+                                    {isGitProject &&
                                     user.ability?.can(
                                         'view',
                                         subject('SourceCode', {
