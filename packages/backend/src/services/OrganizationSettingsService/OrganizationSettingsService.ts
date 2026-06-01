@@ -104,6 +104,18 @@ export class OrganizationSettingsService extends BaseService {
                 `CSV cells limit cannot exceed ${csvCellsCap}.`,
             );
         }
+        // The query row limit can only be restricted below the instance max
+        // (LIGHTDASH_QUERY_MAX_LIMIT) — the instance's hard ceiling.
+        const queryRowsCap = this.lightdashConfig.query.maxLimit;
+        if (
+            data.queryMaxLimit !== undefined &&
+            data.queryMaxLimit !== null &&
+            data.queryMaxLimit > queryRowsCap
+        ) {
+            throw new ParameterError(
+                `Maximum query rows cannot exceed ${queryRowsCap}.`,
+            );
+        }
     }
 
     async getOrganizationSettings(

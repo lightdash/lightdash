@@ -3839,8 +3839,27 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        // Cap the interactive query at the org's effective max rows (org
+        // override, else the instance LIGHTDASH_QUERY_MAX_LIMIT). With no
+        // override this is the instance max, so normal queries are unaffected.
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
+        const cappedArgs: ExecuteAsyncMetricQueryArgs =
+            inputMetricQuery.limit > maxLimit
+                ? {
+                      ...args,
+                      metricQuery: {
+                          ...inputMetricQuery,
+                          limit: maxLimit,
+                      },
+                  }
+                : args;
+
         return this.runAsyncMetricQueryWithoutPermissionCheck(
-            args,
+            cappedArgs,
             organizationUuid,
         );
     }

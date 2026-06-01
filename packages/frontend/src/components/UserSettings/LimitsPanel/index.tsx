@@ -1,5 +1,4 @@
 import {
-    POSTGRES_INTEGER_MAX,
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
@@ -17,14 +16,16 @@ import {
  * form's initial values are captured from the loaded settings exactly once
  * (keyed remount on the effective values), never clobbered by a refetch.
  *
- * `csvCellsCap` is the instance's effective ceiling for the CSV cells limit
- * (from /health: max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)); it's
- * always ≥ the org's current value, so it can be used directly as the input max.
+ * The caps come from /health (instance env): `queryRowsCap` is
+ * LIGHTDASH_QUERY_MAX_LIMIT and `csvCellsCap` is
+ * max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT). Both are always ≥ the
+ * org's current value, so they can be used directly as the input max.
  */
 const LimitsForm: FC<{
     settings: OrganizationSettings;
+    queryRowsCap: number;
     csvCellsCap: number;
-}> = ({ settings, csvCellsCap }) => {
+}> = ({ settings, queryRowsCap, csvCellsCap }) => {
     const update = useUpdateOrganizationSettings();
 
     // The API returns effective numbers (org override resolved against the env),
@@ -52,9 +53,9 @@ const LimitsForm: FC<{
             <Stack gap="lg">
                 <NumberInput
                     label="Maximum query rows"
-                    description="The most rows a single query or export can return for your organization."
+                    description={`The most rows a single query or export can return for your organization. Up to ${queryRowsCap.toLocaleString()}.`}
                     min={1}
-                    max={POSTGRES_INTEGER_MAX}
+                    max={queryRowsCap}
                     clampBehavior="strict"
                     allowDecimal={false}
                     allowNegative={false}
@@ -100,6 +101,7 @@ const LimitsPanel: FC = () => {
         <LimitsForm
             key={`${data.queryMaxLimit}-${data.csvCellsLimit}`}
             settings={data}
+            queryRowsCap={health.data.query.maxLimit}
             csvCellsCap={health.data.query.csvMaxLimit}
         />
     );
