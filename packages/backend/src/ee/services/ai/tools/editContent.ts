@@ -32,6 +32,7 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                     name: result.content.name,
                     uuid: result.uuid,
                     href: result.href,
+                    versionUuids: result.versionUuids,
                 };
 
                 return {

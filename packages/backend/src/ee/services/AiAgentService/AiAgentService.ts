@@ -4957,9 +4957,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const getContentUrl = (type: 'dashboard' | 'chart', slug: string) => {
             switch (type) {
                 case 'dashboard':
-                    return `/projects/${projectUuid}/dashboards/${slug}/view`;
+                    return `/projects/${projectUuid}/dashboards/${slug}/view#dashboard-link`;
                 case 'chart':
-                    return `/projects/${projectUuid}/saved/${slug}/view`;
+                    return `/projects/${projectUuid}/saved/${slug}/view#chart-link`;
                 default:
                     return assertUnreachable(type, 'Invalid content type');
             }
@@ -5038,6 +5038,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     this.aiAgentContentValidation.validatePatch(type, patch);
 
                     const currentContent = await readContent({ slug, type });
+                    const versionBefore =
+                        await this.coderService.getCurrentContentVersionBySlug(
+                            user,
+                            projectUuid,
+                            type,
+                            slug,
+                        );
                     const patchedContent = JsonPatch.applyPatch(
                         structuredClone(currentContent.content),
                         patch,
@@ -5094,6 +5101,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         slug: patchedSlug,
                         type,
                     });
+                    const versionAfter =
+                        await this.coderService.getCurrentContentVersionBySlug(
+                            user,
+                            projectUuid,
+                            type,
+                            patchedSlug,
+                        );
 
                     if (!uuid) {
                         throw new NotFoundError(
@@ -5110,6 +5124,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     'dashboard',
                                     editedContent.content.slug,
                                 ),
+                                versionUuids: {
+                                    before: versionBefore?.versionUuid ?? null,
+                                    after: versionAfter?.versionUuid ?? null,
+                                },
                             };
                         case 'chart':
                             return {
@@ -5119,6 +5137,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     'chart',
                                     editedContent.content.slug,
                                 ),
+                                versionUuids: {
+                                    before: versionBefore?.versionUuid ?? null,
+                                    after: versionAfter?.versionUuid ?? null,
+                                },
                             };
                         default:
                             return assertUnreachable(

@@ -652,6 +652,28 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "uuid": {
                   "type": "string",
                 },
+                "versionUuids": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "after": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "before": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                  },
+                  "required": [
+                    "before",
+                    "after",
+                  ],
+                  "type": "object",
+                },
               },
               "required": [
                 "status",
@@ -659,6 +681,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "name",
                 "uuid",
                 "href",
+                "versionUuids",
               ],
               "type": "object",
             },
