@@ -1,3 +1,10 @@
+# [0.3060.0](https://github.com/lightdash/lightdash/compare/0.3059.0...0.3060.0) (2026-06-01)
+
+
+### Features
+
+* **mcp:** add hybrid async query polling ([#23645](https://github.com/lightdash/lightdash/issues/23645)) ([10aa697](https://github.com/lightdash/lightdash/commit/10aa6973003c962d9eb312c58da22a5b43668f00))
+
 # [0.3059.0](https://github.com/lightdash/lightdash/compare/0.3058.1...0.3059.0) (2026-05-31)
 
 
