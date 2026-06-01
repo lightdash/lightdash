@@ -372,17 +372,7 @@ describe('MCP async query polling', () => {
                 queryUuid,
                 title: 'Orders',
                 description: 'Orders count',
-                queryConfig: {
-                    exploreName: 'orders',
-                    dimensions: [],
-                    metrics: ['orders_count'],
-                    sorts: [],
-                    limit: 10,
-                },
-                customMetrics: null,
-                tableCalculations: null,
                 chartConfig: null,
-                filters: null,
             },
             extra,
         );
@@ -392,8 +382,15 @@ describe('MCP async query polling', () => {
                 result: {
                     status: 'done',
                     queryUuid,
+                    echartsOption: null,
+                    exploreUrl: 'https://lightdash.example/share/share-id',
+                },
+            },
+            _meta: {
+                result: {
                     rows: [{ orders_count: 1 }],
                     fields: {},
+                    echartsOption: null,
                     exploreUrl: 'https://lightdash.example/share/share-id',
                 },
             },

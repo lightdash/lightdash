@@ -644,6 +644,12 @@ export class McpService extends BaseService {
                     result: {
                         status: 'done' as const,
                         queryUuid,
+                        echartsOption: null,
+                        exploreUrl,
+                    },
+                },
+                _meta: {
+                    result: {
                         rows: [],
                         fields,
                         echartsOption: null,
@@ -721,6 +727,12 @@ export class McpService extends BaseService {
                 result: {
                     status: 'done' as const,
                     queryUuid,
+                    echartsOption: mcpEchartsOption ? {} : null,
+                    exploreUrl,
+                },
+            },
+            _meta: {
+                result: {
                     rows,
                     fields,
                     echartsOption: mcpEchartsOption,

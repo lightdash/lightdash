@@ -234,6 +234,22 @@ function getStructuredResult(structuredContent: unknown): ChartToolResult {
     return structuredContent as ChartToolResult;
 }
 
+function getToolResultPayload(result: unknown): ChartToolResult {
+    if (!isRecord(result)) {
+        return {};
+    }
+
+    const structured = getStructuredResult(result.structuredContent);
+    const meta = isRecord(result._meta)
+        ? getStructuredResult(result._meta)
+        : {};
+
+    return {
+        ...structured,
+        ...meta,
+    };
+}
+
 function removeExploreButton(): void {
     document.getElementById('explore-btn')?.remove();
 }
@@ -246,7 +262,7 @@ function clearRenderedContent(): void {
 }
 
 app.ontoolresult = (result) => {
-    const structured = getStructuredResult(result.structuredContent);
+    const structured = getToolResultPayload(result);
 
     if (structured?.echartsOption) {
         renderChart(structured.echartsOption);

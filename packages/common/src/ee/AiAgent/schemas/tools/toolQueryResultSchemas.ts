@@ -65,8 +65,11 @@ export const mcpMetricQueryCompletedResultSchema =
         exploreUrl: z.string().nullable(),
     });
 
-export const mcpRenderChartResultSchema = mcpMetricQueryCompletedResultSchema
-    .extend({
+export const mcpRenderChartResultSchema = z
+    .object({
+        status: z.literal('done'),
+        queryUuid: createMcpAsyncQueryUuidSchema(),
+        exploreUrl: z.string().nullable(),
         echartsOption: z.unknown().nullable(),
     })
     .describe('Rendered chart result for a completed query.');

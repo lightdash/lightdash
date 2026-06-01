@@ -5170,10 +5170,8 @@ Response shape (MCP CallToolResult):
     result: {
       status: "done",
       queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
       exploreUrl: string | null,
-      echartsOption: Record<string, unknown> | null
+      echartsOption: Record<string, unknown> | null // lightweight placeholder; full chart payload is app metadata
     }
   }",
       "inputSchema": {
@@ -5182,7 +5180,7 @@ Response shape (MCP CallToolResult):
         "properties": {
           "chartConfig": {
             "additionalProperties": false,
-            "description": "Chart configuration to use when rendering the completed metric query., ",
+            "description": ", ",
             "properties": {
               "defaultVizType": {
                 "description": "The default visualization type to render",
@@ -5311,20 +5309,9 @@ Response shape (MCP CallToolResult):
                   "null",
                 ],
               },
-              "fields": {
-                "additionalProperties": {},
-                "type": "object",
-              },
               "queryUuid": {
                 "format": "uuid",
                 "type": "string",
-              },
-              "rows": {
-                "items": {
-                  "additionalProperties": {},
-                  "type": "object",
-                },
-                "type": "array",
               },
               "status": {
                 "const": "done",
@@ -5332,8 +5319,6 @@ Response shape (MCP CallToolResult):
               },
             },
             "required": [
-              "rows",
-              "fields",
               "status",
               "queryUuid",
               "exploreUrl",

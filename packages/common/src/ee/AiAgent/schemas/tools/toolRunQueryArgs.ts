@@ -206,10 +206,8 @@ Response shape (MCP CallToolResult):
     result: {
       status: "done",
       queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
       exploreUrl: string | null,
-      echartsOption: Record<string, unknown> | null
+      echartsOption: Record<string, unknown> | null // lightweight placeholder; full chart payload is app metadata
     }
   }`;
 
