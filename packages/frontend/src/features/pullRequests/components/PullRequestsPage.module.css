@@ -7,6 +7,14 @@
     );
 }
 
+/* Vertical scroll container for infinite scroll; the sticky header stays
+   pinned while rows scroll under it. */
+.scrollArea {
+    max-height: calc(100dvh - 230px);
+    min-height: 200px;
+    overflow: auto;
+}
+
 .table {
     /* Fixed layout + full width: columns honour their widths exactly, so the
        Source/State tags never collapse and the Title absorbs the remainder. */
@@ -87,13 +95,6 @@
         var(--mantine-color-ldGray-0),
         var(--mantine-color-ldDark-6)
     );
-}
-
-/* Dim the body while paging so the table doesn't jump between pages */
-.tbodyFetching {
-    opacity: 0.55;
-    transition: opacity 150ms ease;
-    pointer-events: none;
 }
 
 /* Artsy pull-request medallion: a soft shadow gives it a little lift */
