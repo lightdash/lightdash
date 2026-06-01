@@ -1,3 +1,10 @@
+# [0.3070.0](https://github.com/lightdash/lightdash/compare/0.3069.1...0.3070.0) (2026-06-01)
+
+
+### Features
+
+* **settings:** add collapsible sidebar support ([#23623](https://github.com/lightdash/lightdash/issues/23623)) ([b32d758](https://github.com/lightdash/lightdash/commit/b32d7588c171dd9dc084faec5e885ac43e403e69))
+
 ## [0.3069.1](https://github.com/lightdash/lightdash/compare/0.3069.0...0.3069.1) (2026-06-01)
 
 
