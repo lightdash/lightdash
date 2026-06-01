@@ -244,6 +244,16 @@ export const searchFieldValuesToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const generateVisualizationToolDefinition = defineTool({
+    name: 'generateVisualization',
+    title: 'Generate visualization',
+    description: TOOL_RUN_QUERY_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRunQueryArgsSchema,
+    inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    agent: { outputSchema: toolRunQueryOutputSchema },
+});
+
 export const runQueryToolDefinition = defineTool({
     name: 'runQuery',
     title: 'Run query',
@@ -658,6 +668,7 @@ type AgentToolDefinitionsByName = {
     findFields: typeof findFieldsToolDefinition;
     findContent: typeof findContentToolDefinition;
     searchFieldValues: typeof searchFieldValuesToolDefinition;
+    generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
@@ -691,6 +702,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findFields: findFieldsToolDefinition,
     findContent: findContentToolDefinition,
     searchFieldValues: searchFieldValuesToolDefinition,
+    generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
@@ -724,6 +736,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findFieldsToolDefinition,
     findContentToolDefinition,
     searchFieldValuesToolDefinition,
+    generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
     getQueryResultToolDefinition,

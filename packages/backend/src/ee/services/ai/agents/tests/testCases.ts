@@ -72,7 +72,7 @@ export const testCases: TestCase[] = [
             `breakdown by dimension: payment method, with revenue data for credit_card and coupon in Q3 2024`,
         ].join('\n'),
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Order date in Q3 2024 (July-September 2024) and Payment method (credit_card, coupon)`,
+            `generateVisualization tool args should have filters: Order date in Q3 2024 (July-September 2024) and Payment method (credit_card, coupon)`,
             'Should use a date filter (from orders explore) for Q3 2024',
             'Should use filter for filtering the payment method',
             'Default visualization should be a bar chart',
@@ -85,7 +85,7 @@ export const testCases: TestCase[] = [
         expectedAnswer:
             'Replies with payments from credit cards that were from customers created between 2023 and 2024',
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Customer creation date between 2023-01-01 and 2024-12-31 and Payment method (credit_card)`,
+            `generateVisualization tool args should have filters: Customer creation date between 2023-01-01 and 2024-12-31 and Payment method (credit_card)`,
             'Should use a date filter (from customers explore) for the date range',
             'Should use filter for filtering the payment method',
             'Default visualization could be a table or a bar chart',

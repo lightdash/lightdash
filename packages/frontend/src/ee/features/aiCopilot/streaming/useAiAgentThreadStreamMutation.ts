@@ -422,6 +422,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-findCharts':
                             case 'tool-improveContext':
                             case 'tool-searchFieldValues':
+                            case 'tool-generateVisualization':
                             case 'tool-runQuery':
                             case 'tool-runSql':
                             case 'tool-listWarehouseTables':
@@ -450,7 +451,9 @@ export function useAiAgentThreadStreamMutation() {
                                     }
                                     if (
                                         !(
-                                            part.type === 'tool-runQuery' &&
+                                            (part.type === 'tool-runQuery' ||
+                                                part.type ===
+                                                    'tool-generateVisualization') &&
                                             part.state === 'output-available'
                                         )
                                     ) {

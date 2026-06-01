@@ -62,7 +62,7 @@ export const translateToolProposeChangeArgs = async (
         case 'create':
             if (value.value.metric.kind !== 'aggregation') {
                 throw new AiAgentValidatorError(
-                    'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside runQuery for time comparisons.',
+                    'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside generateVisualization for time comparisons.',
                 );
             }
             const exploreCompiler = await getExploreCompiler();
@@ -148,7 +148,7 @@ export const getProposeChange = ({
                                     'aggregation'
                                 ) {
                                     throw new AiAgentValidatorError(
-                                        'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside runQuery for time comparisons.',
+                                        'proposeChange only supports creating aggregation custom metrics. Use periodComparison customMetrics inside generateVisualization for time comparisons.',
                                     );
                                 }
                                 validateFieldEntityType(

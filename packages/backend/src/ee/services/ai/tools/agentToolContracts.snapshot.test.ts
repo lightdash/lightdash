@@ -10,6 +10,7 @@ import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
 import { getGenerateUuids } from './generateUuids';
+import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
@@ -22,7 +23,6 @@ import { getLoadSkill } from './loadSkill';
 import { getProposeChange } from './proposeChange';
 import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
-import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
@@ -143,7 +143,7 @@ const makeAgentTools = () => {
             proposeWriteback: noop,
         }),
         readContent: getReadContent({ readContent: noop }),
-        runQuery: getRunQuery({
+        generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             enableSelfImprovement: true,

@@ -18,6 +18,7 @@ import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateUuids } from '../tools/generateUuids';
+import { getGenerateVisualization } from '../tools/generateVisualization';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
 import { getGetProjectInfo } from '../tools/getProjectInfo';
@@ -30,7 +31,6 @@ import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
-import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
@@ -199,7 +199,7 @@ const getAgentTools = (
         readContent: dependencies.readContent,
     });
 
-    const runQuery = getRunQuery({
+    const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
         getPrompt: dependencies.getPrompt,
@@ -314,7 +314,7 @@ const getAgentTools = (
                   getDashboardCharts,
                   generateDashboard,
               }),
-        runQuery,
+        generateVisualization,
         runSavedChart,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),

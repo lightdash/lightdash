@@ -29,6 +29,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateBarVizConfig: 'vertical_bar_chart',
     loadSkill: 'load_skill',
     generateUuids: 'generate_uuids',
+    generateVisualization: 'query_result',
     runQuery: 'query_result',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',

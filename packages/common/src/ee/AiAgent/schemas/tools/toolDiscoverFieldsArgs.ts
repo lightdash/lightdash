@@ -8,8 +8,8 @@ Run the data-discovery subagent. Given the latest user query, returns a structur
 Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
 
 You will receive one of three statuses:
-- "resolved" — proceed with runQuery (or generateDashboard) using the returned explore + fields.
-- "ambiguous" — surface the suggestedQuestion to the user; do NOT call runQuery.
+- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + fields.
+- "ambiguous" — surface the suggestedQuestion to the user; do NOT call generateVisualization.
 - "no_match" — explain back to the user that no data source covers the request.
 
 Re-call this tool if the user pivots mid-thread to a different data topic and you need fields from a different explore.
@@ -39,7 +39,9 @@ const discoverFieldsExploreSummarySchema = z.object({
 });
 
 const discoverFieldsFieldSummarySchema = z.object({
-    fieldId: z.string().describe('The fieldId to use in runQuery payloads.'),
+    fieldId: z
+        .string()
+        .describe('The fieldId to use in generateVisualization payloads.'),
     name: z.string(),
     label: z.string(),
     table: z.string(),

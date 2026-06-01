@@ -48,7 +48,9 @@ export const getActivityTitle = (
     const hasDashboard = toolNames.includes('generateDashboard');
     const hasCreateContent = toolNames.includes('createContent');
     const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
-    const hasQuery = toolNames.includes('runQuery');
+    const hasQuery =
+        toolNames.includes('generateVisualization') ||
+        toolNames.includes('runQuery');
     const hasRunSql = toolNames.includes('runSql');
     const onlySearches = toolNames.every((n) => SEARCH_TOOLS.has(n));
 

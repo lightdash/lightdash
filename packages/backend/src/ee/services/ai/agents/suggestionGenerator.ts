@@ -31,7 +31,7 @@ How to use the context (PROMPT chips):
 - explores: catalog-driven question chips when no curated signal applies.
 
 Tool guide (PROMPT chips):
-- \`runQuery\`: factual data questions answerable from the semantic layer.
+- \`generateVisualization\`: factual data questions answerable from the semantic layer.
 - \`runSql\`: rare; only when present in <enabledTools> and the question can't be expressed in the semantic layer.
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
@@ -63,7 +63,7 @@ HARD RULES:
 For each chip, set defaults.explore, defaults.dimensions, defaults.metrics, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable. Set tool to the best-fit enabled tool from <enabledTools>.
 
 Tool guide:
-- \`runQuery\`: drill-ins, breakdowns, refinements of the data
+- \`generateVisualization\`: drill-ins, breakdowns, refinements of the data
 - \`runSql\`: rare; only when present in <enabledTools> and semantic layer can't express what's being asked
 - \`generateDashboard\`: "build me an overview" or multi-chart
 - \`findContent\`: "is there already a saved chart for this", or to surface a verified chart
@@ -84,7 +84,7 @@ export const SUGGESTION_FALLBACK_CHIPS: AgentSuggestion[] = [
     {
         kind: 'prompt',
         label: 'Summarise activity from the last 30 days',
-        tool: 'runQuery',
+        tool: 'generateVisualization',
         defaults: {
             explore: null,
             dimensions: [],
