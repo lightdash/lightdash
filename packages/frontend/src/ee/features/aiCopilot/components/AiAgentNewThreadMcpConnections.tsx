@@ -4,7 +4,7 @@ import {
     type AiMcpServer,
 } from '@lightdash/common';
 import { Button, Group, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -226,10 +226,12 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                     mcpServerUuids: [...attachedUuids, server.uuid],
                 });
             }
-            githubConfirmModalHandlers.close();
         } catch {
             // Toasts are handled in the mutations.
         } finally {
+            // Close on success and failure — the error toast is the feedback;
+            // the persistent "Connect GitHub" button is the retry affordance.
+            githubConfirmModalHandlers.close();
             await refetchAgentMcpServers();
         }
     }, [
