@@ -26,6 +26,7 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import MantineIcon from '../MantineIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
 import classes from './PreAggregateAuditIndicator.module.css';
+import { scrollToDashboardTile } from './scrollToDashboardTile';
 
 const NONE_KEY = 'none';
 
@@ -45,24 +46,6 @@ type TabGroup = {
     misses: TilePreAggregateStatus[];
     ineligible: TilePreAggregateStatus[];
 };
-
-function scrollToTile(tileUuid: string) {
-    const el = document.querySelector<HTMLElement>(
-        `[data-tile-uuid="${tileUuid}"]`,
-    );
-    if (!el) return;
-
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.style.borderRadius = 'var(--mantine-radius-md)';
-    el.animate(
-        [
-            { boxShadow: '0 0 0 0px transparent' },
-            { boxShadow: '0 0 0 2px var(--mantine-color-indigo-4)' },
-            { boxShadow: '0 0 0 0px transparent' },
-        ],
-        { duration: 1200, easing: 'ease-in-out' },
-    );
-}
 
 function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
     if (tile.hit && tile.preAggregateName) {
@@ -303,7 +286,7 @@ export function PreAggregateAuditDrawer({
     );
 
     const handleTileClick = useCallback((uuid: string) => {
-        scrollToTile(uuid);
+        scrollToDashboardTile(uuid);
     }, []);
 
     return (

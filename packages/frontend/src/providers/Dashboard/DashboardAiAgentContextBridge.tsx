@@ -1,4 +1,5 @@
 import {
+    type Dashboard,
     type DashboardChartTile,
     type DashboardFilters,
     type DashboardTile,
@@ -7,6 +8,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
+import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
 import { useAiAgentStoreSelector } from '../../ee/features/aiCopilot/store/hooks';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -27,7 +29,9 @@ const DashboardAiAgentContextBridge = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -48,11 +52,33 @@ const DashboardAiAgentContextBridge = () => {
     );
 
     const handledToolCallIdsRef = useRef<Set<string>>(new Set());
+    const pendingChartSlugToFocusRef = useRef<string | null>(null);
+    const focusRequestIdRef = useRef(0);
 
     const currentDashboardSlug = dashboard?.slug;
     const dashboardQueryKey = useMemo(
         () => ['saved_dashboard_query', dashboardUuid, projectUuid],
         [dashboardUuid, projectUuid],
+    );
+
+    const scrollToChartTile = useCallback(
+        (tile: DashboardChartTile, tabs: Dashboard['tabs']) => {
+            const focusRequestId = (focusRequestIdRef.current += 1);
+            const tab = tile.tabUuid
+                ? tabs.find(
+                      (dashboardTab) => dashboardTab.uuid === tile.tabUuid,
+                  )
+                : undefined;
+            if (tab) setActiveTab(tab);
+
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    if (focusRequestId !== focusRequestIdRef.current) return;
+                    scrollToDashboardTile(tile.uuid);
+                });
+            });
+        },
+        [setActiveTab],
     );
 
     const successfulContentResults = useMemo(
@@ -70,7 +96,11 @@ const DashboardAiAgentContextBridge = () => {
     );
 
     const refreshChartTilesFromTiles = useCallback(
-        async (chartSlug: string, tiles: DashboardTile[] | undefined) => {
+        async (
+            chartSlug: string,
+            tiles: DashboardTile[] | undefined,
+            options?: { focusTile?: boolean },
+        ) => {
             if (!projectUuid || !dashboardUuid) return;
 
             const matchingTiles = (tiles ?? []).filter(
@@ -122,60 +152,86 @@ const DashboardAiAgentContextBridge = () => {
                     savedChartUuids.includes(query.queryKey[2] as string) &&
                     query.queryKey[3] === dashboardUuid,
             });
+
+            if (options?.focusTile) {
+                scrollToChartTile(matchingTiles[0], dashboardTabs);
+            }
         },
-        [dashboardUuid, projectUuid, queryClient],
+        [
+            dashboardTabs,
+            dashboardUuid,
+            projectUuid,
+            queryClient,
+            scrollToChartTile,
+        ],
     );
 
-    const refreshDashboard = useCallback(async () => {
-        if (!projectUuid || !dashboardUuid) return;
+    const refreshDashboard = useCallback(
+        async (chartSlugToFocus?: string) => {
+            if (!projectUuid || !dashboardUuid) return false;
 
-        await queryClient.invalidateQueries({
-            queryKey: dashboardQueryKey,
-            refetchType: 'none',
-        });
+            await queryClient.invalidateQueries({
+                queryKey: dashboardQueryKey,
+                refetchType: 'none',
+            });
 
-        const freshDashboard = await queryClient.fetchQuery({
-            queryKey: dashboardQueryKey,
-            queryFn: () => getDashboard(dashboardUuid, projectUuid),
-        });
+            const freshDashboard = await queryClient.fetchQuery({
+                queryKey: dashboardQueryKey,
+                queryFn: () => getDashboard(dashboardUuid, projectUuid),
+            });
 
-        const chartTiles = freshDashboard.tiles.filter(
-            isDashboardChartTileType,
-        );
+            const chartTiles = freshDashboard.tiles.filter(
+                isDashboardChartTileType,
+            );
 
-        setDashboardTiles(freshDashboard.tiles);
-        setDashboardTabs(freshDashboard.tabs);
-        setDashboardFilters(freshDashboard.filters);
-        setOriginalDashboardFilters(freshDashboard.filters);
-        setDashboardTemporaryFilters(emptyFilters);
+            setDashboardTiles(freshDashboard.tiles);
+            setDashboardTabs(freshDashboard.tabs);
+            setDashboardFilters(freshDashboard.filters);
+            setOriginalDashboardFilters(freshDashboard.filters);
+            setDashboardTemporaryFilters(emptyFilters);
 
-        await Promise.all(
-            [
-                ...new Set(
-                    chartTiles
-                        .map((tile) => tile.properties.chartSlug)
-                        .filter((slug): slug is string => !!slug),
+            await Promise.all(
+                [
+                    ...new Set(
+                        chartTiles
+                            .map((tile) => tile.properties.chartSlug)
+                            .filter((slug): slug is string => !!slug),
+                    ),
+                ].map((chartSlug) =>
+                    refreshChartTilesFromTiles(chartSlug, freshDashboard.tiles),
                 ),
-            ].map((chartSlug) =>
-                refreshChartTilesFromTiles(chartSlug, freshDashboard.tiles),
-            ),
-        );
-    }, [
-        dashboardQueryKey,
-        dashboardUuid,
-        projectUuid,
-        queryClient,
-        refreshChartTilesFromTiles,
-        setDashboardFilters,
-        setDashboardTabs,
-        setDashboardTemporaryFilters,
-        setDashboardTiles,
-        setOriginalDashboardFilters,
-    ]);
+            );
+
+            if (chartSlugToFocus) {
+                const tileToFocus = chartTiles.find(
+                    (tile) => tile.properties.chartSlug === chartSlugToFocus,
+                );
+                if (tileToFocus) {
+                    scrollToChartTile(tileToFocus, freshDashboard.tabs);
+                    return true;
+                }
+            }
+
+            return false;
+        },
+        [
+            dashboardQueryKey,
+            dashboardUuid,
+            projectUuid,
+            queryClient,
+            refreshChartTilesFromTiles,
+            scrollToChartTile,
+            setDashboardFilters,
+            setDashboardTabs,
+            setDashboardTemporaryFilters,
+            setDashboardTiles,
+            setOriginalDashboardFilters,
+        ],
+    );
 
     const refreshChartTiles = useCallback(
-        async (chartSlug: string) =>
-            refreshChartTilesFromTiles(chartSlug, dashboardTiles),
+        async (chartSlug: string, options?: { focusTile?: boolean }) =>
+            refreshChartTilesFromTiles(chartSlug, dashboardTiles, options),
         [dashboardTiles, refreshChartTilesFromTiles],
     );
 
@@ -206,15 +262,28 @@ const DashboardAiAgentContextBridge = () => {
                         part.toolName === 'createContent' &&
                         targetDashboardSlug === currentDashboardSlug
                     ) {
-                        void refreshDashboard();
+                        pendingChartSlugToFocusRef.current = contentSlug;
+                        void refreshDashboard(contentSlug).then((focused) => {
+                            if (
+                                focused &&
+                                pendingChartSlugToFocusRef.current ===
+                                    contentSlug
+                            ) {
+                                pendingChartSlugToFocusRef.current = null;
+                            }
+                        });
                         continue;
                     }
 
-                    void refreshChartTiles(contentSlug);
+                    void refreshChartTiles(contentSlug, { focusTile: true });
                     continue;
                 case 'dashboard':
                     if (contentSlug !== currentDashboardSlug) continue;
-                    void refreshDashboard();
+                    void refreshDashboard(
+                        pendingChartSlugToFocusRef.current ?? undefined,
+                    ).then((focused) => {
+                        if (focused) pendingChartSlugToFocusRef.current = null;
+                    });
                     continue;
             }
         }
