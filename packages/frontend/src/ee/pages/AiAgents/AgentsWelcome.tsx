@@ -18,8 +18,12 @@ import {
     IconPlus,
     IconRobot,
 } from '@tabler/icons-react';
-import { Link, Navigate, useParams } from 'react-router';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    AI_ROUTING_AUTO_VALUE,
+    AI_ROUTING_SEARCH_PARAM,
+} from '../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -67,8 +71,22 @@ const AiPageLoading = () => (
     </AiAgentPageLayout>
 );
 
+/**
+ * Index of `/ai-agents`. Decides where to start, in priority order:
+ *
+ * 1. No agents — render the welcome / empty state.
+ * 2. Exactly one agent — open it; there's no routing decision to make.
+ * 3. A valid default agent preference — open it, unless the user explicitly
+ *    asked for Auto (`?routing=auto`, set by the agent selector). A preference
+ *    pointing at a deleted agent is ignored.
+ * 4. Router enabled — show the auto-router (`AgentsRouterPage`).
+ * 5. Otherwise — open the first agent in the list.
+ */
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
+    const [searchParams] = useSearchParams();
+    const forceRouter =
+        searchParams.get(AI_ROUTING_SEARCH_PARAM) === AI_ROUTING_AUTO_VALUE;
     const canCreateAgent = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -113,27 +131,34 @@ const AgentsWelcome = () => {
         return <AiPageLoading />;
     }
 
+    const userDefaultAgentUuid =
+        userAgentPreferencesQuery.data?.defaultAgentUuid;
+    const hasValidUserDefault =
+        userDefaultAgentUuid !== undefined &&
+        agentsQuery.data.some((agent) => agent.uuid === userDefaultAgentUuid);
+
     if (agentsQuery.data.length === 0) {
         // Fall through to the empty state below.
     } else if (agentsQuery.data.length === 1) {
-        // Only one agent — no routing decision to make.
         return (
             <Navigate
                 to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
                 replace
             />
         );
+    } else if (hasValidUserDefault && !forceRouter) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/ai-agents/${userDefaultAgentUuid}`}
+                replace
+            />
+        );
     } else if (aiRouterConfigQuery.data?.enabled) {
         return <AgentsRouterPage />;
     } else {
-        // Router disabled or not configured: prior behaviour — prefer the
-        // user's default agent, otherwise the first agent in the list.
-        const defaultAgentUuid =
-            userAgentPreferencesQuery.data?.defaultAgentUuid ??
-            agentsQuery.data[0].uuid;
         return (
             <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
+                to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
                 replace
             />
         );
