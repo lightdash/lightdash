@@ -173,9 +173,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return items;
     }, [onBack, explore]);
 
-    // Only show the skeleton on the initial load (no data yet) — not on
-    // background refetches, which would unmount ExploreTree and wipe its
-    // local search/expanded state (PROD-8043).
     if (isInitialLoading) {
         return <LoadingSkeleton />;
     }
