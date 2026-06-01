@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
+import Logger from '../../logging/logger';
 
 const { createAppAuth } = require('@octokit/auth-app');
 
@@ -132,7 +133,7 @@ export const getOrRefreshToken = async (
         });
         if (tokenResponse.status === 200) return { token, refreshToken };
     } catch {
-        console.debug('Refreshing expired or invalid github token');
+        Logger.debug('Refreshing expired or invalid github token');
     }
 
     const auth = await getGithubApp().oauth.refreshToken({
@@ -708,7 +709,7 @@ export const getBranches = async ({
         });
         return branches;
     } catch (e) {
-        console.error(e);
+        Logger.error(`Failed to list GitHub branches: ${getErrorMessage(e)}`);
         throw new UnexpectedGitError(getErrorMessage(e));
     }
 };
