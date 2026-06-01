@@ -80,6 +80,7 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    enableContentTools: boolean;
     enableAiWriteback: boolean;
     canRunSql: boolean;
     autoApproveSql: boolean;

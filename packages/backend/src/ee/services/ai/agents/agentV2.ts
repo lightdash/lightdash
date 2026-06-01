@@ -303,7 +303,7 @@ const getAgentTools = (
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
-        ...(args.enableAgentRevamp
+        ...(args.enableAgentRevamp && args.enableContentTools
             ? {
                   readContent,
                   editContent,
