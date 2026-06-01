@@ -98,6 +98,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
+                    projectCiStatusModel:
+                        models.getProjectCiStatusModel<ProjectCiStatusModel>(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({

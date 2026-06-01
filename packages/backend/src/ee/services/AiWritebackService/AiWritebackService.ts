@@ -2,10 +2,12 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     DbtProjectType,
+    detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isUserWithOrg,
+    isWorkflowFile,
     MissingConfigError,
     ParameterError,
     PullRequestProvider,
@@ -13,7 +15,9 @@ import {
     WarehouseTypes,
     type AiWritebackRunResult,
     type DbtProjectConfig,
+    type ProjectCiStatus,
     type SessionUser,
+    type WorkflowFile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
@@ -44,6 +48,7 @@ import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
 } from '../../models/AiWritebackThreadModel';
+import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
@@ -97,6 +102,7 @@ type AiWritebackServiceDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
+    projectCiStatusModel: ProjectCiStatusModel;
 };
 
 export class AiWritebackService extends BaseService {
@@ -114,6 +120,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly pullRequestsModel: PullRequestsModel;
 
+    private readonly projectCiStatusModel: ProjectCiStatusModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -122,6 +130,7 @@ export class AiWritebackService extends BaseService {
         githubAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
+        projectCiStatusModel,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -131,6 +140,7 @@ export class AiWritebackService extends BaseService {
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
+        this.projectCiStatusModel = projectCiStatusModel;
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -630,6 +640,81 @@ export class AiWritebackService extends BaseService {
      *   session preserved), run the agent with `--continue`, push to the same
      *   branch (updates the existing PR), pause the sandbox again.
      */
+    /**
+     * Secondary task of the writeback agent: while the repo is cloned in the
+     * sandbox, detect whether it already deploys Lightdash preview projects via
+     * GitHub Actions and persist the result. A project already recorded as set
+     * up is not re-scanned. Best-effort — a failure here never blocks the
+     * writeback run.
+     */
+    private async detectAndRecordPreviewDeploy(
+        sandbox: Sandbox,
+        projectUuid: string,
+    ): Promise<ProjectCiStatus | null> {
+        try {
+            const existing =
+                await this.projectCiStatusModel.findByProjectUuid(projectUuid);
+            if (existing?.hasPreviewDeployWorkflow) {
+                // Already set up — don't re-scan this project.
+                return existing;
+            }
+
+            const { stdout: fileList } = await sandbox.commands.run(
+                `git -C ${CWD} ls-files .github/workflows`,
+            );
+            const paths = fileList
+                .split('\n')
+                .map((p) => p.trim())
+                .filter((p) => p.length > 0 && isWorkflowFile(p));
+
+            const files: WorkflowFile[] = await Promise.all(
+                paths.map(async (path) => ({
+                    path,
+                    content: await sandbox.files.read(`${CWD}/${path}`),
+                })),
+            );
+
+            const detection = detectPreviewDeployWorkflow(files);
+
+            let detectedCommitSha: string | null = null;
+            try {
+                const { stdout } = await sandbox.commands.run(
+                    `git -C ${CWD} rev-parse HEAD`,
+                );
+                detectedCommitSha = stdout.trim() || null;
+            } catch {
+                detectedCommitSha = null;
+            }
+
+            const status = await this.projectCiStatusModel.upsert({
+                projectUuid,
+                hasPreviewDeployWorkflow: detection.hasPreviewDeployWorkflow,
+                workflowPath: detection.workflowPath,
+                detectedCommitSha,
+            });
+
+            this.logger.info('AI writeback preview-deploy detection complete', {
+                event: 'ai_writeback.preview_deploy.detected',
+                projectUuid,
+                hasPreviewDeployWorkflow: status.hasPreviewDeployWorkflow,
+                workflowPath: status.workflowPath,
+            });
+
+            return status;
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: preview-deploy detection failed — ignoring: ${getErrorMessage(
+                    error,
+                )}`,
+                {
+                    event: 'ai_writeback.preview_deploy.failed',
+                    projectUuid,
+                },
+            );
+            return null;
+        }
+    }
+
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const { user, projectUuid, prompt, aiThreadUuid, source, onProgress } =
             args;
@@ -710,6 +795,10 @@ export class AiWritebackService extends BaseService {
                 existingRow: turn.existingRow,
                 setStage,
             });
+
+            // Secondary task: detect & record whether the repo already deploys
+            // preview projects via GitHub Actions. Best-effort, never blocks.
+            await this.detectAndRecordPreviewDeploy(sandbox, projectUuid);
 
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
