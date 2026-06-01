@@ -227,6 +227,13 @@ export enum FeatureFlags {
      * MCP using the org's existing installation token — no manual URL/auth.
      */
     GithubMcpOneClick = 'github-mcp-one-click',
+
+    /**
+     * Gate the org-level export Limits settings panel (per-org query max rows
+     * and CSV cells limit). Backend enforcement of any stored overrides is
+     * always on; this flag only controls who can see/configure the panel.
+     */
+    ProLimits = 'pro-limits',
 }
 
 export type FeatureFlag = {

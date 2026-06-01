@@ -34,6 +34,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -278,6 +279,12 @@ const getMockedProjectService = (
         } as unknown as AdminNotificationService,
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
+        organizationSettingsModel: {
+            get: jest.fn(async () => ({
+                queryMaxLimit: null,
+                csvCellsLimit: null,
+            })),
+        } as unknown as OrganizationSettingsModel,
     });
 
 const account = buildAccount({

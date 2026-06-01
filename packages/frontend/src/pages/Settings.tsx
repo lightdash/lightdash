@@ -28,6 +28,7 @@ import {
     IconFileExport,
     IconFolders,
     IconGitPullRequest,
+    IconGauge,
     IconHistory,
     IconIdBadge2,
     IconKey,
@@ -79,6 +80,7 @@ import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel'
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
+import LimitsPanel from '../components/UserSettings/LimitsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
@@ -186,6 +188,11 @@ const Settings: FC = () => {
     const { data: dataAppsFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataApps,
     );
+
+    const { data: proLimitsFlag } = useServerFeatureFlag(
+        FeatureFlags.ProLimits,
+    );
+    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
@@ -434,6 +441,26 @@ const Settings: FC = () => {
                                 </Text>
                             </div>
                             <ExportingPanel />
+                        </SettingsGridCard>
+                    </Stack>
+                ),
+            });
+        }
+        if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
+            allowedRoutes.push({
+                path: '/limits',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <div>
+                                <Title order={4}>Limits</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    Limit how many rows a query can return and
+                                    how many cells a CSV or Excel export can
+                                    contain for your organization.
+                                </Text>
+                            </div>
+                            <LimitsPanel />
                         </SettingsGridCard>
                     </Stack>
                 ),
@@ -692,6 +719,7 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
+        isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
@@ -1007,6 +1035,20 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+                                {isProLimitsEnabled &&
+                                    user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
+                                        <RouterNavLink
+                                            label="Limits"
+                                            to="/generalSettings/limits"
+                                            exact
+                                            leftSection={
+                                                <MantineIcon icon={IconGauge} />
+                                            }
+                                        />
+                                    )}
                                 {isCustomRolesEnabled && (
                                     <Can I="manage" a="Organization">
                                         <RouterNavLink

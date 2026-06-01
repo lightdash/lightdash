@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    MAX_CSV_CELLS_LIMIT,
     OrganizationSettings,
     ParameterError,
     resolveEffectiveOrganizationSettings,
@@ -56,18 +57,22 @@ export class OrganizationSettingsService extends BaseService {
     }
 
     /**
-     * Sanity-checks the scheduled-delivery expiry overrides (base + per-channel)
-     * before they're persisted. A `null` clears an override (back to inheriting
-     * the base / env). We don't cap the value — it feeds the existing expiry
-     * mechanism as-is (links over 7 days transparently use persistent download
-     * URLs) — we only reject nonsense that would store an already-expired link.
+     * Sanity-checks the numeric overrides (scheduled-delivery expiries and
+     * export limits) before they're persisted. A `null` clears an override
+     * (back to inheriting the env default). We don't cap the values — they feed
+     * the existing mechanisms as-is (expiries over 7 days transparently use
+     * persistent URLs; limits match what instance admins set uncapped via env) —
+     * we only reject nonsense (non-integers, zero, negatives).
      */
     private static assertValidPatch(data: UpdateOrganizationSettings): void {
-        const expiryFields: Array<keyof UpdateOrganizationSettings> = [
+        const positiveIntegerFields: Array<keyof UpdateOrganizationSettings> = [
             'scheduledDeliveryExpirationSeconds',
             'scheduledDeliveryExpirationSecondsEmail',
             'scheduledDeliveryExpirationSecondsSlack',
             'scheduledDeliveryExpirationSecondsMsTeams',
+            'scheduledDeliveryExpirationSecondsGoogleChat',
+            'queryMaxLimit',
+            'csvCellsLimit',
         ];
         const isInvalid = (value: number | boolean | null | undefined) =>
             value !== undefined &&
@@ -75,9 +80,19 @@ export class OrganizationSettingsService extends BaseService {
             (typeof value !== 'number' ||
                 !Number.isInteger(value) ||
                 value <= 0);
-        if (expiryFields.some((field) => isInvalid(data[field]))) {
+        if (positiveIntegerFields.some((field) => isInvalid(data[field]))) {
             throw new ParameterError(
-                'Scheduled delivery link expiry must be a positive whole number of seconds.',
+                'Scheduled delivery expiry and export limits must be positive whole numbers.',
+            );
+        }
+        // The CSV cells limit is capped — beyond this exports risk OOM-scale work.
+        if (
+            data.csvCellsLimit !== undefined &&
+            data.csvCellsLimit !== null &&
+            data.csvCellsLimit > MAX_CSV_CELLS_LIMIT
+        ) {
+            throw new ParameterError(
+                `CSV cells limit cannot exceed ${MAX_CSV_CELLS_LIMIT}.`,
             );
         }
     }

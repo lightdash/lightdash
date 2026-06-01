@@ -62,6 +62,19 @@ export type OrganizationSettings = {
      * override (it still falls back to the base / env base).
      */
     scheduledDeliveryExpirationSecondsGoogleChat: number | null;
+    /**
+     * Max number of rows a query/export may return for this org (overrides the
+     * instance-wide `LIGHTDASH_QUERY_MAX_LIMIT`; `null` inherits it). Always
+     * resolved to an effective number in API responses so the frontend can
+     * display it directly.
+     */
+    queryMaxLimit: number | null;
+    /**
+     * Max number of cells (rows × columns) a CSV/Excel export may contain for
+     * this org (overrides `LIGHTDASH_CSV_CELLS_LIMIT`; `null` inherits it).
+     * Always resolved to an effective number in API responses.
+     */
+    csvCellsLimit: number | null;
 };
 
 /**
@@ -70,6 +83,13 @@ export type OrganizationSettings = {
  * delivery transparently falls back to the persistent-download-URL system.
  */
 export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
+
+/**
+ * Upper bound for {@link OrganizationSettings.csvCellsLimit} — 50 million cells.
+ * Matches the highest value set across Cloud customers today; a sane ceiling
+ * that still keeps wide exports feasible without inviting OOM-scale requests.
+ */
+export const MAX_CSV_CELLS_LIMIT = 50000000; // 50 million
 
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
@@ -88,6 +108,8 @@ export type OrganizationSettingsInstanceDefaults = {
     enableOidcLinking: boolean;
     enableOidcToEmailLinking: boolean;
     scheduledDeliveryExpirationSeconds: number;
+    queryMaxLimit: number;
+    csvCellsLimit: number;
 };
 
 /**
@@ -124,4 +146,7 @@ export const resolveEffectiveOrganizationSettings = (
         raw.scheduledDeliveryExpirationSecondsMsTeams ?? null,
     scheduledDeliveryExpirationSecondsGoogleChat:
         raw.scheduledDeliveryExpirationSecondsGoogleChat ?? null,
+    // Limits resolve to an effective number (fall back to the env default).
+    queryMaxLimit: raw.queryMaxLimit ?? instanceDefaults.queryMaxLimit,
+    csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
 });

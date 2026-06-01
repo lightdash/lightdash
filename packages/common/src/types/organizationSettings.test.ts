@@ -7,6 +7,8 @@ const INSTANCE_DEFAULTS: OrganizationSettingsInstanceDefaults = {
     enableOidcLinking: false,
     enableOidcToEmailLinking: true,
     scheduledDeliveryExpirationSeconds: 259200, // 3 days (env default)
+    queryMaxLimit: 5000,
+    csvCellsLimit: 100000,
 };
 
 describe('resolveEffectiveOrganizationSettings', () => {
@@ -22,7 +24,24 @@ describe('resolveEffectiveOrganizationSettings', () => {
             scheduledDeliveryExpirationSecondsSlack: null,
             scheduledDeliveryExpirationSecondsMsTeams: null,
             scheduledDeliveryExpirationSecondsGoogleChat: null,
+            queryMaxLimit: 5000,
+            csvCellsLimit: 100000,
         });
+    });
+
+    test('export limits resolve to an effective number, inheriting the env when unset', () => {
+        const inherited = resolveEffectiveOrganizationSettings(
+            {},
+            INSTANCE_DEFAULTS,
+        );
+        expect(inherited.queryMaxLimit).toBe(5000);
+        expect(inherited.csvCellsLimit).toBe(100000);
+        const overridden = resolveEffectiveOrganizationSettings(
+            { queryMaxLimit: 250000, csvCellsLimit: 50000000 },
+            INSTANCE_DEFAULTS,
+        );
+        expect(overridden.queryMaxLimit).toBe(250000);
+        expect(overridden.csvCellsLimit).toBe(50000000);
     });
 
     test('the base expiry resolves to an effective number, inheriting the env when unset', () => {

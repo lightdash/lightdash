@@ -514,15 +514,17 @@ export class CsvService extends BaseService {
         return fileId;
     }
 
-    couldBeTruncated(rows: Record<string, AnyType>[]) {
+    couldBeTruncated(
+        rows: Record<string, AnyType>[],
+        cellsLimit: number = this.lightdashConfig.query?.csvCellsLimit ??
+            100000,
+    ) {
         if (rows.length === 0) return false;
 
         const numberRows = rows.length;
         const numberColumns = Object.keys(rows[0]).length;
 
         // we use floor when limiting the rows, so the  need to make sure we got the last row valid
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
