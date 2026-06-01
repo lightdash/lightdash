@@ -99,7 +99,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const {
         data: explore,
-        isFetching,
+        isInitialLoading,
         status,
         error,
     } = useExplore(activeTableName);
@@ -173,7 +173,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return items;
     }, [onBack, explore]);
 
-    if (isFetching) {
+    // Only show the skeleton on the initial load (no data yet) — not on
+    // background refetches, which would unmount ExploreTree and wipe its
+    // local search/expanded state (PROD-8043).
+    if (isInitialLoading) {
         return <LoadingSkeleton />;
     }
 
