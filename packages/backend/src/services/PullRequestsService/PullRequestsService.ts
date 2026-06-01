@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
@@ -15,7 +14,6 @@ import {
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { BaseService } from '../BaseService';
 import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationService';
@@ -23,7 +21,6 @@ import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationSe
 type PullRequestsServiceArguments = {
     lightdashConfig: LightdashConfig;
     pullRequestsModel: PullRequestsModel;
-    featureFlagModel: FeatureFlagModel;
     gitIntegrationService: GitIntegrationService;
 };
 
@@ -34,28 +31,13 @@ export class PullRequestsService extends BaseService {
 
     private readonly pullRequestsModel: PullRequestsModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly gitIntegrationService: GitIntegrationService;
 
     constructor(args: PullRequestsServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
         this.pullRequestsModel = args.pullRequestsModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.gitIntegrationService = args.gitIntegrationService;
-    }
-
-    private async assertFeatureEnabled(user: SessionUser): Promise<void> {
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.PullRequests,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError(
-                'Pull requests are not enabled for this organization',
-            );
-        }
     }
 
     /**
@@ -117,8 +99,6 @@ export class PullRequestsService extends BaseService {
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<PullRequestWithStatus[]>> {
-        await this.assertFeatureEnabled(user);
-
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(

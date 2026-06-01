@@ -227,14 +227,6 @@ export enum FeatureFlags {
      * MCP using the org's existing installation token — no manual URL/auth.
      */
     GithubMcpOneClick = 'github-mcp-one-click',
-
-    /**
-     * Gate the project-settings "Pull requests" section and its API. Surfaces
-     * the write-back pull requests created for a project (from AI agents and
-     * the in-app editors). Off by default while the feature is built out across
-     * the model, API, provider integration, and UI.
-     */
-    PullRequests = 'pull-requests',
 }
 
 export type FeatureFlag = {
