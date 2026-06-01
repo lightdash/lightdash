@@ -1,3 +1,13 @@
+# [0.3063.0](https://github.com/lightdash/lightdash/compare/0.3062.0...0.3063.0) (2026-06-01)
+
+
+### Features
+
+* **pull-requests:** add pull requests model ([#23703](https://github.com/lightdash/lightdash/issues/23703)) ([e28cecf](https://github.com/lightdash/lightdash/commit/e28cecfe920320905c46aa74552aeb262f4f1498))
+* **pull-requests:** add pull requests UI ([#23706](https://github.com/lightdash/lightdash/issues/23706)) ([2c59d2d](https://github.com/lightdash/lightdash/commit/2c59d2d28af73e18205ecc5c6286f412d1df35cd)), closes [#23705](https://github.com/lightdash/lightdash/issues/23705)
+* **pull-requests:** add service and controller behind a feature flag ([#23704](https://github.com/lightdash/lightdash/issues/23704)) ([5dd0f83](https://github.com/lightdash/lightdash/commit/5dd0f839a8bf52f2dea1a181ff020e2e602288f0)), closes [#23703](https://github.com/lightdash/lightdash/issues/23703)
+* **pull-requests:** resolve live status from GitHub/GitLab ([#23705](https://github.com/lightdash/lightdash/issues/23705)) ([05c5ffa](https://github.com/lightdash/lightdash/commit/05c5ffae6ec319c1c5d92768b8fe5cf723a79891)), closes [#23704](https://github.com/lightdash/lightdash/issues/23704)
+
 # [0.3062.0](https://github.com/lightdash/lightdash/compare/0.3061.0...0.3062.0) (2026-06-01)
 
 
