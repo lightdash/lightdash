@@ -90,6 +90,10 @@ import {
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
+    TOOL_GET_QUERY_RESULT_DESCRIPTION,
+    toolGetQueryResultArgsSchema,
+} from './toolGetQueryResultArgs';
+import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
     toolImproveContextOutputSchema,
@@ -130,6 +134,11 @@ import {
     toolProposeWritebackOutputSchema,
 } from './toolProposeWritebackArgs';
 import {
+    mcpGetQueryResultStructuredOutputSchema,
+    mcpRunMetricQueryStructuredOutputSchema,
+    mcpRunSqlStructuredOutputSchema,
+} from './toolQueryResultSchemas';
+import {
     TOOL_READ_CONTENT_DESCRIPTION,
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
@@ -140,7 +149,6 @@ import {
     toolRunMetricQueryOutputSchema,
 } from './toolRunMetricQueryArgs';
 import {
-    mcpRunMetricQueryStructuredOutputSchema,
     TOOL_RUN_QUERY_DESCRIPTION,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
@@ -155,7 +163,6 @@ import {
     buildRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
-    mcpRunSqlStructuredOutputSchema,
     toolRunSqlArgsSchema,
     toolRunSqlOutputSchema,
 } from './toolRunSqlArgs';
@@ -265,6 +272,18 @@ export const runSqlToolDefinition = defineTool({
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRunSqlStructuredOutputSchema,
+    },
+});
+
+export const getQueryResultToolDefinition = defineTool({
+    name: 'getQueryResult',
+    title: 'Get query result',
+    description: TOOL_GET_QUERY_RESULT_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolGetQueryResultArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetQueryResultStructuredOutputSchema,
     },
 });
 
@@ -641,6 +660,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     searchFieldValuesToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    getQueryResultToolDefinition,
     discoverFieldsToolDefinition,
     generateDashboardToolDefinition,
     generateUuidsToolDefinition,

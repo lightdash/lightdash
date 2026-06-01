@@ -3,6 +3,7 @@ import {
     Account,
     AiResultType,
     ApiKeyAccount,
+    assertUnreachable,
     buildRunSqlDescription,
     CatalogType,
     clearAgentToolDefinition,
@@ -20,23 +21,27 @@ import {
     getCurrentProjectToolDefinition,
     getItemLabelWithoutTableName,
     getLightdashVersionToolDefinition,
+    getQueryResultToolDefinition,
     getSlackAiEchartsConfig,
     getValidAiQueryLimit,
     isExploreError,
-    JobPollTimeoutError,
+    ItemsMap,
     listAgentsToolDefinition,
     listExploresToolDefinition,
     listVerifiedContentToolDefinition,
+    MCP_QUERY_POLL_INTERVAL_MS,
+    MCP_QUERY_SYNC_WAIT_MS,
     mcpListProjectsToolDefinition,
+    MetricQuery,
     MissingConfigError,
     NotFoundError,
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
+    QueryHistoryStatus,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
-    SchedulerJobStatus,
     searchFieldValuesToolDefinition,
     ServiceAcctAccount,
     SessionUser,
@@ -46,7 +51,9 @@ import {
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     toolRunQueryArgsSchemaTransformed,
+    ToolRunQueryArgsTransformed,
     ToolSearchFieldValuesArgs,
+    UnexpectedServerError,
     UserAttributeValueMap,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
@@ -82,8 +89,6 @@ import { ContentVerificationService } from '../../../services/ContentVerificatio
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
-import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
-import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -93,13 +98,11 @@ import {
     validateUserAttributeOverrides,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
-import { streamJsonlData } from '../../../utils/FileDownloadUtils/FileDownloadUtils';
 import { VERSION } from '../../../version';
 import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -111,7 +114,6 @@ import {
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
-    RunAsyncQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 import { AgentContext } from '../ai/utils/AgentContext';
@@ -120,7 +122,6 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
-import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
@@ -147,6 +148,7 @@ export enum McpToolName {
     GET_CURRENT_AGENT = 'get_current_agent',
     RUN_METRIC_QUERY = 'run_metric_query',
     RUN_SQL = 'run_sql',
+    GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
@@ -168,6 +170,7 @@ const mcpGetCurrentAgentTool = getCurrentAgentToolDefinition.for('mcp');
 const mcpRunMetricQueryTool = runQueryToolDefinition.for('mcp');
 const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
+const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
 
 type McpServiceArguments = {
@@ -178,8 +181,6 @@ type McpServiceArguments = {
     contentVerificationService: ContentVerificationService;
     projectModel: ProjectModel;
     projectService: ProjectService;
-    savedSqlService: SavedSqlService;
-    schedulerService: SchedulerService;
     shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
@@ -228,18 +229,6 @@ const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
-// Shape of `scheduler_log.details` written by the run-SQL scheduler task on
-// COMPLETED / ERROR. Loosely typed in the DB (Record<string, any> | null), so
-// we validate at the read boundary instead of casting.
-const sqlJobCompletedDetailsSchema = z.object({
-    fileUrl: z.string(),
-    columns: z.array(z.object({ reference: z.string() })).nullish(),
-});
-
-const sqlJobErrorDetailsSchema = z.object({
-    error: z.string().optional(),
-});
-
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
 
@@ -252,10 +241,6 @@ export class McpService extends BaseService {
     private contentVerificationService: ContentVerificationService;
 
     private projectService: ProjectService;
-
-    private savedSqlService: SavedSqlService;
-
-    private schedulerService: SchedulerService;
 
     private projectModel: ProjectModel;
 
@@ -288,8 +273,6 @@ export class McpService extends BaseService {
         catalogService,
         contentVerificationService,
         projectService,
-        savedSqlService,
-        schedulerService,
         shareService,
         userAttributesModel,
         searchModel,
@@ -308,8 +291,6 @@ export class McpService extends BaseService {
         this.catalogService = catalogService;
         this.contentVerificationService = contentVerificationService;
         this.projectService = projectService;
-        this.savedSqlService = savedSqlService;
-        this.schedulerService = schedulerService;
         this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
@@ -393,6 +374,306 @@ export class McpService extends BaseService {
             return out;
         }
         return result.result;
+    }
+
+    private static getMcpQueryWaitMs(
+        _extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ) {
+        // MCP SDK request timeouts are client-side RequestOptions and are not
+        // exposed to server tool handlers. If a standard server-visible timeout
+        // is added later, resolve it here and fall back to Lightdash's default.
+        return MCP_QUERY_SYNC_WAIT_MS;
+    }
+
+    private static isQueryRunningStatus(status: QueryHistoryStatus) {
+        return (
+            status === QueryHistoryStatus.PENDING ||
+            status === QueryHistoryStatus.QUEUED ||
+            status === QueryHistoryStatus.EXECUTING
+        );
+    }
+
+    private static getPollingStatus(status: QueryHistoryStatus) {
+        switch (status) {
+            case QueryHistoryStatus.PENDING:
+            case QueryHistoryStatus.QUEUED:
+            case QueryHistoryStatus.EXECUTING:
+                return 'running' as const;
+            case QueryHistoryStatus.READY:
+                return 'done' as const;
+            case QueryHistoryStatus.ERROR:
+                return 'error' as const;
+            case QueryHistoryStatus.CANCELLED:
+                return 'cancelled' as const;
+            case QueryHistoryStatus.EXPIRED:
+                return 'expired' as const;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
+    }
+
+    private static getRunningQueryResponse(queryUuid: string) {
+        const heartbeatAt = new Date().toISOString();
+
+        return {
+            content: [
+                {
+                    type: 'text' as const,
+                    text: `Query is still running. Poll get_query_result with queryUuid: ${queryUuid}. Last checked at ${heartbeatAt}.`,
+                },
+            ],
+            structuredContent: {
+                result: {
+                    status: 'running' as const,
+                    queryUuid,
+                    nextPollAfterMs: MCP_QUERY_POLL_INTERVAL_MS,
+                    heartbeatAt,
+                },
+            },
+        };
+    }
+
+    private async buildCompletedMetricQueryResponse({
+        ctx,
+        projectUuid,
+        queryTool,
+        query,
+        rows,
+        fields,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        queryTool: ToolRunQueryArgsTransformed;
+        query: MetricQuery;
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+    }) {
+        if (rows.length === 0) {
+            return {
+                content: [
+                    {
+                        type: 'text' as const,
+                        text: 'Query returned 0 rows.',
+                    },
+                ],
+                structuredContent: {
+                    result: {
+                        status: 'done' as const,
+                        rows: [],
+                        fields,
+                        echartsOption: null,
+                        exploreUrl: null,
+                    },
+                },
+            };
+        }
+
+        const fieldIds = Object.keys(rows[0]);
+        const csvHeaders = fieldIds.map((fieldId) => {
+            const item = fields[fieldId];
+            if (!item) return fieldId;
+            return getItemLabelWithoutTableName(item);
+        });
+        const csvRows = rows.map((row) =>
+            CsvService.convertRowToCsv(row, fields, true, fieldIds),
+        );
+        const csv = stringify(csvRows, {
+            header: true,
+            columns: csvHeaders,
+        });
+
+        const echartsOption = await getSlackAiEchartsConfig({
+            toolArgs: {
+                type: AiResultType.QUERY_RESULT,
+                tool: queryTool,
+            },
+            queryResults: {
+                rows,
+                fields,
+            },
+            getPivotedResults,
+        });
+
+        const mcpEchartsOption = echartsOption
+            ? {
+                  ...echartsOption,
+                  animation: true,
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                      ...(typeof echartsOption.tooltip === 'object'
+                          ? echartsOption.tooltip
+                          : {}),
+                      show: true,
+                  },
+              }
+            : null;
+
+        const exploreConfigState = buildMcpExploreConfigState({
+            queryTool,
+            metricQuery: query,
+            fieldsMap: fields,
+            columnOrder: Object.keys(rows[0] ?? {}),
+        });
+        const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
+        const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
+            JSON.stringify(exploreConfigState),
+        )}&isExploreFromHere=true`;
+
+        const { user } = McpService.getAccount(ctx);
+        const shareUrl = await this.shareService.createShareUrl(
+            user,
+            explorePath,
+            exploreParams,
+        );
+        const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
+
+        const metadata = await this.getActiveContextMetadata(ctx);
+        const scopeInfo = [
+            metadata.agentName ? `Active agent: ${metadata.agentName}` : null,
+            metadata.tags
+                ? `Filtered by tags: ${metadata.tags.join(', ')}`
+                : null,
+        ]
+            .filter(Boolean)
+            .join('. ');
+
+        const content = [
+            {
+                type: 'text' as const,
+                text: csv,
+            },
+        ];
+        if (scopeInfo) {
+            content.push({
+                type: 'text' as const,
+                text: `[Scope: ${scopeInfo}]`,
+            });
+        }
+
+        return {
+            content,
+            structuredContent: {
+                result: {
+                    status: 'done' as const,
+                    rows,
+                    fields,
+                    echartsOption: mcpEchartsOption,
+                    exploreUrl,
+                },
+            },
+        };
+    }
+
+    private static buildMetricQueryPollResult({
+        queryUuid,
+        rows,
+        fields,
+    }: {
+        queryUuid: string;
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+    }) {
+        const fieldIds = rows[0] ? Object.keys(rows[0]) : Object.keys(fields);
+        const csvHeaders = fieldIds.map((fieldId) => {
+            const item = fields[fieldId];
+            if (!item) return fieldId;
+            return getItemLabelWithoutTableName(item);
+        });
+        const csvRows = rows.map((row) =>
+            CsvService.convertRowToCsv(row, fields, true, fieldIds),
+        );
+        const csv = stringify(csvRows, {
+            header: true,
+            columns: csvHeaders,
+        });
+
+        return {
+            content: [
+                {
+                    type: 'text' as const,
+                    text: rows.length === 0 ? 'Query returned 0 rows.' : csv,
+                },
+            ],
+            structuredContent: {
+                result: {
+                    status: 'done' as const,
+                    queryUuid,
+                    rows,
+                    fields,
+                },
+            },
+        };
+    }
+
+    private async buildSqlQueryResultResponse({
+        ctx,
+        queryUuid,
+        projectUuid,
+        pageSize,
+        includeStatus,
+    }: {
+        ctx: McpProtocolContext;
+        queryUuid: string;
+        projectUuid: string;
+        pageSize?: number;
+        includeStatus: boolean;
+    }) {
+        const { account } = McpService.getAccount(ctx);
+        const result = await this.asyncQueryService.getAsyncQueryResults({
+            account,
+            projectUuid,
+            queryUuid,
+            page: 1,
+            pageSize,
+        });
+
+        if (result.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `SQL query is not ready: ${result.status}`,
+            );
+        }
+
+        const rows = result.rows.map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
+            ),
+        );
+        const columns = Object.values(result.columns).map(
+            (column) => column.reference,
+        );
+
+        if (rows.length === 0) {
+            const header =
+                columns.length > 0 ? `Columns: ${columns.join(', ')}` : '';
+            return this.buildScopedResponse(
+                ctx,
+                `Query returned 0 rows.${header ? ` ${header}` : ''}`,
+                {
+                    result: {
+                        ...(includeStatus ? { queryUuid } : {}),
+                        status: 'done' as const,
+                        rows: [],
+                        columns,
+                        rowCount: 0,
+                    },
+                },
+            );
+        }
+
+        const csv = stringify(rows, {
+            header: true,
+            columns,
+        });
+
+        return this.buildScopedResponse(ctx, csv, {
+            result: {
+                ...(includeStatus ? { queryUuid } : {}),
+                status: 'done' as const,
+                rows,
+                columns,
+                rowCount: rows.length,
+            },
+        });
     }
 
     private getMcpCompatibleSchema<TShape extends ZodRawShape>(
@@ -1190,7 +1471,7 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpRunMetricQueryTool.inputSchema,
                 ),
-                outputSchema: mcpRunMetricQueryTool.outputSchema.shape,
+                outputSchema: mcpRunMetricQueryTool.outputSchema,
                 annotations: mcpRunMetricQueryTool.annotations,
                 _meta: { ui: { resourceUri: chartResourceUri } },
             },
@@ -1207,7 +1488,10 @@ export class McpService extends BaseService {
                 );
 
                 try {
-                    const { agentContext, runAsyncQuery } =
+                    const deadlineMs =
+                        Date.now() + McpService.getMcpQueryWaitMs(extra);
+                    const { account } = McpService.getAccount(ctx);
+                    const { agentContext, userAttributeOverrides } =
                         await this.getRunMetricQueryDependencies(
                             { projectUuid },
                             ctx,
@@ -1255,133 +1539,56 @@ export class McpService extends BaseService {
                             ),
                     };
 
-                    const results = await runAsyncQuery(
-                        query,
-                        additionalMetrics,
-                    );
-
-                    if (results.rows.length === 0) {
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: NO_RESULTS_RETRY_PROMPT,
-                                },
-                            ],
-                            structuredContent: {
-                                rows: [],
-                                fields: results.fields,
-                                echartsOption: null,
-                                exploreUrl: null,
+                    const { queryUuid } =
+                        await this.asyncQueryService.executeAsyncMetricQuery({
+                            account,
+                            projectUuid,
+                            metricQuery: {
+                                ...query,
+                                additionalMetrics,
                             },
-                        };
-                    }
-
-                    // Generate CSV text (backward compatible for non-UI clients)
-                    const fieldIds = Object.keys(results.rows[0]);
-                    const csvHeaders = fieldIds.map((fieldId) => {
-                        const item = results.fields[fieldId];
-                        if (!item) return fieldId;
-                        return getItemLabelWithoutTableName(item);
-                    });
-                    const csvRows = results.rows.map((row) =>
-                        CsvService.convertRowToCsv(
-                            row,
-                            results.fields,
-                            true,
-                            fieldIds,
-                        ),
-                    );
-                    const csv = stringify(csvRows, {
-                        header: true,
-                        columns: csvHeaders,
-                    });
-
-                    // Generate ECharts config using the shared AI chart
-                    // config — supports bar, line, scatter, pie, funnel,
-                    // horizontal bar, groupBy pivots, and secondary axes.
-                    const echartsOption = await getSlackAiEchartsConfig({
-                        toolArgs: {
-                            type: AiResultType.QUERY_RESULT,
-                            tool: queryTool,
-                        },
-                        queryResults: {
-                            rows: results.rows,
-                            fields: results.fields,
-                        },
-                        getPivotedResults,
-                    });
-
-                    // Override Slack-specific settings for interactive MCP App
-                    const mcpEchartsOption = echartsOption
-                        ? {
-                              ...echartsOption,
-                              animation: true,
-                              backgroundColor: 'transparent',
-                              tooltip: {
-                                  ...(typeof echartsOption.tooltip === 'object'
-                                      ? echartsOption.tooltip
-                                      : {}),
-                                  show: true,
-                              },
-                          }
-                        : null;
-
-                    // Build "Explore from here" URL
-                    const exploreConfigState = buildMcpExploreConfigState({
-                        queryTool,
-                        metricQuery: query,
-                        fieldsMap: results.fields,
-                        columnOrder: Object.keys(results.rows[0] ?? {}),
-                    });
-                    const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
-                    const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
-                        JSON.stringify(exploreConfigState),
-                    )}&isExploreFromHere=true`;
-
-                    const { user } = McpService.getAccount(ctx);
-
-                    const shareUrl = await this.shareService.createShareUrl(
-                        user,
-                        explorePath,
-                        exploreParams,
-                    );
-                    const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
-
-                    const metadata = await this.getActiveContextMetadata(ctx);
-                    const scopeInfo = [
-                        metadata.agentName
-                            ? `Active agent: ${metadata.agentName}`
-                            : null,
-                        metadata.tags
-                            ? `Filtered by tags: ${metadata.tags.join(', ')}`
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join('. ');
-
-                    const content = [
-                        {
-                            type: 'text' as const,
-                            text: serializeData(csv, 'csv'),
-                        },
-                    ];
-                    if (scopeInfo) {
-                        content.push({
-                            type: 'text' as const,
-                            text: `[Scope: ${scopeInfo}]`,
+                            context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                            userAttributeOverrides,
                         });
+
+                    const queryHistory =
+                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                            {
+                                account,
+                                projectUuid,
+                                queryUuid,
+                                deadlineMs,
+                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                signal: extra.signal,
+                            },
+                        );
+
+                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
+                        return McpService.getRunningQueryResponse(queryUuid);
                     }
 
-                    return {
-                        content,
-                        structuredContent: {
-                            rows: results.rows,
-                            fields: results.fields,
-                            echartsOption: mcpEchartsOption,
-                            exploreUrl,
-                        },
-                    };
+                    if (queryHistory.status !== QueryHistoryStatus.READY) {
+                        throw new UnexpectedServerError(
+                            queryHistory.error ??
+                                `Metric query finished with status ${queryHistory.status}`,
+                        );
+                    }
+
+                    const results =
+                        await this.asyncQueryService.getRawAsyncQueryResults({
+                            account,
+                            projectUuid,
+                            queryUuid,
+                        });
+
+                    return await this.buildCompletedMetricQueryResponse({
+                        ctx,
+                        projectUuid,
+                        queryTool,
+                        query,
+                        rows: results.rows,
+                        fields: results.fields,
+                    });
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
@@ -1459,61 +1666,58 @@ export class McpService extends BaseService {
                     this.lightdashConfig.mcp.runSqlMaxLimit,
                 ),
                 inputSchema: this.getMcpCompatibleSchema(runSqlArgsSchema),
-                outputSchema: mcpRunSqlTool.outputSchema.shape,
+                outputSchema: mcpRunSqlTool.outputSchema,
                 annotations: mcpRunSqlTool.annotations,
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, account } = McpService.getAccount(ctx);
+                const { account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 this.trackToolCall(ctx, McpToolName.RUN_SQL, projectUuid);
 
                 try {
-                    const { jobId } =
-                        await this.savedSqlService.getResultJobFromSql(
-                            user,
+                    const deadlineMs =
+                        Date.now() + McpService.getMcpQueryWaitMs(extra);
+                    const { queryUuid } =
+                        await this.asyncQueryService.executeAsyncSqlQuery({
+                            account,
                             projectUuid,
-                            args.sql,
-                            args.limit ?? 500,
-                            QueryExecutionContext.MCP_RUN_SQL,
+                            sql: args.sql,
+                            limit: args.limit ?? 500,
+                            context: QueryExecutionContext.MCP_RUN_SQL,
+                        });
+
+                    const queryHistory =
+                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                            {
+                                account,
+                                projectUuid,
+                                queryUuid,
+                                deadlineMs,
+                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                signal: extra.signal,
+                            },
                         );
 
-                    const jobResult = await this.pollSqlJobToCompletion(
-                        account,
-                        jobId,
-                    );
+                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
+                        return McpService.getRunningQueryResponse(queryUuid);
+                    }
 
-                    const rows = await this.downloadSqlResults(
-                        user,
-                        projectUuid,
-                        jobResult.fileUrl,
-                    );
-
-                    const columns = jobResult.columns.map((c) => c.reference);
-
-                    if (rows.length === 0) {
-                        const header =
-                            columns.length > 0
-                                ? `Columns: ${columns.join(', ')}`
-                                : '';
-                        return await this.buildScopedResponse(
-                            ctx,
-                            `Query returned 0 rows.${header ? ` ${header}` : ''}`,
-                            { rows: [], columns, rowCount: 0 },
+                    if (queryHistory.status !== QueryHistoryStatus.READY) {
+                        throw new UnexpectedServerError(
+                            queryHistory.error ??
+                                `SQL query finished with status ${queryHistory.status}`,
                         );
                     }
 
-                    const csv = stringify(rows, {
-                        header: true,
-                        columns,
-                    });
-
-                    return await this.buildScopedResponse(ctx, csv, {
-                        rows,
-                        columns,
-                        rowCount: rows.length,
+                    return await this.buildSqlQueryResultResponse({
+                        ctx,
+                        queryUuid,
+                        projectUuid,
+                        pageSize: args.limit ?? 500,
+                        includeStatus: false,
                     });
                 } catch (e) {
                     const errorMessage =
@@ -1523,6 +1727,139 @@ export class McpService extends BaseService {
                             {
                                 type: 'text' as const,
                                 text: `Error running SQL query: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpGetQueryResultTool.name,
+            {
+                title: mcpGetQueryResultTool.title,
+                description: mcpGetQueryResultTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpGetQueryResultTool.inputSchema,
+                ),
+                outputSchema: mcpGetQueryResultTool.outputSchema,
+                annotations: mcpGetQueryResultTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const { account } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.GET_QUERY_RESULT,
+                    projectUuid,
+                );
+
+                try {
+                    let queryHistory =
+                        await this.asyncQueryService.getAsyncQueryHistory({
+                            account,
+                            projectUuid,
+                            queryUuid: args.queryUuid,
+                        });
+                    const isMcpSqlQuery =
+                        queryHistory.context ===
+                        QueryExecutionContext.MCP_RUN_SQL;
+                    const isMcpMetricQuery =
+                        queryHistory.context ===
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY;
+
+                    if (!isMcpSqlQuery && !isMcpMetricQuery) {
+                        throw new ParameterError(
+                            'Query was not started by an MCP query tool',
+                        );
+                    }
+
+                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
+                        queryHistory =
+                            await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: args.queryUuid,
+                                    deadlineMs:
+                                        Date.now() +
+                                        McpService.getMcpQueryWaitMs(extra),
+                                    pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                    signal: extra.signal,
+                                },
+                            );
+
+                        if (
+                            McpService.isQueryRunningStatus(queryHistory.status)
+                        ) {
+                            return McpService.getRunningQueryResponse(
+                                args.queryUuid,
+                            );
+                        }
+                    }
+
+                    if (
+                        queryHistory.status === QueryHistoryStatus.ERROR ||
+                        queryHistory.status === QueryHistoryStatus.CANCELLED ||
+                        queryHistory.status === QueryHistoryStatus.EXPIRED
+                    ) {
+                        return await this.buildScopedResponse(
+                            ctx,
+                            queryHistory.error ??
+                                `Query ${queryHistory.status}`,
+                            {
+                                result: {
+                                    status: McpService.getPollingStatus(
+                                        queryHistory.status,
+                                    ),
+                                    queryUuid: args.queryUuid,
+                                    error: queryHistory.error ?? null,
+                                },
+                            },
+                        );
+                    }
+
+                    if (isMcpSqlQuery) {
+                        return await this.buildSqlQueryResultResponse({
+                            ctx,
+                            queryUuid: args.queryUuid,
+                            projectUuid,
+                            includeStatus: true,
+                        });
+                    }
+
+                    if (isMcpMetricQuery) {
+                        const results =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: args.queryUuid,
+                                },
+                            );
+
+                        return McpService.buildMetricQueryPollResult({
+                            queryUuid: args.queryUuid,
+                            rows: results.rows,
+                            fields: results.fields,
+                        });
+                    }
+
+                    throw new ParameterError(
+                        'Query was not started by an MCP query tool',
+                    );
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error getting query result: ${errorMessage}`,
                             },
                         ],
                         isError: true,
@@ -1625,70 +1962,6 @@ export class McpService extends BaseService {
                 };
             },
         );
-    }
-
-    private async pollSqlJobToCompletion(
-        account: Account,
-        jobId: string,
-    ): Promise<{ fileUrl: string; columns: Array<{ reference: string }> }> {
-        let job;
-        try {
-            job = await this.schedulerService.pollJobToCompletion(
-                account,
-                jobId,
-            );
-        } catch (e) {
-            if (e instanceof JobPollTimeoutError) {
-                throw new Error(
-                    `SQL query timed out after ${Math.round(
-                        e.timeoutMs / 1000,
-                    )}s`,
-                );
-            }
-            throw e;
-        }
-
-        if (job.status === SchedulerJobStatus.ERROR) {
-            const errorDetail =
-                sqlJobErrorDetailsSchema.safeParse(job.details).data?.error ??
-                'Unknown error';
-            throw new Error(`SQL query failed: ${errorDetail}`);
-        }
-
-        const details = sqlJobCompletedDetailsSchema.safeParse(job.details);
-        if (!details.success) {
-            throw new Error(
-                'SQL query completed but no results file was produced',
-            );
-        }
-        return {
-            fileUrl: details.data.fileUrl,
-            columns: details.data.columns ?? [],
-        };
-    }
-
-    private async downloadSqlResults(
-        user: SessionUser,
-        projectUuid: string,
-        fileUrl: string,
-    ) {
-        const fileId = fileUrl.split('/').pop();
-        if (!fileId) {
-            throw new Error(`Could not extract file ID from URL: ${fileUrl}`);
-        }
-
-        const readStream = await this.projectService.getFileStream(
-            user,
-            projectUuid,
-            fileId,
-        );
-
-        const { results } = await streamJsonlData<Record<string, unknown>>({
-            readStream,
-            onRow: (row) => row,
-        });
-
-        return results;
     }
 
     async getProjectUuidFromContext(context: McpProtocolContext) {
@@ -2203,7 +2476,7 @@ export class McpService extends BaseService {
         context: McpProtocolContext,
     ): Promise<{
         agentContext: AgentContext;
-        runAsyncQuery: RunAsyncQueryFn;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
     }> {
         const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
@@ -2238,22 +2511,7 @@ export class McpService extends BaseService {
         );
         const agentContext = new AgentContext(explores);
 
-        const runAsyncQuery: RunAsyncQueryFn = async (
-            metricQuery,
-            additionalMetrics,
-        ) =>
-            this.asyncQueryService.executeMetricQueryAndGetResults({
-                account,
-                projectUuid,
-                metricQuery: {
-                    ...metricQuery,
-                    additionalMetrics: additionalMetrics ?? [],
-                },
-                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-                userAttributeOverrides,
-            });
-
-        return { agentContext, runAsyncQuery };
+        return { agentContext, userAttributeOverrides };
     }
 
     async getSearchFieldValuesFunction(

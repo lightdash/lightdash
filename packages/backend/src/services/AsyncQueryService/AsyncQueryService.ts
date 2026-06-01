@@ -29,7 +29,6 @@ import {
     ExploreCompiler,
     ExploreType,
     FieldType,
-    flattenFilterGroup,
     ForbiddenError,
     formatItemValue,
     formatRawRows,
@@ -57,7 +56,6 @@ import {
     isField,
     isJwtUser,
     isMetric,
-    isPeriodOverPeriodAdditionalMetric,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -267,6 +265,62 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 };
 
 export class AsyncQueryService extends ProjectService {
+    private static sleep(ms: number, signal?: AbortSignal) {
+        if (signal?.aborted) {
+            throw new Error('Query polling request was aborted');
+        }
+
+        return new Promise<void>((resolve, reject) => {
+            let timeout: ReturnType<typeof setTimeout>;
+            const onAbort = () => {
+                clearTimeout(timeout);
+                reject(new Error('Query polling request was aborted'));
+            };
+
+            timeout = setTimeout(() => {
+                signal?.removeEventListener('abort', onAbort);
+                resolve();
+            }, ms);
+            signal?.addEventListener('abort', onAbort, { once: true });
+        });
+    }
+
+    private async *streamQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): AsyncGenerator<QueryHistory> {
+        const intervalMs = Math.max(1, pollIntervalMs);
+
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop
+            yield await this.getAsyncQueryHistory({
+                account,
+                projectUuid,
+                queryUuid,
+            });
+
+            const remainingMs = deadlineMs - Date.now();
+            if (remainingMs <= 0) return;
+
+            // eslint-disable-next-line no-await-in-loop
+            await AsyncQueryService.sleep(
+                Math.min(intervalMs, remainingMs),
+                signal,
+            );
+        }
+    }
+
     queryHistoryModel: QueryHistoryModel;
 
     downloadAuditModel: DownloadAuditModel;
@@ -713,22 +767,24 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
 
-        const auditedAbility = this.createAuditedAbility(account);
         const isForbidden =
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            ) &&
+            !canViewProject &&
             auditedAbility.cannot(
                 'view',
                 subject('Explore', {
@@ -931,6 +987,60 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    async getAsyncQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<QueryHistory> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
+        if (canViewProject) {
+            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [queryHistory.metricQuery.exploreName],
+                    metadata: {
+                        queryUuid,
+                        exploreName: queryHistory.metricQuery.exploreName,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return queryHistory;
+    }
+
     async getResultsStream({
         account,
         projectUuid,
@@ -945,12 +1055,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -964,6 +1068,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const { status, resultsFileName } = queryHistory;
 
@@ -1114,12 +1224,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -1133,6 +1237,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -5649,6 +5759,58 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async pollQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): Promise<QueryHistory> {
+        let lastQueryHistory: QueryHistory | undefined;
+
+        for await (const queryHistory of this.streamQueryHistoryUntilDeadline({
+            account,
+            projectUuid,
+            queryUuid,
+            deadlineMs,
+            pollIntervalMs,
+            signal,
+        })) {
+            lastQueryHistory = queryHistory;
+
+            switch (queryHistory.status) {
+                case QueryHistoryStatus.PENDING:
+                case QueryHistoryStatus.QUEUED:
+                case QueryHistoryStatus.EXECUTING:
+                    break;
+                case QueryHistoryStatus.CANCELLED:
+                case QueryHistoryStatus.ERROR:
+                case QueryHistoryStatus.EXPIRED:
+                case QueryHistoryStatus.READY:
+                    return queryHistory;
+                default:
+                    return assertUnreachable(
+                        queryHistory.status,
+                        'Unknown query status',
+                    );
+            }
+        }
+
+        if (!lastQueryHistory) {
+            throw new UnexpectedServerError('Query polling did not run');
+        }
+
+        return lastQueryHistory;
+    }
+
     /**
      * Execute metric query and wait for all results.
      * Returns raw rows from warehouse
@@ -5730,6 +5892,66 @@ export class AsyncQueryService extends ProjectService {
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone,
+        };
+    }
+
+    async getRawAsyncQueryResults({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<{
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const queryHistory = await this.getAsyncQueryHistory({
+            account,
+            projectUuid,
+            queryUuid,
+        });
+
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Query ${queryUuid} is not ready to fetch results`,
+            );
+        }
+
+        if (
+            queryHistory.resultsExpiresAt &&
+            queryHistory.resultsExpiresAt < new Date()
+        ) {
+            throw new ResultsExpiredError();
+        }
+
+        if (!queryHistory.resultsFileName) {
+            throw new UnexpectedServerError(
+                `No results file found for query ${queryUuid}`,
+            );
+        }
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            fields: queryHistory.fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+            displayTimezone: queryHistory.metricQuery.timezone ?? null,
         };
     }
 

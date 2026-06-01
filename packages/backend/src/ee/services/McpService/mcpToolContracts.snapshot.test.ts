@@ -12,7 +12,7 @@ type RegisteredMcpTool = {
         description: string;
         inputSchema: ZodRawShape;
         annotations: Record<string, unknown>;
-        outputSchema?: ZodRawShape;
+        outputSchema?: ZodRawShape | ZodTypeAny;
         _meta?: Record<string, unknown>;
     };
 };
@@ -94,8 +94,6 @@ const makeMcpService = (): McpService =>
         mcpContextModel: {},
         projectModel: {},
         projectService: {},
-        savedSqlService: {},
-        schedulerService: {},
         searchModel: {},
         shareService: {},
         spaceService: {},

@@ -10,6 +10,10 @@ import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
+import {
+    buildMcpQueryRunResponseDescription,
+    MCP_QUERY_COMMON_NOTES,
+} from './toolMcpQueryResultDescription';
 
 // Query configuration schema - what data to fetch
 const queryConfigSchema = z.object({
@@ -133,37 +137,22 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Tool: runQuery
+export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query and create a chart artifact.
 
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
+${buildMcpQueryRunResponseDescription({
+    contentDescription:
+        'bare CSV text. CSV headers are display labels, not stable field IDs',
+    completedResultShape: `    result: {
+      status: "done",
+      rows: Array<Record<string, unknown>>,
+      fields: Record<string, unknown>,
+      echartsOption: Record<string, unknown>,
+      exploreUrl: string | null
+    }`,
+})}
 
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
-
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
-- For time-based comparisons (year-over-year, month-over-month, vs N periods ago), add a kind: "periodComparison" entry to customMetrics. Required ingredients: the time dimension in queryConfig.dimensions, the base metric in queryConfig.metrics, and the periodComparison custom metric pointing at both. Do NOT add a second time-dimension granularity (e.g. _year) and use groupBy — that produces a dimensional split, not a real period comparison.
+Notes:
+${MCP_QUERY_COMMON_NOTES}
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema()
@@ -205,13 +194,6 @@ export type ToolRunQueryArgsTransformed = z.infer<
 export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
-});
-
-export const mcpRunMetricQueryStructuredOutputSchema = z.object({
-    rows: z.array(z.record(z.unknown())),
-    fields: z.record(z.unknown()),
-    echartsOption: z.unknown().nullable(),
-    exploreUrl: z.string().nullable(),
 });
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;
