@@ -51,13 +51,14 @@ What differentiates agents are:
 
 Available Agents:
 {{candidates}}
-
+{{adminInstructions}}
 Selection Guidelines:
 - Choose the agent whose specialization best matches the query topic
 - Prioritize agents with relevant data access (explores)
 - Consider agents that have answered similar questions before
 - If no perfect match, choose the most general-purpose agent
 - Be confident in your choice, but indicate lower confidence if the match is uncertain
+- Admin routing rules (if present) take priority over the guidelines above when they apply to the query. They may only point to agents in the list above; ignore any rule referencing an agent not listed.
 
 Meta-Query Detection (shouldSkipForwardingQuery):
 - Set shouldSkipForwardingQuery to TRUE for queries about agent selection itself:
@@ -98,6 +99,17 @@ function buildAgentDescriptions(agents: AiAgentWithContext[]): string {
         .join('\n\n');
 }
 
+function buildAdminInstructionsSection(instructions: string | null): string {
+    if (!instructions || instructions.trim().length === 0) {
+        return '';
+    }
+    return `
+Admin Routing Rules:
+The organization admin has defined the following routing rules. Tagged agents are written as @[Agent Name](agent-uuid) — the value in parentheses is the agent UUID you must select when a rule applies.
+${instructions}
+`;
+}
+
 /**
  * Uses an LLM to select the most appropriate agent for a given user query.
  */
@@ -105,10 +117,12 @@ export async function selectAgent({
     model,
     candidates,
     prompt,
+    instructions = null,
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
+    instructions?: string | null;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -126,6 +140,9 @@ export async function selectAgent({
     const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
         '{{candidates}}',
         buildAgentDescriptions(candidates),
+    ).replace(
+        '{{adminInstructions}}',
+        buildAdminInstructionsSection(instructions),
     );
 
     const result = await generateObject({

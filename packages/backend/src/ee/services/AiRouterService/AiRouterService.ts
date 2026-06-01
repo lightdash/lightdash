@@ -6,9 +6,11 @@ import {
     type AiRouter,
     type AiRouterDecision,
     type AiRouterDecisionListFilters,
+    type AiRouterInstruction,
     type AiRouterRouteResponseResult,
     type AiRouterSelectionMode,
     type RegisteredAccount,
+    type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -103,6 +105,69 @@ export class AiRouterService extends BaseService {
         });
     }
 
+    async getInstruction(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<AiRouterInstruction | null> {
+        const organizationUuid = AiRouterService.organizationUuidOf(account);
+        this.assertManageAiAgent(account, organizationUuid);
+        const router =
+            await this.aiRouterModel.findByOrganization(organizationUuid);
+        if (!router) {
+            return null;
+        }
+        return this.aiRouterModel.getLatestInstruction({
+            routerUuid: router.routerUuid,
+            projectUuid,
+        });
+    }
+
+    /**
+     * Writes a new routing-instruction version for a project. The router row is
+     * created lazily on first save, mirroring {@link upsertConfig}. Tagged agents
+     * are validated against the project so a rule can never reference an agent
+     * outside the project it routes within.
+     */
+    async upsertInstruction(
+        account: RegisteredAccount,
+        projectUuid: string,
+        body: UpsertAiRouterInstructionRequest,
+    ): Promise<AiRouterInstruction> {
+        const organizationUuid = AiRouterService.organizationUuidOf(account);
+        this.assertManageAiAgent(account, organizationUuid);
+
+        if (body.taggedAgentUuids.length > 0) {
+            const projectAgents = await this.aiAgentService.getAvailableAgents(
+                organizationUuid,
+                account.user.userUuid,
+                { aiRequireOAuth: false },
+                { projectFilter: { projectUuid } },
+            );
+            const projectAgentUuids = new Set(
+                projectAgents.map((agent) => agent.uuid),
+            );
+            const invalid = body.taggedAgentUuids.filter(
+                (agentUuid) => !projectAgentUuids.has(agentUuid),
+            );
+            if (invalid.length > 0) {
+                throw new ParameterError(
+                    `Tagged agents do not belong to this project: ${invalid.join(
+                        ', ',
+                    )}`,
+                );
+            }
+        }
+
+        const router = await this.aiRouterModel.upsert({ organizationUuid });
+
+        return this.aiRouterModel.createInstructionVersion({
+            routerUuid: router.routerUuid,
+            projectUuid,
+            instruction: body.instruction,
+            taggedAgentUuids: body.taggedAgentUuids,
+        });
+    }
+
     async listDecisions(
         account: RegisteredAccount,
         filters?: AiRouterDecisionListFilters,
@@ -149,8 +214,18 @@ export class AiRouterService extends BaseService {
             );
         }
 
+        const instruction = await this.aiRouterModel.getLatestInstruction({
+            routerUuid: router.routerUuid,
+            projectUuid,
+        });
+
         const { model } = getModel(this.lightdashConfig.ai.copilot);
-        const brain = await selectAgent({ model, candidates, prompt });
+        const brain = await selectAgent({
+            model,
+            candidates,
+            prompt,
+            instructions: instruction?.instruction ?? null,
+        });
 
         const nextAction =
             brain.confidence === 'high' && !brain.shouldSkipForwardingQuery
