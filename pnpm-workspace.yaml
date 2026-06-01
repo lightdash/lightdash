@@ -43,3 +43,5 @@ minimumReleaseAgeExclude:
   - turbo@2.9.14
   # Renovate security update: liquidjs@10.26.0
   - liquidjs@10.26.0
+  # Renovate security update: axios@1.16.0
+  - axios@1.16.0
