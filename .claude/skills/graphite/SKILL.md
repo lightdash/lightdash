@@ -176,6 +176,8 @@ Use **semantic commit names**: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, 
 - Submit final work: `gt s --no-interactive`
 - Submit entire stack: `gt s --stack --no-interactive`
 
+For PR title/description conventions (Linear ticket, GitHub issue, no customer names), use the `creating-pull-requests` skill.
+
 ### Handling Conflicts
 
 ```bash
