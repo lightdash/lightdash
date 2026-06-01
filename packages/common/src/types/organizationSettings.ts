@@ -84,13 +84,6 @@ export type OrganizationSettings = {
  */
 export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
 
-/**
- * Upper bound for {@link OrganizationSettings.csvCellsLimit} — 50 million cells.
- * Matches the highest value set across Cloud customers today; a sane ceiling
- * that still keeps wide exports feasible without inviting OOM-scale requests.
- */
-export const MAX_CSV_CELLS_LIMIT = 50000000; // 50 million
-
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
 export type ApiOrganizationSettingsResponse = {

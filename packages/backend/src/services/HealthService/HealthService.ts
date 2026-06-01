@@ -117,6 +117,10 @@ export class HealthService extends BaseService {
             helpMenuUrl: this.lightdashConfig.helpMenuUrl,
             query: {
                 csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
+                csvMaxLimit: Math.max(
+                    this.lightdashConfig.query.csvMaxLimit,
+                    this.lightdashConfig.query.csvCellsLimit,
+                ),
                 maxLimit: this.lightdashConfig.query.maxLimit,
                 maxPageSize: this.lightdashConfig.query.maxPageSize,
                 defaultLimit: this.lightdashConfig.query.defaultLimit,

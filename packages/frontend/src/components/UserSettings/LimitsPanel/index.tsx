@@ -1,26 +1,29 @@
 import {
-    MAX_CSV_CELLS_LIMIT,
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { Button, Group, Loader, NumberInput, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 
-// Generous UI guardrail for the row limit — there's no backend cap on it (only
-// the CSV cells limit is capped, at MAX_CSV_CELLS_LIMIT).
-const MAX_QUERY_ROWS = 10000000;
-
 /**
  * Editable form for the org's export limits. Split out from the panel so the
  * form's initial values are captured from the loaded settings exactly once
  * (keyed remount on the effective values), never clobbered by a refetch.
+ *
+ * `csvCellsCap` is the instance's effective ceiling for the CSV cells limit
+ * (from /health: max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)); it's
+ * always ≥ the org's current value, so it can be used directly as the input max.
  */
-const LimitsForm: FC<{ settings: OrganizationSettings }> = ({ settings }) => {
+const LimitsForm: FC<{
+    settings: OrganizationSettings;
+    csvCellsCap: number;
+}> = ({ settings, csvCellsCap }) => {
     const update = useUpdateOrganizationSettings();
 
     // The API returns effective numbers (org override resolved against the env),
@@ -50,8 +53,6 @@ const LimitsForm: FC<{ settings: OrganizationSettings }> = ({ settings }) => {
                     label="Maximum query rows"
                     description="The most rows a single query or export can return for your organization."
                     min={1}
-                    max={MAX_QUERY_ROWS}
-                    clampBehavior="strict"
                     allowDecimal={false}
                     allowNegative={false}
                     thousandSeparator=","
@@ -59,9 +60,9 @@ const LimitsForm: FC<{ settings: OrganizationSettings }> = ({ settings }) => {
                 />
                 <NumberInput
                     label="Maximum CSV / Excel cells"
-                    description={`The most cells (rows × columns) a CSV or Excel export can contain. Up to ${MAX_CSV_CELLS_LIMIT.toLocaleString()}.`}
+                    description={`The most cells (rows × columns) a CSV or Excel export can contain. Up to ${csvCellsCap.toLocaleString()}.`}
                     min={1}
-                    max={MAX_CSV_CELLS_LIMIT}
+                    max={csvCellsCap}
                     clampBehavior="strict"
                     allowDecimal={false}
                     allowNegative={false}
@@ -84,8 +85,9 @@ const LimitsForm: FC<{ settings: OrganizationSettings }> = ({ settings }) => {
 
 const LimitsPanel: FC = () => {
     const { data, isInitialLoading } = useOrganizationSettings();
+    const health = useHealth();
 
-    if (isInitialLoading || !data) {
+    if (isInitialLoading || !data || !health.data) {
         return <Loader />;
     }
 
@@ -95,6 +97,7 @@ const LimitsPanel: FC = () => {
         <LimitsForm
             key={`${data.queryMaxLimit}-${data.csvCellsLimit}`}
             settings={data}
+            csvCellsCap={health.data.query.csvMaxLimit}
         />
     );
 };

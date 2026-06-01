@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    MAX_CSV_CELLS_LIMIT,
     OrganizationSettings,
     ParameterError,
     resolveEffectiveOrganizationSettings,
@@ -64,7 +63,7 @@ export class OrganizationSettingsService extends BaseService {
      * persistent URLs; limits match what instance admins set uncapped via env) —
      * we only reject nonsense (non-integers, zero, negatives).
      */
-    private static assertValidPatch(data: UpdateOrganizationSettings): void {
+    private assertValidPatch(data: UpdateOrganizationSettings): void {
         const positiveIntegerFields: Array<keyof UpdateOrganizationSettings> = [
             'scheduledDeliveryExpirationSeconds',
             'scheduledDeliveryExpirationSecondsEmail',
@@ -85,14 +84,20 @@ export class OrganizationSettingsService extends BaseService {
                 'Scheduled delivery expiry and export limits must be positive whole numbers.',
             );
         }
-        // The CSV cells limit is capped — beyond this exports risk OOM-scale work.
+        // The CSV cells limit is capped at LIGHTDASH_CSV_MAX_LIMIT — but never
+        // below the instance's own default, so an instance whose env default
+        // already exceeds the cap is never forced to lower its limit.
+        const csvCellsCap = Math.max(
+            this.lightdashConfig.query.csvMaxLimit,
+            this.lightdashConfig.query.csvCellsLimit,
+        );
         if (
             data.csvCellsLimit !== undefined &&
             data.csvCellsLimit !== null &&
-            data.csvCellsLimit > MAX_CSV_CELLS_LIMIT
+            data.csvCellsLimit > csvCellsCap
         ) {
             throw new ParameterError(
-                `CSV cells limit cannot exceed ${MAX_CSV_CELLS_LIMIT}.`,
+                `CSV cells limit cannot exceed ${csvCellsCap}.`,
             );
         }
     }
@@ -113,7 +118,7 @@ export class OrganizationSettingsService extends BaseService {
         data: UpdateOrganizationSettings,
     ): Promise<OrganizationSettings> {
         const organizationUuid = this.assertCanManageOrganization(account);
-        OrganizationSettingsService.assertValidPatch(data);
+        this.assertValidPatch(data);
         const raw = await this.organizationSettingsModel.update(
             organizationUuid,
             data,

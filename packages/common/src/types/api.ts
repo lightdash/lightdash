@@ -473,6 +473,9 @@ export type HealthState = {
         maxLimit: number;
         defaultLimit: number;
         csvCellsLimit: number;
+        /** Effective ceiling an org admin can set the per-org CSV cells limit
+         *  to: max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT). */
+        csvMaxLimit: number;
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
     };
