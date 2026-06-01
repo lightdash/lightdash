@@ -1,8 +1,9 @@
-import { Ability } from '@casl/ability';
+import { Ability, RawRuleOf } from '@casl/ability';
 import {
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
+    SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
     type ChartScheduler,
@@ -86,8 +87,25 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     includeLinks: true,
 };
 
+const dashboardScheduler = {
+    schedulerUuid: 'schedulerUuid',
+    name: 'scheduler name',
+    dashboardUuid: 'dashboardUuid',
+    savedChartUuid: null,
+    savedSqlUuid: null,
+    appUuid: null,
+    targets: [],
+} as unknown as SchedulerAndTargets;
+
+const dashboardSummary = {
+    organizationUuid,
+    projectUuid,
+    spaceUuid: 'spaceUuid',
+};
+
 const schedulerModel = {
     getScheduler: jest.fn(async () => chartSchedulerInPrivateSpace),
+    getSchedulerAndTargets: jest.fn(async () => dashboardScheduler),
 };
 
 const savedChartModel = {
@@ -96,6 +114,10 @@ const savedChartModel = {
         projectUuid,
         spaceUuid: privateSpaceUuid,
     })),
+};
+
+const dashboardModel = {
+    getByIdOrSlug: jest.fn(async () => dashboardSummary),
 };
 
 const spacePermissionService = {
@@ -109,12 +131,24 @@ const schedulerClient = {
     addScheduledDeliveryJob: jest.fn(async () => ({})),
 };
 
-describe('SchedulerService', () => {
-    const service = new SchedulerService({
+const buildUser = (
+    abilities: RawRuleOf<Ability<PossibleAbilities>>[],
+): SessionUser =>
+    ({
+        userUuid: 'userUuid',
+        organizationUuid,
+        organizationName: 'organizationName',
+        organizationCreatedAt: new Date(),
+        role: OrganizationMemberRole.VIEWER,
+        ability: new Ability<PossibleAbilities>(abilities),
+    }) as unknown as SessionUser;
+
+const buildService = () =>
+    new SchedulerService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
-        dashboardModel: {} as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: {} as SavedSqlModel,
         appModel: {} as AppModel,
@@ -129,6 +163,9 @@ describe('SchedulerService', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
     });
+
+describe('SchedulerService', () => {
+    const service = buildService();
 
     afterEach(() => {
         jest.clearAllMocks();
@@ -145,6 +182,43 @@ describe('SchedulerService', () => {
 
             expect(
                 schedulerClient.addScheduledDeliveryJob,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getScheduler', () => {
+        test('returns the scheduler when the user can view the underlying resource', async () => {
+            const user = buildUser([
+                { subject: 'Dashboard', action: ['view'] },
+            ]);
+
+            const result = await service.getScheduler(user, 'schedulerUuid');
+
+            expect(result).toEqual(dashboardScheduler);
+            expect(schedulerModel.getSchedulerAndTargets).toHaveBeenCalledWith(
+                'schedulerUuid',
+            );
+        });
+
+        test('throws ForbiddenError when the user cannot view the underlying resource', async () => {
+            const user = buildUser([]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('throws ForbiddenError when the user is not part of an organization', async () => {
+            const user = {
+                ...buildUser([{ subject: 'Dashboard', action: ['view'] }]),
+                organizationUuid: undefined,
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                schedulerModel.getSchedulerAndTargets,
             ).not.toHaveBeenCalled();
         });
     });
