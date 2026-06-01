@@ -44,6 +44,11 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                scheduledDeliveryExpirationSeconds: null,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: null,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 
@@ -53,11 +58,18 @@ describe('OrganizationSettingsModel', () => {
                 oidc_linking_enabled: true,
                 oidc_to_email_linking_enabled: null,
                 support_impersonation_enabled: null,
+                scheduled_delivery_expiration_seconds: null,
+                persistent_download_urls_enabled: null,
             });
             expect(await model.get(ORG)).toEqual({
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                scheduledDeliveryExpirationSeconds: null,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: null,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 
@@ -71,6 +83,31 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
+                scheduledDeliveryExpirationSeconds: null,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: null,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
+            });
+        });
+
+        test('maps the exporting columns (base + per-channel expiry)', async () => {
+            const { model } = createModel({
+                oidc_linking_enabled: null,
+                oidc_to_email_linking_enabled: null,
+                support_impersonation_enabled: null,
+                scheduled_delivery_expiration_seconds: 604800,
+                scheduled_delivery_expiration_seconds_slack: 1209600,
+            });
+            expect(await model.get(ORG)).toEqual({
+                oidcLinkingEnabled: null,
+                oidcToEmailLinkingEnabled: null,
+                supportImpersonationEnabled: null,
+                scheduledDeliveryExpirationSeconds: 604800,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: 1209600,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
     });
@@ -106,7 +143,39 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,
+                scheduledDeliveryExpirationSeconds: null,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: null,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
+        });
+
+        test('writes the exporting columns (base + per-channel) when provided', async () => {
+            const { model, captured } = createModel({
+                scheduled_delivery_expiration_seconds: 604800,
+                scheduled_delivery_expiration_seconds_slack: 1209600,
+            });
+
+            await model.update(ORG, {
+                scheduledDeliveryExpirationSeconds: 604800,
+                scheduledDeliveryExpirationSecondsSlack: 1209600,
+            });
+
+            expect(captured.insert).toEqual({
+                organization_uuid: ORG,
+                scheduled_delivery_expiration_seconds: 604800,
+                scheduled_delivery_expiration_seconds_slack: 1209600,
+            });
+            expect(captured.merge).toMatchObject({
+                scheduled_delivery_expiration_seconds: 604800,
+                scheduled_delivery_expiration_seconds_slack: 1209600,
+            });
+            // Channels not in the patch are left untouched.
+            expect(captured.merge).not.toHaveProperty(
+                'scheduled_delivery_expiration_seconds_email',
+            );
+            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
         });
 
         test('writes the support impersonation column when provided', async () => {
@@ -158,6 +227,12 @@ describe('OrganizationSettingsModel', () => {
             );
             expect(captured.merge).not.toHaveProperty(
                 'support_impersonation_enabled',
+            );
+            expect(captured.merge).not.toHaveProperty(
+                'scheduled_delivery_expiration_seconds',
+            );
+            expect(captured.merge).not.toHaveProperty(
+                'scheduled_delivery_expiration_seconds_slack',
             );
             expect(captured.merge?.updated_at).toBeInstanceOf(Date);
             expect(captured.insert).toEqual({ organization_uuid: ORG });

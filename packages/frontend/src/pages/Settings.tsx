@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
-import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
+import { Anchor, Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
     IconAppWindow,
     IconApps,
@@ -17,6 +17,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconFileExport,
     IconFolders,
     IconHistory,
     IconIdBadge2,
@@ -59,6 +60,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
@@ -386,6 +388,35 @@ const Settings: FC = () => {
                                 </Stack>
                             </SettingsGridCard>
                         )}
+                    </Stack>
+                ),
+            });
+        }
+        if (user?.ability.can('manage', 'Organization')) {
+            allowedRoutes.push({
+                path: '/exporting',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <div>
+                                <Title order={4}>Scheduled deliveries</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    Control how files exported from your
+                                    organization — starting with scheduled
+                                    deliveries — are shared.{' '}
+                                    <Anchor
+                                        inherit
+                                        href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Learn more about scheduled deliveries
+                                    </Anchor>
+                                    .
+                                </Text>
+                            </div>
+                            <ExportingPanel />
+                        </SettingsGridCard>
                     </Stack>
                 ),
             });
@@ -882,6 +913,18 @@ const Settings: FC = () => {
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconBuildingSkyscraper}
+                                            />
+                                        }
+                                    />
+                                )}
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Exporting"
+                                        to="/generalSettings/exporting"
+                                        exact
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFileExport}
                                             />
                                         }
                                     />

@@ -46,6 +46,16 @@ export class OrganizationSettingsModel {
                 row?.oidc_to_email_linking_enabled ?? null,
             supportImpersonationEnabled:
                 row?.support_impersonation_enabled ?? null,
+            scheduledDeliveryExpirationSeconds:
+                row?.scheduled_delivery_expiration_seconds ?? null,
+            scheduledDeliveryExpirationSecondsEmail:
+                row?.scheduled_delivery_expiration_seconds_email ?? null,
+            scheduledDeliveryExpirationSecondsSlack:
+                row?.scheduled_delivery_expiration_seconds_slack ?? null,
+            scheduledDeliveryExpirationSecondsMsTeams:
+                row?.scheduled_delivery_expiration_seconds_msteams ?? null,
+            scheduledDeliveryExpirationSecondsGoogleChat:
+                row?.scheduled_delivery_expiration_seconds_googlechat ?? null,
         };
     }
 
@@ -62,6 +72,16 @@ export class OrganizationSettingsModel {
             oidc_linking_enabled: patch.oidcLinkingEnabled,
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
             support_impersonation_enabled: patch.supportImpersonationEnabled,
+            scheduled_delivery_expiration_seconds:
+                patch.scheduledDeliveryExpirationSeconds,
+            scheduled_delivery_expiration_seconds_email:
+                patch.scheduledDeliveryExpirationSecondsEmail,
+            scheduled_delivery_expiration_seconds_slack:
+                patch.scheduledDeliveryExpirationSecondsSlack,
+            scheduled_delivery_expiration_seconds_msteams:
+                patch.scheduledDeliveryExpirationSecondsMsTeams,
+            scheduled_delivery_expiration_seconds_googlechat:
+                patch.scheduledDeliveryExpirationSecondsGoogleChat,
         };
         const toWrite = omitBy(
             columns,

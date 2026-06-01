@@ -16,6 +16,14 @@ export type DbOrganizationSettings = {
     // Per-org consent for the Lightdash support team to impersonate users.
     // Opt-in only, no env default: NULL/absent is treated as false.
     support_impersonation_enabled: boolean | null;
+    // Per-org base override (seconds) for scheduled-delivery download link
+    // expiry. NULL/absent inherits PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS.
+    scheduled_delivery_expiration_seconds: number | null;
+    // Per-channel overrides (seconds); NULL/absent inherits the base above.
+    scheduled_delivery_expiration_seconds_email: number | null;
+    scheduled_delivery_expiration_seconds_slack: number | null;
+    scheduled_delivery_expiration_seconds_msteams: number | null;
+    scheduled_delivery_expiration_seconds_googlechat: number | null;
     created_at: Date;
     updated_at: Date;
 };

@@ -29712,6 +29712,36 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "scheduledDeliveryExpirationSecondsGoogleChat": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Google Chat deliveries; `null` inherits\nthe base. Google Chat has no instance env var, so this is an org-only\noverride (it still falls back to the base / env base)."
+                    },
+                    "scheduledDeliveryExpirationSecondsMsTeams": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Microsoft Teams deliveries; `null`\ninherits the base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS`."
+                    },
+                    "scheduledDeliveryExpirationSecondsSlack": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Slack deliveries; `null` inherits the\nbase. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_SLACK`."
+                    },
+                    "scheduledDeliveryExpirationSecondsEmail": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) of {@link scheduledDeliveryExpirationSeconds }\nfor email deliveries; `null` inherits the base. Unlike the base, this is\nsurfaced raw (not resolved) so the UI can distinguish \"inherit\" from an\nexplicit value. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_EMAIL`."
+                    },
+                    "scheduledDeliveryExpirationSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
+                    },
                     "supportImpersonationEnabled": {
                         "type": "boolean",
                         "nullable": true,
@@ -29729,6 +29759,11 @@
                     }
                 },
                 "required": [
+                    "scheduledDeliveryExpirationSecondsGoogleChat",
+                    "scheduledDeliveryExpirationSecondsMsTeams",
+                    "scheduledDeliveryExpirationSecondsSlack",
+                    "scheduledDeliveryExpirationSecondsEmail",
+                    "scheduledDeliveryExpirationSeconds",
                     "supportImpersonationEnabled",
                     "oidcToEmailLinkingEnabled",
                     "oidcLinkingEnabled"
@@ -29766,6 +29801,36 @@
                         "type": "boolean",
                         "nullable": true,
                         "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                    },
+                    "scheduledDeliveryExpirationSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
+                    },
+                    "scheduledDeliveryExpirationSecondsEmail": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) of {@link scheduledDeliveryExpirationSeconds }\nfor email deliveries; `null` inherits the base. Unlike the base, this is\nsurfaced raw (not resolved) so the UI can distinguish \"inherit\" from an\nexplicit value. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_EMAIL`."
+                    },
+                    "scheduledDeliveryExpirationSecondsSlack": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Slack deliveries; `null` inherits the\nbase. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_SLACK`."
+                    },
+                    "scheduledDeliveryExpirationSecondsMsTeams": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Microsoft Teams deliveries; `null`\ninherits the base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS`."
+                    },
+                    "scheduledDeliveryExpirationSecondsGoogleChat": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Google Chat deliveries; `null` inherits\nthe base. Google Chat has no instance env var, so this is an org-only\noverride (it still falls back to the base / env base)."
                     }
                 },
                 "type": "object",

@@ -141,6 +141,7 @@ import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -193,6 +194,7 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 /**
@@ -310,6 +312,8 @@ export default class SchedulerTask {
 
     protected readonly preAggregateModel: PreAggregateModel;
 
+    protected readonly organizationSettingsModel: OrganizationSettingsModel;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -337,6 +341,42 @@ export default class SchedulerTask {
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
+        this.organizationSettingsModel = args.organizationSettingsModel;
+    }
+
+    /**
+     * Effective scheduled-delivery link expiry (seconds) for an org and a
+     * delivery channel. Org overrides win over instance env, and a channel
+     * override wins over the base, so precedence is:
+     *   org channel → org base → env channel → env base.
+     * The resulting value flows to `createPersistentUrl`, which transparently
+     * switches to persistent download URLs when it exceeds the S3 7-day limit.
+     */
+    protected async getDeliveryExpirationSeconds(
+        organizationUuid: string,
+        channel: 'email' | 'slack' | 'msteams' | 'googlechat',
+    ): Promise<number> {
+        const settings =
+            await this.organizationSettingsModel.get(organizationUuid);
+        const pdu = this.lightdashConfig.persistentDownloadUrls;
+        const orgChannel: number | null = {
+            email: settings.scheduledDeliveryExpirationSecondsEmail,
+            slack: settings.scheduledDeliveryExpirationSecondsSlack,
+            msteams: settings.scheduledDeliveryExpirationSecondsMsTeams,
+            googlechat: settings.scheduledDeliveryExpirationSecondsGoogleChat,
+        }[channel];
+        const envChannel: number | undefined = {
+            email: pdu.expirationSecondsEmail,
+            slack: pdu.expirationSecondsSlack,
+            msteams: pdu.expirationSecondsMsTeams,
+            googlechat: undefined,
+        }[channel];
+        return (
+            orgChannel ??
+            settings.scheduledDeliveryExpirationSeconds ??
+            envChannel ??
+            pdu.expirationSeconds
+        );
     }
 
     private static getCsvOptions(
@@ -1127,10 +1167,10 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
-            const slackExpiration =
-                this.lightdashConfig.persistentDownloadUrls
-                    .expirationSecondsSlack ??
-                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
+            const slackExpiration = await this.getDeliveryExpirationSeconds(
+                notification.organizationUuid,
+                'slack',
+            );
             const notificationPageData =
                 notification.page ??
                 (await this.getNotificationPageData(
@@ -1176,7 +1216,7 @@ export default class SchedulerTask {
                     timezone || defaultSchedulerTimezone,
                 )} from Lightdash.\n${
                     showExpirationWarning
-                        ? `For security reasons, delivered files expire after *${slackExpirationDays}* days.`
+                        ? `Delivered files expire after *${slackExpirationDays}* days.`
                         : ''
                 }`,
                 includeLinks,
@@ -1199,7 +1239,7 @@ export default class SchedulerTask {
                         : 'data alert';
 
                     const expiration = slackImageUrl.expiring
-                        ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
+                        ? `Delivered files expire after ${slackExpirationDays} days.`
                         : '';
 
                     const blocks = getChartThresholdAlertBlocks({
@@ -1227,7 +1267,7 @@ export default class SchedulerTask {
                     );
 
                 const expiration = slackImageUrl.expiring
-                    ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
+                    ? `Delivered files expire after ${slackExpirationDays} days.`
                     : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
@@ -1505,10 +1545,10 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
-            const msTeamsExpiration =
-                this.lightdashConfig.persistentDownloadUrls
-                    .expirationSecondsMsTeams ??
-                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
+            const msTeamsExpiration = await this.getDeliveryExpirationSeconds(
+                notification.organizationUuid,
+                'msteams',
+            );
             const notificationPageData =
                 notification.page ??
                 (await this.getNotificationPageData(
@@ -2473,10 +2513,10 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
-            const emailExpiration =
-                this.lightdashConfig.persistentDownloadUrls
-                    .expirationSecondsEmail ??
-                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
+            const emailExpiration = await this.getDeliveryExpirationSeconds(
+                notification.organizationUuid,
+                'email',
+            );
             const notificationPageData =
                 notification.page ??
                 (await this.getNotificationPageData(
@@ -2563,7 +2603,7 @@ export default class SchedulerTask {
                     details.description || '',
                     thresholdMessage,
                     new Date().toLocaleDateString('en-GB'),
-                    `For security reasons, delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
+                    `Delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
                     imageUrl,
                     url,
                     schedulerUrl,
@@ -3746,19 +3786,32 @@ export default class SchedulerTask {
             if (scheduler.format === SchedulerFormat.GSHEETS) {
                 page = undefined;
             } else {
-                const {
-                    expirationSeconds,
-                    expirationSecondsEmail,
-                    expirationSecondsSlack,
-                    expirationSecondsMsTeams,
-                } = this.lightdashConfig.persistentDownloadUrls;
-
-                const emailExpiration =
-                    expirationSecondsEmail ?? expirationSeconds;
-                const slackExpiration =
-                    expirationSecondsSlack ?? expirationSeconds;
-                const msTeamsExpiration =
-                    expirationSecondsMsTeams ?? expirationSeconds;
+                // Effective per-channel expiry (org override → org base → env
+                // channel → env base), resolved per channel so a delivery can
+                // last longer on, say, Slack than email.
+                const [
+                    emailExpiration,
+                    slackExpiration,
+                    msTeamsExpiration,
+                    googleChatExpiration,
+                ] = await Promise.all([
+                    this.getDeliveryExpirationSeconds(
+                        schedulerPayload.organizationUuid,
+                        'email',
+                    ),
+                    this.getDeliveryExpirationSeconds(
+                        schedulerPayload.organizationUuid,
+                        'slack',
+                    ),
+                    this.getDeliveryExpirationSeconds(
+                        schedulerPayload.organizationUuid,
+                        'msteams',
+                    ),
+                    this.getDeliveryExpirationSeconds(
+                        schedulerPayload.organizationUuid,
+                        'googlechat',
+                    ),
+                ]);
 
                 const hasEmail = targets.some(
                     (t) =>
@@ -3793,7 +3846,7 @@ export default class SchedulerTask {
                 if (hasEmail) addToMap(emailExpiration, 'email');
                 if (hasSlack) addToMap(slackExpiration, 'slack');
                 if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
-                if (hasGoogleChat) addToMap(expirationSeconds, 'googlechat');
+                if (hasGoogleChat) addToMap(googleChatExpiration, 'googlechat');
 
                 const pageByChannel = await Array.from(
                     expirationToChannels.entries(),
@@ -5476,13 +5529,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const googleChatExpiration =
+                await this.getDeliveryExpirationSeconds(
+                    notification.organizationUuid,
+                    'googlechat',
+                );
             const notificationPageData =
                 notification.page ??
                 (await this.getNotificationPageData(
                     scheduler,
                     jobId,
-                    this.lightdashConfig.persistentDownloadUrls
-                        .expirationSeconds,
+                    googleChatExpiration,
                 ));
 
             const {

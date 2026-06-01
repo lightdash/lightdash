@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     OrganizationSettings,
+    ParameterError,
     resolveEffectiveOrganizationSettings,
     UpdateOrganizationSettings,
     type RegisteredAccount,
@@ -9,6 +10,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { BaseService } from '../BaseService';
+import { getOrganizationSettingsInstanceDefaults } from './getInstanceDefaults';
 
 type OrganizationSettingsServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -53,6 +55,33 @@ export class OrganizationSettingsService extends BaseService {
         return organizationUuid;
     }
 
+    /**
+     * Sanity-checks the scheduled-delivery expiry overrides (base + per-channel)
+     * before they're persisted. A `null` clears an override (back to inheriting
+     * the base / env). We don't cap the value — it feeds the existing expiry
+     * mechanism as-is (links over 7 days transparently use persistent download
+     * URLs) — we only reject nonsense that would store an already-expired link.
+     */
+    private static assertValidPatch(data: UpdateOrganizationSettings): void {
+        const expiryFields: Array<keyof UpdateOrganizationSettings> = [
+            'scheduledDeliveryExpirationSeconds',
+            'scheduledDeliveryExpirationSecondsEmail',
+            'scheduledDeliveryExpirationSecondsSlack',
+            'scheduledDeliveryExpirationSecondsMsTeams',
+        ];
+        const isInvalid = (value: number | boolean | null | undefined) =>
+            value !== undefined &&
+            value !== null &&
+            (typeof value !== 'number' ||
+                !Number.isInteger(value) ||
+                value <= 0);
+        if (expiryFields.some((field) => isInvalid(data[field]))) {
+            throw new ParameterError(
+                'Scheduled delivery link expiry must be a positive whole number of seconds.',
+            );
+        }
+    }
+
     async getOrganizationSettings(
         account: RegisteredAccount,
     ): Promise<OrganizationSettings> {
@@ -60,7 +89,7 @@ export class OrganizationSettingsService extends BaseService {
         const raw = await this.organizationSettingsModel.get(organizationUuid);
         return resolveEffectiveOrganizationSettings(
             raw,
-            this.lightdashConfig.auth,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
         );
     }
 
@@ -69,13 +98,14 @@ export class OrganizationSettingsService extends BaseService {
         data: UpdateOrganizationSettings,
     ): Promise<OrganizationSettings> {
         const organizationUuid = this.assertCanManageOrganization(account);
+        OrganizationSettingsService.assertValidPatch(data);
         const raw = await this.organizationSettingsModel.update(
             organizationUuid,
             data,
         );
         return resolveEffectiveOrganizationSettings(
             raw,
-            this.lightdashConfig.auth,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
         );
     }
 }

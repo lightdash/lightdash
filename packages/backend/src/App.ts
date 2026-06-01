@@ -123,6 +123,8 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        organizationSettingsModel:
+            context.models.getOrganizationSettingsModel(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),

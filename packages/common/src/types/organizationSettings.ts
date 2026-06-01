@@ -28,7 +28,48 @@ export type OrganizationSettings = {
      * stored row) resolves to `false`.
      */
     supportImpersonationEnabled: boolean | null;
+    /**
+     * Base lifetime (seconds) of this org's scheduled-delivery download links —
+     * the default every channel inherits. Overrides the instance-wide
+     * `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This
+     * field is always resolved to an effective number in API responses (it
+     * falls back to the env default), so the frontend can display it directly.
+     * A value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently
+     * switches that delivery to the persistent-download-URL system (the only
+     * way a link can outlive AWS's 7-day presigned ceiling).
+     */
+    scheduledDeliveryExpirationSeconds: number | null;
+    /**
+     * Per-channel override (seconds) of {@link scheduledDeliveryExpirationSeconds}
+     * for email deliveries; `null` inherits the base. Unlike the base, this is
+     * surfaced raw (not resolved) so the UI can distinguish "inherit" from an
+     * explicit value. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_EMAIL`.
+     */
+    scheduledDeliveryExpirationSecondsEmail: number | null;
+    /**
+     * Per-channel override (seconds) for Slack deliveries; `null` inherits the
+     * base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_SLACK`.
+     */
+    scheduledDeliveryExpirationSecondsSlack: number | null;
+    /**
+     * Per-channel override (seconds) for Microsoft Teams deliveries; `null`
+     * inherits the base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS`.
+     */
+    scheduledDeliveryExpirationSecondsMsTeams: number | null;
+    /**
+     * Per-channel override (seconds) for Google Chat deliveries; `null` inherits
+     * the base. Google Chat has no instance env var, so this is an org-only
+     * override (it still falls back to the base / env base).
+     */
+    scheduledDeliveryExpirationSecondsGoogleChat: number | null;
 };
+
+/**
+ * AWS's hard maximum lifetime of an S3 SigV4 presigned URL — seven days. A
+ * requested expiry above this can't be served by a raw presigned link, so the
+ * delivery transparently falls back to the persistent-download-URL system.
+ */
+export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
 
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
@@ -38,20 +79,28 @@ export type ApiOrganizationSettingsResponse = {
 };
 
 /**
+ * The instance-wide defaults a stored override falls back to. Each field maps
+ * to an env var resolved in `parseConfig`; the backend builds this from
+ * `lightdashConfig` (see `getOrganizationSettingsInstanceDefaults`) so the
+ * fallback values live in exactly one place.
+ */
+export type OrganizationSettingsInstanceDefaults = {
+    enableOidcLinking: boolean;
+    enableOidcToEmailLinking: boolean;
+    scheduledDeliveryExpirationSeconds: number;
+};
+
+/**
  * The single source of truth for resolving a stored (raw) org settings record
  * against the instance defaults: an explicit per-org value wins; a value that's
  * `null`, or simply absent (an unset column / no row at all), falls back to the
  * instance default. Used by the backend for both the API response (so the
  * frontend just displays the effective value) and the login flow, so the two
- * can never drift. `instanceDefaults` is structurally satisfied by
- * `lightdashConfig.auth`.
+ * can never drift.
  */
 export const resolveEffectiveOrganizationSettings = (
     raw: Partial<OrganizationSettings>,
-    instanceDefaults: {
-        enableOidcLinking: boolean;
-        enableOidcToEmailLinking: boolean;
-    },
+    instanceDefaults: OrganizationSettingsInstanceDefaults,
 ): OrganizationSettings => ({
     oidcLinkingEnabled:
         raw.oidcLinkingEnabled ?? instanceDefaults.enableOidcLinking,
@@ -60,4 +109,19 @@ export const resolveEffectiveOrganizationSettings = (
         instanceDefaults.enableOidcToEmailLinking,
     // Opt-in only — no instance default, so an unset value resolves to false.
     supportImpersonationEnabled: raw.supportImpersonationEnabled ?? false,
+    // Base is resolved to an effective number (falls back to the env default).
+    scheduledDeliveryExpirationSeconds:
+        raw.scheduledDeliveryExpirationSeconds ??
+        instanceDefaults.scheduledDeliveryExpirationSeconds,
+    // Per-channel overrides are surfaced raw (null = inherit base) so the UI
+    // can tell "not set" apart from an explicit value; their fallback to the
+    // base happens at delivery time, not here.
+    scheduledDeliveryExpirationSecondsEmail:
+        raw.scheduledDeliveryExpirationSecondsEmail ?? null,
+    scheduledDeliveryExpirationSecondsSlack:
+        raw.scheduledDeliveryExpirationSecondsSlack ?? null,
+    scheduledDeliveryExpirationSecondsMsTeams:
+        raw.scheduledDeliveryExpirationSecondsMsTeams ?? null,
+    scheduledDeliveryExpirationSecondsGoogleChat:
+        raw.scheduledDeliveryExpirationSecondsGoogleChat ?? null,
 });
