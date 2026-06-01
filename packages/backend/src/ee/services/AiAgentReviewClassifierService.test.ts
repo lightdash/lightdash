@@ -409,8 +409,8 @@ describe('AiAgentReviewClassifierService', () => {
         expect(model.createTurnSignal).not.toHaveBeenCalled();
     });
 
-    it('runs a live response-saved event as one target-turn worker job', async () => {
-        judgeTurn.mockResolvedValueOnce(makeSemanticJudgeOutput());
+    it('reviews the target turn and re-reviews the preceding turn on response_saved', async () => {
+        judgeTurn.mockResolvedValue(makeSemanticJudgeOutput());
         model.listTurnReviewCandidates.mockResolvedValue([
             makeCandidate({
                 userPrompt:
@@ -439,13 +439,24 @@ describe('AiAgentReviewClassifierService', () => {
             promptUuid: PROMPT_UUID,
         });
 
-        expect(result?.processedTurns).toBe(1);
+        // The target turn plus its immediate predecessor (now that the target
+        // is the predecessor's real next-user-prompt / correction).
+        expect(result?.processedTurns).toBe(2);
         expect(model.listTurnReviewCandidates).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
             projectUuid: PROJECT_UUID,
             agentUuid: AGENT_UUID,
             threadUuid: THREAD_UUID,
             promptUuid: PROMPT_UUID,
+            limit: 1,
+        });
+        // ...and the preceding turn is pulled in for re-review.
+        expect(model.listTurnReviewCandidates).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            promptUuid: '00000000-0000-0000-0000-000000000012',
             limit: 1,
         });
         expect(model.createRun).toHaveBeenCalledWith(
@@ -457,7 +468,7 @@ describe('AiAgentReviewClassifierService', () => {
                     promptUuid: PROMPT_UUID,
                     threadUuid: THREAD_UUID,
                 }),
-                totalTurns: 1,
+                totalTurns: 2,
             }),
         );
         expect(model.createTurnSignal).toHaveBeenCalledWith(
@@ -467,6 +478,25 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+    });
+
+    it('reviews only the target turn when it has no predecessor (first turn)', async () => {
+        judgeTurn.mockResolvedValue(makeSemanticJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({ contextTurns: [] }),
+        ]);
+
+        const result = await service.runLiveEvent({
+            eventType: 'response_saved',
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            promptUuid: PROMPT_UUID,
+        });
+
+        expect(result?.processedTurns).toBe(1);
+        expect(model.listTurnReviewCandidates).toHaveBeenCalledTimes(1);
     });
 
     it('stores product capability findings as grouped review projections', async () => {

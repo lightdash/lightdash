@@ -67,7 +67,6 @@ type AiAgentReviewJudgeEvidencePacket = {
     subject: AiAgentReviewClassifierTurnCandidate['subject'];
     interactionSource: AiAgentReviewClassifierTurnCandidate['interactionSource'];
     targetTurn: AiAgentReviewClassifierTurnCandidate['targetTurn'];
-    reviewHints: AiAgentReviewClassifierTurnCandidate['reviewHints'];
     humanFeedback: {
         score: number | null;
         comment: string | null;
@@ -273,15 +272,34 @@ export class AiAgentReviewClassifierService extends BaseService {
     async runLiveEvent(
         args: RunLiveEventArgs,
     ): Promise<AiAgentReviewClassifierRunResult | null> {
-        const candidates =
-            await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
+        const listCandidate = (promptUuid: string) =>
+            this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
                 organizationUuid: args.organizationUuid,
                 projectUuid: args.projectUuid,
                 agentUuid: args.agentUuid,
                 threadUuid: args.threadUuid,
-                promptUuid: args.promptUuid,
+                promptUuid,
                 limit: 1,
             });
+
+        const targetCandidates = await listCandidate(args.promptUuid);
+        const candidates = [...targetCandidates];
+
+        // When a new turn completes, re-review the immediately-preceding turn:
+        // it now has this turn as its real next-user-prompt, which is where a
+        // correction lives. The re-review supersedes that turn's earlier
+        // standalone signal, so each turn is ultimately judged knowing what the
+        // user did next — instead of guessing from the failing turn alone.
+        if (args.eventType === 'response_saved') {
+            const previousTurns = (
+                targetCandidates[0]?.contextTurns ?? []
+            ).filter((turn) => turn.relation === 'previous');
+            const previousPromptUuid =
+                previousTurns[previousTurns.length - 1]?.promptUuid;
+            if (previousPromptUuid) {
+                candidates.push(...(await listCandidate(previousPromptUuid)));
+            }
+        }
 
         this.debugLog('LiveEventCandidatesLoaded', {
             eventType: args.eventType,
@@ -290,21 +308,14 @@ export class AiAgentReviewClassifierService extends BaseService {
             agentUuid: args.agentUuid,
             threadUuid: args.threadUuid,
             promptUuid: args.promptUuid,
-            candidateCount: candidates?.length ?? 0,
+            candidateCount: candidates.length,
         });
 
         return this.processCandidates({
             organizationUuid: args.organizationUuid,
             organizationName: args.organizationName,
             requestedByUserUuid: args.requestedByUserUuid,
-            candidates: candidates.map((candidate) => ({
-                ...candidate,
-                reviewHints: {
-                    ...candidate.reviewHints,
-                    useTargetPromptAsCorrectionEvidence:
-                        args.eventType === 'response_saved',
-                },
-            })),
+            candidates,
             runScope: {
                 type: 'live_event',
                 eventType: args.eventType,
@@ -1053,7 +1064,6 @@ reviewItem.description should summarize why this grouping exists.`,
             subject: candidate.subject,
             interactionSource: candidate.interactionSource,
             targetTurn: candidate.targetTurn,
-            reviewHints: candidate.reviewHints,
             humanFeedback: {
                 score: candidate.humanScore,
                 comment: candidate.humanFeedback,

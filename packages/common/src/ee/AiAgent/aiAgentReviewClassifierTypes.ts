@@ -638,9 +638,6 @@ export type AiAgentReviewClassifierTurnCandidate = {
     sourceRef: AiAgentTurnSignalSourceRef;
     targetTurn: AiAgentReviewClassifierTurnSnapshot;
     contextTurns: AiAgentReviewClassifierContextTurn[];
-    reviewHints?: {
-        useTargetPromptAsCorrectionEvidence?: boolean;
-    };
     userPrompt: string;
     assistantResponse: string | null;
     errorMessage: string | null;
