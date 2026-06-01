@@ -120,6 +120,7 @@ import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
     type ApiGitFileContent,
+    type ApiPullRequestsResponse,
     type GitBranch,
     type GitFileOrDirectory,
     type GitIntegrationConfiguration,
@@ -1014,6 +1015,7 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']

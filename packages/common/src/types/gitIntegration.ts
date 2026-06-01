@@ -1,3 +1,5 @@
+import { type KnexPaginatedData } from './knex-paginate';
+
 export type GitIntegrationConfiguration = {
     enabled: boolean;
     installationId?: string;
@@ -6,6 +8,65 @@ export type GitIntegrationConfiguration = {
 export type PullRequestCreated = {
     prTitle: string;
     prUrl: string;
+};
+
+export enum PullRequestProvider {
+    GITHUB = 'github',
+    GITLAB = 'gitlab',
+}
+
+export enum PullRequestSource {
+    CUSTOM_METRIC = 'custom_metric',
+    CUSTOM_DIMENSION = 'custom_dimension',
+    SQL_RUNNER = 'sql_runner',
+    SOURCE_EDITOR = 'source_editor',
+    AI_AGENT = 'ai_agent',
+}
+
+export enum PullRequestState {
+    OPEN = 'open',
+    CLOSED = 'closed',
+    MERGED = 'merged',
+}
+
+/**
+ * A pull request created by a write-back. Only immutable identifiers are
+ * persisted; the live title/state are resolved at runtime from the
+ * GitHub/GitLab API using provider + owner + repo + prNumber.
+ */
+export type PullRequest = {
+    pullRequestUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+    createdByUserUuid: string | null;
+    provider: PullRequestProvider;
+    source: PullRequestSource;
+    owner: string;
+    repo: string;
+    prNumber: number;
+    prUrl: string;
+    /**
+     * The AI thread that produced this PR, when it originated from an AI
+     * write-back (source `ai_agent`). Null for non-AI PRs, or in deployments
+     * without the enterprise AI write-back feature.
+     */
+    aiThreadUuid: string | null;
+    /**
+     * The AI agent that owns the thread above. Paired with `aiThreadUuid` to
+     * build the in-app thread link. Null whenever `aiThreadUuid` is null.
+     */
+    aiAgentUuid: string | null;
+    createdAt: Date;
+};
+
+/**
+ * A stored pull request enriched with its live title/state resolved from the
+ * provider API. `title`/`state` are null when the live lookup fails (e.g. the
+ * PR was deleted or the token lost access) — `prUrl` always remains usable.
+ */
+export type PullRequestWithStatus = PullRequest & {
+    title: string | null;
+    state: PullRequestState | null;
 };
 
 export type ApiGitFileContent = {
@@ -76,4 +137,11 @@ export type CreateGitPullRequestRequest = {
 export type ApiGitPullRequestCreatedResponse = {
     status: 'ok';
     results: PullRequestCreated;
+};
+
+// Response listing the pull requests created for a project, enriched with
+// live title/state resolved from the provider API.
+export type ApiPullRequestsResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<PullRequestWithStatus[]>;
 };
