@@ -5,7 +5,9 @@ import {
     detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
+    generatePreviewDeployWorkflowFiles,
     getErrorMessage,
+    getPreviewDeploySecrets,
     isUserWithOrg,
     isWorkflowFile,
     MissingConfigError,
@@ -530,6 +532,16 @@ export class AiWritebackService extends BaseService {
             CWD,
             scopedToProject ? { files: [projectSubPath] } : { all: true },
         );
+        if (scopedToProject) {
+            // Also stage Lightdash CI workflow files the agent may have added
+            // when setting up preview deploys — they live at the repo root,
+            // outside the dbt subtree. `.github/workflows` is a known-safe path
+            // (never a scratch location); tolerate its absence when no
+            // preview-deploy setup happened this turn.
+            await sandbox.commands.run(
+                `git -C ${CWD} add .github/workflows 2>/dev/null || true`,
+            );
+        }
     }
 
     /**
@@ -798,7 +810,26 @@ export class AiWritebackService extends BaseService {
 
             // Secondary task: detect & record whether the repo already deploys
             // preview projects via GitHub Actions. Best-effort, never blocks.
-            await this.detectAndRecordPreviewDeploy(sandbox, projectUuid);
+            const previewDeployStatus = await this.detectAndRecordPreviewDeploy(
+                sandbox,
+                projectUuid,
+            );
+            // When it's not set up, hand the agent the exact files + secrets so
+            // it can offer to open a PR adding the preview workflow.
+            const previewDeployGuidance =
+                previewDeployStatus &&
+                !previewDeployStatus.hasPreviewDeployWorkflow
+                    ? {
+                          workflowFiles: generatePreviewDeployWorkflowFiles({
+                              projectSubPath:
+                                  turn.githubConnection.projectSubPath,
+                          }),
+                          secrets: getPreviewDeploySecrets({
+                              projectUuid,
+                              siteUrl: this.lightdashConfig.siteUrl,
+                          }),
+                      }
+                    : null;
 
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
@@ -814,6 +845,7 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
+                    previewDeploy: previewDeployGuidance,
                 },
             );
             const agent = await this.runAgentInSandbox({

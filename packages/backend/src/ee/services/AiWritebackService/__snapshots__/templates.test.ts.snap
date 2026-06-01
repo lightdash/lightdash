@@ -18,6 +18,7 @@ exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for
 
 BEFORE editing a \`schema.yml\` \`type:\` field or modifying SQL that changes a column's emitted type, you MUST read /home/user/.lightdash-skills/shared.md. It contains cross-warehouse type-coercion rules. Skipping this step has produced PRs that broke filters and silently changed query results.
 
+
 If you made any file changes, perform ALL of these follow-up steps before you
 finish:
 
@@ -85,6 +86,7 @@ exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for
 - Do NOT commit, push, or run any git commands — the host handles git.
 
 This Lightdash project's warehouse is **postgres**. BEFORE editing a \`schema.yml\` \`type:\` field or modifying SQL that changes a column's emitted type, you MUST read /home/user/.lightdash-skills/warehouse.md and /home/user/.lightdash-skills/shared.md. They contain warehouse-specific type-coercion rules. Skipping this step has produced PRs that broke filters and silently changed query results.
+
 
 If you made any file changes, perform ALL of these follow-up steps before you
 finish:

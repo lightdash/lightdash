@@ -1,4 +1,8 @@
-import type { WarehouseTypes } from '@lightdash/common';
+import type {
+    PreviewDeploySecret,
+    WarehouseTypes,
+    WorkflowFile,
+} from '@lightdash/common';
 import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
@@ -32,6 +36,52 @@ const buildWarehouseSkillGuidance = (
     return `${trigger} ${SHARED_SKILL_PATH}. It contains cross-warehouse type-coercion rules. ${consequence}`;
 };
 
+export type PreviewDeployGuidance = {
+    workflowFiles: WorkflowFile[];
+    secrets: PreviewDeploySecret[];
+};
+
+// Secondary-task guidance: when the repo has no Lightdash preview-deploy CI, the
+// agent is told to offer setting it up and given the exact files + secrets. The
+// agent only acts if the user agrees; the workflow files ride the normal
+// commit→PR flow (the host additionally stages `.github/workflows`).
+const buildPreviewDeployGuidance = (
+    previewDeploy: PreviewDeployGuidance | null,
+): string => {
+    if (!previewDeploy) return '';
+    const filesBlock = previewDeploy.workflowFiles
+        .map((f) => `### \`${f.path}\`\n\n\`\`\`yaml\n${f.content}\`\`\``)
+        .join('\n\n');
+    const secretsBlock = previewDeploy.secrets
+        .map((s) =>
+            s.value
+                ? `- \`${s.name}\` = \`${s.value}\` — ${s.description}`
+                : `- \`${s.name}\` — ${s.description} (only the user can provide this)`,
+        )
+        .join('\n');
+    return `
+## Secondary task: offer to set up Lightdash preview deploys
+
+This repository does NOT currently deploy Lightdash preview projects via GitHub
+Actions. As a SECONDARY task, AFTER you have addressed the user's main request:
+
+- Briefly tell the user preview deploys aren't set up and OFFER to open a pull
+  request adding the Lightdash preview workflow. Do not set it up unless the
+  user wants it. Do not block or delay the user's main request on this.
+- If the user agrees (now or in a follow-up message), create these files
+  EXACTLY as shown, then let the host open the PR as usual:
+
+${filesBlock}
+
+- After creating the files, tell the user they must add these GitHub Actions
+  repository secrets for the workflow to run. Values shown are ones Lightdash
+  already knows; the rest only the user can provide:
+
+${secretsBlock}
+
+`;
+};
+
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
 //
@@ -57,6 +107,7 @@ export const buildSystemPrompt = (
         repoContext: string | null;
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
+        previewDeploy: PreviewDeployGuidance | null;
     },
 ): string =>
     `
@@ -94,6 +145,7 @@ ${context.repoContext}
 `
         : ''
 }
+${buildPreviewDeployGuidance(context.previewDeploy)}
 If you made any file changes, perform ALL of these follow-up steps before you
 finish:
 
