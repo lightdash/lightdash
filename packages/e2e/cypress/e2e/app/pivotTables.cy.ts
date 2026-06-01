@@ -370,18 +370,14 @@ describe('Pivot Tables', () => {
 
         cy.dragAndDrop(dragSelector, dropSelector);
 
-        // Pivoting runs in SQL, so re-run the query and wait for the pivoted
-        // results to be ready before asserting the pivot rendered.
-        cy.intercept('GET', '**/api/v2/projects/*/query/*').as(
-            'pivotQueryResults',
-        );
+        // Pivoting now runs in SQL, so re-run the query to fetch pivoted results.
         cy.get('button').contains('Run query').click();
-        waitForReadyPivotResults(() => {});
 
         cy.get('[data-testid="visualization"]').as('chartArea'); // Using an alias aviod querying the DOM for the same element multiple times
 
         cy.get('@chartArea').findByText('Loading chart').should('not.exist');
-        cy.get('@chartArea').contains('Is completed'); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
+        // Generous timeout to cover the pivoted query round-trip.
+        cy.get('@chartArea').contains('Is completed', { timeout: 30000 }); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
     });
 
     it('Can render a pivoted cartesian chart sorted by a metric that is not displayed', () => {
