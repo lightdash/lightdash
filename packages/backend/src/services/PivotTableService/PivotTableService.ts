@@ -7,6 +7,7 @@ import {
     MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
+    UnexpectedServerError,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
@@ -223,7 +224,7 @@ export class PivotTableService extends BaseService {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
         if (!pivotDetails) {
-            throw new Error(
+            throw new UnexpectedServerError(
                 'Cannot export pivot table CSV without SQL pivot details',
             );
         }

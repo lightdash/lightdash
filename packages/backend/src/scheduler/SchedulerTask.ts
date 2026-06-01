@@ -2367,7 +2367,7 @@ export default class SchedulerTask {
 
             if (payload.pivotConfig) {
                 if (!pivotDetails) {
-                    throw new Error(
+                    throw new UnexpectedServerError(
                         'Cannot export pivoted results without SQL pivot details',
                     );
                 }

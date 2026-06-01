@@ -17,6 +17,7 @@ import {
     shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
     toExcelWallClockDate,
+    UnexpectedServerError,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -155,7 +156,7 @@ export class ExcelService {
         timezone?: string;
     }): Promise<Excel.Buffer> {
         if (!pivotDetails) {
-            throw new Error(
+            throw new UnexpectedServerError(
                 'Cannot export pivot table XLSX without SQL pivot details',
             );
         }
