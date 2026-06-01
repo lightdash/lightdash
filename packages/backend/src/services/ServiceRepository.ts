@@ -50,6 +50,7 @@ import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectComp
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
+import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -82,6 +83,7 @@ interface ServiceManifest {
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
+    pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
@@ -426,6 +428,18 @@ export class ServiceRepository
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getPullRequestsService(): PullRequestsService {
+        return this.getService(
+            'pullRequestsService',
+            () =>
+                new PullRequestsService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    pullRequestsModel: this.models.getPullRequestsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
