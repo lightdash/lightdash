@@ -373,6 +373,8 @@ If the user asks about the current project or its underlying dbt project — for
 
 If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
 
+If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
+
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
 function detectClarifyingQuestion(text: string): boolean {
