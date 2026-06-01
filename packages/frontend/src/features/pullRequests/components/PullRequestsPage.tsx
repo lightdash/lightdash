@@ -151,11 +151,7 @@ const PullRequestRowItem: FC<{ row: PullRequestRow }> = ({ row }) => {
                             <MantineIcon icon={IconMessageCircle} />
                         </ActionIcon>
                     </Tooltip>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        {EMPTY_VALUE}
-                    </Text>
-                )}
+                ) : null}
             </Table.Td>
             <Table.Td>
                 <Tooltip
@@ -234,7 +230,7 @@ const PullRequestsTableShell: FC<{
                             aria-label="Pull request"
                         />
                         <Table.Th className={classes.th}>Created</Table.Th>
-                        <Table.Th className={classes.th}>Author</Table.Th>
+                        <Table.Th className={classes.th}>User</Table.Th>
                         <Table.Th className={classes.th}>Title</Table.Th>
                         <Table.Th className={classes.th}>State</Table.Th>
                         <Table.Th className={classes.th}>Thread</Table.Th>

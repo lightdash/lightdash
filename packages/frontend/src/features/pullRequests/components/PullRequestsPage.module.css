@@ -23,7 +23,7 @@
 /* Created (relative time) */
 .table th:nth-of-type(2),
 .table td:nth-of-type(2) {
-    width: 120px;
+    width: 150px;
     white-space: nowrap;
 }
 
