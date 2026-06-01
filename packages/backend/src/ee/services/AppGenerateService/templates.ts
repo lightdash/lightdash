@@ -23,6 +23,7 @@ Build a print-optimized report:
 - Set \`@page { margin: 0; size: A4 }\` so the design fills the sheet edge-to-edge — apply your own padding inside each page (e.g. \`p-12\`) instead of relying on the browser's default page margin (which is ugly and shrinks the canvas).
 - Use a clean, document-style typography hierarchy (title, section headings, body).
 - Render charts at fixed widths so they reflow across pages cleanly.
+- The app itself stays fully interactive (hover tooltips, the "Filter by <value>" action menu, etc.) — keep all of it. But the *exported* PDF is static: readers of the printed page can't hover, so any value only available via tooltip is lost. So **in addition to** the normal interactivity, draw the numbers on the chart: \`<LabelList>\` on bars, and labeled or end-of-line point labels on lines. Keep them legible — compact-format the numbers (e.g. \`1.2K\`, \`$1.3M\`) and avoid overlap on dense series.
 - Include a title page header (title, subtitle, generated-on date) and section dividers.
 - Apply CSS \`@media print\` rules and \`page-break-inside: avoid\` on cards and figures.
 - Note: browsers may inject their own header/footer on printed pages (URL, page number, date), controlled by the user's print dialog — not removable via CSS. Keep critical content away from the very top and bottom edges so it doesn't sit underneath.

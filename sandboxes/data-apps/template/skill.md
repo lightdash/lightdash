@@ -495,6 +495,23 @@ const dateCol = getColumn(columns, 'order_date_month');
 
 **Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
 
+#### Chart value labels
+
+By default the value behind a bar or point is read by hovering for the tooltip, so leave labels off to avoid clutter — the chart stays interactive either way. The exception is when the chart's output will be read **statically**, e.g. exported or printed to PDF: there's no hover on a printed page, so any tooltip-only value is lost. In that case draw the numbers on the chart with `<LabelList>` **in addition to** the tooltip and any "Filter by &lt;value&gt;" interactions — labels are additive, they don't replace interactivity. Use a `formatter` so labels match the axis/tooltip formatting, and keep them compact to avoid overlap on dense series.
+
+```tsx
+import { Bar, LabelList } from 'recharts';
+import { formatNumber } from '@/lib/format';
+
+<Bar dataKey="total_revenue" fill={CHART_COLORS[0]}>
+    <LabelList
+        dataKey="total_revenue"
+        position="top"
+        formatter={(v) => formatNumber(v, 'axis')}
+    />
+</Bar>
+```
+
 #### Tables
 
 Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-16`, while currency/percent metrics still flow through the SDK's server format:
