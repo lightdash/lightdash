@@ -1476,6 +1476,8 @@ export class SchedulerService extends BaseService {
             true,
         );
 
+        await this.checkViewResource(user, scheduler);
+
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
             {
