@@ -56,6 +56,12 @@ export type OrganizationSettings = {
      * inherits the base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS`.
      */
     scheduledDeliveryExpirationSecondsMsTeams: number | null;
+    /**
+     * Per-channel override (seconds) for Google Chat deliveries; `null` inherits
+     * the base. Google Chat has no instance env var, so this is an org-only
+     * override (it still falls back to the base / env base).
+     */
+    scheduledDeliveryExpirationSecondsGoogleChat: number | null;
 };
 
 /**
@@ -116,4 +122,6 @@ export const resolveEffectiveOrganizationSettings = (
         raw.scheduledDeliveryExpirationSecondsSlack ?? null,
     scheduledDeliveryExpirationSecondsMsTeams:
         raw.scheduledDeliveryExpirationSecondsMsTeams ?? null,
+    scheduledDeliveryExpirationSecondsGoogleChat:
+        raw.scheduledDeliveryExpirationSecondsGoogleChat ?? null,
 });

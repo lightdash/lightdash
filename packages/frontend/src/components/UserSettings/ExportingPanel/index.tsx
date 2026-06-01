@@ -1,5 +1,5 @@
 import {
-    S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS,
+    FeatureFlags,
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
@@ -17,19 +17,19 @@ import {
 import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { useGetSlack } from '../../../hooks/slack/useSlack';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 
 const SECONDS_PER_DAY = 86400;
-// Generous UI guardrail. There's no backend cap: links over 7 days simply use
-// the persistent-download-URL system transparently.
+// Generous UI guardrail. There's no backend cap: longer links transparently
+// use the persistent-download-URL system.
 const MAX_DAYS = 365;
-const S3_MAX_DAYS = Math.floor(
-    S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS / SECONDS_PER_DAY,
-);
 
 // '' models "inherit the base" for an optional per-channel input.
 type DaysValue = number | '';
@@ -38,6 +38,7 @@ const CHANNELS = [
     { key: 'email', label: 'Email' },
     { key: 'slack', label: 'Slack' },
     { key: 'msteams', label: 'Microsoft Teams' },
+    { key: 'googlechat', label: 'Google Chat' },
 ] as const;
 
 type ChannelKey = (typeof CHANNELS)[number]['key'];
@@ -52,10 +53,16 @@ const toSeconds = (days: DaysValue): number | null =>
  * Editable form for the org's exporting settings. Split out from the panel so
  * the form's initial values are captured from the loaded settings exactly once
  * (keyed remount on the effective values), never clobbered by a refetch.
+ *
+ * `availableChannels` are the delivery methods actually configured for this org
+ * (Slack installed, Teams/Email enabled, Google Chat flag) — we only show a
+ * per-channel override for methods the org can use. Hidden channels keep any
+ * stored override (we never clear it just because the UI doesn't render it).
  */
-const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
-    settings,
-}) => {
+const ExportingForm: FC<{
+    settings: OrganizationSettings;
+    availableChannels: ReadonlyArray<(typeof CHANNELS)[number]>;
+}> = ({ settings, availableChannels }) => {
     const update = useUpdateOrganizationSettings();
 
     // Base is an effective number (resolved against the env); per-channel
@@ -64,6 +71,7 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
         email: settings.scheduledDeliveryExpirationSecondsEmail,
         slack: settings.scheduledDeliveryExpirationSecondsSlack,
         msteams: settings.scheduledDeliveryExpirationSecondsMsTeams,
+        googlechat: settings.scheduledDeliveryExpirationSecondsGoogleChat,
     };
     const initial = {
         base: Math.max(
@@ -80,6 +88,7 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
         email: toDays(initialChannels.email),
         slack: toDays(initialChannels.slack),
         msteams: toDays(initialChannels.msteams),
+        googlechat: toDays(initialChannels.googlechat),
     };
 
     const form = useForm({ initialValues: initial });
@@ -100,6 +109,8 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
                 effectiveChannelSeconds('slack'),
             scheduledDeliveryExpirationSecondsMsTeams:
                 effectiveChannelSeconds('msteams'),
+            scheduledDeliveryExpirationSecondsGoogleChat:
+                effectiveChannelSeconds('googlechat'),
         };
         update.mutate(patch);
     });
@@ -115,7 +126,7 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
             <Stack gap="lg">
                 <NumberInput
                     label="Download link expiry"
-                    description={`How long a scheduled delivery's download links stay valid. Links longer than ${S3_MAX_DAYS} days automatically use persistent download links.`}
+                    description="How long a scheduled delivery's download links stay valid before they expire."
                     suffix=" days"
                     min={1}
                     max={MAX_DAYS}
@@ -125,65 +136,77 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
                     {...form.getInputProps('base')}
                 />
 
-                <Checkbox
-                    label="Set a different expiry for specific channels"
-                    description="When off, every channel uses the expiry above."
-                    {...form.getInputProps('perChannelEnabled', {
-                        type: 'checkbox',
-                    })}
-                />
+                {availableChannels.length > 0 && (
+                    <>
+                        <Checkbox
+                            label="Set a different expiry for specific channels"
+                            description="When off, every channel uses the expiry above."
+                            {...form.getInputProps('perChannelEnabled', {
+                                type: 'checkbox',
+                            })}
+                        />
 
-                {form.values.perChannelEnabled && (
-                    <Stack gap="xs">
-                        {CHANNELS.map((channel) => {
-                            const isOverridden =
-                                form.values[channel.key] !== '';
-                            return (
-                                <Group key={channel.key} gap="sm" wrap="nowrap">
-                                    <Text w={120} fz="sm">
-                                        {channel.label}
-                                    </Text>
-                                    <NumberInput
-                                        aria-label={`${channel.label} link expiry`}
-                                        placeholder={`Inherits ${baseDays} days`}
-                                        suffix=" days"
-                                        min={1}
-                                        max={MAX_DAYS}
-                                        clampBehavior="strict"
-                                        allowDecimal={false}
-                                        allowNegative={false}
-                                        hideControls
-                                        flex={1}
-                                        rightSection={
-                                            isOverridden ? (
-                                                <Tooltip label="Clear — inherit the expiry above">
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="gray"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            form.setFieldValue(
-                                                                channel.key,
-                                                                '',
-                                                            )
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconX}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            ) : null
-                                        }
-                                        rightSectionPointerEvents={
-                                            isOverridden ? 'all' : 'none'
-                                        }
-                                        {...form.getInputProps(channel.key)}
-                                    />
-                                </Group>
-                            );
-                        })}
-                    </Stack>
+                        {form.values.perChannelEnabled && (
+                            <Stack gap="xs">
+                                {availableChannels.map((channel) => {
+                                    const isOverridden =
+                                        form.values[channel.key] !== '';
+                                    return (
+                                        <Group
+                                            key={channel.key}
+                                            gap="sm"
+                                            wrap="nowrap"
+                                        >
+                                            <Text w={120} fz="sm">
+                                                {channel.label}
+                                            </Text>
+                                            <NumberInput
+                                                aria-label={`${channel.label} link expiry`}
+                                                placeholder={`Inherits ${baseDays} days`}
+                                                suffix=" days"
+                                                min={1}
+                                                max={MAX_DAYS}
+                                                clampBehavior="strict"
+                                                allowDecimal={false}
+                                                allowNegative={false}
+                                                hideControls
+                                                flex={1}
+                                                rightSection={
+                                                    isOverridden ? (
+                                                        <Tooltip label="Clear — inherit the expiry above">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    form.setFieldValue(
+                                                                        channel.key,
+                                                                        '',
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={IconX}
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    ) : null
+                                                }
+                                                rightSectionPointerEvents={
+                                                    isOverridden
+                                                        ? 'all'
+                                                        : 'none'
+                                                }
+                                                {...form.getInputProps(
+                                                    channel.key,
+                                                )}
+                                            />
+                                        </Group>
+                                    );
+                                })}
+                            </Stack>
+                        )}
+                    </>
                 )}
 
                 <Group justify="flex-end">
@@ -202,10 +225,24 @@ const ExportingForm: FC<{ settings: OrganizationSettings }> = ({
 
 const ExportingPanel: FC = () => {
     const { data, isInitialLoading } = useOrganizationSettings();
+    const health = useHealth();
+    const { data: slackInstallation } = useGetSlack();
+    const { data: googleChatFlag } = useServerFeatureFlag(
+        FeatureFlags.GoogleChatEnabled,
+    );
 
     if (isInitialLoading || !data) {
         return <Loader />;
     }
+
+    // Only offer a per-channel override for delivery methods the org can use.
+    const isAvailable: Record<ChannelKey, boolean> = {
+        email: health.data?.hasEmailClient ?? false,
+        slack: !!slackInstallation?.organizationUuid,
+        msteams: health.data?.hasMicrosoftTeams ?? false,
+        googlechat: googleChatFlag?.enabled === true,
+    };
+    const availableChannels = CHANNELS.filter((c) => isAvailable[c.key]);
 
     // Remount when the effective values change so the form re-seeds from server
     // state without a clobbering useEffect.
@@ -216,8 +253,10 @@ const ExportingPanel: FC = () => {
                 data.scheduledDeliveryExpirationSecondsEmail,
                 data.scheduledDeliveryExpirationSecondsSlack,
                 data.scheduledDeliveryExpirationSecondsMsTeams,
+                data.scheduledDeliveryExpirationSecondsGoogleChat,
             ].join('-')}
             settings={data}
+            availableChannels={availableChannels}
         />
     );
 };

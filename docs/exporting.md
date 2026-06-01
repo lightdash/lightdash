@@ -30,16 +30,22 @@ the raw-vs-persistent URL choice automatic ("transparent") so users never have t
 | **Download link expiry** (base) | `scheduled_delivery_expiration_seconds`         | Default lifetime (seconds) for every channel. Resolved to an effective number in the API. |
 | **Email** override     | `scheduled_delivery_expiration_seconds_email`   | Optional. `null` ⇒ inherit the base.                                    |
 | **Slack** override     | `scheduled_delivery_expiration_seconds_slack`   | Optional. `null` ⇒ inherit the base.                                    |
-| **Microsoft Teams** override | `scheduled_delivery_expiration_seconds_msteams` | Optional. `null` ⇒ inherit the base.                                    |
+| **Microsoft Teams** override | `scheduled_delivery_expiration_seconds_msteams` | Optional. `null` ⇒ inherit the base.                              |
+| **Google Chat** override | `scheduled_delivery_expiration_seconds_googlechat` | Optional. `null` ⇒ inherit the base. Org-only (no env var).      |
 
-All four live on the `organization_settings` table (one row per org). `null`/absent means "inherit", so an
+All five live on the `organization_settings` table (one row per org). `null`/absent means "inherit", so an
 org with no row behaves exactly like the instance defaults.
 
 Per-channel overrides are surfaced raw in the API (`null` = inherit) so the UI can distinguish "not set" from
 an explicit value; the base is surfaced resolved (always an effective number) so the frontend can display it
 without knowing the env defaults.
 
-> **Google Chat** has no per-channel env var, so it always inherits the base.
+> **Google Chat** has no instance env var (`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_*`), so its override is
+> org-only and falls back straight to the base (then env base).
+
+The UI only shows a per-channel override for delivery methods the org can actually use — Slack (installed),
+Email (`hasEmailClient`), Microsoft Teams (`hasMicrosoftTeams`), Google Chat (`GoogleChatEnabled` flag). A
+stored override on a method that later becomes unavailable is preserved, just not shown.
 
 ---
 
@@ -164,7 +170,8 @@ switch to the persistent system. The frontend uses a generous 1–365 day input 
 ## Frontend (Exporting panel)
 
 - **Download link expiry** — base, full-width number input (days), with steppers.
-- **Set a different expiry for specific channels** — a checkbox that reveals per-channel rows (Email / Slack /
-  Microsoft Teams), one line each, full-width inputs. Each input shows a clear (✕) affordance to reset to
-  "inherit the base"; blank ⇒ inherit.
+- **Set a different expiry for specific channels** — a checkbox that reveals per-channel rows (one line each,
+  full-width inputs) for the delivery methods the org has available (Email / Slack / Microsoft Teams / Google
+  Chat). Each input shows a clear (✕) affordance to reset to "inherit the base"; blank ⇒ inherit. The whole
+  section is hidden if no delivery method is available.
 - Unticking the checkbox (or clearing a row) and saving writes `null` for those channels.

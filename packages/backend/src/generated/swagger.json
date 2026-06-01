@@ -29486,6 +29486,12 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "scheduledDeliveryExpirationSecondsGoogleChat": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Google Chat deliveries; `null` inherits\nthe base. Google Chat has no instance env var, so this is an org-only\noverride (it still falls back to the base / env base)."
+                    },
                     "scheduledDeliveryExpirationSecondsMsTeams": {
                         "type": "number",
                         "format": "double",
@@ -29527,6 +29533,7 @@
                     }
                 },
                 "required": [
+                    "scheduledDeliveryExpirationSecondsGoogleChat",
                     "scheduledDeliveryExpirationSecondsMsTeams",
                     "scheduledDeliveryExpirationSecondsSlack",
                     "scheduledDeliveryExpirationSecondsEmail",
@@ -29592,6 +29599,12 @@
                         "format": "double",
                         "nullable": true,
                         "description": "Per-channel override (seconds) for Microsoft Teams deliveries; `null`\ninherits the base. Overrides `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS`."
+                    },
+                    "scheduledDeliveryExpirationSecondsGoogleChat": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Per-channel override (seconds) for Google Chat deliveries; `null` inherits\nthe base. Google Chat has no instance env var, so this is an org-only\noverride (it still falls back to the base / env base)."
                     }
                 },
                 "type": "object",

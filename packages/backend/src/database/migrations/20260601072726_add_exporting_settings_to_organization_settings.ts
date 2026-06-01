@@ -5,6 +5,7 @@ const BASE_COLUMN = 'scheduled_delivery_expiration_seconds';
 const EMAIL_COLUMN = 'scheduled_delivery_expiration_seconds_email';
 const SLACK_COLUMN = 'scheduled_delivery_expiration_seconds_slack';
 const MSTEAMS_COLUMN = 'scheduled_delivery_expiration_seconds_msteams';
+const GOOGLECHAT_COLUMN = 'scheduled_delivery_expiration_seconds_googlechat';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(ORGANIZATION_SETTINGS_TABLE, (table) => {
@@ -16,6 +17,7 @@ export async function up(knex: Knex): Promise<void> {
         table.integer(EMAIL_COLUMN).nullable();
         table.integer(SLACK_COLUMN).nullable();
         table.integer(MSTEAMS_COLUMN).nullable();
+        table.integer(GOOGLECHAT_COLUMN).nullable();
     });
 }
 
@@ -25,5 +27,6 @@ export async function down(knex: Knex): Promise<void> {
         table.dropColumn(EMAIL_COLUMN);
         table.dropColumn(SLACK_COLUMN);
         table.dropColumn(MSTEAMS_COLUMN);
+        table.dropColumn(GOOGLECHAT_COLUMN);
     });
 }

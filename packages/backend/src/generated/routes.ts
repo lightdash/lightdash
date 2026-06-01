@@ -28689,6 +28689,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                scheduledDeliveryExpirationSecondsGoogleChat: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 scheduledDeliveryExpirationSecondsMsTeams: {
                     dataType: 'union',
                     subSchemas: [
@@ -28816,6 +28824,14 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 scheduledDeliveryExpirationSecondsMsTeams: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                scheduledDeliveryExpirationSecondsGoogleChat: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },

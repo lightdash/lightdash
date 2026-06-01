@@ -23,6 +23,7 @@ export type DbOrganizationSettings = {
     scheduled_delivery_expiration_seconds_email: number | null;
     scheduled_delivery_expiration_seconds_slack: number | null;
     scheduled_delivery_expiration_seconds_msteams: number | null;
+    scheduled_delivery_expiration_seconds_googlechat: number | null;
     created_at: Date;
     updated_at: Date;
 };

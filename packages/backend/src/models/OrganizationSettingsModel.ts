@@ -54,6 +54,8 @@ export class OrganizationSettingsModel {
                 row?.scheduled_delivery_expiration_seconds_slack ?? null,
             scheduledDeliveryExpirationSecondsMsTeams:
                 row?.scheduled_delivery_expiration_seconds_msteams ?? null,
+            scheduledDeliveryExpirationSecondsGoogleChat:
+                row?.scheduled_delivery_expiration_seconds_googlechat ?? null,
         };
     }
 
@@ -78,6 +80,8 @@ export class OrganizationSettingsModel {
                 patch.scheduledDeliveryExpirationSecondsSlack,
             scheduled_delivery_expiration_seconds_msteams:
                 patch.scheduledDeliveryExpirationSecondsMsTeams,
+            scheduled_delivery_expiration_seconds_googlechat:
+                patch.scheduledDeliveryExpirationSecondsGoogleChat,
         };
         const toWrite = omitBy(
             columns,

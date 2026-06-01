@@ -48,6 +48,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
                 scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 
@@ -68,6 +69,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
                 scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 
@@ -85,6 +87,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
                 scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 
@@ -104,6 +107,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: 1209600,
                 scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
     });
@@ -143,6 +147,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
                 scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
             });
         });
 

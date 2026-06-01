@@ -21,6 +21,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             scheduledDeliveryExpirationSecondsEmail: null,
             scheduledDeliveryExpirationSecondsSlack: null,
             scheduledDeliveryExpirationSecondsMsTeams: null,
+            scheduledDeliveryExpirationSecondsGoogleChat: null,
         });
     });
 
@@ -47,6 +48,9 @@ describe('resolveEffectiveOrganizationSettings', () => {
         expect(resolved.scheduledDeliveryExpirationSecondsSlack).toBe(1209600);
         expect(resolved.scheduledDeliveryExpirationSecondsEmail).toBeNull();
         expect(resolved.scheduledDeliveryExpirationSecondsMsTeams).toBeNull();
+        expect(
+            resolved.scheduledDeliveryExpirationSecondsGoogleChat,
+        ).toBeNull();
     });
 
     test('support impersonation is opt-in only (no env default)', () => {

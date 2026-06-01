@@ -360,13 +360,11 @@ export default class SchedulerTask {
         const settings =
             await this.organizationSettingsModel.get(organizationUuid);
         const pdu = this.lightdashConfig.persistentDownloadUrls;
-        // Google Chat has no per-channel override (env or org), so it always
-        // inherits the base.
         const orgChannel: number | null = {
             email: settings.scheduledDeliveryExpirationSecondsEmail,
             slack: settings.scheduledDeliveryExpirationSecondsSlack,
             msteams: settings.scheduledDeliveryExpirationSecondsMsTeams,
-            googlechat: null,
+            googlechat: settings.scheduledDeliveryExpirationSecondsGoogleChat,
         }[channel];
         const envChannel: number | undefined = {
             email: pdu.expirationSecondsEmail,
@@ -1229,7 +1227,7 @@ export default class SchedulerTask {
                     timezone || defaultSchedulerTimezone,
                 )} from Lightdash.\n${
                     showExpirationWarning
-                        ? `For security reasons, delivered files expire after *${slackExpirationDays}* days.`
+                        ? `Delivered files expire after *${slackExpirationDays}* days.`
                         : ''
                 }`,
                 includeLinks,
@@ -1252,7 +1250,7 @@ export default class SchedulerTask {
                         : 'data alert';
 
                     const expiration = slackImageUrl.expiring
-                        ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
+                        ? `Delivered files expire after ${slackExpirationDays} days.`
                         : '';
 
                     const blocks = getChartThresholdAlertBlocks({
@@ -1280,7 +1278,7 @@ export default class SchedulerTask {
                     );
 
                 const expiration = slackImageUrl.expiring
-                    ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
+                    ? `Delivered files expire after ${slackExpirationDays} days.`
                     : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
@@ -2618,7 +2616,7 @@ export default class SchedulerTask {
                     details.description || '',
                     thresholdMessage,
                     new Date().toLocaleDateString('en-GB'),
-                    `For security reasons, delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
+                    `Delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
                     imageUrl,
                     url,
                     schedulerUrl,
