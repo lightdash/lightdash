@@ -42,6 +42,7 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
+import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
@@ -104,6 +105,7 @@ export type ModelManifest = {
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     projectCompileLogModel: ProjectCompileLogModel;
+    pullRequestsModel: PullRequestsModel;
     resourceViewItemModel: ResourceViewItemModel;
     rolesModel: RolesModel;
     savedChartModel: SavedChartModel;
@@ -339,6 +341,13 @@ export class ModelRepository
         return this.getModel(
             'groupsModel',
             () => new GroupsModel({ database: this.database }),
+        );
+    }
+
+    public getPullRequestsModel(): PullRequestsModel {
+        return this.getModel(
+            'pullRequestsModel',
+            () => new PullRequestsModel({ database: this.database }),
         );
     }
 

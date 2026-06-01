@@ -214,6 +214,10 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    PullRequestsTable,
+    PullRequestsTableName,
+} from '../database/entities/pullRequests';
+import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
@@ -515,6 +519,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;

@@ -71,13 +71,15 @@ export type DbAiWritebackThread = {
     ai_thread_uuid: string;
     sandbox_id: string;
     pr_url: string;
+    pull_request_uuid: string | null;
     created_at: Date;
 };
 
 export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
-    Pick<DbAiWritebackThread, 'ai_thread_uuid' | 'sandbox_id' | 'pr_url'>,
-    Pick<DbAiWritebackThread, 'sandbox_id'>
+    Pick<DbAiWritebackThread, 'ai_thread_uuid' | 'sandbox_id' | 'pr_url'> &
+        Partial<Pick<DbAiWritebackThread, 'pull_request_uuid'>>,
+    Pick<DbAiWritebackThread, 'sandbox_id' | 'pull_request_uuid'>
 >;
 
 export const AiPromptTableName = 'ai_prompt';
