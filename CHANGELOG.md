@@ -1,3 +1,10 @@
+# [0.3068.0](https://github.com/lightdash/lightdash/compare/0.3067.0...0.3068.0) (2026-06-01)
+
+
+### Features
+
+* **data-apps:** show on-chart value labels by default in PDF reports ([#23720](https://github.com/lightdash/lightdash/issues/23720)) ([f04b68d](https://github.com/lightdash/lightdash/commit/f04b68d4fdad5cbf6667adb234053b10219a20c2)), closes [#23714](https://github.com/lightdash/lightdash/issues/23714)
+
 # [0.3067.0](https://github.com/lightdash/lightdash/compare/0.3066.0...0.3067.0) (2026-06-01)
 
 
