@@ -23,12 +23,16 @@ import type {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import {
+    createBranch,
     createPullRequest,
+    createSignedCommitOnBranch,
     getAuthenticatedUser,
+    getBranchHeadSha,
     getInstallationToken,
     getOrRefreshToken,
     updatePullRequest,
 } from '../../../clients/github/Github';
+import type { GithubFileChanges } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -198,12 +202,12 @@ export class AiWritebackService extends BaseService {
 
     /**
      * Resolve GitHub auth for the organization. The installation access token
-     * authenticates the in-sandbox clone/push. We additionally resolve the
-     * OAuth user identity (the user who connected the GitHub App for the org)
-     * so the pull request is opened — and the commits authored — as a real
-     * user instead of the Lightdash app. Best-effort: any failure resolving the
-     * user identity falls back to the app installation + bot author. Throws only
-     * when no installation exists at all.
+     * authenticates the in-sandbox clone. We additionally resolve the OAuth user
+     * identity (the user who connected the GitHub App for the org) so the pull
+     * request is opened — and the signed commits authored — as a real user
+     * instead of the Lightdash app. Best-effort: any failure resolving the user
+     * identity falls back to the app installation + bot author. Throws only when
+     * no installation exists at all.
      */
     private async getGithubInstallation(
         organizationUuid: string,
@@ -496,6 +500,95 @@ export class AiWritebackService extends BaseService {
             CWD,
             scopedToProject ? { files: [projectSubPath] } : { all: true },
         );
+    }
+
+    /**
+     * Read the staged changes out of the sandbox as a set of file additions and
+     * deletions for a GitHub API commit. `-z` keeps paths NUL-separated so paths
+     * with spaces survive; `--no-renames` collapses renames into delete + add so
+     * each record is a simple (status, path) pair. Paths are repo-root-relative,
+     * which is what `createCommitOnBranch` expects.
+     */
+    private static async collectFileChanges(
+        sandbox: Sandbox,
+    ): Promise<GithubFileChanges> {
+        const { stdout } = await sandbox.commands.run(
+            `git -C ${CWD} diff --cached --name-status --no-renames -z`,
+        );
+        const parts = stdout.split('\0').filter((p) => p.length > 0);
+        const addPaths: string[] = [];
+        const deletions: { path: string }[] = [];
+        for (let i = 0; i + 1 < parts.length; i += 2) {
+            const status = parts[i];
+            const path = parts[i + 1];
+            if (status.startsWith('D')) {
+                deletions.push({ path });
+            } else {
+                addPaths.push(path);
+            }
+        }
+        const additions = await Promise.all(
+            addPaths.map(async (path) => ({
+                path,
+                contents: Buffer.from(
+                    await sandbox.files.read(`${CWD}/${path}`),
+                    'utf-8',
+                ).toString('base64'),
+            })),
+        );
+        return { additions, deletions };
+    }
+
+    /**
+     * Stage the agent's edits and commit them to `branch` via the GitHub API so
+     * the commit is signed/verified and authored by the user (or the app, when
+     * no user token is available). A local commit is also made — never pushed —
+     * purely to advance the sandbox HEAD so a subsequent resume turn's staged
+     * diff contains only that turn's edits.
+     */
+    private async commitChangesToBranch({
+        sandbox,
+        githubConnection,
+        branch,
+        expectedHeadOid,
+        title,
+        description,
+        commitAuthor,
+        prToken,
+        installationId,
+        setStage,
+    }: {
+        sandbox: Sandbox;
+        githubConnection: GithubConnection;
+        branch: string;
+        expectedHeadOid: string;
+        title: string;
+        description: string;
+        commitAuthor: GithubCommitAuthor;
+        prToken: string | null;
+        installationId: string;
+        setStage: SetStage;
+    }): Promise<void> {
+        setStage('commit');
+        await this.stageChanges(sandbox, githubConnection.projectSubPath);
+        const fileChanges =
+            await AiWritebackService.collectFileChanges(sandbox);
+        await sandbox.git.commit(CWD, title, {
+            authorName: commitAuthor.name,
+            authorEmail: commitAuthor.email,
+        });
+
+        setStage('push');
+        await createSignedCommitOnBranch({
+            owner: githubConnection.owner,
+            repo: githubConnection.repo,
+            branch,
+            expectedHeadOid,
+            headline: title,
+            body: description,
+            fileChanges,
+            ...(prToken ? { token: prToken } : { installationId }),
+        });
     }
 
     /**
@@ -1323,7 +1416,6 @@ export class AiWritebackService extends BaseService {
                 existingRow: turn.existingRow,
                 githubConnection: turn.githubConnection,
                 installationId: github.installationId,
-                token: github.token,
                 prToken: github.prToken,
                 commitAuthor: github.commitAuthor,
                 setStage,
@@ -1343,7 +1435,6 @@ export class AiWritebackService extends BaseService {
         const prUrl = await this.openInitialPullRequest({
             sandbox,
             githubConnection: turn.githubConnection,
-            token: github.token,
             installationId: github.installationId,
             prToken: github.prToken,
             commitAuthor: github.commitAuthor,
@@ -1394,7 +1485,6 @@ export class AiWritebackService extends BaseService {
     private async openInitialPullRequest({
         sandbox,
         githubConnection,
-        token,
         installationId,
         prToken,
         commitAuthor,
@@ -1404,7 +1494,6 @@ export class AiWritebackService extends BaseService {
     }: {
         sandbox: Sandbox;
         githubConnection: GithubConnection;
-        token: string;
         installationId: string;
         prToken: string | null;
         commitAuthor: GithubCommitAuthor;
@@ -1436,22 +1525,37 @@ export class AiWritebackService extends BaseService {
             ));
 
         const branch = `lightdash-ai-writeback/${randomUUID()}`;
+        const auth = prToken ? { token: prToken } : { installationId };
 
-        setStage('commit');
-        await sandbox.git.createBranch(CWD, branch);
-        await this.stageChanges(sandbox, githubConnection.projectSubPath);
-        await sandbox.git.commit(CWD, title, {
-            authorName: commitAuthor.name,
-            authorEmail: commitAuthor.email,
+        // Create the feature branch on the remote at the base tip, then commit
+        // onto it via the API so the commit is signed/verified. expectedHeadOid
+        // is the base tip we just branched from.
+        const baseOid = await getBranchHeadSha({
+            owner: githubConnection.owner,
+            repo: githubConnection.repo,
+            branch: baseBranch,
+            ...auth,
         });
-
-        setStage('push');
-        await sandbox.git.push(CWD, {
-            remote: 'origin',
+        await createBranch({
+            owner: githubConnection.owner,
+            repo: githubConnection.repo,
+            sha: baseOid,
             branch,
-            setUpstream: true,
-            username: GIT_USERNAME,
-            password: token,
+            ...auth,
+        });
+        await sandbox.git.createBranch(CWD, branch);
+
+        await this.commitChangesToBranch({
+            sandbox,
+            githubConnection,
+            branch,
+            expectedHeadOid: baseOid,
+            title,
+            description,
+            commitAuthor,
+            prToken,
+            installationId,
+            setStage,
         });
 
         setStage('pull_request');
@@ -1465,7 +1569,7 @@ export class AiWritebackService extends BaseService {
             body: description,
             head: branch,
             base: baseBranch,
-            ...(prToken ? { token: prToken } : { installationId }),
+            ...auth,
         });
         return pr.html_url;
     }
@@ -1482,7 +1586,6 @@ export class AiWritebackService extends BaseService {
         existingRow,
         githubConnection,
         installationId,
-        token,
         prToken,
         commitAuthor,
         setStage,
@@ -1493,7 +1596,6 @@ export class AiWritebackService extends BaseService {
         existingRow: AiWritebackThreadWithPrUrl;
         githubConnection: GithubConnection;
         installationId: string;
-        token: string;
         prToken: string | null;
         commitAuthor: GithubCommitAuthor;
         setStage: SetStage;
@@ -1515,25 +1617,42 @@ export class AiWritebackService extends BaseService {
                 'Follow-up changes from the Lightdash AI writeback agent.',
             ));
 
-        setStage('commit');
-        await this.stageChanges(sandbox, githubConnection.projectSubPath);
-        await sandbox.git.commit(CWD, title, {
-            authorName: commitAuthor.name,
-            authorEmail: commitAuthor.email,
-        });
-
-        setStage('push');
-        await sandbox.git.push(CWD, {
-            remote: 'origin',
-            username: GIT_USERNAME,
-            password: token,
-        });
-
         if (!existingRow.pr_url) {
             throw new ParameterError(
                 'Cannot update pull request: the writeback thread is not linked to a pull request',
             );
         }
+
+        const auth = prToken ? { token: prToken } : { installationId };
+
+        // The resumed sandbox is still on the feature branch from the prior
+        // turn. Commit this turn's edits onto it via the API (signed) using the
+        // branch's current remote tip as expectedHeadOid.
+        const featureBranch = (await sandbox.git.status(CWD)).currentBranch;
+        if (!featureBranch) {
+            throw new ParameterError(
+                'Cannot update pull request: the sandbox is not on a feature branch',
+            );
+        }
+        const expectedHeadOid = await getBranchHeadSha({
+            owner: githubConnection.owner,
+            repo: githubConnection.repo,
+            branch: featureBranch,
+            ...auth,
+        });
+
+        await this.commitChangesToBranch({
+            sandbox,
+            githubConnection,
+            branch: featureBranch,
+            expectedHeadOid,
+            title,
+            description,
+            commitAuthor,
+            prToken,
+            installationId,
+            setStage,
+        });
 
         setStage('pull_request');
         // Patch the PR as the user when their OAuth token is available; fall
@@ -1544,7 +1663,7 @@ export class AiWritebackService extends BaseService {
             pullNumber: AiWritebackService.parsePullNumber(existingRow.pr_url),
             title,
             body: description,
-            ...(prToken ? { token: prToken } : { installationId }),
+            ...auth,
         });
     }
 

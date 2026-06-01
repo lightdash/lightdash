@@ -235,6 +235,99 @@ export const createBranch = async ({
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
+export const getBranchHeadSha = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.git.getRef({
+            owner,
+            repo,
+            ref: `heads/${branch}`,
+            headers,
+        });
+        return data.object.sha;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+export type GithubFileChanges = {
+    /** `contents` is the base64-encoded file content, as required by the API. */
+    additions: { path: string; contents: string }[];
+    deletions: { path: string }[];
+};
+
+/**
+ * Create a commit on a branch via the GitHub GraphQL `createCommitOnBranch`
+ * mutation. Unlike a pushed git commit, an API commit is signed by GitHub
+ * server-side (shows as "Verified") and authored by the credential's identity —
+ * the committer cannot be spoofed, which is exactly what makes it verifiable.
+ * Pass a user `token` to attribute (and sign) the commit as that user, or an
+ * `installationId` to attribute it to the app. `expectedHeadOid` must be the
+ * current tip of `branch` (optimistic concurrency).
+ */
+export const createSignedCommitOnBranch = async ({
+    owner,
+    repo,
+    branch,
+    expectedHeadOid,
+    headline,
+    body,
+    fileChanges,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    expectedHeadOid: string;
+    headline: string;
+    body: string;
+    fileChanges: GithubFileChanges;
+    installationId?: string;
+    token?: string;
+}): Promise<{ oid: string; url: string }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    const mutation = `mutation($input: CreateCommitOnBranchInput!) {
+        createCommitOnBranch(input: $input) {
+            commit {
+                oid
+                url
+            }
+        }
+    }`;
+    try {
+        const response = await octokit.graphql<{
+            createCommitOnBranch: { commit: { oid: string; url: string } };
+        }>(mutation, {
+            input: {
+                branch: {
+                    repositoryNameWithOwner: `${owner}/${repo}`,
+                    branchName: branch,
+                },
+                message: { headline, body },
+                expectedHeadOid,
+                fileChanges,
+            },
+            headers,
+        });
+        return response.createCommitOnBranch.commit;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => {
