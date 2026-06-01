@@ -40,6 +40,34 @@ if (user.ability.cannot('manage', subject('Dashboard', { projectUuid }))) {
 }
 ```
 
+### CASL Subject Scoping: Resource, Not Actor
+
+CASL actor is passed before the check:
+
+```typescript
+getUserAbilityBuilder({
+    user: lightdashUser, // actor
+    projectProfiles,
+    permissionsConfig,
+});
+
+const ability = this.createAuditedAbility(accountOrUser); // actor
+```
+
+`subject(...)` must describe only the target resource:
+
+```typescript
+ability.can(
+    'manage',
+    subject('X', {
+        organizationUuid: target.organizationUuid,
+        projectUuid: target.projectUuid,
+    }),
+);
+```
+
+Never fill `subject(...)` from actor fields like `user.organizationUuid`. Org-level grants may only check `organizationUuid`, so actor-sourced subject fields can become cross-org access on multi-org instances. Single-org dev hides it.
+
 **Frontend permission check:**
 ```typescript
 const { user } = useUser();
