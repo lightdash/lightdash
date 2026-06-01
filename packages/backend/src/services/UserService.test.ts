@@ -165,14 +165,17 @@ describe('UserService', () => {
             expect(userModel.findSessionUserByUUID).toHaveBeenCalledWith(
                 'userUuid',
             );
-            expect(userModel.findServiceAccountByUserUuid).toHaveBeenCalledWith(
-                'userUuid',
-            );
             expect(account.isSessionUser()).toBe(true);
             expect(account.isServiceAccount()).toBe(false);
         });
 
         test('should return a service account when the user backs a service account', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                serviceAccount: {
+                    enabled: true,
+                },
+            });
             (
                 userModel.findServiceAccountByUserUuid as jest.Mock
             ).mockResolvedValueOnce({
@@ -182,7 +185,7 @@ describe('UserService', () => {
                 organizationUuid: sessionUser.organizationUuid,
             });
 
-            const account = await userService.getAccountByUserUuid('userUuid');
+            const account = await service.getAccountByUserUuid('userUuid');
 
             expect(account.isServiceAccount()).toBe(true);
             expect(account.authentication).toMatchObject({
