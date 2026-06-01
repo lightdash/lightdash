@@ -946,6 +946,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { exploreName },
                 }),
             )
         ) {
@@ -1019,6 +1020,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { exploreName },
                 }),
             )
         ) {
@@ -1066,6 +1068,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { filePath, originalSha },
                 }),
             )
         ) {
@@ -1282,6 +1285,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { branch, path },
                 }),
             )
         ) {
@@ -1373,6 +1377,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
+                    metadata: { branch, path, sha },
                 }),
             )
         ) {
@@ -1472,6 +1477,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
+                    metadata: { branch, path, sha },
                 }),
             )
         ) {
@@ -1523,6 +1529,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { branchName, sourceBranch },
                 }),
             )
         ) {
@@ -1594,6 +1601,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { branch },
                 }),
             )
         ) {

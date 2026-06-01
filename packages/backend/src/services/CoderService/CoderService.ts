@@ -1085,6 +1085,7 @@ export class CoderService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     uuid: projectUuid,
+                    metadata: { contentType, contentUuid },
                 }),
             )
         ) {
@@ -1163,6 +1164,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    metadata: { slug },
                 }),
             )
         ) {
@@ -1389,6 +1391,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    metadata: { slug },
                 }),
             )
         ) {
@@ -1683,6 +1686,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    metadata: { slug },
                 }),
             )
         ) {

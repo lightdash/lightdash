@@ -1079,6 +1079,11 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        context,
+                        validationTargets,
+                        onlyValidateExploresInArgs,
+                    },
                 }),
             )
         ) {
@@ -1197,6 +1202,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: organizationUuid!,
                     projectUuid,
+                    metadata: { jobId, fromSettings },
                 }),
             )
         ) {
@@ -1332,6 +1338,11 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        jobId: options?.jobId,
+                        fromSettings: options?.fromSettings,
+                        searchQuery: options?.searchQuery,
+                    },
                 }),
             )
         ) {
@@ -1463,6 +1474,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid },
                 }),
             )
         ) {
@@ -1548,6 +1560,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { dashboardUuid },
                 }),
             )
         ) {

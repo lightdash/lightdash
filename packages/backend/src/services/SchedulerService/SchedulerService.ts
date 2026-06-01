@@ -307,6 +307,10 @@ export class SchedulerService extends BaseService {
                 organizationUuid,
                 projectUuid,
                 userUuid: scheduler.createdBy,
+                metadata: {
+                    schedulerUuid,
+                    createdByUserUuid: scheduler.createdBy,
+                },
             }),
         );
 
@@ -319,6 +323,10 @@ export class SchedulerService extends BaseService {
             subject('GoogleSheets', {
                 organizationUuid,
                 projectUuid,
+                metadata: {
+                    schedulerUuid,
+                    schedulerFormat: scheduler.format,
+                },
             }),
         );
 
@@ -357,6 +365,9 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            savedChartUuid: scheduler.savedChartUuid,
+                        },
                     }),
                 )
             )
@@ -380,6 +391,9 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            dashboardUuid: scheduler.dashboardUuid,
+                        },
                     }),
                 )
             )
@@ -406,6 +420,9 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            savedSqlUuid: scheduler.savedSqlUuid,
+                        },
                     }),
                 )
             )
@@ -429,6 +446,10 @@ export class SchedulerService extends BaseService {
                         projectUuid: app.project_uuid,
                         createdByUserUuid: app.created_by_user_uuid,
                         ...spaceContext,
+                        metadata: {
+                            appUuid: scheduler.appUuid,
+                            createdByUserUuid: app.created_by_user_uuid,
+                        },
                     }),
                 )
             )
@@ -516,6 +537,10 @@ export class SchedulerService extends BaseService {
                     projectUuid: app.project_uuid,
                     createdByUserUuid: app.created_by_user_uuid,
                     ...spaceContext,
+                    metadata: {
+                        appUuid,
+                        createdByUserUuid: app.created_by_user_uuid,
+                    },
                 }),
             )
         ) {
@@ -527,6 +552,9 @@ export class SchedulerService extends BaseService {
                 subject('ScheduledDeliveries', {
                     organizationUuid: app.organization_uuid,
                     projectUuid: app.project_uuid,
+                    metadata: {
+                        appUuid,
+                    },
                 }),
             )
         ) {
@@ -894,6 +922,10 @@ export class SchedulerService extends BaseService {
                         organizationUuid,
                         projectUuid,
                         userUuid: scheduler.createdBy,
+                        metadata: {
+                            schedulerUuid: scheduler.schedulerUuid,
+                            createdByUserUuid: scheduler.createdBy,
+                        },
                     }),
                 )
             ) {
@@ -1047,6 +1079,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            savedChartUuid: chartUuid,
+                        },
                     }),
                 )
             ) {
@@ -1103,6 +1138,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            dashboardUuid,
+                        },
                     }),
                 )
             ) {
@@ -1158,6 +1196,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            savedChartUuid: chartUuid,
+                        },
                     }),
                 )
             ) {
@@ -1209,6 +1250,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            dashboardUuid,
+                        },
                     }),
                 )
             ) {
@@ -1260,6 +1304,10 @@ export class SchedulerService extends BaseService {
                     projectUuid: job.details?.projectUuid,
                     organizationUuid: job.details?.organizationUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
+                    metadata: {
+                        jobId,
+                        createdByUserUuid: job.details?.createdByUserUuid,
+                    },
                 }),
             )
         ) {
@@ -1332,6 +1380,10 @@ export class SchedulerService extends BaseService {
                     organizationUuid: job.details?.organizationUuid,
                     projectUuid: job.details?.projectUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
+                    metadata: {
+                        jobId,
+                        createdByUserUuid: job.details?.createdByUserUuid,
+                    },
                 }),
             )
         ) {
@@ -1612,6 +1664,11 @@ export class SchedulerService extends BaseService {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                     userUuid: scheduler.createdBy,
+                    metadata: {
+                        schedulerUuid: runLogs.schedulerUuid,
+                        runId,
+                        createdByUserUuid: scheduler.createdBy,
+                    },
                 }),
             )
         ) {
@@ -1677,6 +1734,10 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        metadata: {
+                            targetUserUuid,
+                            projectName: project.projectName,
+                        },
                     }),
                 ),
             )
@@ -1741,6 +1802,11 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        metadata: {
+                            fromUserUuid,
+                            newOwnerUserUuid,
+                            projectName: project.projectName,
+                        },
                     }),
                 )
             ) {

@@ -1367,6 +1367,10 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        resolvedSpaceUuid,
+                        dashboardUuid: savedChart.dashboardUuid,
+                    },
                 }),
             )
         ) {
@@ -1705,6 +1709,7 @@ export class SavedChartService
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     userUuid: scheduler.createdBy,
+                    metadata: { chartUuid, schedulerUuid },
                 }),
             )
         ) {
@@ -2055,6 +2060,10 @@ export class SavedChartService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access: spaceAccess,
+                metadata: {
+                    savedChartUuid: resource.savedChartUuid,
+                    spaceUuid,
+                },
             }),
         );
 
@@ -2081,6 +2090,10 @@ export class SavedChartService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpaceInheritsFromOrgOrProject,
                     access: newSpaceAccess,
+                    metadata: {
+                        savedChartUuid: resource.savedChartUuid,
+                        spaceUuid: resource.spaceUuid,
+                    },
                 }),
             );
 

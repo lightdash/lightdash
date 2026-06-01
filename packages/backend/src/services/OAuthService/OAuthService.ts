@@ -165,6 +165,7 @@ export class OAuthService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid: account.organization.organizationUuid,
+                    metadata: { clientName },
                 }),
             )
         ) {

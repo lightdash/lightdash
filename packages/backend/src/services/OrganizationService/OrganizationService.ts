@@ -264,7 +264,10 @@ export class OrganizationService extends BaseService {
         let members = organizationMembers.filter((member) =>
             auditedAbility.can(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             ),
         );
 
@@ -374,7 +377,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -403,7 +409,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -424,7 +433,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'update',
-                subject('OrganizationMemberProfile', { organizationUuid }),
+                subject('OrganizationMemberProfile', {
+                    organizationUuid,
+                    metadata: { userUuid: memberUserUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -592,6 +604,7 @@ export class OrganizationService extends BaseService {
                 'create',
                 subject('Group', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { groupName: createGroup.name },
                 }),
             )
         ) {
@@ -640,7 +653,16 @@ export class OrganizationService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(user);
         const allowedGroups = groups.filter((group) =>
-            auditedAbility.can('view', subject('Group', group)),
+            auditedAbility.can(
+                'view',
+                subject('Group', {
+                    ...group,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
+                }),
+            ),
         );
 
         if (includeMembers === undefined) {
@@ -723,6 +745,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {
@@ -753,6 +776,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {
@@ -776,6 +800,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {
