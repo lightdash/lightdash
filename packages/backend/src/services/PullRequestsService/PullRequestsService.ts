@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    extractPreviewUrlFromComments,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     PullRequest,
+    PullRequestPreview,
     PullRequestProvider,
     PullRequestState,
     PullRequestWithStatus,
@@ -186,5 +188,79 @@ export class PullRequestsService extends BaseService {
             }),
             pagination,
         };
+    }
+
+    /**
+     * Resolve the Lightdash preview-environment URL for a write-back pull
+     * request, identified by its URL within a project. The preview is created
+     * asynchronously by the dbt repo's CI, which comments the URL on the PR, so
+     * this reads the PR's comments and extracts the link.
+     *
+     * Returns `{ previewUrl: null }` (rather than throwing) whenever a preview
+     * isn't available yet — an unknown PR, a non-GitHub provider, missing git
+     * credentials, or a transient provider error — so the caller can poll until
+     * the preview appears without surfacing errors.
+     */
+    async getPullRequestPreview(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<PullRequestPreview> {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const pullRequest = await this.pullRequestsModel.findByProjectAndUrl(
+            projectUuid,
+            prUrl,
+        );
+        // Only surface previews for PRs we recorded for this project, and only
+        // for GitHub (the single provider we read comments from today).
+        if (
+            !pullRequest ||
+            pullRequest.provider !== PullRequestProvider.GITHUB
+        ) {
+            return { previewUrl: null };
+        }
+
+        try {
+            const credentials =
+                await this.gitIntegrationService.getGitCredentials(
+                    user,
+                    projectUuid,
+                );
+            if (credentials.type !== DbtProjectType.GITHUB) {
+                return { previewUrl: null };
+            }
+            const comments = await GithubClient.getPullRequestComments({
+                owner: pullRequest.owner,
+                repo: pullRequest.repo,
+                pullNumber: pullRequest.prNumber,
+                installationId: credentials.installationId,
+                token: credentials.token,
+            });
+            return {
+                previewUrl: extractPreviewUrlFromComments(
+                    comments,
+                    this.lightdashConfig.siteUrl,
+                ),
+            };
+        } catch (error) {
+            this.logger.warn('Failed to resolve pull request preview URL', {
+                projectUuid,
+                prUrl,
+                error: getErrorMessage(error),
+            });
+            return { previewUrl: null };
+        }
     }
 }

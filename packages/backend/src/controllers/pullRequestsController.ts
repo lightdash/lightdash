@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiPullRequestPreviewResponse,
     ApiPullRequestsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
@@ -55,6 +56,36 @@ export class PullRequestsController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                     paginateArgs,
+                ),
+        };
+    }
+
+    /**
+     * Resolve the Lightdash preview environment URL for a write-back pull
+     * request. Returns `{ previewUrl: null }` until the preview is published,
+     * so the client can poll.
+     * @summary Get pull request preview
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/preview')
+    @OperationId('getPullRequestPreview')
+    async getPullRequestPreview(
+        @Path() projectUuid: string,
+        @Query() prUrl: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPullRequestPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPullRequestsService()
+                .getPullRequestPreview(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    prUrl,
                 ),
         };
     }

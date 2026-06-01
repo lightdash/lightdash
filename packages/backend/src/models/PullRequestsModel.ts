@@ -225,6 +225,32 @@ export class PullRequestsModel {
         return mapDbPullRequest(row, threadInfo.get(pullRequestUuid) ?? null);
     }
 
+    /**
+     * Look up a recorded pull request by its URL, scoped to a project. Used to
+     * resolve a PR the frontend only knows by URL (e.g. from an AI write-back
+     * tool result) back to its stored owner/repo/number before reaching out to
+     * the provider.
+     */
+    async findByProjectAndUrl(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<PullRequest | null> {
+        const row = await this.database(PullRequestsTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere('pr_url', prUrl)
+            .first();
+
+        if (!row) {
+            return null;
+        }
+
+        const threadInfo = await this.getAiThreadInfo([row.pull_request_uuid]);
+        return mapDbPullRequest(
+            row,
+            threadInfo.get(row.pull_request_uuid) ?? null,
+        );
+    }
+
     async delete(pullRequestUuid: string): Promise<void> {
         await this.database(PullRequestsTableName)
             .where('pull_request_uuid', pullRequestUuid)

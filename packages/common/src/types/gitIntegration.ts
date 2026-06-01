@@ -145,3 +145,55 @@ export type ApiPullRequestsResponse = {
     status: 'ok';
     results: KnexPaginatedData<PullRequestWithStatus[]>;
 };
+
+/**
+ * The Lightdash preview environment for a pull request. `previewUrl` is null
+ * until a preview has been published: the dbt repo's CI creates the preview
+ * project asynchronously and comments its URL on the PR, so the URL can only be
+ * discovered after the fact (it is not predictable from the PR itself).
+ */
+export type PullRequestPreview = {
+    previewUrl: string | null;
+};
+
+export type ApiPullRequestPreviewResponse = {
+    status: 'ok';
+    results: PullRequestPreview;
+};
+
+const PREVIEW_PROJECT_UUID =
+    '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+
+/**
+ * Find the Lightdash preview-environment URL inside a pull request's comments.
+ *
+ * When the AI write-back opens a PR against a dbt repo, that repo's CI runs
+ * `lightdash preview`, which publishes a PREVIEW-type project and posts its URL
+ * (`{siteUrl}/projects/{previewProjectUuid}/...`) as a PR comment. Only URLs on
+ * this instance's own host are considered, so a link to github.com or an
+ * unrelated site is never mistaken for a preview. Comments are scanned
+ * newest-first, so a re-published preview wins. Returns null when none match.
+ */
+export const extractPreviewUrlFromComments = (
+    commentBodies: string[],
+    siteUrl: string,
+): string | null => {
+    let host: string;
+    try {
+        host = new URL(siteUrl).host;
+    } catch {
+        return null;
+    }
+    const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const previewUrlRegex = new RegExp(
+        `https?://${escapedHost}/projects/${PREVIEW_PROJECT_UUID}(?:/[\\w-]+)*`,
+        'i',
+    );
+    for (let i = commentBodies.length - 1; i >= 0; i -= 1) {
+        const match = commentBodies[i].match(previewUrlRegex);
+        if (match) {
+            return match[0];
+        }
+    }
+    return null;
+};

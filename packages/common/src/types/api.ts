@@ -128,6 +128,7 @@ import {
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
+    type PullRequestPreview,
 } from './gitIntegration';
 import type { ApiGroupListResponse } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
@@ -986,6 +987,7 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
+    | PullRequestPreview
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GitBranch
