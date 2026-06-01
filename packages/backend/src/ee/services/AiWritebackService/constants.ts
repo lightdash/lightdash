@@ -35,6 +35,8 @@ export const GIT_USERNAME = 'x-access-token';
 export const COMMIT_AUTHOR_NAME = 'Lightdash';
 export const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';
 
+export const CO_AUTHOR_TRAILER = `Co-authored-by: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>`;
+
 // Hard ceiling on a single synchronous run. The HTTP request is held open for
 // the duration, so keep this well under typical load-balancer/proxy timeouts.
 export const RUN_TIMEOUT_MS = 20 * 60 * 1000;
