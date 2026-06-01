@@ -1,10 +1,19 @@
-import type { AiMcpServer } from '@lightdash/common';
+import {
+    GITHUB_MCP_SERVER_NAME,
+    GITHUB_MCP_SERVER_URL,
+    type AiMcpServer,
+} from '@lightdash/common';
 import { Button, Group, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine-8/hooks';
+import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal from '../../../../components/common/MantineModal';
+import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
+    useConnectGithubMcpServerMutation,
+    useGithubMcpAvailability,
     useStartMcpOAuthConnectionMutation,
 } from '../hooks/useProjectAiMcpServers';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
@@ -82,12 +91,12 @@ const getConnectionTitle = (appNames: string[]) => {
 
 const getConnectionSummary = (appNames: string[]) => {
     if (appNames.length === 1) {
-        return `This agent can use ${appNames[0]} if you sign in.`;
+        return `This agent can use ${appNames[0]} if you connect it.`;
     }
 
     return `This agent can use ${formatAppNames(
         appNames,
-    )}. Sign in to the apps you want to use in this thread.`;
+    )}. Connect the apps you want to use in this thread.`;
 };
 
 const getConnectionIconColor = (
@@ -133,6 +142,18 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         isLoading: isStartingMcpOAuthConnection,
         variables: startingMcpOAuthConnection,
     } = useStartMcpOAuthConnectionMutation(projectUuid);
+    const { data: githubMcpAvailability } = useGithubMcpAvailability(
+        projectUuid,
+        { enabled: !!projectUuid },
+    );
+    const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
+        useConnectGithubMcpServerMutation(projectUuid);
+    const { mutateAsync: updateAgentMcpServers, isLoading: isAttachingGithub } =
+        useProjectUpdateAiAgentMutation(projectUuid, {
+            showSuccessToast: false,
+        });
+    const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
+        useDisclosure(false);
 
     const mcpServersNeedingConnection = useMemo(
         () =>
@@ -141,17 +162,30 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             ),
         [mcpServers],
     );
-    const appNames = useMemo(
+    // GitHub uses the org's shared App installation (bearer auth), so it never
+    // appears in mcpServersNeedingConnection (that list is OAuth-only). Offer the
+    // one-click connect when the org integration is available and GitHub is not
+    // already attached to this agent — mirrors the agent settings page.
+    const isGithubConnectedToAgent = useMemo(
         () =>
-            Array.from(
-                new Set(
-                    mcpServersNeedingConnection.map(
-                        (mcpServer) => mcpServer.name,
-                    ),
-                ),
+            (mcpServers ?? []).some(
+                (mcpServer) => mcpServer.url === GITHUB_MCP_SERVER_URL,
             ),
-        [mcpServersNeedingConnection],
+        [mcpServers],
     );
+    const canOneClickConnectGithub =
+        githubMcpAvailability?.available === true && !isGithubConnectedToAgent;
+
+    const appNames = useMemo(() => {
+        const oauthAppNames = Array.from(
+            new Set(
+                mcpServersNeedingConnection.map((mcpServer) => mcpServer.name),
+            ),
+        );
+        return canOneClickConnectGithub
+            ? [...oauthAppNames, GITHUB_MCP_SERVER_NAME]
+            : oauthAppNames;
+    }, [mcpServersNeedingConnection, canOneClickConnectGithub]);
 
     const connectionNote = useMemo(() => {
         for (const mcpServer of mcpServersNeedingConnection) {
@@ -176,6 +210,38 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         },
         [refetchAgentMcpServers, startMcpOAuthConnection],
     );
+
+    const handleConnectGithubMcp = useCallback(async () => {
+        try {
+            // connect is idempotent server-side — returns the existing server
+            // when one is already connected, otherwise mints the installation
+            // token and creates it.
+            const server = await connectGithubMcp();
+            const attachedUuids = (mcpServers ?? []).map(
+                (mcpServer) => mcpServer.uuid,
+            );
+            if (server && !attachedUuids.includes(server.uuid)) {
+                await updateAgentMcpServers({
+                    uuid: agentUuid,
+                    mcpServerUuids: [...attachedUuids, server.uuid],
+                });
+            }
+        } catch {
+            // Toasts are handled in the mutations.
+        } finally {
+            // Close on success and failure — the error toast is the feedback;
+            // the persistent "Connect GitHub" button is the retry affordance.
+            githubConfirmModalHandlers.close();
+            await refetchAgentMcpServers();
+        }
+    }, [
+        agentUuid,
+        connectGithubMcp,
+        githubConfirmModalHandlers,
+        mcpServers,
+        refetchAgentMcpServers,
+        updateAgentMcpServers,
+    ]);
 
     if (isLoading) {
         return (
@@ -208,9 +274,22 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         );
     }
 
-    if (mcpServersNeedingConnection.length === 0) {
+    if (mcpServersNeedingConnection.length === 0 && !canOneClickConnectGithub) {
         return null;
     }
+
+    const githubConnectButton = canOneClickConnectGithub ? (
+        <Button
+            key="github-connect"
+            size="xs"
+            variant="default"
+            leftSection={<MantineIcon icon={IconBrandGithub} />}
+            loading={isConnectingGithubMcp || isAttachingGithub}
+            onClick={githubConfirmModalHandlers.open}
+        >
+            Connect GitHub
+        </Button>
+    ) : null;
 
     const isSingleApp = appNames.length === 1;
 
@@ -281,6 +360,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                             </Button>
                         );
                     })}
+                    {githubConnectButton}
                 </Group>
             ) : (
                 <Stack gap="sm">
@@ -336,9 +416,39 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                 </Button>
                             );
                         })}
+                        {githubConnectButton}
                     </Group>
                 </Stack>
             )}
+            <MantineModal
+                opened={isGithubConfirmModalOpen}
+                onClose={githubConfirmModalHandlers.close}
+                title="Connect GitHub"
+                icon={IconBrandGithub}
+                actions={
+                    <Button
+                        leftSection={<MantineIcon icon={IconBrandGithub} />}
+                        loading={isConnectingGithubMcp || isAttachingGithub}
+                        onClick={handleConnectGithubMcp}
+                    >
+                        Connect GitHub
+                    </Button>
+                }
+            >
+                <Stack gap="sm">
+                    <Text size="sm">
+                        Lightdash will reuse your organization's existing GitHub
+                        connection — the same integration used for your dbt
+                        projects. No additional sign-in is required.
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        This adds a read/write GitHub MCP server to this agent,
+                        scoped to the repositories your GitHub integration can
+                        already access. You can remove it any time from the
+                        agent's settings.
+                    </Text>
+                </Stack>
+            </MantineModal>
         </Paper>
     );
 };

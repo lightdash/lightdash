@@ -241,19 +241,16 @@ fi
 if [ "$EE_MODE" = true ]; then
     step "EE migration + seed pass"
     export PATH="$(pwd)/venv/bin:$PATH"
-    EE_APPLIED="$(db_has "SELECT 1 FROM information_schema.tables WHERE table_name='ai_agent_document'")"
-    if [ "$EE_APPLIED" = yes ]; then
-        echo "SKIP: EE migrations already applied"
-    else
-        PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate \
-            || fail "ee-migrate" "EE migrate failed"
-        if [ "$BOOTSTRAPPED" = true ]; then
-            PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
-                pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
-                || fail "ee-seed" "EE seed failed"
-        fi
-        echo "OK: EE migration pass complete"
+    # migrate is idempotent — always reconcile core+EE. A restored EE snapshot has
+    # ai_agent_document yet can still lag this branch's HEAD, so never gate on it.
+    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate \
+        || fail "ee-migrate" "EE migrate failed"
+    if [ "$BOOTSTRAPPED" = true ]; then
+        PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+            pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
+            || fail "ee-seed" "EE seed failed"
     fi
+    echo "OK: EE migration pass complete"
 fi
 
 # ---------------------------------------------------------------------------
