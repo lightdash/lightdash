@@ -18,51 +18,26 @@ const isSameLocation = (targetUrl: string, location: LocationLike): boolean => {
     );
 };
 
-const getDashboardSlugFromContentToolResult = (
+const getDashboardUrlFromContentToolResult = (
     toolResult: AiAgentToolResult,
 ): string | null => {
     if (toolResult.isPreliminary) return null;
 
-    switch (toolResult.toolName) {
-        case 'createContent':
-            if (toolResult.toolArgs.type !== 'dashboard') return null;
-            if (toolResult.toolResult.metadata.status !== 'success')
-                return null;
+    if (toolResult.toolName === 'createContent') {
+        if (toolResult.toolArgs.type !== 'dashboard') return null;
+        if (toolResult.toolResult.metadata.status !== 'success') return null;
 
-            return (
-                toolResult.toolResult.metadata.slug ??
-                toolResult.toolArgs.content.slug
-            );
-        case 'editContent':
-            if (toolResult.toolArgs.type !== 'dashboard') return null;
-            if (toolResult.toolResult.metadata.status !== 'success')
-                return null;
-
-            return (
-                toolResult.toolResult.metadata.slug ?? toolResult.toolArgs.slug
-            );
-        default:
-            return null;
-    }
-};
-
-const getDashboardUrlFromContentToolResult = (
-    projectUuid: string,
-    toolResult: AiAgentToolResult,
-): string | null => {
-    if (
-        (toolResult.toolName === 'createContent' ||
-            toolResult.toolName === 'editContent') &&
-        toolResult.toolArgs.type === 'dashboard' &&
-        toolResult.toolResult.metadata.status === 'success'
-    ) {
-        return toolResult.toolResult.metadata.url;
+        return toolResult.toolResult.metadata.href;
     }
 
-    const dashboardSlug = getDashboardSlugFromContentToolResult(toolResult);
-    return dashboardSlug
-        ? `/projects/${projectUuid}/dashboards/${dashboardSlug}`
-        : null;
+    if (toolResult.toolName === 'editContent') {
+        if (toolResult.toolArgs.type !== 'dashboard') return null;
+        if (toolResult.toolResult.metadata.status !== 'success') return null;
+
+        return toolResult.toolResult.metadata.href;
+    }
+
+    return null;
 };
 
 export const getDashboardNavigationUrlFromContentToolResult = (
@@ -70,10 +45,7 @@ export const getDashboardNavigationUrlFromContentToolResult = (
     toolResult: AiAgentToolResult,
     location: LocationLike = window.location,
 ): string | null => {
-    const dashboardUrl = getDashboardUrlFromContentToolResult(
-        projectUuid,
-        toolResult,
-    );
+    const dashboardUrl = getDashboardUrlFromContentToolResult(toolResult);
     if (!dashboardUrl || isSameLocation(dashboardUrl, location)) return null;
 
     return dashboardUrl;

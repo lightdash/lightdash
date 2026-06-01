@@ -4954,6 +4954,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid,
             });
 
+        const getContentUrl = (type: 'dashboard' | 'chart', slug: string) => {
+            switch (type) {
+                case 'dashboard':
+                    return `/projects/${projectUuid}/dashboards/${slug}/view`;
+                case 'chart':
+                    return `/projects/${projectUuid}/saved/${slug}/view`;
+                default:
+                    return assertUnreachable(type, 'Invalid content type');
+            }
+        };
+
         const readContent: ReadContentFn = ({ slug, type }) =>
             wrapSentryTransaction(
                 'AiAgent.readContent',
@@ -4978,6 +4989,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 type: 'dashboard',
                                 content: dashboard,
+                                href: getContentUrl(
+                                    'dashboard',
+                                    dashboard.slug,
+                                ),
                             };
                         }
                         case 'chart': {
@@ -4998,6 +5013,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 type: 'chart',
                                 content: chart,
+                                href: getContentUrl('chart', chart.slug),
                             };
                         }
                         default:
@@ -5090,13 +5106,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...editedContent,
                                 uuid,
-                                url: `/projects/${projectUuid}/dashboards/${editedContent.content.slug}`,
+                                href: getContentUrl(
+                                    'dashboard',
+                                    editedContent.content.slug,
+                                ),
                             };
                         case 'chart':
                             return {
                                 ...editedContent,
                                 uuid,
-                                url: `/projects/${projectUuid}/saved/${editedContent.content.slug}`,
+                                href: getContentUrl(
+                                    'chart',
+                                    editedContent.content.slug,
+                                ),
                             };
                         default:
                             return assertUnreachable(
@@ -5145,7 +5167,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...createdContent,
                                 uuid,
-                                url: `/projects/${projectUuid}/dashboards/${finalSlug}`,
+                                href: getContentUrl('dashboard', finalSlug),
                             };
                         }
                         case 'chart': {
@@ -5177,7 +5199,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...createdContent,
                                 uuid,
-                                url: `/projects/${projectUuid}/saved/${finalSlug}`,
+                                href: getContentUrl('chart', finalSlug),
                             };
                         }
                         default:

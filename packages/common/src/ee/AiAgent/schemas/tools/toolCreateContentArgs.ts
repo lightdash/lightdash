@@ -60,7 +60,7 @@ const toolCreateContentMetadataSchema = z.discriminatedUnion('status', [
         slug: z.string(),
         name: z.string(),
         uuid: z.string(),
-        url: z.string(),
+        href: z.string(),
     }),
 ]);
 

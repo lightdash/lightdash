@@ -144,10 +144,12 @@ export type ReadContentFn = (args: {
     | {
           type: 'dashboard';
           content: DashboardAsCode;
+          href: string;
       }
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
       }
 >;
 
@@ -160,13 +162,13 @@ export type EditContentFn = (args: {
           type: 'dashboard';
           content: DashboardAsCode;
           uuid: string;
-          url: string;
+          href: string;
       }
     | {
           type: 'chart';
           content: ChartAsCode;
           uuid: string;
-          url: string;
+          href: string;
       }
 >;
 
@@ -185,13 +187,13 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
           type: 'dashboard';
           content: DashboardAsCode;
           uuid: string;
-          url: string;
+          href: string;
       }
     | {
           type: 'chart';
           content: ChartAsCode;
           uuid: string;
-          url: string;
+          href: string;
       }
 >;
 
