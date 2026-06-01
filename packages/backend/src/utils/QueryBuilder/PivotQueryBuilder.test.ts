@@ -4878,8 +4878,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Distinct-groups CTE shape — both groupBy refs appear in the
             // SELECT DISTINCT list of the top-level distinct_groups CTE, and
             // total_columns counts over it directly (no CONCAT, no
-            // DISTINCT-CONCAT). The CTE split also fixes PROD-8019 for
-            // ClickHouse — see the dedicated test below.
+            // DISTINCT-CONCAT).
             expect(replaceWhitespace(result)).toContain(
                 'distinct_groups AS (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows)',
             );
@@ -4893,22 +4892,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).not.toContain('COUNT(DISTINCT concat(');
         });
 
-        test('total_columns counts via a top-level distinct_groups CTE, never a subquery nesting filtered_rows (#23697 / PROD-8019)', () => {
-            // https://github.com/lightdash/lightdash/issues/23697 / PROD-8019
-            // Repro: pivot any chart on ClickHouse v24+ (analyzer on by
-            // default). The previous shape wrapped the distinct count in a
-            // subquery that referenced the filtered_rows CTE from *inside*
-            // a later CTE definition:
-            //   total_columns AS (SELECT COUNT(*) FROM
-            //     (SELECT DISTINCT col FROM filtered_rows) AS distinct_groups)
-            // ClickHouse's analyzer cannot resolve a CTE identifier nested in
-            // a subquery within a subsequent CTE, so it threw "Unknown
-            // expression identifier ... FROM filtered_rows".
-            // Expectation: distinct_groups is promoted to its own top-level
-            // CTE so both references are direct CTE->CTE (distinct_groups ->
-            // filtered_rows, total_columns -> distinct_groups). This stays
-            // warehouse-agnostic and preserves the #19767 fix (no
-            // COUNT(DISTINCT CONCAT(...))).
+        test('total_columns counts via a top-level distinct_groups CTE, never a subquery nesting filtered_rows', () => {
+            // distinct_groups is its own top-level CTE so both references are
+            // direct CTE -> CTE (distinct_groups -> filtered_rows,
+            // total_columns -> distinct_groups), rather than nesting a subquery
+            // that references filtered_rows inside a later CTE.
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -4941,13 +4929,12 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
             );
 
-            // Negative: the ClickHouse-incompatible nested subquery must not
-            // appear anywhere — filtered_rows must never be referenced from
-            // inside a subquery within another CTE definition.
+            // Negative: filtered_rows must never be referenced from inside a
+            // subquery within another CTE definition.
             expect(result).not.toContain(
                 'FROM filtered_rows) AS distinct_groups',
             );
-            // And the #19767 invariant still holds.
+            // And no COUNT(DISTINCT CONCAT(...)).
             expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
         });
 

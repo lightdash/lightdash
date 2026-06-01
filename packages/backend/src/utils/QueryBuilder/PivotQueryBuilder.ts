@@ -358,12 +358,9 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates the distinct_groups CTE body: the set of unique pivot-column
-     * combinations present in the filtered rows. Kept as a standalone CTE
-     * (rather than an inline subquery inside total_columns) so the reference to
-     * filteredRowsTable is a direct CTE -> CTE reference. ClickHouse's v24+
-     * analyzer cannot resolve a CTE identifier nested inside a subquery within
-     * a later CTE definition (PROD-8019 / #23697).
+     * Generates the distinct_groups CTE body: the unique pivot-column
+     * combinations from the filtered rows. Kept as a standalone CTE so the
+     * reference to filteredRowsTable is a direct CTE -> CTE reference.
      * @param groupByColumns - Columns that are being pivoted
      * @param filteredRowsTable - Name of the CTE containing filtered rows
      * @returns SQL selecting distinct pivot-column combinations
@@ -374,9 +371,8 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
-        // SELECT DISTINCT over the groupBy columns counts unique column
-        // combinations without type casting — works across all warehouses
-        // (no COUNT(DISTINCT CONCAT(...)), which Redshift rejects — see #19767).
+        // SELECT DISTINCT counts unique combinations without type casting,
+        // which works across all warehouses.
         const columnRefs = groupByColumns
             .map((col) => `${q}${col.reference}${q}`)
             .join(', ');
@@ -386,8 +382,6 @@ export class PivotQueryBuilder {
 
     /**
      * Generates query that counts total distinct column combinations for pivot.
-     * Counts over the distinct_groups CTE (which already holds the unique
-     * pivot-column combinations) via a direct CTE reference.
      * @param valuesColumns - Value columns to multiply count by (only when metricsAsRows is false)
      * @param distinctGroupsTable - Name of the CTE containing distinct pivot-column combinations
      * @returns SQL query for counting total columns
