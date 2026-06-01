@@ -1,3 +1,10 @@
+## [0.3069.1](https://github.com/lightdash/lightdash/compare/0.3069.0...0.3069.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **scheduler:** enforce create:ScheduledDeliveries on send-now path ([#23733](https://github.com/lightdash/lightdash/issues/23733)) ([06bf59a](https://github.com/lightdash/lightdash/commit/06bf59a7a9ec5052eb48bd7f83aeb25769e5aa1e))
+
 # [0.3069.0](https://github.com/lightdash/lightdash/compare/0.3068.1...0.3069.0) (2026-06-01)
 
 
