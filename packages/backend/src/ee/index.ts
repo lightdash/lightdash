@@ -213,6 +213,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:

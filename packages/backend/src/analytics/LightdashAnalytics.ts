@@ -26,6 +26,8 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiRouterDecisionConfidence,
+    type AiRouterRouteNextAction,
     type DataAppClaudeModel,
 } from '@lightdash/common';
 import Analytics, {
@@ -2120,6 +2122,39 @@ export type AiAgentPullRequestViewedEvent = BaseTrack & {
     };
 };
 
+export type AiRouterConfigUpdatedEvent = BaseTrack & {
+    event: 'ai_router.config_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        enabled: boolean;
+        projectsCount: number;
+    };
+};
+
+export type AiRouterInstructionsUpdatedEvent = BaseTrack & {
+    event: 'ai_router.instructions_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        instructionLength: number;
+        taggedAgentsCount: number;
+    };
+};
+
+export type AiRouterMessageRoutedEvent = BaseTrack & {
+    event: 'ai_router.message_routed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        confidence: AiRouterDecisionConfidence;
+        nextAction: AiRouterRouteNextAction;
+        candidatesCount: number;
+    };
+};
+
 export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     event: 'scheduler.ownership_reassigned';
     properties: {
@@ -2267,6 +2302,9 @@ type TypedEvent =
     | AiAgentSuggestionClickEvent
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
+    | AiRouterConfigUpdatedEvent
+    | AiRouterInstructionsUpdatedEvent
+    | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;

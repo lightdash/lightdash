@@ -13,6 +13,12 @@ import {
     type UpsertAiRouterInstructionRequest,
     type UpsertAiRouterRequest,
 } from '@lightdash/common';
+import {
+    type AiRouterConfigUpdatedEvent,
+    type AiRouterInstructionsUpdatedEvent,
+    type AiRouterMessageRoutedEvent,
+    type LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import { type AiRouterModel } from '../../models/AiRouterModel';
@@ -21,20 +27,29 @@ import { getModel } from '../ai/models';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 
 type Deps = {
+    analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     aiRouterModel: AiRouterModel;
     aiAgentService: AiAgentService;
 };
 
 export class AiRouterService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly aiRouterModel: AiRouterModel;
 
     private readonly aiAgentService: AiAgentService;
 
-    constructor({ lightdashConfig, aiRouterModel, aiAgentService }: Deps) {
+    constructor({
+        analytics,
+        lightdashConfig,
+        aiRouterModel,
+        aiAgentService,
+    }: Deps) {
         super({ serviceName: 'AiRouterService' });
+        this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.aiRouterModel = aiRouterModel;
         this.aiAgentService = aiAgentService;
@@ -98,11 +113,23 @@ export class AiRouterService extends BaseService {
     ): Promise<AiRouter> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertManageAiAgent(account, organizationUuid);
-        return this.aiRouterModel.upsert({
+        const router = await this.aiRouterModel.upsert({
             organizationUuid,
             enabled: body.enabled,
             projectUuids: body.projectUuids,
         });
+
+        this.analytics.track<AiRouterConfigUpdatedEvent>({
+            event: 'ai_router.config_updated',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                enabled: router.enabled,
+                projectsCount: router.projectUuids.length,
+            },
+        });
+
+        return router;
     }
 
     async getInstruction(
@@ -160,12 +187,25 @@ export class AiRouterService extends BaseService {
 
         const router = await this.aiRouterModel.upsert({ organizationUuid });
 
-        return this.aiRouterModel.createInstructionVersion({
+        const instruction = await this.aiRouterModel.createInstructionVersion({
             routerUuid: router.routerUuid,
             projectUuid,
             instruction: body.instruction,
             taggedAgentUuids: body.taggedAgentUuids,
         });
+
+        this.analytics.track<AiRouterInstructionsUpdatedEvent>({
+            event: 'ai_router.instructions_updated',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                instructionLength: body.instruction.length,
+                taggedAgentsCount: body.taggedAgentUuids.length,
+            },
+        });
+
+        return instruction;
     }
 
     async listDecisions(
@@ -240,6 +280,18 @@ export class AiRouterService extends BaseService {
             confidence: brain.confidence,
             reasoning: brain.reasoning,
             candidateAgentUuids: candidates.map((c) => c.uuid),
+        });
+
+        this.analytics.track<AiRouterMessageRoutedEvent>({
+            event: 'ai_router.message_routed',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                confidence: brain.confidence,
+                nextAction,
+                candidatesCount: candidates.length,
+            },
         });
 
         return {
