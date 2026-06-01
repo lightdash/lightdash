@@ -1,3 +1,10 @@
+## [0.3063.1](https://github.com/lightdash/lightdash/compare/0.3063.0...0.3063.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **my-apps:** truncate long names instead of overflowing into next column ([#23713](https://github.com/lightdash/lightdash/issues/23713)) ([cce947b](https://github.com/lightdash/lightdash/commit/cce947ba43f61ffe1b042e11b2504e9c78b5cb35))
+
 # [0.3063.0](https://github.com/lightdash/lightdash/compare/0.3062.0...0.3063.0) (2026-06-01)
 
 
