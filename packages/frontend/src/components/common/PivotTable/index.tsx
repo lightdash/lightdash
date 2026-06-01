@@ -1610,6 +1610,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     cell.getValue() as ResultRow[0];
                                 const value = fullValue?.value;
 
+                                // In merge mode an empty pivot data cell renders
+                                // blank instead of the `∅`/`-` placeholder. An
+                                // empty cell still carries a value wrapper whose
+                                // `raw` is null (formatted as `∅`), or no wrapper
+                                // at all, so we key off `value?.raw`; a real
+                                // `raw: 0`/`''` is kept.
+                                const isBlankMergeDataCell =
+                                    groupingOnlyMode &&
+                                    isDataColumn &&
+                                    value?.raw == null;
+
                                 // Build rowFields for this cell's pivot context only
                                 // This ensures field comparisons use values from the same pivot column
                                 const currentHeaderInfo =
@@ -1888,13 +1899,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : // blank instead of the `∅`/`-` placeholder. An empty // In merge mode an empty pivot data cell renders
-                                        // cell still carries a value wrapper whose `raw` is
-                                        // null (formatted as `∅`), or no wrapper at all, so we
-                                        // key off `value?.raw`. A real `raw: 0`/`''` is kept.
-                                        groupingOnlyMode &&
-                                          isDataColumn &&
-                                          value?.raw == null ? null : (
+                                        ) : cell.getIsPlaceholder() ||
+                                          isBlankMergeDataCell ? null : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
