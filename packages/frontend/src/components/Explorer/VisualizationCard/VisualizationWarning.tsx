@@ -97,8 +97,11 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             chartType: chartConfig.type,
             chartConfig: chartConfig.config,
             queryTableCalculations: tableCalcNames,
+            tableCalculationFilters:
+                resultsData?.metricQuery?.filters?.tableCalculations,
         });
     }, [
+        resultsData?.metricQuery?.filters?.tableCalculations,
         resultsData?.metricQuery?.tableCalculations,
         chartConfig?.type,
         chartConfig.config,
@@ -117,7 +120,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         }
         if (shouldShowUnusedTableCalcs) {
             _messages.push(
-                'Your query includes table calculations that are not used in the chart configuration (x-axis or y-axis). Remove them from the query to avoid incorrect results unless you are using them intentionally.',
+                'Your query includes table calculations that are not used in the chart configuration (x-axis, y-axis, or table calculation filters). Remove them from the query to avoid incorrect results unless you are using them intentionally.',
             );
         }
         if (shouldShowPivotMismatch) {

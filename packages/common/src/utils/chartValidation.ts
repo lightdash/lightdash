@@ -1,3 +1,4 @@
+import { flattenFilterGroup, type FilterGroup } from '../types/filter';
 import {
     ChartType,
     type CartesianChart,
@@ -96,6 +97,8 @@ export type UnusedTableCalculationsInput = {
     chartConfig: ChartConfig['config'] | undefined;
     /** All table calculation names in the metric query */
     queryTableCalculations: string[];
+    /** Table calculation filters that can reference helper table calculations */
+    tableCalculationFilters?: FilterGroup;
 };
 
 /**
@@ -104,6 +107,7 @@ export type UnusedTableCalculationsInput = {
  * For cartesian charts, table calculations should be used in one of:
  * - x-axis (xField)
  * - y-axis (yField)
+ * - table calculation filters
  *
  * If a table calculation is in the query but not used in any of these places,
  * it may cause incorrect results (extra rows that don't aggregate properly).
@@ -115,7 +119,12 @@ export function getUnusedTableCalculations(
 ): {
     unusedTableCalculations: string[];
 } {
-    const { chartType, chartConfig, queryTableCalculations } = input;
+    const {
+        chartType,
+        chartConfig,
+        queryTableCalculations,
+        tableCalculationFilters,
+    } = input;
 
     if (chartType !== ChartType.CARTESIAN) {
         return { unusedTableCalculations: [] };
@@ -142,6 +151,16 @@ export function getUnusedTableCalculations(
             if (queryTableCalculations.includes(field)) {
                 usedTableCalculations.add(field);
             }
+        }
+    }
+
+    const tableCalculationFilterRules = tableCalculationFilters
+        ? flattenFilterGroup(tableCalculationFilters)
+        : [];
+    for (const filter of tableCalculationFilterRules) {
+        const fieldId = filter.target?.fieldId;
+        if (fieldId && queryTableCalculations.includes(fieldId)) {
+            usedTableCalculations.add(fieldId);
         }
     }
 

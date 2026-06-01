@@ -589,12 +589,13 @@ export class ValidationService extends BaseService {
                             chartType,
                             chartConfig,
                             queryTableCalculations: tableCalculations,
+                            tableCalculationFilters: filters.tableCalculations,
                         });
 
                     const unusedTableCalculationErrors: CreateChartValidation[] =
                         unusedTableCalculations.map((tc) => ({
                             ...commonValidation,
-                            error: `table calculation is not used in the chart configuration (x-axis or y-axis). This can cause incorrect rendering. We recommend removing unused fields.`,
+                            error: `table calculation is not used in the chart configuration (x-axis, y-axis, or table calculation filters). This can cause incorrect rendering. We recommend removing unused fields.`,
                             errorType: ValidationErrorType.ChartConfiguration,
                             fieldName: tc,
                         }));
