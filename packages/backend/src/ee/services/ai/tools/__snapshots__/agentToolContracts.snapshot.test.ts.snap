@@ -545,6 +545,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             {
               "additionalProperties": false,
               "properties": {
+                "href": {
+                  "type": "string",
+                },
                 "name": {
                   "type": "string",
                 },
@@ -553,9 +556,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 },
                 "status": {
                   "const": "success",
-                  "type": "string",
-                },
-                "url": {
                   "type": "string",
                 },
                 "uuid": {
@@ -567,7 +567,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "slug",
                 "name",
                 "uuid",
-                "url",
+                "href",
               ],
               "type": "object",
             },
@@ -636,6 +636,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             {
               "additionalProperties": false,
               "properties": {
+                "href": {
+                  "type": "string",
+                },
                 "name": {
                   "type": "string",
                 },
@@ -644,9 +647,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 },
                 "status": {
                   "const": "success",
-                  "type": "string",
-                },
-                "url": {
                   "type": "string",
                 },
                 "uuid": {
@@ -658,7 +658,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "slug",
                 "name",
                 "uuid",
-                "url",
+                "href",
               ],
               "type": "object",
             },
@@ -4562,20 +4562,46 @@ Even if only the part is being changed, make sure to pass the entire value with 
       "additionalProperties": false,
       "properties": {
         "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
               ],
-              "type": "string",
+              "type": "object",
             },
-          },
-          "required": [
-            "status",
+            {
+              "additionalProperties": false,
+              "properties": {
+                "href": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "slug": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "slug",
+                "name",
+                "href",
+              ],
+              "type": "object",
+            },
           ],
-          "type": "object",
         },
         "result": {
           "type": "string",

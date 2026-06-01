@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_READ_CONTENT_DESCRIPTION =
     'Read a dashboard or chart as JSON using its slug. Call this before editing.';
@@ -11,9 +10,19 @@ export const toolReadContentArgsSchema = z.object({
         .describe('Type of Lightdash content to read.'),
 });
 
+const toolReadContentMetadataSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('error') }),
+    z.object({
+        status: z.literal('success'),
+        slug: z.string(),
+        name: z.string(),
+        href: z.string(),
+    }),
+]);
+
 export const toolReadContentOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: toolReadContentMetadataSchema,
 });
 
 export type ToolReadContentArgs = z.infer<typeof toolReadContentArgsSchema>;
