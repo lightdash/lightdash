@@ -1,3 +1,10 @@
+# [0.3065.0](https://github.com/lightdash/lightdash/compare/0.3064.0...0.3065.0) (2026-06-01)
+
+
+### Features
+
+* gate ai content tools per agent ([#23708](https://github.com/lightdash/lightdash/issues/23708)) ([892b029](https://github.com/lightdash/lightdash/commit/892b0290c6ac89e5105a938c10599b07a5345f59))
+
 # [0.3064.0](https://github.com/lightdash/lightdash/compare/0.3063.1...0.3064.0) (2026-06-01)
 
 
