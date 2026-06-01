@@ -1,3 +1,15 @@
+# [0.3066.0](https://github.com/lightdash/lightdash/compare/0.3065.0...0.3066.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **pivot:** flatten total_columns count into a distinct_groups CTE for ClickHouse (PROD-8019) ([#23698](https://github.com/lightdash/lightdash/issues/23698)) ([acd2427](https://github.com/lightdash/lightdash/commit/acd24271aa75b1998920aee3af4803a485d6739d)), closes [#23672](https://github.com/lightdash/lightdash/issues/23672) [#19767](https://github.com/lightdash/lightdash/issues/19767)
+
+
+### Features
+
+* **ai-router:** add analytics tracking for router config, instructions, and message routing events ([#23715](https://github.com/lightdash/lightdash/issues/23715)) ([44ba99d](https://github.com/lightdash/lightdash/commit/44ba99d282474f1c5c0a13a6c350928024885595))
+
 # [0.3065.0](https://github.com/lightdash/lightdash/compare/0.3064.0...0.3065.0) (2026-06-01)
 
 
