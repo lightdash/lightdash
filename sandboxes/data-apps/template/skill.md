@@ -110,6 +110,17 @@ query('orders')
 
 When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
 
+### Snapshot and point-in-time metrics
+
+Some models are **periodic snapshots**: one row per entity per day (or per period), capturing a *state* like a balance, inventory level, headcount, or ARR. Signals to look for: table/field names containing `snapshot`, `eod`, `end_of_day`, `balance`, `as_of`; descriptions that say "point in time", "as of", "per day", or "latest snapshot".
+
+These metrics are **not additive over time**. A balance on Monday plus the balance on Tuesday is meaningless, and the average across daily snapshots is rarely what the user wants.
+
+- **Point in time ("current total balance", KPI cards):** filter to the most recent available snapshot date first, then aggregate across entities. The latest snapshot may lag (today's may not have run yet) — search back a few days for the last available date.
+- **Trend over time ("balance over the last 12 months"):** query at the snapshot's native grain (e.g. by day), then keep only the last available snapshot in each period (last day of each month) client-side. Do **not** group by month and sum/average — that aggregates across the snapshot date and produces wrong numbers.
+- **Prefer a `total_*` metric over an `avg_*` metric** when the user asks for a total. `avg_*` on a snapshot table averages per-entity values within the snapshot, which is a different number than the portfolio total.
+- If a field description already documents the correct pattern (e.g. "always filter to the latest snapshot first"), follow it.
+
 ## Referenced metric queries
 
 The user may reference saved charts from their project by pasting chart UUIDs in their
@@ -1035,6 +1046,7 @@ function DrillResults({ query: q }) {
 | Joined table field without dot notation: `customer_name` | Resolves to `orders_customer_name` → unknown field | Use `customers.customer_name` for joined tables |
 | `value: '2025'` for a number column | String won't match number | `value: 2025` |
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
+| Aggregating a snapshot/balance metric across the snapshot date | Summing or averaging daily balances over a month → meaningless totals or a daily average instead of period-end values | Pin to the last snapshot in each period (e.g. last day of month); use `total_*` not `avg_*` for totals |
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
 | Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
