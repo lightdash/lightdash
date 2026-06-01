@@ -196,7 +196,7 @@ export type ToolRunQueryArgsTransformed = z.infer<
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
 
-Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid plus the same query and chart configuration used for the completed query.
+Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid and chart configuration; Lightdash loads the completed metric query from query history.
 
 Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
 
@@ -213,18 +213,36 @@ Response shape (MCP CallToolResult):
     }
   }`;
 
-export const toolRenderChartArgsSchema = toolRunQueryArgsSchema
+export const toolRenderChartArgsSchema = createToolSchema()
     .extend({
         queryUuid: mcpAsyncQueryUuidSchema.describe(
             'Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
+        chartConfig: chartConfigSchema.describe(
+            'Chart configuration to use when rendering the completed metric query.',
+        ),
+        title: z
+            .string()
+            .optional()
+            .describe('Optional chart title used in the rendered chart.'),
+        description: z
+            .string()
+            .optional()
+            .describe(
+                'Optional chart description used in the saved Explore URL.',
+            ),
     })
+    .build()
     .describe('Render chart input for a completed query.');
 
-export const toolRenderChartArgsSchemaTransformed =
-    toolRenderChartArgsSchema.transform((data) => ({
-        ...toolRunQueryArgsSchemaTransformed.parse(data),
-        queryUuid: data.queryUuid,
+export const toolRenderChartArgsSchemaTransformed = toolRenderChartArgsSchema
+    .extend({
+        chartConfig: chartConfigSchema.default(null),
+    })
+    .transform((data) => ({
+        ...data,
+        title: data.title ?? 'Metric query result',
+        description: data.description ?? '',
     }));
 
 export type ToolRenderChartArgs = z.infer<typeof toolRenderChartArgsSchema>;

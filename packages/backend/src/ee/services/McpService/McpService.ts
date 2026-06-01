@@ -53,6 +53,7 @@ import {
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     toolRenderChartArgsSchemaTransformed,
+    ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
     ToolSearchFieldValuesArgs,
@@ -489,6 +490,33 @@ export class McpService extends BaseService {
                 ),
             },
             userAttributeOverrides,
+        };
+    }
+
+    private static buildRenderChartQueryTool({
+        renderTool,
+        metricQuery,
+    }: {
+        renderTool: ToolRenderChartArgsTransformed;
+        metricQuery: MetricQuery;
+    }): ToolRunQueryArgsTransformed {
+        return {
+            title: renderTool.title,
+            description: renderTool.description,
+            customMetrics: null,
+            tableCalculations: null,
+            queryConfig: {
+                exploreName: metricQuery.exploreName,
+                dimensions: metricQuery.dimensions,
+                metrics: metricQuery.metrics,
+                sorts: metricQuery.sorts.map((sort) => ({
+                    ...sort,
+                    nullsFirst: sort.nullsFirst ?? null,
+                })),
+                limit: metricQuery.limit,
+            },
+            chartConfig: renderTool.chartConfig,
+            filters: metricQuery.filters,
         };
     }
 
@@ -1743,10 +1771,6 @@ export class McpService extends BaseService {
                         toolRenderChartArgsSchemaTransformed.parse(
                             argsWithProject,
                         );
-                    const queryTool =
-                        toolRunQueryArgsSchemaTransformed.parse(
-                            argsWithProject,
-                        );
 
                     const queryHistory =
                         await this.asyncQueryService.getAsyncQueryHistory({
@@ -1771,10 +1795,9 @@ export class McpService extends BaseService {
                         );
                     }
 
-                    const { query } = await this.buildMcpMetricQuery({
-                        ctx,
-                        projectUuid,
-                        queryTool,
+                    const queryTool = McpService.buildRenderChartQueryTool({
+                        renderTool,
+                        metricQuery: queryHistory.metricQuery,
                     });
 
                     const results =
@@ -1789,7 +1812,7 @@ export class McpService extends BaseService {
                         queryUuid: renderTool.queryUuid,
                         projectUuid,
                         queryTool,
-                        query,
+                        query: queryHistory.metricQuery,
                         rows: results.rows,
                         fields: results.fields,
                     });
