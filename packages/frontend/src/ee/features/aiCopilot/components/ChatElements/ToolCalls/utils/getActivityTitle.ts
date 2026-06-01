@@ -50,6 +50,7 @@ export const getActivityTitle = (
     const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
     const hasQuery =
         toolNames.includes('generateVisualization') ||
+        toolNames.includes('runContentQuery') ||
         toolNames.includes('runQuery');
     const hasRunSql = toolNames.includes('runSql');
     const onlySearches = toolNames.every((n) => SEARCH_TOOLS.has(n));

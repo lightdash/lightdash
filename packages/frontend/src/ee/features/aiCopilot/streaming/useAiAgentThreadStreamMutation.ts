@@ -423,6 +423,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-improveContext':
                             case 'tool-searchFieldValues':
                             case 'tool-generateVisualization':
+                            case 'tool-runContentQuery':
                             case 'tool-runQuery':
                             case 'tool-runSql':
                             case 'tool-listWarehouseTables':

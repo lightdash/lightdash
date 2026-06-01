@@ -462,7 +462,38 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "downloadedAt": {
                   "$ref": "#/properties/content/anyOf/0/properties/downloadedAt",
                 },
-                "metricQuery": {},
+                "metricQuery": {
+                  "additionalProperties": true,
+                  "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                  "properties": {
+                    "dimensions": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "exploreName": {},
+                    "filters": {},
+                    "limit": {},
+                    "metrics": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "sorts": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "tableCalculations": {
+                      "items": {},
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "dimensions",
+                    "metrics",
+                    "sorts",
+                    "tableCalculations",
+                  ],
+                  "type": "object",
+                },
                 "name": {
                   "$ref": "#/properties/content/anyOf/0/properties/name",
                 },
@@ -501,6 +532,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "contentType",
                 "verified",
                 "tableName",
+                "metricQuery",
                 "dashboardSlug",
               ],
               "type": "object",
@@ -4638,6 +4670,178 @@ Even if only the part is being changed, make sure to pass the entire value with 
     },
   },
   {
+    "description": "Run a chart-as-code metric query or saved chart content and return the rows it produces as CSV.
+
+Use this to verify generated or edited chart content before presenting it as complete.
+
+Input modes:
+- metricQuery: run an unsaved chart-as-code metricQuery with a tableName.
+- chart: run a saved chart by chartSlug.
+- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "metricQuery": {
+                  "additionalProperties": true,
+                  "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                  "properties": {
+                    "dimensions": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "exploreName": {},
+                    "filters": {},
+                    "limit": {},
+                    "metrics": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "sorts": {
+                      "items": {},
+                      "type": "array",
+                    },
+                    "tableCalculations": {
+                      "items": {},
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "dimensions",
+                    "metrics",
+                    "sorts",
+                    "tableCalculations",
+                  ],
+                  "type": "object",
+                },
+                "parameters": {
+                  "anyOf": [
+                    {},
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Optional chart parameter values, or null.",
+                },
+                "tableName": {
+                  "description": "The chart-as-code tableName/explore name.",
+                  "type": "string",
+                },
+                "type": {
+                  "const": "metricQuery",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "tableName",
+                "metricQuery",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "chartSlug": {
+                  "description": "Slug of the saved chart.",
+                  "type": "string",
+                },
+                "limit": {
+                  "description": "Optional row limit override.",
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "type": {
+                  "const": "chart",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "chartSlug",
+                "limit",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "chartSlug": {
+                  "description": "Slug of the saved chart.",
+                  "type": "string",
+                },
+                "dashboardSlug": {
+                  "description": "Slug of the dashboard containing the chart.",
+                  "type": "string",
+                },
+                "limit": {
+                  "description": "Optional row limit override.",
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "type": {
+                  "const": "dashboardChart",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "chartSlug",
+                "dashboardSlug",
+                "limit",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+      },
+      "required": [
+        "source",
+      ],
+      "type": "object",
+    },
+    "name": "runContentQuery",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Execute a metric query and create a chart artifact.
 
 Response shape (MCP CallToolResult):
@@ -7154,6 +7358,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "readContent",
   "editContent",
   "createContent",
+  "runContentQuery",
   "listContent",
   "improveContext",
   "loadSkill",

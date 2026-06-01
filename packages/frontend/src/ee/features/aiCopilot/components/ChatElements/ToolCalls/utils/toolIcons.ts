@@ -53,6 +53,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             proposeWriteback: IconPencil,
             generateVisualization: IconTable,
             runQuery: IconTable,
+            runContentQuery: IconChartHistogram,
             runSavedChart: IconChartHistogram,
             runSql: IconTerminal2,
             listWarehouseTables: IconDatabase,

@@ -144,6 +144,11 @@ import {
     toolReadContentOutputSchema,
 } from './toolReadContentArgs';
 import {
+    TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
+    toolRunContentQueryArgsSchema,
+    toolRunContentQueryOutputSchema,
+} from './toolRunContentQueryArgs';
+import {
     TOOL_RUN_METRIC_QUERY_DESCRIPTION,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryOutputSchema,
@@ -383,6 +388,15 @@ export const createContentToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolCreateContentArgsSchema,
     agent: { outputSchema: toolCreateContentOutputSchema },
+});
+
+export const runContentQueryToolDefinition = defineTool({
+    name: 'runContentQuery',
+    title: 'Run content query',
+    description: TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRunContentQueryArgsSchema,
+    agent: { outputSchema: toolRunContentQueryOutputSchema },
 });
 
 export const listContentToolDefinition = defineTool({
@@ -678,6 +692,7 @@ type AgentToolDefinitionsByName = {
     readContent: typeof readContentToolDefinition;
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
+    runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -712,6 +727,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     readContent: readContentToolDefinition,
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
+    runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -747,6 +763,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     readContentToolDefinition,
     editContentToolDefinition,
     createContentToolDefinition,
+    runContentQueryToolDefinition,
     listContentToolDefinition,
     improveContextToolDefinition,
     loadSkillToolDefinition,

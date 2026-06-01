@@ -31,6 +31,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateUuids: 'generate_uuids',
     generateVisualization: 'query_result',
     runQuery: 'query_result',
+    runContentQuery: 'run_content_query',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
     listWarehouseTables: 'list_warehouse_tables',

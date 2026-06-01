@@ -23,6 +23,7 @@ import { getLoadSkill } from './loadSkill';
 import { getProposeChange } from './proposeChange';
 import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
+import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
@@ -143,6 +144,15 @@ const makeAgentTools = () => {
             proposeWriteback: noop,
         }),
         readContent: getReadContent({ readContent: noop }),
+        runContentQuery: getRunContentQuery({
+            enableDataAccess: true,
+            getSavedChart: noop,
+            maxLimit: 500,
+            runAsyncQuery: noop,
+            runSavedChartQuery: noop,
+            updateProgress: noopAsync,
+            validateContent: noop,
+        }),
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,

@@ -120,6 +120,7 @@ export const getToolCallChipLabel = (
             return args.content?.slug ?? null;
         }
         case 'runSql':
+        case 'runContentQuery':
         case 'runSavedChart':
         case 'improveContext':
         case 'proposeChange':

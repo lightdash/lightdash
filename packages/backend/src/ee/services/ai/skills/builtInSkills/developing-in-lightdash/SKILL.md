@@ -39,14 +39,17 @@ For edits, call `editContent` with:
 3. If you add or change filters, verify exact filter values before patching.
 4. If you change the chart's name or purpose, also update dashboards that reference that chart.
 5. Build the smallest possible JSON Patch.
-6. Call `editContent` with that patch.
-7. Re-read if needed to verify the final state.
+6. If you changed the chart's `metricQuery`, call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery`.
+7. Call `editContent` with that patch.
+8. Re-read if needed to verify the final state.
 
 ### Recommended workflow for creating new Charts:
 
 1. Use `discoverFields` to explore available fields and plan your chart
 2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
-3. Build the full chart JSON with that metric query and other required fields and call `createContent` with that JSON to create the chart.
+3. Build the full chart JSON with that metric query and other required fields.
+4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
+5. Call `createContent` with the verified chart JSON.
 
 ### Recommended workflow for creating new Dashboards:
 

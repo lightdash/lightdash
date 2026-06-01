@@ -237,6 +237,7 @@ export function getFollowUpToolBlocks(
 const ANSWER_PRODUCING_TOOLS = new Set([
     'generateVisualization',
     'runQuery',
+    'runContentQuery',
     'runSql',
     'runSavedChart',
     'generateDashboard',

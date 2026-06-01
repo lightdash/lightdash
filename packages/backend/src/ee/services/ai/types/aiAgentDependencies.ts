@@ -21,6 +21,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    ParametersValuesMap,
     ProjectType,
     SavedChart,
     SlackPrompt,
@@ -205,6 +206,8 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
       }
 >;
 
+export type ValidateContentFn = (args: CreateContentArgs) => void;
+
 export type UpdateProgressFn = (
     progress: string,
     // The tool the progress belongs to. Web step-progress rendering uses this
@@ -220,13 +223,24 @@ export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     additionalMetrics?: AdditionalMetric[],
+    parameters?: ParametersValuesMap,
 ) => Promise<{
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
 }>;
 
-export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
+export type RunSavedChartQueryFn = (args: {
+    chartUuid: string;
+    dashboardSlug: string | null;
+    limit: number | null;
+}) => Promise<{
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+}>;
+
+export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 

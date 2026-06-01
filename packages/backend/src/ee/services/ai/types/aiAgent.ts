@@ -37,6 +37,7 @@ import {
     ReadContentFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -48,6 +49,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    ValidateContentFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -118,12 +120,14 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
