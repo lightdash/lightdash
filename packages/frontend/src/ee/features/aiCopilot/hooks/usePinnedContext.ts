@@ -9,8 +9,8 @@ import { useSavedQuery } from '../../../../hooks/useSavedQuery';
 
 type Args = {
     projectUuid: string | undefined;
-    chartUuid?: string | null;
-    dashboardUuid?: string | null;
+    chartUuidOrSlug?: string | null;
+    dashboardUuidOrSlug?: string | null;
 };
 
 const sortPinnedContext = <
@@ -32,66 +32,83 @@ const sortPinnedContext = <
  */
 export const usePinnedContext = ({
     projectUuid,
-    chartUuid,
-    dashboardUuid,
+    chartUuidOrSlug,
+    dashboardUuidOrSlug,
 }: Args) => {
     const { data: chart } = useSavedQuery({
-        uuidOrSlug: chartUuid ?? undefined,
+        uuidOrSlug: chartUuidOrSlug ?? undefined,
         projectUuid,
     });
     const { data: dashboard } = useDashboardQuery({
-        uuidOrSlug: dashboardUuid ?? undefined,
+        uuidOrSlug: dashboardUuidOrSlug ?? undefined,
         projectUuid,
     });
+    const isReady =
+        (!chartUuidOrSlug || !!chart?.uuid) &&
+        (!dashboardUuidOrSlug || !!dashboard?.uuid);
 
     const contextInput: AiPromptContextInput = useMemo(() => {
         const items: AiPromptContextInput = [];
-        if (chartUuid) {
+        if (chart?.uuid) {
             items.push({
                 type: 'chart',
-                chartUuid,
+                chartUuid: chart.uuid,
                 chartSlug: chart?.slug ?? null,
             });
         }
-        if (dashboardUuid) {
+        if (dashboard?.uuid) {
             items.push({
                 type: 'dashboard',
-                dashboardUuid,
+                dashboardUuid: dashboard.uuid,
                 dashboardSlug: dashboard?.slug ?? null,
             });
         }
         return sortPinnedContext(items);
-    }, [chartUuid, dashboardUuid, chart?.slug, dashboard?.slug]);
+    }, [chart?.uuid, dashboard?.uuid, chart?.slug, dashboard?.slug]);
+
+    const chartKind = useMemo(
+        () =>
+            chart?.chartConfig
+                ? (getChartKind(
+                      chart.chartConfig.type,
+                      chart.chartConfig.config,
+                  ) ?? null)
+                : null,
+        [chart?.chartConfig],
+    );
 
     const previewItems: AiPromptContextItem[] = useMemo(() => {
         const items: AiPromptContextItem[] = [];
-        if (chartUuid) {
+        if (chart?.uuid) {
             items.push({
                 type: 'chart',
-                chartUuid,
+                chartUuid: chart.uuid,
                 chartSlug: chart?.slug ?? null,
                 displayName: chart?.name ?? null,
                 pinnedVersionUuid: null,
-                chartKind: chart?.chartConfig
-                    ? (getChartKind(
-                          chart.chartConfig.type,
-                          chart.chartConfig.config,
-                      ) ?? null)
-                    : null,
+                chartKind,
                 runtimeOverrides: null,
             });
         }
-        if (dashboardUuid) {
+        if (dashboard?.uuid) {
             items.push({
                 type: 'dashboard',
-                dashboardUuid,
+                dashboardUuid: dashboard.uuid,
                 dashboardSlug: dashboard?.slug ?? null,
                 displayName: dashboard?.name ?? null,
                 pinnedVersionUuid: null,
             });
         }
         return sortPinnedContext(items);
-    }, [chartUuid, dashboardUuid, chart, dashboard?.name, dashboard?.slug]);
+    }, [
+        chart?.uuid,
+        chart?.slug,
+        chart?.name,
+        chartKind,
+        dashboard?.uuid,
+        dashboard?.name,
+        dashboard?.slug,
+    ]);
 
-    return { contextInput, previewItems };
+    return { contextInput, previewItems, isReady };
 };

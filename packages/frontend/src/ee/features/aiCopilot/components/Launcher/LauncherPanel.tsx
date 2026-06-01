@@ -94,10 +94,14 @@ const NewThreadPanel: FC<{
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
 
-    const { contextInput, previewItems } = usePinnedContext({
+    const {
+        contextInput,
+        previewItems,
+        isReady: isPinnedContextReady,
+    } = usePinnedContext({
         projectUuid,
-        chartUuid,
-        dashboardUuid,
+        chartUuidOrSlug: chartUuid,
+        dashboardUuidOrSlug: dashboardUuid,
     });
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
@@ -141,6 +145,7 @@ const NewThreadPanel: FC<{
         message: string;
         toolHints: string[];
     }) => {
+        if (!isPinnedContextReady) return;
         void createAgentThread({
             agentUuid: agent.uuid,
             prompt: message,
@@ -212,6 +217,7 @@ const NewThreadPanel: FC<{
                 <AgentChatInput
                     onSubmit={handleSubmit}
                     loading={isCreatingThread}
+                    disabled={!isPinnedContextReady}
                     placeholder={`Ask ${agent.name} anything...`}
                     projectUuid={projectUuid}
                     agentUuid={agent.uuid}
