@@ -21,6 +21,8 @@ import {
     ParseError,
     ProjectType,
     PullRequestCreated,
+    PullRequestProvider,
+    PullRequestSource,
     QueryExecutionContext,
     SavedChart,
     SessionUser,
@@ -40,6 +42,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
@@ -50,6 +53,7 @@ type GitIntegrationServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    pullRequestsModel: PullRequestsModel;
     analytics: LightdashAnalytics;
 };
 
@@ -81,6 +85,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly pullRequestsModel: PullRequestsModel;
+
     private readonly analytics: LightdashAnalytics;
 
     constructor(args: GitIntegrationServiceArguments) {
@@ -90,7 +96,57 @@ export class GitIntegrationService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.pullRequestsModel = args.pullRequestsModel;
         this.analytics = args.analytics;
+    }
+
+    /**
+     * Record a write-back pull request in the `pull_requests` table so it shows
+     * up in project settings. Best-effort: the PR already exists on the
+     * provider, so a failure to persist the record must never surface to the
+     * caller or undo the write-back.
+     */
+    private async recordPullRequest({
+        user,
+        projectUuid,
+        type,
+        owner,
+        repo,
+        prNumber,
+        prUrl,
+        source,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        type: DbtProjectType;
+        owner: string;
+        repo: string;
+        prNumber: number;
+        prUrl: string;
+        source: PullRequestSource;
+    }): Promise<void> {
+        try {
+            await this.pullRequestsModel.create({
+                organizationUuid: user.organizationUuid!,
+                projectUuid,
+                createdByUserUuid: user.userUuid,
+                provider:
+                    type === DbtProjectType.GITHUB
+                        ? PullRequestProvider.GITHUB
+                        : PullRequestProvider.GITLAB,
+                source,
+                owner,
+                repo,
+                prNumber,
+                prUrl,
+            });
+        } catch (error) {
+            this.logger.warn('Failed to record pull request', {
+                projectUuid,
+                prUrl,
+                error: getErrorMessage(error),
+            });
+        }
     }
 
     async getInstallationId(user: SessionUser) {
@@ -631,6 +687,19 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     [`${type}Count`]: fields.length,
                 },
             });
+            await this.recordPullRequest({
+                user,
+                projectUuid,
+                type: gitProps.type,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                prNumber: pullRequest.number,
+                prUrl: pullRequest.html_url,
+                source:
+                    type === 'customMetrics'
+                        ? PullRequestSource.CUSTOM_METRIC
+                        : PullRequestSource.CUSTOM_DIMENSION,
+            });
             return {
                 prTitle: pullRequest.title,
                 prUrl: pullRequest.html_url,
@@ -842,6 +911,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 event: 'write_back.created',
                 userId: user.userUuid,
                 properties: eventProperties,
+            });
+            await this.recordPullRequest({
+                user,
+                projectUuid,
+                type: gitProps.type,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                prNumber: pullRequest.number,
+                prUrl: pullRequest.html_url,
+                source: PullRequestSource.SQL_RUNNER,
             });
             return {
                 prTitle: pullRequest.title,
@@ -1121,6 +1200,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 fileSize: newContent.length,
                 gitProvider: gitProps.type,
             },
+        });
+
+        await this.recordPullRequest({
+            user,
+            projectUuid,
+            type: gitProps.type,
+            owner: gitProps.owner,
+            repo: gitProps.repo,
+            prNumber: pullRequest.number,
+            prUrl: pullRequest.html_url,
+            source: PullRequestSource.SOURCE_EDITOR,
         });
 
         return {
@@ -1618,6 +1708,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 baseBranch: protectedBranch,
                 gitProvider: creds.type,
             },
+        });
+
+        await this.recordPullRequest({
+            user,
+            projectUuid,
+            type: creds.type,
+            owner: creds.owner,
+            repo: creds.repo,
+            prNumber: pullRequest.number,
+            prUrl: pullRequest.html_url,
+            source: PullRequestSource.SOURCE_EDITOR,
         });
 
         return {
