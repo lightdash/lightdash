@@ -1,5 +1,5 @@
 import { type AiAgent } from '@lightdash/common';
-import { Group, Text, type ComboboxItem } from '@mantine-8/core';
+import { Badge, Group, Text, type ComboboxItem } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -16,6 +16,8 @@ export const AI_ROUTING_AUTO_VALUE = 'auto';
 
 export interface AgentSelectOption extends ComboboxItem {
     imageUrl?: AiAgent['imageUrl'];
+    isProjectDefault?: boolean;
+    isUserDefault?: boolean;
 }
 
 export const renderSelectOption = ({
@@ -24,27 +26,49 @@ export const renderSelectOption = ({
 }: {
     option: AgentSelectOption;
     checked?: boolean;
-}) => (
-    <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-        <LightdashUserAvatar
-            size={22}
-            name={option.label}
-            src={option.imageUrl}
-        />
-        <Text size="xs" truncate="end" flex={1}>
-            {option.label}
-        </Text>
+}) => {
+    const showProjectDefaultBadge = shouldShowProjectDefaultBadge(option);
 
-        {checked && <MantineIcon icon={IconCheck} size="sm" color="violet" />}
-    </Group>
-);
+    return (
+        <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
+            <LightdashUserAvatar
+                size={22}
+                name={option.label}
+                src={option.imageUrl}
+            />
+            <Text size="xs" truncate="end" flex={1}>
+                {option.label}
+            </Text>
 
-export const getAgentOptions = (agents: Agent[]) =>
+            {showProjectDefaultBadge && (
+                <Badge size="xs" variant="light" color="blue">
+                    Project default
+                </Badge>
+            )}
+
+            {checked && (
+                <MantineIcon icon={IconCheck} size="sm" color="violet" />
+            )}
+        </Group>
+    );
+};
+
+export const shouldShowProjectDefaultBadge = (
+    option: Pick<AgentSelectOption, 'isProjectDefault' | 'isUserDefault'>,
+) => Boolean(option.isProjectDefault && !option.isUserDefault);
+
+export const getAgentOptions = (
+    agents: Agent[],
+    projectDefaultUuid?: string | null,
+    userDefaultUuid?: string | null,
+) =>
     agents.map(
         ({ name, uuid, imageUrl }) =>
             ({
                 label: name,
                 value: uuid,
                 imageUrl: imageUrl,
+                isProjectDefault: projectDefaultUuid === uuid,
+                isUserDefault: userDefaultUuid === uuid,
             }) satisfies AgentSelectOption,
     );

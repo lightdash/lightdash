@@ -23,6 +23,7 @@ import {
     useAiAgentThread,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferencesWithDefaults } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
 
@@ -44,6 +45,10 @@ const AgentPage = () => {
         projectUuid: projectUuid!,
         redirectOnUnauthorized: true,
     });
+
+    const { data: agentPreferences } = useGetUserAgentPreferencesWithDefaults(
+        projectUuid!,
+    );
 
     const [isAgentSidebarCollapsed, setIsAgentSidebarCollapsed] =
         useState(false);
@@ -173,6 +178,10 @@ const AgentPage = () => {
                                 projectUuid={projectUuid!}
                                 agents={agentsList}
                                 selectedAgent={agent}
+                                projectDefaultUuid={
+                                    agentPreferences?.projectDefault
+                                }
+                                userDefaultUuid={agentPreferences?.userDefault}
                             />
                         ) : undefined
                     }

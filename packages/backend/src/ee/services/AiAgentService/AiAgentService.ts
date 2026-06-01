@@ -16,6 +16,7 @@ import {
     AiAgentThreadSummary,
     AiAgentUser,
     AiAgentUserPreferences,
+    AiAgentUserPreferencesWithDefaults,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
@@ -764,6 +765,93 @@ export class AiAgentService extends BaseService {
         }
 
         return false;
+    }
+
+    /**
+     * Returns the effective default agent UUID for a user in a project.
+     * Priority chain (first accessible agent wins):
+     * 1. User preference (if set and accessible)
+     * 2. Project default (if set and accessible)
+     * 3. First agent from listAgents (if any)
+     * 4. null (no agents available)
+     */
+    async getEffectiveDefaultAgentUuid(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string | null> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        // Step 1: Check user preference
+        const userPreferences = await this.aiAgentModel.getUserAgentPreferences(
+            {
+                userUuid,
+                projectUuid,
+            },
+        );
+
+        if (userPreferences?.defaultAgentUuid) {
+            try {
+                const userPrefAgent = await this.aiAgentModel.getAgent({
+                    organizationUuid,
+                    agentUuid: userPreferences.defaultAgentUuid,
+                    projectUuid,
+                });
+
+                if (userPrefAgent) {
+                    const hasAccess = await this.checkAgentAccess(
+                        user,
+                        userPrefAgent,
+                    );
+                    if (hasAccess) {
+                        return userPreferences.defaultAgentUuid;
+                    }
+                }
+            } catch (error) {
+                // User preference points to non-existent or deleted agent, continue to next fallback
+                Logger.debug(
+                    `User preference agent ${userPreferences.defaultAgentUuid} not accessible, falling back`,
+                );
+            }
+        }
+
+        // Step 2: Check project default
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (project.defaultAiAgentUuid) {
+            try {
+                const projectDefaultAgent = await this.aiAgentModel.getAgent({
+                    organizationUuid,
+                    agentUuid: project.defaultAiAgentUuid,
+                    projectUuid,
+                });
+
+                if (projectDefaultAgent) {
+                    const hasAccess = await this.checkAgentAccess(
+                        user,
+                        projectDefaultAgent,
+                    );
+                    if (hasAccess) {
+                        return project.defaultAiAgentUuid;
+                    }
+                }
+            } catch (error) {
+                // Project default points to non-existent or deleted agent, continue to next fallback
+                Logger.debug(
+                    `Project default agent ${project.defaultAiAgentUuid} not accessible, falling back`,
+                );
+            }
+        }
+
+        // Step 3: Use first accessible agent from listAgents
+        const accessibleAgents = await this.listAgents(user, projectUuid);
+        if (accessibleAgents.length > 0) {
+            return accessibleAgents[0].uuid;
+        }
+
+        // Step 4: No agents available
+        return null;
     }
 
     async getAvailableExplores(
@@ -6930,6 +7018,54 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             projectUuid,
             defaultAgentUuid: body.defaultAgentUuid,
         });
+    }
+
+    async getUserAgentPreferencesWithDefaults(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentUserPreferencesWithDefaults> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot not enabled');
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        // Get user preference
+        const userPreferences = await this.aiAgentModel.getUserAgentPreferences(
+            {
+                userUuid,
+                projectUuid,
+            },
+        );
+
+        // Get project from model to access default_ai_agent_uuid
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
+        // Get effective default
+        const effectiveDefault = await this.getEffectiveDefaultAgentUuid(
+            user,
+            projectUuid,
+        );
+
+        return {
+            userDefault: userPreferences?.defaultAgentUuid || null,
+            projectDefault: projectSummary.defaultAiAgentUuid || null,
+            effectiveDefault,
+        };
     }
 
     async deleteUserAgentPreferences(

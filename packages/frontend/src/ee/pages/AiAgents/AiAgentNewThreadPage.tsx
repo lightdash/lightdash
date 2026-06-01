@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Badge,
     Center,
     Group,
     Pill,
@@ -36,6 +37,7 @@ import {
     useCreateAgentThreadMutation,
     useVerifiedQuestions,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferencesWithDefaults } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
@@ -105,6 +107,9 @@ const AiAgentNewThreadPage: FC = () => {
             },
             onToolResult: handleToolResult,
         });
+    const { data: agentPreferences } = useGetUserAgentPreferencesWithDefaults(
+        projectUuid!,
+    );
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
         agentUuid,
@@ -145,6 +150,9 @@ const AiAgentNewThreadPage: FC = () => {
         [modelOptions, selectedModelKey],
     );
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
+
+    const isProjectDefault = agentPreferences?.projectDefault === agent.uuid;
+    const showProjectDefaultBadge = isProjectDefault;
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
@@ -203,10 +211,20 @@ const AiAgentNewThreadPage: FC = () => {
                             name={agent.name || 'AI'}
                             src={agent.imageUrl}
                         />
-                        <Group justify="center" gap={2}>
+                        <Group justify="center" gap="xs">
                             <Title order={4} ta="center">
                                 {agent.name}
                             </Title>
+                            {showProjectDefaultBadge && (
+                                <Badge
+                                    size="sm"
+                                    variant="light"
+                                    color="blue"
+                                    styles={{ root: { textTransform: 'none' } }}
+                                >
+                                    Project default
+                                </Badge>
+                            )}
                             <DefaultAgentButton
                                 projectUuid={projectUuid}
                                 agentUuid={agent.uuid}

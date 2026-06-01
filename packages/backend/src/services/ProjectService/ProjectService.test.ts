@@ -158,6 +158,7 @@ const projectModel = {
     getCachedExploreNames: jest.fn(async () => []),
     saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
+    updateProjectDefaultAgent: jest.fn(async () => undefined),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
@@ -2161,6 +2162,81 @@ describe('ProjectService', () => {
                     defaultProject.projectUuid,
                     exploreName,
                 ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('updateProjectDefaultAgent', () => {
+        test('should update project default agent when user has manage permission', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            const agentUuid = 'agent-uuid-123';
+            const updateSpy = jest
+                .spyOn(projectModel, 'updateProjectDefaultAgent')
+                .mockResolvedValue(undefined);
+
+            await service.updateProjectDefaultAgent(adminUser, projectUuid, {
+                defaultAiAgentUuid: agentUuid,
+            });
+
+            expect(updateSpy).toHaveBeenCalledWith(projectUuid, agentUuid);
+        });
+
+        test('should allow setting default agent to null', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            const updateSpy = jest
+                .spyOn(projectModel, 'updateProjectDefaultAgent')
+                .mockResolvedValue(undefined);
+
+            await service.updateProjectDefaultAgent(adminUser, projectUuid, {
+                defaultAiAgentUuid: null,
+            });
+
+            expect(updateSpy).toHaveBeenCalledWith(projectUuid, null);
+        });
+
+        test('should throw ForbiddenError when user lacks manage permission', async () => {
+            const restrictedUser: SessionUser = {
+                ...user,
+                userUuid: 'restricted-uuid',
+                role: OrganizationMemberRole.VIEWER,
+                ability: defineUserAbility(
+                    {
+                        userUuid: 'restricted-uuid',
+                        role: OrganizationMemberRole.VIEWER,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await expect(
+                service.updateProjectDefaultAgent(restrictedUser, projectUuid, {
+                    defaultAiAgentUuid: 'agent-uuid',
+                }),
             ).rejects.toThrow(ForbiddenError);
         });
     });

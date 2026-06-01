@@ -45,6 +45,7 @@ import {
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
+    ApiGetUserAgentPreferencesWithDefaultsResponse,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
     ApiStartAiMcpOAuthResponse,
@@ -126,6 +127,27 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: userPreferences ?? undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/preferences/with-defaults')
+    @OperationId('getUserAgentPreferencesWithDefaults')
+    async getUserAgentPreferencesWithDefaults(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiGetUserAgentPreferencesWithDefaultsResponse> {
+        this.setStatus(200);
+
+        const preferences =
+            await this.getAiAgentService().getUserAgentPreferencesWithDefaults(
+                req.user!,
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: preferences,
         };
     }
 

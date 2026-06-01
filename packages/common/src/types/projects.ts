@@ -824,11 +824,17 @@ export type Project = {
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
+    defaultAiAgentUuid?: string | null;
 };
 
 export type ProjectSummary = Pick<
     Project,
-    'name' | 'projectUuid' | 'organizationUuid' | 'type' | 'upstreamProjectUuid'
+    | 'name'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'type'
+    | 'upstreamProjectUuid'
+    | 'defaultAiAgentUuid'
 >;
 
 export type ApiProjectResponse = {

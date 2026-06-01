@@ -28,7 +28,7 @@ import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
 } from '../../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useGetUserAgentPreferences } from '../../../features/aiCopilot/hooks/useUserAgentPreferences';
+import { useGetUserAgentPreferencesWithDefaults } from '../../../features/aiCopilot/hooks/useUserAgentPreferences';
 import { store } from '../../../features/aiCopilot/store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import styles from './aiSearchBox.module.css';
@@ -49,10 +49,8 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const isTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         aiOrganizationSettingsQuery.data.isTrial;
-    const {
-        data: userAgentPreferences,
-        isLoading: isLoadingUserAgentPreferences,
-    } = useGetUserAgentPreferences(projectUuid);
+    const { data: agentPreferences, isLoading: isLoadingAgentPreferences } =
+        useGetUserAgentPreferencesWithDefaults(projectUuid);
     const [selectedAgent, setSelectedAgent] = useState<AiAgentSummary>();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -65,13 +63,13 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     useEffect(() => {
         if (!agents || agents.length === 0) return;
 
-        const preferredAgent =
+        // Use effective default from server-side resolver
+        const effectiveDefaultAgent =
             agents.find(
-                (agent) =>
-                    agent.uuid === userAgentPreferences?.defaultAgentUuid,
+                (agent) => agent.uuid === agentPreferences?.effectiveDefault,
             ) ?? agents[0];
-        setSelectedAgent(preferredAgent);
-    }, [agents, userAgentPreferences?.defaultAgentUuid]);
+        setSelectedAgent(effectiveDefaultAgent);
+    }, [agents, agentPreferences?.effectiveDefault]);
 
     const form = useForm({
         initialValues: {
@@ -105,7 +103,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         );
     };
 
-    if (isLoadingAgents || isLoadingUserAgentPreferences) {
+    if (isLoadingAgents || isLoadingAgentPreferences) {
         return (
             <Paper style={{ overflow: 'hidden' }} p="md">
                 <Group wrap="nowrap" align="center">
@@ -134,6 +132,10 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                             agents={agents}
                             selectedAgent={selectedAgent ?? agents[0]}
                             onSelect={onSelect}
+                            projectDefaultUuid={
+                                agentPreferences?.projectDefault
+                            }
+                            userDefaultUuid={agentPreferences?.userDefault}
                         />
                         <Group gap="xs" flex={1}>
                             <SearchDropdown

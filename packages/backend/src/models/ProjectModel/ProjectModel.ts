@@ -850,6 +850,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
+                  default_ai_agent_uuid: string | null;
               }
             | {
                   name: string;
@@ -873,6 +874,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
+                  default_ai_agent_uuid: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -952,6 +954,9 @@ export class ProjectModel {
                             .ref('project_defaults')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('default_ai_agent_uuid')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('color_palette_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -1009,6 +1014,8 @@ export class ProjectModel {
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
                     expiresAt: project.expires_at ?? null,
+                    defaultAiAgentUuid:
+                        project.default_ai_agent_uuid ?? undefined,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1064,6 +1071,7 @@ export class ProjectModel {
                     | 'project_uuid'
                     | 'project_type'
                     | 'copied_from_project_uuid'
+                    | 'default_ai_agent_uuid'
                 > &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
@@ -1072,6 +1080,7 @@ export class ProjectModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${ProjectTableName}.copied_from_project_uuid`,
                 `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.default_ai_agent_uuid`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();
@@ -1086,6 +1095,7 @@ export class ProjectModel {
             name: project.name,
             type: project.project_type,
             upstreamProjectUuid: project.copied_from_project_uuid || undefined,
+            defaultAiAgentUuid: project.default_ai_agent_uuid || undefined,
         };
     }
 
@@ -1234,6 +1244,7 @@ export class ProjectModel {
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
+            defaultAiAgentUuid: project.defaultAiAgentUuid,
         };
     }
 
@@ -1933,6 +1944,15 @@ export class ProjectModel {
             parentSpaceUuid: row.parent_space_uuid,
             parentPath: row.parent_path,
         }));
+    }
+
+    async updateProjectDefaultAgent(
+        projectUuid: string,
+        defaultAiAgentUuid: string | null,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({ default_ai_agent_uuid: defaultAiAgentUuid })
+            .where('project_uuid', projectUuid);
     }
 
     async ensureDefaultUserSpace(

@@ -35,6 +35,7 @@ import {
     SqlChartAsCode,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
+    UpdateProjectDefaultAgent,
     UpdateProjectMember,
     UserWarehouseCredentials,
     type ApiCalculateSubtotalsResponse,
@@ -774,6 +775,34 @@ export class ProjectController extends BaseController {
                 projectUuid,
                 body.colorPaletteUuid,
             );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Set the default AI agent for a project.
+     * Users without a personal preference will use this agent.
+     * @summary Update project default AI agent
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/defaultAiAgent')
+    @OperationId('updateProjectDefaultAgent')
+    async updateProjectDefaultAgent(
+        @Path() projectUuid: string,
+        @Body() body: UpdateProjectDefaultAgent,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateProjectDefaultAgent(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: undefined,

@@ -292,6 +292,11 @@ export type UpdateMetadata = {
 export type UpdateDefaultUserSpaces = {
     hasDefaultUserSpaces: boolean;
 };
+
+export type UpdateProjectDefaultAgent = {
+    defaultAiAgentUuid: string | null;
+};
+
 export type ApiFormulaValidationResults =
     | { valid: true; compiledSql: string }
     | { valid: false; error: string };

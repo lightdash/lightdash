@@ -29,7 +29,7 @@ import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentP
 import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiRouterConfig } from '../../features/aiCopilot/hooks/useAiRouter';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
+import { useGetUserAgentPreferencesWithDefaults } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import AgentsRouterPage from './AgentsRouterPage';
 
 const AGENT_FEATURES = [
@@ -105,9 +105,12 @@ const AgentsWelcome = () => {
             enabled: isAiCopilotEnabledOrTrial,
         },
     });
-    const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
-        enabled: isAiCopilotEnabledOrTrial,
-    });
+    const userAgentPreferencesQuery = useGetUserAgentPreferencesWithDefaults(
+        projectUuid,
+        {
+            enabled: isAiCopilotEnabledOrTrial,
+        },
+    );
     const aiRouterConfigQuery = useAiRouterConfig();
 
     if (aiOrganizationSettingsQuery.isLoading) {
@@ -156,9 +159,12 @@ const AgentsWelcome = () => {
     } else if (aiRouterConfigQuery.data?.enabled) {
         return <AgentsRouterPage />;
     } else {
+        const defaultAgentUuid =
+            userAgentPreferencesQuery.data?.effectiveDefault ??
+            agentsQuery.data[0].uuid;
         return (
             <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
+                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
                 replace
             />
         );

@@ -21,18 +21,26 @@ type Props = ComboboxProps & {
     agents: Agent[];
     selectedAgent: Agent;
     onSelect: (val: string) => void;
+    projectDefaultUuid?: string | null;
+    userDefaultUuid?: string | null;
 };
 
 export const CompactAgentSelector = ({
     agents,
     selectedAgent,
     onSelect,
+    projectDefaultUuid,
+    userDefaultUuid,
     ...props
 }: Props) => {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
-    const agentOptions = getAgentOptions(agents);
+    const agentOptions = getAgentOptions(
+        agents,
+        projectDefaultUuid,
+        userDefaultUuid,
+    );
     const hasOneAgent = agentOptions.length === 1;
     const hasAgents = agentOptions.length > 0;
 

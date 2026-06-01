@@ -1,5 +1,6 @@
 import {
     Avatar,
+    Badge,
     Center,
     Combobox,
     Group,
@@ -24,6 +25,7 @@ import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
     getAgentOptions,
+    shouldShowProjectDefaultBadge,
     type Agent,
 } from './AgentSelectorUtils';
 
@@ -37,6 +39,8 @@ type Props = {
      * tight (e.g. the chat input).
      */
     compact?: boolean;
+    projectDefaultUuid?: string | null;
+    userDefaultUuid?: string | null;
 };
 
 const AUTO_VALUE = '__auto__';
@@ -46,6 +50,8 @@ export const AgentSelector = ({
     selectedAgent,
     projectUuid,
     compact = false,
+    projectDefaultUuid,
+    userDefaultUuid,
 }: Props) => {
     const navigate = useNavigate();
     const { search } = useLocation();
@@ -55,7 +61,11 @@ export const AgentSelector = ({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
 
-    const agentOptions = getAgentOptions(agents);
+    const agentOptions = getAgentOptions(
+        agents,
+        projectDefaultUuid,
+        userDefaultUuid,
+    );
     const isAuto = selectedAgent === 'auto';
     // Auto is only meaningful when there's more than one agent AND the router
     // is enabled. Treat any non-`enabled: true` state (loading, error, disabled)
@@ -172,35 +182,50 @@ export const AgentSelector = ({
                     </Combobox.Header>
                 )}
                 <Combobox.Options>
-                    {agentOptions.map((item) => (
-                        <Combobox.Option
-                            value={item.value}
-                            key={item.value}
-                            p={2}
-                            pr={6}
-                        >
-                            <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-                                <LightdashUserAvatar
-                                    size={22}
-                                    name={item.label}
-                                    src={item.imageUrl}
-                                />
+                    {agentOptions.map((item) => {
+                        const showProjectDefaultBadge =
+                            shouldShowProjectDefaultBadge(item);
 
-                                <Text size="xs" truncate="end" flex={1}>
-                                    {item.label}
-                                </Text>
+                        return (
+                            <Combobox.Option
+                                value={item.value}
+                                key={item.value}
+                                p={2}
+                                pr={6}
+                            >
+                                <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
+                                    <LightdashUserAvatar
+                                        size={22}
+                                        name={item.label}
+                                        src={item.imageUrl}
+                                    />
 
-                                {!isAuto &&
-                                    item.value === selectedAgent.uuid && (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size="sm"
-                                            color="ldGray.7"
-                                        />
+                                    <Text size="xs" truncate="end" flex={1}>
+                                        {item.label}
+                                    </Text>
+
+                                    {showProjectDefaultBadge && (
+                                        <Badge
+                                            size="xs"
+                                            variant="light"
+                                            color="blue"
+                                        >
+                                            Project default
+                                        </Badge>
                                     )}
-                            </Group>
-                        </Combobox.Option>
-                    ))}
+
+                                    {!isAuto &&
+                                        item.value === selectedAgent.uuid && (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size="sm"
+                                                color="ldGray.7"
+                                            />
+                                        )}
+                                </Group>
+                            </Combobox.Option>
+                        );
+                    })}
 
                     <Combobox.Footer p={4} pr={6}>
                         <Combobox.Option value="new" p={2}>

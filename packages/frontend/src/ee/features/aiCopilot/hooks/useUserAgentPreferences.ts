@@ -1,4 +1,5 @@
 import {
+    type AiAgentUserPreferencesWithDefaults,
     type ApiAiAgentExploreAccessSummaryResponse,
     type ApiError,
     type ApiGetUserAgentPreferencesResponse,
@@ -34,6 +35,29 @@ export const useGetUserAgentPreferences = (
     return useQuery<ApiGetUserAgentPreferencesResponse['results'], ApiError>({
         queryKey: [USER_AGENT_PREFERENCES, projectUuid],
         queryFn: () => getUserAgentPreferences(projectUuid!),
+        ...options,
+        enabled: !!projectUuid && options?.enabled !== false,
+    });
+};
+
+const getUserAgentPreferencesWithDefaults = async (
+    projectUuid: string,
+): Promise<AiAgentUserPreferencesWithDefaults> => {
+    const response = await lightdashApi<any>({
+        url: `/projects/${projectUuid}/aiAgents/preferences/with-defaults`,
+        method: 'GET',
+        body: undefined,
+    });
+    return response;
+};
+
+export const useGetUserAgentPreferencesWithDefaults = (
+    projectUuid?: string | null,
+    options?: UseQueryOptions<AiAgentUserPreferencesWithDefaults, ApiError>,
+) => {
+    return useQuery<AiAgentUserPreferencesWithDefaults, ApiError>({
+        queryKey: ['userAgentPreferencesWithDefaults', projectUuid],
+        queryFn: () => getUserAgentPreferencesWithDefaults(projectUuid!),
         ...options,
         enabled: !!projectUuid && options?.enabled !== false,
     });
@@ -80,6 +104,10 @@ export const useUpdateUserAgentPreferences = (projectUuid: string) => {
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: [USER_AGENT_PREFERENCES, projectUuid],
+            });
+            // Also invalidate preferences with defaults (used by homepage)
+            void queryClient.invalidateQueries({
+                queryKey: ['userAgentPreferencesWithDefaults', projectUuid],
             });
         },
         onError: ({ error }, _variables, context) => {
@@ -135,6 +163,10 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: [USER_AGENT_PREFERENCES, projectUuid],
+            });
+            // Also invalidate preferences with defaults (used by homepage)
+            void queryClient.invalidateQueries({
+                queryKey: ['userAgentPreferencesWithDefaults', projectUuid],
             });
         },
         onError: ({ error }, _variables, context) => {

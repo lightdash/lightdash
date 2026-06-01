@@ -158,6 +158,7 @@ import {
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
+    UpdateProjectDefaultAgent,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
@@ -7010,6 +7011,34 @@ export class ProjectService extends BaseService {
         await this.projectModel.updateDefaultUserSpaces(
             projectUuid,
             data.hasDefaultUserSpaces,
+        );
+    }
+
+    async updateProjectDefaultAgent(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateProjectDefaultAgent,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Note: Agent validation is done via FK constraint
+        // Setting invalid UUID will be rejected by database
+        await this.projectModel.updateProjectDefaultAgent(
+            projectUuid,
+            data.defaultAiAgentUuid,
         );
     }
 

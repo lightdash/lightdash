@@ -520,9 +520,18 @@ export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];
 };
 
+export type AiAgentUserPreferencesWithDefaults = {
+    userDefault: AiAgent['uuid'] | null;
+    projectDefault: AiAgent['uuid'] | null;
+    effectiveDefault: AiAgent['uuid'] | null;
+};
+
 export type ApiGetUserAgentPreferencesResponse =
     | ApiSuccess<AiAgentUserPreferences>
     | ApiSuccessEmpty;
+
+export type ApiGetUserAgentPreferencesWithDefaultsResponse =
+    ApiSuccess<AiAgentUserPreferencesWithDefaults>;
 
 export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 

@@ -5,6 +5,7 @@ import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs
 import { useActiveProjectUuid } from '../../../../../../hooks/useActiveProject';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminAgentsTable from '../AiAgentAdminAgentsTable';
+import { AiAgentsAdminProjectDefaultAgent } from '../AiAgentsAdminProjectDefaultAgent';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 
 export const AiAgentsSettingsPage = () => {
@@ -32,6 +33,7 @@ export const AiAgentsSettingsPage = () => {
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
+            <AiAgentsAdminProjectDefaultAgent />
             <AiAgentAdminAgentsTable />
         </Stack>
     );
