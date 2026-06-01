@@ -145,8 +145,8 @@ export class HealthService extends BaseService {
                 maxLimit: effectiveMaxLimit,
                 // The instance ceilings an org admin can set the per-org limits
                 // to (the env values) — used by the admin panel's "Up to" hints.
-                csvCellsMaxLimit: Math.max(
-                    this.lightdashConfig.query.csvCellsMaxLimit,
+                csvMaxLimit: Math.max(
+                    this.lightdashConfig.query.csvMaxLimit,
                     this.lightdashConfig.query.csvCellsLimit,
                 ),
                 queryMaxLimit: this.lightdashConfig.query.maxLimit,

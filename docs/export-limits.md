@@ -14,7 +14,7 @@ Instance-wide env vars used to be the only control over query/export size:
 |---|---|---|---|
 | `LIGHTDASH_QUERY_MAX_LIMIT` | `lightdashConfig.query.maxLimit` | 5000 (Cloud: 100000) | Max **rows** a query may return — and the **ceiling** for the per-org query limit |
 | `LIGHTDASH_CSV_CELLS_LIMIT` | `lightdashConfig.query.csvCellsLimit` | 100000 | Default max **cells** (rows × columns) a CSV/Excel export may contain |
-| `LIGHTDASH_CSV_CELLS_MAX_LIMIT` | `lightdashConfig.query.csvCellsMaxLimit` | 5000000 | **Ceiling** an org admin may raise the per-org CSV cells limit to |
+| `LIGHTDASH_CSV_MAX_LIMIT` | `lightdashConfig.query.csvMaxLimit` | 5000000 | **Ceiling** an org admin may raise the per-org CSV cells limit to |
 
 On shared multi-tenant Cloud infra each org needs its own policy (a customer with a 100k-row × 86-column query
 needs ~8.6M cells, while others should stay capped). The **Limits** panel lets an admin override both
@@ -41,15 +41,15 @@ Both are surfaced **resolved** in the API (always an effective number, falling b
 frontend can display them directly. Validation (`OrganizationSettingsService`): each must be a **positive
 integer** no larger than the Postgres `integer` column ceiling; `queryLimit` additionally cannot exceed
 `LIGHTDASH_QUERY_MAX_LIMIT`, and `csvCellsLimit` cannot exceed the **effective cap =
-`max(LIGHTDASH_CSV_CELLS_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`** (default 5,000,000).
+`max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`** (default 5,000,000).
 
-### Why `max(CSV_CELLS_MAX_LIMIT, CSV_CELLS_LIMIT)` and not just `CSV_CELLS_MAX_LIMIT`?
+### Why `max(CSV_MAX_LIMIT, CSV_CELLS_LIMIT)` and not just `CSV_MAX_LIMIT`?
 
 Several Cloud customers already set `LIGHTDASH_CSV_CELLS_LIMIT` above the 5M default (up to 50M). If the cap
 were a plain 5M, their **panel would reject its own inherited value** (the effective limit shown, e.g. 50M,
 exceeds 5M → every Save fails). Taking the max with the instance default guarantees the cap is never below what
 the instance already runs, so no existing instance is forced below its own limit, while new instances get a
-clean 5M ceiling. The ceiling is exposed to the panel via `/health` (`query.csvCellsMaxLimit`), and the
+clean 5M ceiling. The ceiling is exposed to the panel via `/health` (`query.csvMaxLimit`), and the
 query-rows ceiling via `query.queryMaxLimit`, so the panel's input bounds and helper text match the backend.
 
 ---
@@ -69,7 +69,7 @@ value_:
 | `defaultLimit` | `min(LIGHTDASH_QUERY_DEFAULT_LIMIT, effective maxLimit)` | new-query default (so it's never above the org limit) |
 | `csvCellsLimit` | effective CSV cells (`csvCellsLimit ?? LIGHTDASH_CSV_CELLS_LIMIT`) | export "limited to N cells" messaging |
 | `queryMaxLimit` | instance ceiling (`LIGHTDASH_QUERY_MAX_LIMIT`) | admin panel "Up to" hint |
-| `csvCellsMaxLimit` | instance ceiling (`max(CSV_CELLS_MAX_LIMIT, CSV_CELLS_LIMIT)`) | admin panel "Up to" hint |
+| `csvMaxLimit` | instance ceiling (`max(CSV_CELLS_MAX_LIMIT, CSV_CELLS_LIMIT)`) | admin panel "Up to" hint |
 
 Unauthenticated callers (the login page) have no org, so they see the instance defaults — unchanged behavior.
 
@@ -121,8 +121,8 @@ can't leak to ungated orgs, since an override only exists if it was written thro
 | Concern | Location |
 |---|---|
 | Setting types + resolver | `packages/common/src/types/organizationSettings.ts` (`queryLimit`, `csvCellsLimit`) |
-| CSV cap config | `parseConfig.ts` (`query.csvCellsMaxLimit` from `LIGHTDASH_CSV_CELLS_MAX_LIMIT`) |
-| Org-aware health | `HealthService.ts` (`query.maxLimit` / `defaultLimit` / `csvCellsLimit` effective; `queryMaxLimit` / `csvCellsMaxLimit` ceilings) |
+| CSV cap config | `parseConfig.ts` (`query.csvMaxLimit` from `LIGHTDASH_CSV_MAX_LIMIT`) |
+| Org-aware health | `HealthService.ts` (`query.maxLimit` / `defaultLimit` / `csvCellsLimit` effective; `queryMaxLimit` / `csvMaxLimit` ceilings) |
 | Feature flag | `packages/common/src/types/featureFlags.ts` (`ProLimits = 'pro-limits'`) |
 | DB column + entity | migration `..._add_export_limits_to_organization_settings.ts`, `entities/organizationSettings.ts` |
 | Model + service validation | `OrganizationSettingsModel.ts`, `OrganizationSettingsService.ts` |

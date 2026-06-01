@@ -88,11 +88,11 @@ export class OrganizationSettingsService extends BaseService {
                 `Scheduled delivery expiry and export limits must be whole numbers between 1 and ${POSTGRES_INTEGER_MAX}.`,
             );
         }
-        // The CSV cells limit is capped at LIGHTDASH_CSV_CELLS_MAX_LIMIT — but
+        // The CSV cells limit is capped at LIGHTDASH_CSV_MAX_LIMIT — but
         // never below the instance's own default, so an instance whose env
         // default already exceeds the cap is never forced to lower its limit.
         const csvCellsCap = Math.max(
-            this.lightdashConfig.query.csvCellsMaxLimit,
+            this.lightdashConfig.query.csvMaxLimit,
             this.lightdashConfig.query.csvCellsLimit,
         );
         if (

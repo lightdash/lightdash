@@ -72,7 +72,7 @@ export type OrganizationSettings = {
     /**
      * Max number of cells (rows × columns) a CSV/Excel export may contain for
      * this org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by
-     * `LIGHTDASH_CSV_CELLS_MAX_LIMIT` (the ceiling); `null` inherits the
+     * `LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the
      * default. Always resolved to an effective number in API responses.
      */
     csvCellsLimit: number | null;

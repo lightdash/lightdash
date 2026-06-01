@@ -18,8 +18,8 @@ import {
  *
  * The caps are the instance ceilings from /health: `queryRowsCap` is
  * LIGHTDASH_QUERY_MAX_LIMIT (`query.queryMaxLimit`) and `csvCellsCap` is
- * max(LIGHTDASH_CSV_CELLS_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)
- * (`query.csvCellsMaxLimit`). Both are always ≥ the org's current value, so
+ * max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)
+ * (`query.csvMaxLimit`). Both are always ≥ the org's current value, so
  * they can be used directly as the input max.
  */
 const LimitsForm: FC<{
@@ -103,7 +103,7 @@ const LimitsPanel: FC = () => {
             key={`${data.queryLimit}-${data.csvCellsLimit}`}
             settings={data}
             queryRowsCap={health.data.query.queryMaxLimit}
-            csvCellsCap={health.data.query.csvCellsMaxLimit}
+            csvCellsCap={health.data.query.csvMaxLimit}
         />
     );
 };

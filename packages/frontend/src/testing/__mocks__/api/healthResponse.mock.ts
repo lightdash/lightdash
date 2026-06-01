@@ -46,7 +46,7 @@ export default function mockHealthResponse(
             queryMaxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
-            csvCellsMaxLimit: 5000000,
+            csvMaxLimit: 5000000,
             retryQueryOnTransientErrors: true,
         },
         dashboard: {
