@@ -2,14 +2,12 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Anchor, Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
-    IconAppWindow,
     IconApps,
+    IconAppWindow,
     IconBolt,
     IconBrain,
     IconBrowser,
-    IconMessageCircle,
-    IconRobotFace,
-    IconSettings,
+    IconBrush,
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
@@ -19,16 +17,19 @@ import {
     IconDatabaseExport,
     IconFileExport,
     IconFolders,
+    IconGitPullRequest,
     IconHistory,
     IconIdBadge2,
     IconKey,
     IconListCheck,
     IconLock,
-    IconBrush,
+    IconMessageCircle,
     IconPalette,
     IconPlug,
     IconRefresh,
     IconReportAnalytics,
+    IconRobotFace,
+    IconSettings,
     IconShieldCheck,
     IconTableOptions,
     IconTrash,
@@ -98,6 +99,7 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { useIsPullRequestsEnabled } from '../features/pullRequests/hooks/useIsPullRequestsEnabled';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -136,6 +138,8 @@ const Settings: FC = () => {
     );
     const isServiceAccountFeatureFlagEnabled =
         serviceAccountsFlag?.enabled ?? false;
+
+    const isPullRequestsEnabled = useIsPullRequestsEnabled();
 
     const {
         health: {
@@ -754,6 +758,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/validator',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/pullRequests',
                 },
                 location.pathname,
             ) &&
@@ -1486,6 +1496,27 @@ const Settings: FC = () => {
                                             leftSection={
                                                 <MantineIcon
                                                     icon={IconDatabaseExport}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    {isPullRequestsEnabled &&
+                                    user.ability?.can(
+                                        'view',
+                                        subject('SourceCode', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Pull requests"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/pullRequests`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconGitPullRequest}
                                                 />
                                             }
                                         />
