@@ -1,3 +1,10 @@
+# [0.3067.0](https://github.com/lightdash/lightdash/compare/0.3066.0...0.3067.0) (2026-06-01)
+
+
+### Features
+
+* **pull-requests:** record pull request rows on in-app write-backs ([#23716](https://github.com/lightdash/lightdash/issues/23716)) ([75e2232](https://github.com/lightdash/lightdash/commit/75e2232ea081886d5d2df9394c254ea62c7eed2e))
+
 # [0.3066.0](https://github.com/lightdash/lightdash/compare/0.3065.0...0.3066.0) (2026-06-01)
 
 
