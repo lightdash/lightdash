@@ -72,7 +72,6 @@ export type VisualizationProviderProps = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
-    pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
@@ -96,7 +95,6 @@ const VisualizationProvider: FC<
     resultsData,
     isLoading,
     columnOrder,
-    pivotTableMaxColumnLimit,
     chartConfig,
     onChartConfigChange,
     onSeriesContextMenu,
@@ -511,7 +509,6 @@ const VisualizationProvider: FC<
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
-                    pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     savedChartUuid={savedChartUuid}

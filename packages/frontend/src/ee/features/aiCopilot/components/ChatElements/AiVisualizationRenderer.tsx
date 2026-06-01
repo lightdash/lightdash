@@ -219,9 +219,6 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     ...metricQuery.metrics,
                     ...metricQuery.tableCalculations.map((tc) => tc.name),
                 ]}
-                pivotTableMaxColumnLimit={
-                    health?.pivotTable.maxColumnLimit ?? 60
-                }
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
