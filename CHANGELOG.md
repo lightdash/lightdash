@@ -1,3 +1,15 @@
+# [0.3072.0](https://github.com/lightdash/lightdash/compare/0.3071.0...0.3072.0) (2026-06-01)
+
+
+### Bug Fixes
+
+* **explorer:** keep field-picker state on background refetch [PROD-8043] ([#23742](https://github.com/lightdash/lightdash/issues/23742)) ([8f87a4b](https://github.com/lightdash/lightdash/commit/8f87a4babb923ec37d786895efa5a0fcdaf5a58b)), closes [#17612](https://github.com/lightdash/lightdash/issues/17612) [#23722](https://github.com/lightdash/lightdash/issues/23722)
+
+
+### Features
+
+* **ai-writeback:** raise PR as the connecting GitHub user with signed commits (PROD-8050) ([#23741](https://github.com/lightdash/lightdash/issues/23741)) ([aa70db2](https://github.com/lightdash/lightdash/commit/aa70db2bfdb1066cc81b01dbf2c27358e0161343))
+
 # [0.3071.0](https://github.com/lightdash/lightdash/compare/0.3070.0...0.3071.0) (2026-06-01)
 
 
