@@ -46,6 +46,7 @@ import type {
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
+    CO_AUTHOR_TRAILER,
     COMMIT_AUTHOR_EMAIL,
     COMMIT_AUTHOR_NAME,
     COMPILE_STRIPPED_ENV_VARS,
@@ -579,13 +580,16 @@ export class AiWritebackService extends BaseService {
         });
 
         setStage('push');
+        const body = description
+            ? `${description}\n\n${CO_AUTHOR_TRAILER}`
+            : CO_AUTHOR_TRAILER;
         await createSignedCommitOnBranch({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
             branch,
             expectedHeadOid,
             headline: title,
-            body: description,
+            body,
             fileChanges,
             ...(prToken ? { token: prToken } : { installationId }),
         });
