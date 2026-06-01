@@ -1437,7 +1437,37 @@ export class SchedulerService extends BaseService {
             }
         }
 
+        const { organizationUuid, projectUuid } =
+            await this.getSchedulerProjectContext(scheduler);
+
         await this.checkViewResource(user, scheduler);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: getSchedulerResourceTypeAndId(scheduler),
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            auditedAbility.cannot(
+                'create',
+                subject('GoogleSheets', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)
@@ -1446,9 +1476,6 @@ export class SchedulerService extends BaseService {
             user.organizationUuid,
             slackChannels,
         );
-
-        const { organizationUuid, projectUuid } =
-            await this.getSchedulerProjectContext(scheduler);
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
