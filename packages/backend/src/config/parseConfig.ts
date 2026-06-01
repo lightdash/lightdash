@@ -2034,7 +2034,7 @@ export const parseConfig = (): LightdashConfig => {
             maxLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
-                ) || 100000,
+                ) || 5000,
             defaultLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_DEFAULT_LIMIT',

@@ -111,8 +111,10 @@ Unlike the scheduled-delivery Exporting panel, the **Limits** panel is gated beh
 that should configure it. Enable it via `LIGHTDASH_ENABLE_FEATURE_FLAGS=pro-limits` (self-hosted escape hatch),
 a `feature_flags` row, or a per-org `feature_flag_overrides` row.
 
-The flag only gates **panel visibility/configuration**. Resolution of any stored override is always on (it
-can't leak to ungated orgs, since an override only exists if it was written through the flag-gated UI/API).
+The flag gates **both** the panel (frontend) **and** the update API: `OrganizationSettingsService.updateOrganizationSettings`
+rejects changes to `query_limit`/`csv_cells_limit` for an org without the flag (`ForbiddenError`), so the gate
+can't be bypassed with a direct `PATCH`. The other org-settings fields (scheduled delivery) are not gated.
+**Reads and enforcement** of any already-stored override are always on — only writing the limits is gated.
 
 ---
 
