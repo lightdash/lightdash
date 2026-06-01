@@ -1,3 +1,11 @@
+# [0.3061.0](https://github.com/lightdash/lightdash/compare/0.3060.1...0.3061.0) (2026-06-01)
+
+
+### Features
+
+* **ai-agents:** add per-project AI router routing instructions ([#23677](https://github.com/lightdash/lightdash/issues/23677)) ([5f10fb5](https://github.com/lightdash/lightdash/commit/5f10fb594780d762d1fbf81b0d6b38e798d69841)), closes [#150](https://github.com/lightdash/lightdash/issues/150) [#23591](https://github.com/lightdash/lightdash/issues/23591) [#23678](https://github.com/lightdash/lightdash/issues/23678)
+* **ai-agents:** add routing instructions editor to AI router settings ([#23678](https://github.com/lightdash/lightdash/issues/23678)) ([3edb1e4](https://github.com/lightdash/lightdash/commit/3edb1e4df29b04b188bf23762ba35168a9031617)), closes [#150](https://github.com/lightdash/lightdash/issues/150) [#23677](https://github.com/lightdash/lightdash/issues/23677) [#23677](https://github.com/lightdash/lightdash/issues/23677)
+
 ## [0.3060.1](https://github.com/lightdash/lightdash/compare/0.3060.0...0.3060.1) (2026-06-01)
 
 
