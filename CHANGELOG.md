@@ -1,3 +1,13 @@
+# [0.3062.0](https://github.com/lightdash/lightdash/compare/0.3061.0...0.3062.0) (2026-06-01)
+
+
+### Features
+
+* add per-org scheduled-delivery link expiry settings with per-channel overrides and transparent persistent-URL escalation (PROD-7217) ([#23702](https://github.com/lightdash/lightdash/issues/23702)) ([0541dda](https://github.com/lightdash/lightdash/commit/0541dda7963303055cb4402b827a3a6e5821a06b))
+* **ai-agents:** add typed `onToolCall`/`onToolResult` stream callbacks with parsed tool definitions ([#23661](https://github.com/lightdash/lightdash/issues/23661)) ([466221a](https://github.com/lightdash/lightdash/commit/466221a97e1ef9939e825978edb11550a4cc063b))
+* **ai-agents:** navigate to dashboard on `createContent`/`editContent` tool result ([#23682](https://github.com/lightdash/lightdash/issues/23682)) ([d5dce0e](https://github.com/lightdash/lightdash/commit/d5dce0e17f635c1fa093914665d1db16da22a936))
+* **ai-agents:** scroll to and highlight dashboard tile after AI creates or updates chart ([#23691](https://github.com/lightdash/lightdash/issues/23691)) ([19b8f83](https://github.com/lightdash/lightdash/commit/19b8f83c4c9bfc076e3407119fcd8a85012090cd))
+
 # [0.3061.0](https://github.com/lightdash/lightdash/compare/0.3060.1...0.3061.0) (2026-06-01)
 
 
