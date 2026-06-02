@@ -5867,14 +5867,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return result;
         };
 
-        const setupPreviewDeploy: SetupPreviewDeployFn = () =>
-            wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
+        const setupPreviewDeploy: SetupPreviewDeployFn = () => {
+            // Surface coarse step progress (Starting sandbox → Cloning project →
+            // … → Committing) under the setupPreviewDeploy header, same as
+            // proposeWriteback. Fire-and-forget — a dropped client must never
+            // take down the run.
+            const setupProgressCallback = (message: string) => {
+                void updateProgress(message, 'setupPreviewDeploy').catch(
+                    (err) => {
+                        Logger.debug(
+                            `Failed to update progress for preview-deploy setup (${message}):`,
+                            err,
+                        );
+                    },
+                );
+            };
+            return wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
                 this.aiWritebackService.setupPreviewDeploy({
                     user,
                     projectUuid,
                     aiThreadUuid: prompt.threadUuid,
+                    onProgress: setupProgressCallback,
                 }),
             );
+        };
 
         const listProjects: ListProjectsFn = () =>
             wrapSentryTransaction('AiAgent.listProjects', {}, async () => {

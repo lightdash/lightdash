@@ -755,8 +755,9 @@ export class AiWritebackService extends BaseService {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid?: string;
+        onProgress?: (message: string) => void;
     }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
-        const { user, projectUuid, aiThreadUuid } = args;
+        const { user, projectUuid, aiThreadUuid, onProgress } = args;
         // Explicit permission gate at this service entry point (it's reachable
         // directly as an agent tool). Mirrors the writeback manage:SourceCode
         // check; run()/prepareTurn re-checks before any side effect.
@@ -779,6 +780,7 @@ export class AiWritebackService extends BaseService {
             prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
             source: 'preview_deploy_setup',
             aiThreadUuid,
+            onProgress,
         });
         // Pre-fill the secrets we know server-side (instance URL + project UUID)
         // so the caller can surface concrete values, not generic descriptions.
