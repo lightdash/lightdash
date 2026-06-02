@@ -1,3 +1,10 @@
+## [0.3080.1](https://github.com/lightdash/lightdash/compare/0.3080.0...0.3080.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ai-writeback:** open PRs as the GitHub App, not the App connector (PROD-8076) ([#23796](https://github.com/lightdash/lightdash/issues/23796)) ([3b22437](https://github.com/lightdash/lightdash/commit/3b224376095c6d205614722f28a1c6e8588d52e9))
+
 # [0.3080.0](https://github.com/lightdash/lightdash/compare/0.3079.0...0.3080.0) (2026-06-02)
 
 
