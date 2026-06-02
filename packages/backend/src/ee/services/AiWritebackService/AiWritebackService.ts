@@ -745,12 +745,18 @@ export class AiWritebackService extends BaseService {
      * exact files + secrets because detection finds the workflow missing — so
      * the workflow files land on their own PR, separate from any semantic-layer
      * change.
+     *
+     * `aiThreadUuid` enables conversational resume: passing the chat thread's
+     * uuid lets follow-up requests ("also run on workflow_dispatch") update the
+     * SAME pull request instead of opening a new one — same machinery as
+     * proposeWriteback.
      */
     async setupPreviewDeploy(args: {
         user: SessionUser;
         projectUuid: string;
+        aiThreadUuid?: string;
     }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
-        const { user, projectUuid } = args;
+        const { user, projectUuid, aiThreadUuid } = args;
         // Explicit permission gate at this service entry point (it's reachable
         // directly as an agent tool). Mirrors the writeback manage:SourceCode
         // check; run()/prepareTurn re-checks before any side effect.
@@ -772,6 +778,7 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
             source: 'preview_deploy_setup',
+            aiThreadUuid,
         });
         // Pre-fill the secrets we know server-side (instance URL + project UUID)
         // so the caller can surface concrete values, not generic descriptions.

@@ -5872,6 +5872,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 this.aiWritebackService.setupPreviewDeploy({
                     user,
                     projectUuid,
+                    aiThreadUuid: prompt.threadUuid,
                 }),
             );
 
