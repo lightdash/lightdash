@@ -44,6 +44,8 @@ import type {
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiPreviewTokenResponse,
+    ApiPromoteAppDiffResponse,
+    ApiPromoteAppResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -1108,6 +1110,8 @@ type ApiResults =
     | ApiGenerateAppResponse['results']
     | ApiGetAppResponse['results']
     | ApiMyAppsResponse['results']
+    | ApiPromoteAppResponse['results']
+    | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
     | ApiOrganizationDesignResponse['results']

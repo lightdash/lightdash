@@ -15,6 +15,8 @@ import {
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiPromoteAppDiffResponse,
+    type ApiPromoteAppResponse,
     type ApiRestoreAppVersionResponse,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
@@ -306,6 +308,65 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Preview what promoting this app into its upstream (production) project
+     * will do: create a new production app or update the linked one, and which
+     * space it will land in.
+     * @summary Get data app promotion diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/promoteDiff')
+    @OperationId('getAppPromoteDiff')
+    async getAppPromoteDiff(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiPromoteAppDiffResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAppGenerateService().getPromoteAppDiff(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Promote this app from a preview project into its upstream (production)
+     * project. Snapshots the latest ready version as a new production version.
+     * @summary Promote data app to production
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/promote')
+    @OperationId('promoteApp')
+    async promoteApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiPromoteAppResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAppGenerateService().promoteApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 
