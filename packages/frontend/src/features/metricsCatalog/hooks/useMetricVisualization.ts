@@ -427,7 +427,6 @@ export function useMetricVisualization({
             defaultShowSymbol: firstSerie?.showSymbol,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.LINE,
-            availableDimensions: executedMetricQuery?.dimensions ?? [],
             isStacked: false,
             pivotKeys: segmentDimensionId ? [segmentDimensionId] : undefined,
             resultsData: queryResults,
@@ -452,7 +451,6 @@ export function useMetricVisualization({
     }, [
         chartConfig,
         queryResults,
-        executedMetricQuery?.dimensions,
         executedMetricQuery?.sorts,
         segmentDimensionId,
         createQuery.data?.fields,

@@ -1073,7 +1073,6 @@ const useCartesianChartConfig = ({
                     defaultShowSymbol,
                     defaultAreaStyle,
                     defaultCartesianType,
-                    availableDimensions,
                     isStacked,
                     pivotKeys,
                     resultsData,

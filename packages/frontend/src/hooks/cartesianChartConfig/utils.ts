@@ -8,14 +8,11 @@ import {
     type ItemsMap,
     type Series,
 } from '@lightdash/common';
-import {
-    getPivotedData,
-    getPivotedDataFromPivotDetails,
-} from '../plottedData/getPlottedData';
+import { getPivotedDataFromPivotDetails } from '../plottedData/getPlottedData';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
 type RowKeyValue = ReturnType<
-    typeof getPivotedData | typeof getPivotedDataFromPivotDetails
+    typeof getPivotedDataFromPivotDetails
 >['rowKeyMap'][string];
 
 const getPivotGroupKey = (
@@ -71,7 +68,6 @@ export type GetExpectedSeriesMapArgs = {
     pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
-    availableDimensions: string[];
     defaultLabel?: Series['label'];
     defaultStackLabel?: Series['stackLabel'];
     itemsMap: ItemsMap | undefined;
@@ -88,7 +84,6 @@ export const getExpectedSeriesMap = ({
     pivotKeys,
     yFields,
     xField,
-    availableDimensions,
     defaultLabel,
     defaultStackLabel,
     itemsMap,
@@ -112,19 +107,10 @@ export const getExpectedSeriesMap = ({
         }),
     };
     if (pivotKeys && pivotKeys.length > 0) {
-        // Use new pivoted data format if available
-        const { rowKeyMap } = resultsData.pivotDetails
-            ? getPivotedDataFromPivotDetails(resultsData, itemsMap)
-            : getPivotedData(
-                  resultsData.rows,
-                  pivotKeys,
-                  yFields.filter(
-                      (yField) => !availableDimensions.includes(yField),
-                  ),
-                  yFields.filter((yField) =>
-                      availableDimensions.includes(yField),
-                  ),
-              );
+        const { rowKeyMap } = getPivotedDataFromPivotDetails(
+            resultsData,
+            itemsMap,
+        );
 
         let rowKeyValues = Object.values(rowKeyMap);
         if (columnLimit !== undefined && columnLimit > 0) {

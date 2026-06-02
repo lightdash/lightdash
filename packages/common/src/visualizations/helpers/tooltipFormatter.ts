@@ -76,26 +76,6 @@ export function translatePivotRef(
 }
 
 /**
- * Resolves the format key for pivot refs.
- * For SQL pivot: key is already correct (SQL column name).
- * For legacy pivot: extracts base field from ref (e.g., "metric.dim.val" -> "metric").
- */
-function resolveFormatKey(
-    formatKey: string,
-    itemsMap: ItemsMap,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
-): string {
-    if (pivotValuesColumnsMap?.[formatKey] || itemsMap[formatKey]) {
-        return formatKey;
-    }
-    const parts = formatKey.split('.');
-    if (parts.length >= 3 && itemsMap[parts[0]]) {
-        return parts[0];
-    }
-    return formatKey;
-}
-
-/**
  * Extracts raw value from a row cell (handles both ResultRow and flat formats).
  */
 function extractCellValue(cell: unknown): unknown {
@@ -108,15 +88,12 @@ function extractCellValue(cell: unknown): unknown {
 /**
  * Find the pivot column name for a simple metric reference by looking through series' pivotReference.
  * This allows users to write `${metric_name}` instead of the full `${metric_name.pivot_dim.pivot_value}` format.
- *
- * Supports two pivot modes:
- * 1. SQL pivot (pivotValuesColumnsMap exists): Look up column in pivotValuesColumnsMap
- * 2. Legacy pivot (pivotValuesColumnsMap undefined): Use hashFieldReference(pivotReference) directly
+ * Looks the matched reference up in pivotValuesColumnsMap to resolve the SQL pivot column name.
  *
  * @param ref - The simple metric field reference (e.g., "orders_amount_running_total")
  * @param params - The tooltip params array containing series information
  * @param series - The ECharts series array with pivotReference metadata
- * @param pivotValuesColumnsMap - Map of pivot column names to their metadata (optional, for SQL pivot)
+ * @param pivotValuesColumnsMap - Map of pivot column names to their metadata
  * @returns The pivot column name if found, undefined otherwise
  */
 export const findPivotColumnFromSeriesRef = (
@@ -162,29 +139,18 @@ export const findPivotColumnFromSeriesRef = (
         );
     });
 
-    if (!matchingRef) return undefined;
+    if (!matchingRef || !pivotValuesColumnsMap) return undefined;
 
-    // SQL pivot mode: look up in pivotValuesColumnsMap
-    if (pivotValuesColumnsMap) {
-        const pivotColumn = Object.entries(pivotValuesColumnsMap).find(
-            ([, col]) =>
-                col.referenceField === ref &&
-                col.pivotValues.length ===
-                    (matchingRef.pivotValues?.length ?? 0) &&
-                col.pivotValues.every(
-                    (pv, i) => pv.value === matchingRef.pivotValues?.[i]?.value,
-                ),
-        );
+    const pivotColumn = Object.entries(pivotValuesColumnsMap).find(
+        ([, col]) =>
+            col.referenceField === ref &&
+            col.pivotValues.length === (matchingRef.pivotValues?.length ?? 0) &&
+            col.pivotValues.every(
+                (pv, i) => pv.value === matchingRef.pivotValues?.[i]?.value,
+            ),
+    );
 
-        if (pivotColumn) {
-            return pivotColumn[0];
-        }
-    } else {
-        // Legacy pivot mode: use hashFieldReference directly
-        return hashFieldReference(matchingRef);
-    }
-
-    return undefined;
+    return pivotColumn?.[0];
 };
 
 /**
@@ -1341,11 +1307,7 @@ export const buildCartesianTooltipFormatter =
                     if (val !== undefined) {
                         const formatted = getFormattedValue(
                             val,
-                            resolveFormatKey(
-                                formatKey,
-                                itemsMap,
-                                pivotValuesColumnsMap,
-                            ),
+                            formatKey,
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
@@ -1405,16 +1367,13 @@ export const buildCartesianTooltipFormatter =
                                     pivotColumnFromSeries as keyof typeof firstValue
                                 ],
                             );
+                            formatKey = pivotColumnFromSeries;
                         }
                     }
 
                     const formatted = getFormattedValue(
                         val,
-                        resolveFormatKey(
-                            formatKey,
-                            itemsMap,
-                            pivotValuesColumnsMap,
-                        ),
+                        formatKey,
                         itemsMap,
                         undefined,
                         pivotValuesColumnsMap,

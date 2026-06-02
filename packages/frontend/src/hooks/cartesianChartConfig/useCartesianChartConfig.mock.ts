@@ -81,7 +81,6 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
     pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
-    availableDimensions: ['my_dimension', 'dimension_x'],
     itemsMap: undefined,
 };
 
@@ -125,6 +124,41 @@ export const expectedSimpleSeriesMap: Record<string, Series> = {
 export const pivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     ...simpleSeriesMapArgs,
     pivotKeys: ['dimension_x'],
+    resultsData: {
+        ...simpleSeriesMapArgs.resultsData,
+        pivotDetails: {
+            valuesColumns: [
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_a',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'a' },
+                    ],
+                },
+                {
+                    referenceField: 'my_second_metric',
+                    pivotColumnName: 'my_second_metric_any_a',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'a' },
+                    ],
+                },
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_b',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'b' },
+                    ],
+                },
+                {
+                    referenceField: 'my_second_metric',
+                    pivotColumnName: 'my_second_metric_any_b',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'b' },
+                    ],
+                },
+            ],
+        },
+    } as any,
 };
 
 export const expectedPivotedSeriesMap: Record<string, Series> = {
@@ -233,6 +267,42 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
                 my_metric: { value: { raw: 'a', formatted: 'a' } },
             },
         ],
+        pivotDetails: {
+            valuesColumns: [
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_a_a',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'a' },
+                        { referenceField: 'dimension_y', value: 'a' },
+                    ],
+                },
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_b_a',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'b' },
+                        { referenceField: 'dimension_y', value: 'a' },
+                    ],
+                },
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_b_b',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'b' },
+                        { referenceField: 'dimension_y', value: 'b' },
+                    ],
+                },
+                {
+                    referenceField: 'my_metric',
+                    pivotColumnName: 'my_metric_any_a_b',
+                    pivotValues: [
+                        { referenceField: 'dimension_x', value: 'a' },
+                        { referenceField: 'dimension_y', value: 'b' },
+                    ],
+                },
+            ],
+        },
     } as any,
 };
 

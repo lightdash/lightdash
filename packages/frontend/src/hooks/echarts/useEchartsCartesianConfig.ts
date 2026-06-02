@@ -37,7 +37,6 @@ import {
     getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
-    isCompleteLayout,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -96,7 +95,6 @@ import { sliceRows } from '../../utils/sliceRows';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
     getPivotedDataFromPivotDetails,
-    getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -741,7 +739,7 @@ type GetPivotSeriesArg = {
     yFieldHash: string;
     xFieldHash: string;
     pivotReference: Required<PivotReference>;
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     resolvedTimezone?: string;
@@ -1150,7 +1148,7 @@ type GetSimpleSeriesArg = {
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     backgroundColor?: string;
@@ -1279,7 +1277,7 @@ const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
     resolvedTimezone?: string,
@@ -1369,51 +1367,6 @@ const getEchartsSeriesFromPivotedData = (
         });
 
     return resultSeries;
-};
-
-const getEchartsSeries = (
-    itemsMap: ItemsMap,
-    cartesianChart: CartesianChart,
-    pivotKeys: string[] | undefined,
-    parameters?: ParametersValuesMap,
-    resolvedTimezone?: string,
-): EChartsSeries[] => {
-    // Check if 100% stacking is enabled
-    const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
-
-    return (cartesianChart.eChartsConfig.series || [])
-        .filter((s) => !s.hidden)
-        .map<EChartsSeries>((series) => {
-            const { flipAxes } = cartesianChart.layout;
-            const xFieldHash = hashFieldReference(series.encode.xRef);
-            const yFieldHash = hashFieldReference(series.encode.yRef);
-            if (pivotKeys && isPivotReferenceWithValues(series.encode.yRef)) {
-                return getPivotSeries({
-                    series,
-                    itemsMap,
-                    cartesianChart,
-                    pivotReference: series.encode.yRef,
-                    flipAxes,
-                    xFieldHash,
-                    yFieldHash,
-                    parameters,
-                    isStack100,
-                    resolvedTimezone,
-                });
-            }
-
-            return getSimpleSeries({
-                series,
-                itemsMap,
-                connectNulls: cartesianChart.layout.connectNulls,
-                flipAxes,
-                yFieldHash,
-                xFieldHash,
-                parameters,
-                isStack100,
-                resolvedTimezone,
-            });
-        });
 };
 
 const calculateWidthText = (text: string | undefined): number => {
@@ -2556,32 +2509,6 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.tooltipSort;
     }, [visualizationConfig]);
 
-    const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
-        if (
-            itemsMap &&
-            validCartesianConfig &&
-            isCompleteLayout(validCartesianConfig.layout)
-        ) {
-            const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
-                (yField) =>
-                    !itemsMap[yField] ||
-                    (itemsMap[yField] && !isDimension(itemsMap[yField])),
-            );
-            const yFieldNonPivotedKeys =
-                validCartesianConfig.layout.yField.filter(
-                    (yField) =>
-                        !itemsMap[yField] ||
-                        (itemsMap[yField] && isDimension(itemsMap[yField])),
-                );
-
-            return [
-                yFieldPivotedKeys,
-                [...yFieldNonPivotedKeys, validCartesianConfig.layout.xField],
-            ];
-        }
-        return [];
-    }, [itemsMap, validCartesianConfig]);
-
     const pivotValuesColumnsMap = useMemo(() => {
         if (!resultsData?.pivotDetails) return;
         return convertPivotValuesColumnsIntoMap(
@@ -2589,19 +2516,10 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows: allRows, rowKeyMap } = useMemo(() => {
-        if (resultsData?.pivotDetails) {
-            return getPivotedDataFromPivotDetails(resultsData, undefined);
-        }
-
-        // Legacy implementation - comment out when fully migrated
-        return getPlottedData(
-            resultsData?.rows,
-            pivotDimensions,
-            pivotedKeys,
-            nonPivotedKeys,
-        );
-    }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+    const { rows: allRows, rowKeyMap } = useMemo(
+        () => getPivotedDataFromPivotDetails(resultsData, undefined),
+        [resultsData],
+    );
 
     const rows = useMemo(
         () => sliceRows(allRows, validCartesianConfig?.rowLimit),
@@ -2630,28 +2548,15 @@ const useEchartsCartesianConfig = (
             return [];
         }
 
-        // Use new series generation for pre-pivoted data
-        let unfilteredSeries: EChartsSeries[];
-        if (resultsData?.pivotDetails && rowKeyMap) {
-            unfilteredSeries = getEchartsSeriesFromPivotedData(
-                itemsMap,
-                validCartesianConfig,
-                rowKeyMap,
-                pivotValuesColumnsMap,
-                parameters,
-                undefined,
-                resolvedTimezone,
-            );
-        } else {
-            // Legacy implementation
-            unfilteredSeries = getEchartsSeries(
-                itemsMap,
-                validCartesianConfig,
-                pivotDimensions,
-                parameters,
-                resolvedTimezone,
-            );
-        }
+        const unfilteredSeries = getEchartsSeriesFromPivotedData(
+            itemsMap,
+            validCartesianConfig,
+            rowKeyMap,
+            pivotValuesColumnsMap,
+            parameters,
+            undefined,
+            resolvedTimezone,
+        );
 
         return filterSeriesWithNoData(
             unfilteredSeries,
@@ -2662,7 +2567,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig,
         resultsData,
         itemsMap,
-        pivotDimensions,
         rowKeyMap,
         pivotValuesColumnsMap,
         parameters,
