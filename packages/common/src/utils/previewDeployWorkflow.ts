@@ -113,6 +113,18 @@ export const getPreviewDeploySecrets = ({
 const PREVIEW_WORKFLOW_PATH = `${WORKFLOWS_DIR}start-preview.yml`;
 const CLOSE_WORKFLOW_PATH = `${WORKFLOWS_DIR}close-preview.yml`;
 
+// Third-party actions are pinned to a full commit SHA (with a version comment)
+// rather than a floating tag — these workflows run with the repo's warehouse +
+// Lightdash secrets in scope, so a retagged/compromised action is a real
+// supply-chain risk. SHAs match the pins Lightdash uses in its own CI.
+const CHECKOUT_ACTION =
+    'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2';
+const SETUP_NODE_ACTION =
+    'actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6';
+// Pin the CLI so a preview run is reproducible and a future CLI release can't
+// silently change behaviour in a workflow holding live credentials.
+const CLI_VERSION = '0.3075.2';
+
 /**
  * Generate the canonical Lightdash preview-on-PR workflow pair.
  *
@@ -131,23 +143,24 @@ export const generatePreviewDeployWorkflowFiles = ({
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+permissions:
+  contents: read
 concurrency:
   group: lightdash-preview-\${{ github.ref }}
   cancel-in-progress: true
 jobs:
   start-preview:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+    timeout-minutes: 15
     env:
       PROJECT_DIR: ${projectDir}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ${CHECKOUT_ACTION}
+      - uses: ${SETUP_NODE_ACTION}
         with:
           node-version: '20.x'
       - name: Install Lightdash CLI
-        run: npm install -g @lightdash/cli
+        run: npm install -g @lightdash/cli@${CLI_VERSION}
       - name: Write dbt profiles
         run: echo "$DBT_PROFILES" > profiles.yml
         env:
@@ -164,16 +177,19 @@ jobs:
 on:
   pull_request:
     types: [closed]
+permissions:
+  contents: read
 jobs:
   close-preview:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ${CHECKOUT_ACTION}
+      - uses: ${SETUP_NODE_ACTION}
         with:
           node-version: '20.x'
       - name: Install Lightdash CLI
-        run: npm install -g @lightdash/cli
+        run: npm install -g @lightdash/cli@${CLI_VERSION}
       - name: Delete preview project
         run: lightdash stop-preview --name "\${GITHUB_HEAD_REF}"
         env:

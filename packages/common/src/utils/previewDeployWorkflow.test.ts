@@ -139,4 +139,23 @@ describe('generatePreviewDeployWorkflowFiles', () => {
         const start = files.find((f) => f.path.endsWith('start-preview.yml'));
         expect(start?.content).toContain('PROJECT_DIR: .');
     });
+
+    it('hardens both workflows: SHA-pinned actions, least-privilege permissions, pinned CLI, timeout', () => {
+        const files = generatePreviewDeployWorkflowFiles({
+            projectSubPath: 'dbt',
+        });
+        files.forEach(({ content }) => {
+            // Actions pinned to a 40-char commit SHA, never a floating tag.
+            expect(content).toMatch(/actions\/checkout@[0-9a-f]{40}/);
+            expect(content).toMatch(/actions\/setup-node@[0-9a-f]{40}/);
+            expect(content).not.toMatch(/uses: actions\/\S+@v\d/);
+            // Least-privilege token: read-only, and never pull-requests:write
+            // (it would zero `contents` and break checkout on private repos).
+            expect(content).toContain('permissions:\n  contents: read');
+            expect(content).not.toContain('pull-requests: write');
+            // CLI pinned for reproducibility; job bounded by a timeout.
+            expect(content).toMatch(/@lightdash\/cli@\d+\.\d+\.\d+/);
+            expect(content).toContain('timeout-minutes:');
+        });
+    });
 });

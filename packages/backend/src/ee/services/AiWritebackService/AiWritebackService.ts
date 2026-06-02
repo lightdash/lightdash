@@ -103,7 +103,7 @@ const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 const PREVIEW_DEPLOY_SETUP_PROMPT = [
     'The user has agreed to set up Lightdash preview deploys for this project.',
     'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
-    "Create those workflow files (you may adapt the Node version, project-dir, or model selection to match this repo's existing CI conventions). Do NOT modify any dbt models, YAML, or other files.",
+    'Create those workflow files with their contents copied VERBATIM from that section — do NOT reformat them, rename the files, change the pinned action SHAs, the Node or CLI versions, the permissions blocks, or the commands. They are security-reviewed and run with live credentials. Do NOT modify any dbt models, YAML, or other files.',
     'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
 ].join(' ');
 

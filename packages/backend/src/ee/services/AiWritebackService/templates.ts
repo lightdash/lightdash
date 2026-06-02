@@ -68,8 +68,13 @@ Actions. As a SECONDARY task, AFTER you have addressed the user's main request:
 - Briefly tell the user preview deploys aren't set up and OFFER to open a pull
   request adding the Lightdash preview workflow. Do not set it up unless the
   user wants it. Do not block or delay the user's main request on this.
-- If the user agrees (now or in a follow-up message), create these files
-  EXACTLY as shown, then let the host open the PR as usual:
+- If the user agrees (now or in a follow-up message), create these files with
+  their contents copied VERBATIM, then let the host open the PR as usual. Do
+  NOT reformat them, rename the files, change the pinned action SHAs, the Node
+  or CLI versions, the \`permissions\` blocks, or the commands. These workflows
+  are security-reviewed and run with live credentials — altering them (e.g.
+  unpinning an action or widening permissions) is not allowed. The only value
+  that may differ is \`PROJECT_DIR\`, which is already filled in for you below:
 
 ${filesBlock}
 
