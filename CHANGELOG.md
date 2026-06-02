@@ -1,3 +1,15 @@
+# [0.3075.0](https://github.com/lightdash/lightdash/compare/0.3074.0...0.3075.0) (2026-06-02)
+
+
+### Bug Fixes
+
+* warn agents about unused chart dimensions ([#23761](https://github.com/lightdash/lightdash/issues/23761)) ([7ba50fe](https://github.com/lightdash/lightdash/commit/7ba50fefbafb28141861917bdd25dcdc46d2c892))
+
+
+### Features
+
+* **mcp:** hand off query results to apps ([#23693](https://github.com/lightdash/lightdash/issues/23693)) ([ffd2e85](https://github.com/lightdash/lightdash/commit/ffd2e853d4706c8a6aa6323dad14267727175ea7))
+
 # [0.3074.0](https://github.com/lightdash/lightdash/compare/0.3073.0...0.3074.0) (2026-06-02)
 
 
