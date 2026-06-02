@@ -1,3 +1,15 @@
+# [0.3077.0](https://github.com/lightdash/lightdash/compare/0.3076.1...0.3077.0) (2026-06-02)
+
+
+### Bug Fixes
+
+* **scheduler:** enforce manage:GoogleSheets when reassigning gsheets syncs (PROD-8038) ([#23779](https://github.com/lightdash/lightdash/issues/23779)) ([2684e2b](https://github.com/lightdash/lightdash/commit/2684e2b6f62805d709d96dcce2afad5565221a7e))
+
+
+### Features
+
+* **data-apps:** promote data apps from preview to production ([#23765](https://github.com/lightdash/lightdash/issues/23765)) ([568a1a4](https://github.com/lightdash/lightdash/commit/568a1a421578785a085527eafeb2ed104b1eae93))
+
 ## [0.3076.1](https://github.com/lightdash/lightdash/compare/0.3076.0...0.3076.1) (2026-06-02)
 
 
