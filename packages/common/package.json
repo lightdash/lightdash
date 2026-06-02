@@ -33,6 +33,7 @@
     "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "generate:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts && pnpm run formatter --write src/schemas/json/mcp-tools-1.0.json",
     "check:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts --check",
+    "mcp-token-probe": "pnpm -F backend exec tsx ../common/scripts/tools/mcp-token-probe.ts",
     "test": "vitest run --config vitest.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
     "release": "pnpm publish --no-git-checks --access public"
