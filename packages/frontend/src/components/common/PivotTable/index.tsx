@@ -825,15 +825,20 @@ const PivotTable: FC<PivotTableProps> = ({
     // Merge hidden metric values from hiddenContextValues into rowFields
     // for conditional formatting rules that reference hidden metrics
     const mergeHiddenContextValues = useCallback(
-        (dimValues: Record<string, unknown>): ConditionalFormattingRowFields => {
+        (
+            dimValues: Record<string, unknown>,
+        ): ConditionalFormattingRowFields => {
             if (!data.hiddenContextValues) return {};
             const key = getPivotRowContextKey(dimValues);
             const hidden = data.hiddenContextValues[key];
             if (!hidden) return {};
-            return Object.entries(hidden).reduce<ConditionalFormattingRowFields>(
+            return Object.entries(
+                hidden,
+            ).reduce<ConditionalFormattingRowFields>(
                 (acc, [fieldId, resultValue]) => {
                     const field = getField(fieldId);
-                    if (field) acc[fieldId] = { field, value: resultValue?.raw };
+                    if (field)
+                        acc[fieldId] = { field, value: resultValue?.raw };
                     return acc;
                 },
                 {},
@@ -910,9 +915,11 @@ const PivotTable: FC<PivotTableProps> = ({
             // Build dim map for hidden context key lookup:
             // use display index dims (rowDimensionFields) + header dims (headerInfo)
             const dimValuesForKey: Record<string, unknown> = {};
-            Object.entries(rowDimensionFields).forEach(([fieldId, { value }]) => {
-                dimValuesForKey[fieldId] = value;
-            });
+            Object.entries(rowDimensionFields).forEach(
+                ([fieldId, { value }]) => {
+                    dimValuesForKey[fieldId] = value;
+                },
+            );
             if (headerInfo) {
                 Object.entries(headerInfo).forEach(([fieldId, rv]) => {
                     dimValuesForKey[fieldId] = rv?.raw;
@@ -977,7 +984,8 @@ const PivotTable: FC<PivotTableProps> = ({
             // use index dimension cells + header dims (headerInfo)
             const dimValuesForKey: Record<string, unknown> = {};
             Object.values(cellFields).forEach(({ field, value }) => {
-                if (isDimension(field)) dimValuesForKey[getItemId(field)] = value;
+                if (isDimension(field))
+                    dimValuesForKey[getItemId(field)] = value;
             });
             if (headerInfo) {
                 Object.entries(headerInfo).forEach(([fieldId, rv]) => {
