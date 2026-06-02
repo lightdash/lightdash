@@ -157,7 +157,7 @@ export const loadProjectContextFile = (
         loaded = yaml.load(yamlContents);
     } catch (e) {
         throw new ParseError(
-            `Invalid project_context.yml: ${
+            `Invalid lightdash.project_context.yml: ${
                 e instanceof Error ? e.message : 'failed to parse YAML'
             }`,
         );
@@ -179,7 +179,7 @@ export const loadProjectContextFile = (
             { indent: 2 },
         );
         throw new ParseError(
-            `Invalid project_context.yml with errors:\n${errors}`,
+            `Invalid lightdash.project_context.yml with errors:\n${errors}`,
         );
     }
 

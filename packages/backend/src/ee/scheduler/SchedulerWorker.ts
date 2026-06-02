@@ -20,6 +20,7 @@ import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
+import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
@@ -33,6 +34,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
     appGenerateService: AppGenerateService;
+    projectContextService: ProjectContextService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -48,6 +50,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly appGenerateService: AppGenerateService;
 
+    protected readonly projectContextService: ProjectContextService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
@@ -57,6 +61,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.embedService = args.embedService;
         this.managedAgentService = args.managedAgentService;
         this.appGenerateService = args.appGenerateService;
+        this.projectContextService = args.projectContextService;
     }
 
     protected getCronItems() {
@@ -321,6 +326,35 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async (
+                payload,
+                helpers,
+            ) => {
+                try {
+                    const user =
+                        await this.userService.getSessionByUserUuidAndOrg(
+                            payload.userUuid,
+                            payload.organizationUuid,
+                        );
+                    await this.projectContextService.ingestProjectContext(
+                        user,
+                        payload.projectUuid,
+                    );
+                } catch (e) {
+                    await this.schedulerService.logSchedulerJob({
+                        task: SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT,
+                        jobId: helpers.job.id,
+                        scheduledTime: helpers.job.run_at,
+                        status: SchedulerJobStatus.ERROR,
+                        details: {
+                            error: getErrorMessage(e),
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                        },
+                    });
+                    throw e;
+                }
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,

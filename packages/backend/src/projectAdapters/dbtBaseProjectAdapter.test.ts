@@ -9,6 +9,8 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
+const readFileSpy = jest.spyOn(fs, 'readFile');
+
 describe('getLightdashProjectConfig', () => {
     const VALID_CONFIG_CONTENTS =
         'spotlight:\n' +
@@ -40,8 +42,6 @@ describe('getLightdashProjectConfig', () => {
 
     const INVALID_CONFIG_CONTENTS =
         'spotlight:\n default_visibility: invalid_value';
-
-    const readFileSpy = jest.spyOn(fs, 'readFile');
 
     const mockProjectAdapter = new DbtBaseProjectAdapter(
         jest.fn() as unknown as DbtClient,
@@ -95,8 +95,66 @@ describe('getLightdashProjectConfig', () => {
             });
         });
     });
+});
 
-    afterAll(() => {
-        jest.restoreAllMocks();
+describe('getProjectContext', () => {
+    const mockProjectAdapter = new DbtBaseProjectAdapter(
+        jest.fn() as unknown as DbtClient,
+        jest.fn() as unknown as WarehouseClient,
+        jest.fn() as unknown as CachedWarehouse,
+        SupportedDbtVersions.V1_9,
+        './some/path/to/dbt/project',
+    );
+
+    class MockedFSError extends Error {
+        code: string;
+
+        constructor(message: string, code: string) {
+            super(message);
+            this.code = code;
+        }
+    }
+
+    it('should load project context from lightdash.project_context.yml', async () => {
+        readFileSpy.mockResolvedValueOnce(`
+- id: hr
+  kind: definition
+  content: '"HR" = high-risk cohort.'
+  terms: [HR]
+`);
+
+        const context = await mockProjectAdapter.getProjectContext();
+
+        expect(context).toEqual([
+            {
+                id: 'hr',
+                kind: 'definition',
+                content: '"HR" = high-risk cohort.',
+                terms: ['HR'],
+                objects: [],
+            },
+        ]);
     });
+
+    it('should return an empty list when project context file is missing', async () => {
+        readFileSpy.mockRejectedValueOnce(
+            new MockedFSError('file not found', 'ENOENT'),
+        );
+
+        const context = await mockProjectAdapter.getProjectContext();
+
+        expect(context).toEqual([]);
+    });
+
+    it('should throw when project context file is invalid', async () => {
+        readFileSpy.mockResolvedValueOnce('id: hr');
+
+        await expect(mockProjectAdapter.getProjectContext()).rejects.toThrow(
+            /Invalid lightdash.project_context.yml with errors/,
+        );
+    });
+});
+
+afterAll(() => {
+    readFileSpy.mockRestore();
 });

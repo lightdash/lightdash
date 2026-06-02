@@ -1687,6 +1687,16 @@ export class UserService extends BaseService {
         return this.userModel.findSessionUserByUUID(userUuid);
     }
 
+    async getSessionByUserUuidAndOrg(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+    }
+
     async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
         const sessionUser = await this.getSessionByUserUuid(userUuid);
 

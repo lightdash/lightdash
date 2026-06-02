@@ -143,6 +143,7 @@ interface ServiceManifest {
     aiAgentReviewClassifierService: unknown;
     aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
+    projectContextService: unknown;
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -1264,6 +1265,12 @@ export class ServiceRepository
         AppGenerateServiceImplT,
     >(): AppGenerateServiceImplT {
         return this.getService('appGenerateService');
+    }
+
+    public getProjectContextService<
+        ProjectContextServiceImplT,
+    >(): ProjectContextServiceImplT {
+        return this.getService('projectContextService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
