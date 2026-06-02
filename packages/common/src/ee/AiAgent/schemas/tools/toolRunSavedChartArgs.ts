@@ -12,7 +12,7 @@ When to use this tool:
 - You discovered a relevant chart via findContent / findCharts and want to read
   its results without rebuilding the query from scratch.
 
-Prefer this over runQuery when a saved chart already exists for the data the
+Prefer this over generateVisualization when a saved chart already exists for the data the
 user is asking about. The chart's saved metric query, filters, sorts, and
 custom metrics are applied automatically.
 `;

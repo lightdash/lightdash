@@ -235,6 +235,7 @@ export function getFollowUpToolBlocks(
 // describeWarehouseTable) are deliberately excluded — they don't deliver a
 // final answer, only context for the agent.
 const ANSWER_PRODUCING_TOOLS = new Set([
+    'generateVisualization',
     'runQuery',
     'runSql',
     'runSavedChart',

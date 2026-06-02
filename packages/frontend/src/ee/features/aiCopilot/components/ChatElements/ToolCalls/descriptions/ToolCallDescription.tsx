@@ -150,6 +150,7 @@ export const ToolCallDescription: FC<{
                     description={dashboardToolArgs.description}
                 />
             );
+        case 'generateVisualization':
         case 'runQuery':
             const queryToolArgs = toolCall.toolArgs as ToolRunQueryArgs;
             return (

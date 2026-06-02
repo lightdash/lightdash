@@ -38,10 +38,10 @@ export const getRunSqlSection = (
 You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.
 
 **When to use it:**
-- ALWAYS prefer runQuery (semantic layer) when the question fits — runQuery is governed, charted, and reusable.
+- ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.
 - Use runSql ONLY when the semantic layer cannot answer the question:
   - joins across tables not modelled in any explore
-  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that runQuery cannot produce
+  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that generateVisualization cannot produce
   - lookups in raw tables that are not part of any explore
   - the user explicitly asks for raw SQL
 

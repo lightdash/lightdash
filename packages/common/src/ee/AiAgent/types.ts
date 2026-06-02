@@ -54,7 +54,7 @@ export type AiAgentVizConfig =
 
 export const AGENT_SUGGESTION_TOOLS = [
     'generateDashboard',
-    'runQuery',
+    'generateVisualization',
     'runSql',
     'proposeChange',
     'findContent',

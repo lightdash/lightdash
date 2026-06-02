@@ -66,7 +66,7 @@ const renderAmbiguous = (
     <discovery status="ambiguous">
         <note>
             Multiple explores plausibly answer this. Ask the user the
-            suggestedQuestion. Do NOT call runQuery.
+            suggestedQuestion. Do NOT call generateVisualization.
         </note>
         <candidates>
             {result.candidates.map((c) => (

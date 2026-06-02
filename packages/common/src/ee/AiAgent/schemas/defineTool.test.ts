@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineTool } from './defineTool';
 import {
     agentToolNames,
+    generateVisualizationToolDefinition,
     mcpToolDefinitions,
     runQueryToolDefinition,
 } from './tools';
@@ -9,10 +10,10 @@ import { ToolNameSchema } from './visualizations';
 
 describe('defineTool', () => {
     it('builds separate agent and MCP runtime views', () => {
-        const agentView = runQueryToolDefinition.for('agent');
+        const agentView = generateVisualizationToolDefinition.for('agent');
         const mcpView = runQueryToolDefinition.for('mcp');
 
-        expect(agentView.name).toBe('runQuery');
+        expect(agentView.name).toBe('generateVisualization');
         expect(mcpView.name).toBe('run_metric_query');
         expect(mcpView.canonicalName).toBe('runQuery');
         expect(mcpView.outputSchema).toBeDefined();

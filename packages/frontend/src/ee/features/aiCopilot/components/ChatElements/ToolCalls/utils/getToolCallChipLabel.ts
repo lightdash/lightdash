@@ -58,6 +58,7 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolDashboardArgs;
             return args.title ?? null;
         }
+        case 'generateVisualization':
         case 'runQuery': {
             const args = toolArgs as ToolRunQueryArgs;
             return args.title ?? null;

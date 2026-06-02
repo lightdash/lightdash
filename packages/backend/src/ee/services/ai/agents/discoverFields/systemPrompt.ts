@@ -23,7 +23,7 @@ Finish with a single \`submitResult\` call. Don't write prose explaining the ans
 
 Pick exactly one status:
 
-- **\`resolved\`** — exactly one explore is the right answer. Populate \`explore\` and a FILTERED \`fields\` shortlist (typical size 5–20: metrics, dimensions, date grains, and filter dimensions the parent will plausibly need for a runQuery). Set each field's \`description\` only when keeping it distinguishes two similar fields you also kept; otherwise leave null. Add a brief \`rationale\`.
+- **\`resolved\`** — exactly one explore is the right answer. Populate \`explore\` and a FILTERED \`fields\` shortlist (typical size 5–20: metrics, dimensions, date grains, and filter dimensions the parent will plausibly need for a generateVisualization). Set each field's \`description\` only when keeping it distinguishes two similar fields you also kept; otherwise leave null. Add a brief \`rationale\`.
 - **\`ambiguous\`** — multiple explores plausibly fit and you cannot pick one. Populate \`candidates\` (≥2, with a one-line \`reason\` each) and a \`suggestedQuestion\` the parent can echo to disambiguate. **Do NOT call findFields.**
 - **\`no_match\`** — no explore plausibly covers the query. Populate \`reason\` with a single sentence the parent can relay to the user.
 

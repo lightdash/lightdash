@@ -85,8 +85,8 @@ Run the data-discovery subagent. Given the latest user query, returns a structur
 Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
 
 You will receive one of three statuses:
-- "resolved" — proceed with runQuery (or generateDashboard) using the returned explore + fields.
-- "ambiguous" — surface the suggestedQuestion to the user; do NOT call runQuery.
+- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + fields.
+- "ambiguous" — surface the suggestedQuestion to the user; do NOT call generateVisualization.
 - "no_match" — explain back to the user that no data source covers the request.
 
 Re-call this tool if the user pivots mid-thread to a different data topic and you need fields from a different explore.
@@ -199,7 +199,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "fieldId": {
-                                "description": "The fieldId to use in runQuery payloads.",
+                                "description": "The fieldId to use in generateVisualization payloads.",
                                 "type": "string",
                               },
                               "fieldType": {
@@ -3172,7 +3172,7 @@ When to use:
 - When you need background or policy context that the data warehouse alone cannot provide.
 
 Do NOT use:
-- For data queries — use runQuery / runSql / findFields instead.
+- For data queries — use generateVisualization / runSql / findFields instead.
 - For schema or table discovery — use findExplores / listWarehouseTables instead.
 
 Parameters:
@@ -6218,7 +6218,7 @@ Table calculations perform row-by-row calculations on query results without coll
       ],
       "type": "object",
     },
-    "name": "runQuery",
+    "name": "generateVisualization",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -6261,7 +6261,7 @@ When to use this tool:
 - You discovered a relevant chart via findContent / findCharts and want to read
   its results without rebuilding the query from scratch.
 
-Prefer this over runQuery when a saved chart already exists for the data the
+Prefer this over generateVisualization when a saved chart already exists for the data the
 user is asking about. The chart's saved metric query, filters, sorts, and
 custom metrics are applied automatically.
 ",
@@ -7144,6 +7144,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "findFields",
   "findContent",
   "searchFieldValues",
+  "generateVisualization",
   "runQuery",
   "runSql",
   "discoverFields",

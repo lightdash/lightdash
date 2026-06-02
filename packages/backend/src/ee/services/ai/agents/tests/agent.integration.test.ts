@@ -169,7 +169,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);
@@ -350,7 +350,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);

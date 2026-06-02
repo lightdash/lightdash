@@ -44,7 +44,7 @@ export const getSystemPromptV2 = (args: {
     } = args;
 
     const crossExploreJoinRule = canRunSql
-        ? '  - You cannot mix fields from different explores in a single runQuery call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
+        ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
         : '  - You can not mix fields from different explores.';
 
     const customSqlLimitation = canRunSql
