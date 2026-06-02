@@ -5,6 +5,7 @@ import {
     getConditionalFormattingDescription,
     getItemId,
     getReadableTextColor,
+    getRowConditionalFormattingColor,
     isNumericItem,
     type ConditionalFormattingRowFields,
     type ResultRow,
@@ -100,6 +101,16 @@ const TableRow: FC<TableRowProps> = ({
         [row],
     );
 
+    const rowBackgroundColor = useMemo(
+        () =>
+            getRowConditionalFormattingColor({
+                conditionalFormattings,
+                rowFields,
+                minMaxMap,
+            }),
+        [conditionalFormattings, rowFields, minMaxMap],
+    );
+
     return (
         <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
             {row.getVisibleCells().map((cell) => {
@@ -143,6 +154,8 @@ const TableRow: FC<TableRowProps> = ({
                 let backgroundColor: string | undefined;
                 if (conditionalFormattingResult && !applyToText) {
                     backgroundColor = conditionalFormattingResult.color;
+                } else if (rowBackgroundColor) {
+                    backgroundColor = rowBackgroundColor;
                 } else if (meta?.frozen) {
                     backgroundColor = FROZEN_COLUMN_BACKGROUND;
                 }
@@ -164,6 +177,8 @@ const TableRow: FC<TableRowProps> = ({
                         : getReadableTextColor(
                               conditionalFormattingResult.color,
                           );
+                } else if (rowBackgroundColor) {
+                    fontColor = getReadableTextColor(rowBackgroundColor);
                 }
 
                 const suppressContextMenu =
