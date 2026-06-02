@@ -1630,11 +1630,27 @@ export class AiAgentService extends BaseService {
                 .map((thread) => thread.user.slackUserId),
         );
 
-        const slackUsers = await Promise.all(
-            slackUserIds.map((userId) =>
-                this.slackClient.getUserInfo(organizationUuid, userId!),
-            ),
-        );
+        // Resolve Slack users individually and tolerate failures: a single
+        // deleted/unknown Slack user (`user_not_found`) must not fail the whole
+        // thread list. Failed lookups fall back to the stored thread user name.
+        const slackUsers = (
+            await Promise.all(
+                slackUserIds.map(async (userId) => {
+                    try {
+                        return await this.slackClient.getUserInfo(
+                            organizationUuid,
+                            userId!,
+                        );
+                    } catch (error) {
+                        this.logger.warn(
+                            `Failed to fetch Slack user info for ${userId}`,
+                            { organizationUuid, error },
+                        );
+                        return null;
+                    }
+                }),
+            )
+        ).filter((slackUser) => slackUser !== null);
 
         const data = threads.map((thread) => {
             if (thread.createdFrom !== 'slack') {
@@ -1642,9 +1658,9 @@ export class AiAgentService extends BaseService {
             }
 
             const slackUser = slackUsers.find(
-                ({ id }) =>
+                (su) =>
                     thread.user.slackUserId !== null &&
-                    id === thread.user.slackUserId,
+                    su.id === thread.user.slackUserId,
             );
 
             return {
