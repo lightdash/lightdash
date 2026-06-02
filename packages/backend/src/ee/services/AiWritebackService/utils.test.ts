@@ -13,6 +13,7 @@ import {
 import {
     buildCoAuthorTrailer,
     buildNoreplyEmail,
+    buildUserCoAuthorTrailer,
     classifyToolPhase,
     extractPrMetadata,
     getPhaseProgressText,
@@ -351,6 +352,36 @@ describe('github identity helpers', () => {
         expect(buildCoAuthorTrailer({ id: 7, login: 'lightdash-bot' })).toBe(
             'Co-authored-by: lightdash-bot <7+lightdash-bot@users.noreply.github.com>',
         );
+    });
+
+    it('builds the user co-author trailer from name + email', () => {
+        expect(
+            buildUserCoAuthorTrailer({
+                firstName: 'Ada',
+                lastName: 'Lovelace',
+                email: 'ada@example.com',
+            }),
+        ).toBe('Co-authored-by: Ada Lovelace <ada@example.com>');
+    });
+
+    it('falls back to the email as the name when no name is set', () => {
+        expect(
+            buildUserCoAuthorTrailer({
+                firstName: '',
+                lastName: '',
+                email: 'ada@example.com',
+            }),
+        ).toBe('Co-authored-by: ada@example.com <ada@example.com>');
+    });
+
+    it('returns null when the user has no email to credit', () => {
+        expect(
+            buildUserCoAuthorTrailer({
+                firstName: 'Ada',
+                lastName: 'Lovelace',
+                email: undefined,
+            }),
+        ).toBeNull();
     });
 });
 

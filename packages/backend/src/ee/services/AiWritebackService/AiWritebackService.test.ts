@@ -111,7 +111,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
     ): AnyType =>
         (service as AnyType).applyAgentChanges({
             sandbox: { sandboxId: 'sbx-1' },
-            github: { installationId: 'inst-1', prToken: null },
+            github: { installationId: 'inst-1' },
             adoptedPr: null,
             turn: turnContext(),
             user: { userUuid: 'u1' },

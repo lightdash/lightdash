@@ -288,6 +288,21 @@ export const buildNoreplyEmail = ({ id, login }: GithubIdentity): string =>
 export const buildCoAuthorTrailer = (bot: GithubIdentity): string =>
     `Co-authored-by: ${bot.login} <${buildNoreplyEmail(bot)}>`;
 
+/**
+ * `Co-authored-by:` trailer crediting the Lightdash user who triggered the
+ * writeback. The PR is opened by the app, so this is how the requesting user is
+ * attributed on the commit. Returns null when we have no email to credit them by.
+ */
+export const buildUserCoAuthorTrailer = (user: {
+    firstName: string;
+    lastName: string;
+    email: string | undefined;
+}): string | null => {
+    if (!user.email) return null;
+    const name = `${user.firstName} ${user.lastName}`.trim() || user.email;
+    return `Co-authored-by: ${name} <${user.email}>`;
+};
+
 /** E2B treats `name` and `name:default` interchangeably, so an empty tag is fine. */
 export const resolveSandboxTemplateRef = ({
     name,
