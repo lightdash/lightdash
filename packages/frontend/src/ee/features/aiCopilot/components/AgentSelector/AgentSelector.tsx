@@ -99,7 +99,7 @@ export const AgentSelector = ({
         <Combobox
             store={combobox}
             onOptionSubmit={handleOptionSubmit}
-            withinPortal={false}
+            withinPortal
             width={compact ? 260 : 'target'}
             position="bottom-start"
         >

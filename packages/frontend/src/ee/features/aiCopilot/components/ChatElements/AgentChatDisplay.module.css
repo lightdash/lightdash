@@ -6,6 +6,6 @@
     }
 
     @mixin dark {
-        background: var(--mantine-color-body);
+        background-color: var(--mantine-color-dark-8);
     }
 }
