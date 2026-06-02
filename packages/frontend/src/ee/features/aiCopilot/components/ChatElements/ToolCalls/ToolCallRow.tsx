@@ -47,6 +47,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'listKnowledgeDocuments',
     'listProjects',
     'loadSkill',
+    'loadProjectContext',
     'proposeChange',
     'proposeWriteback',
     'runContentQuery',

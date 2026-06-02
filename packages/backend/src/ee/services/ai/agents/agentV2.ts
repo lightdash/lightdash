@@ -28,6 +28,7 @@ import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getProposeWriteback } from '../tools/proposeWriteback';
@@ -322,6 +323,12 @@ const getAgentTools = (
         getProjectInfo: dependencies.getProjectInfo,
     });
 
+    const loadProjectContext = args.projectContextEnabled
+        ? getLoadProjectContext({
+              getDocument: dependencies.getProjectContextDocument,
+          })
+        : null;
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
@@ -357,6 +364,7 @@ const getAgentTools = (
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
+        ...(loadProjectContext ? { loadProjectContext } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
@@ -374,6 +382,11 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
 
     const messageHistory = withToolHints(args.messageHistory, args.toolHints);
 
+    // Project context is loaded on demand via the loadProjectContext tool; the
+    // system prompt only advertises that it exists (when enabled + non-empty).
+    const hasProjectContext =
+        args.projectContextEnabled && args.projectContext.length > 0;
+
     const messages = [
         getSystemPromptV2({
             agentName: args.agentSettings.name,
@@ -381,6 +394,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             availableExplores,
             availableSkills: args.availableSkills,
             knowledgeDocuments: args.knowledgeDocuments,
+            hasProjectContext,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,

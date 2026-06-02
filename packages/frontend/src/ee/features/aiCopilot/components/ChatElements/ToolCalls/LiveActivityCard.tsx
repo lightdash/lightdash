@@ -102,6 +102,7 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'generateUuids',
     'improveContext',
     'loadSkill',
+    'loadProjectContext',
     'proposeChange',
     'proposeWriteback',
     'setupPreviewDeploy',

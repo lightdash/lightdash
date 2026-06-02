@@ -23,6 +23,7 @@ export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentSummary[];
+    hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
     date?: string;
@@ -99,6 +100,10 @@ export const getSystemPromptV2 = (args: {
             ? 'No knowledge documents have been curated for this agent.'
             : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
 
+    const projectContextContent = args.hasProjectContext
+        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        : 'No project context has been configured for this project.';
+
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
@@ -149,7 +154,8 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)
-        .replace('{{knowledge_documents}}', knowledgeDocumentsContent);
+        .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
+        .replace('{{project_context}}', projectContextContent);
 
     const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
 

@@ -182,6 +182,7 @@ import {
     type AiMcpCredential,
 } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
+import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectAgent } from '../ai/agents/agentSelector';
 import {
@@ -296,6 +297,7 @@ type AgentListContentItem = AgentListContentResult['items'][number];
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
@@ -477,6 +479,8 @@ export class AiAgentService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly projectContextModel: ProjectContextModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -564,6 +568,7 @@ export class AiAgentService extends BaseService {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
+        this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
@@ -4793,6 +4798,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
             });
 
+        const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
+            () => this.projectContextModel.getDocument(projectUuid);
+
         const getExplore: GetExploreFn = async ({ table }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
             return this.getExplore(
@@ -6036,6 +6044,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return {
             listExplores,
+            getProjectContextDocument,
             getExplore,
             listContent,
             findContent,
@@ -6156,6 +6165,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const {
             listExplores,
+            getProjectContextDocument,
             getExplore,
             listContent,
             findContent,
@@ -6293,6 +6303,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
+        const { enabled: projectContextEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiProjectContext,
+            });
+        const projectContext = projectContextEnabled
+            ? await this.projectContextModel.getDocument(prompt.projectUuid)
+            : [];
         const { enabled: agentRevampEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -6360,6 +6378,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             agentSettings,
             knowledgeDocuments,
+            projectContext,
+            projectContextEnabled,
             mcpServers,
 
             messageHistory,
@@ -6405,6 +6425,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getProjectContextDocument,
             getExplore,
             listContent,
             findContent,

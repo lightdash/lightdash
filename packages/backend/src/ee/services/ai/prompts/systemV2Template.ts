@@ -127,4 +127,7 @@ Today is {{date}}.
 {{available_explores}}
 
 ## Available knowledge documents
-{{knowledge_documents}}`;
+{{knowledge_documents}}
+
+## Project context
+{{project_context}}`;

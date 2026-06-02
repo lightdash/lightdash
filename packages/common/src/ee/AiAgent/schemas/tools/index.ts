@@ -4,6 +4,7 @@ export * from './toolDiscoverFieldsArgs';
 export * from './toolEditContentArgs';
 export * from './toolGenerateHashesArgs';
 export * from './toolGenerateUuidsArgs';
+export * from './toolLoadProjectContextArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';
 export * from './toolProposeWritebackArgs';
