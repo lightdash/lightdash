@@ -16,7 +16,10 @@ export async function up(knex: Knex): Promise<void> {
                 .references('project_uuid')
                 .inTable('projects')
                 .onDelete('CASCADE');
-            table.boolean('has_preview_deploy_workflow').notNullable();
+            table
+                .boolean('has_preview_deploy_workflow')
+                .notNullable()
+                .defaultTo(false);
             table.text('workflow_path').nullable();
             table.text('detected_commit_sha').nullable();
             table
