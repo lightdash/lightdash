@@ -1,3 +1,10 @@
+## [0.3076.1](https://github.com/lightdash/lightdash/compare/0.3076.0...0.3076.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* autofocus filter facet search ([#23781](https://github.com/lightdash/lightdash/issues/23781)) ([3f500c0](https://github.com/lightdash/lightdash/commit/3f500c09ef15a123851d8e62f208d6831181a24a))
+
 # [0.3076.0](https://github.com/lightdash/lightdash/compare/0.3075.3...0.3076.0) (2026-06-02)
 
 
