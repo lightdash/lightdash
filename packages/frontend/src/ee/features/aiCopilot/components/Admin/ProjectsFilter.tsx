@@ -1,5 +1,5 @@
 import { IconBox } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
@@ -19,6 +19,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
     setSelectedProjectUuids,
     tooltipLabel = 'Filter threads by project',
 }) => {
+    const [searchValue, setSearchValue] = useState('');
     const { data: projects, isLoading } = useProjects();
     const organizationAiAgents = useAiAgentAdminAgents();
 
@@ -39,17 +40,37 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             }));
     }, [projects, organizationAiAgents.data]);
 
+    const filteredOptions = useMemo<FilterFacetOption[]>(() => {
+        const search = searchValue.trim().toLowerCase();
+        if (!search) return options;
+
+        return options.filter((option) => {
+            const label =
+                typeof option.label === 'string'
+                    ? option.label
+                    : option.searchLabel;
+            return label?.toLowerCase().includes(search);
+        });
+    }, [options, searchValue]);
+
     return (
         <FilterFacet
             label="Project"
             icon={IconBox}
-            options={options}
+            options={filteredOptions}
             selected={selectedProjectUuids}
             onChange={setSelectedProjectUuids}
             tooltipLabel={tooltipLabel}
-            emptyLabel="No projects with agents available."
+            emptyLabel={
+                searchValue
+                    ? 'No projects match your search.'
+                    : 'No projects with agents available.'
+            }
             loading={isLoading || organizationAiAgents.isLoading}
             helperText="Showing projects with agents only"
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            searchPlaceholder="Search projects..."
         />
     );
 };
