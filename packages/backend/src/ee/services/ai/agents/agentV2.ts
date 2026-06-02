@@ -31,6 +31,7 @@ import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeChange } from '../tools/proposeChange';
 import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
+import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
@@ -256,6 +257,15 @@ const getAgentTools = (
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
     });
+    const runContentQuery = getRunContentQuery({
+        updateProgress: dependencies.updateProgress,
+        runAsyncQuery: dependencies.runAsyncQuery,
+        runSavedChartQuery: dependencies.runSavedChartQuery,
+        getSavedChart: dependencies.getSavedChart,
+        validateContent: dependencies.validateContent,
+        maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
+    });
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
@@ -309,6 +319,7 @@ const getAgentTools = (
                   editContent,
                   listContent,
                   createContent,
+                  runContentQuery,
               }
             : {
                   getDashboardCharts,
@@ -354,6 +365,8 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
             enableAiWriteback: args.enableAiWriteback,
+            enableContentTools:
+                args.enableAgentRevamp && args.enableContentTools,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,

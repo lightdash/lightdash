@@ -54,8 +54,10 @@ import {
     getContentAsCodePathFromLtreePath,
     getItemId,
     getLtreePathFromContentAsCodePath,
+    getValidAiQueryLimit,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    isDashboardChartTileType,
     isExploreError,
     isGitProjectType,
     isSlackPrompt,
@@ -157,6 +159,7 @@ import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
 import { ContentService } from '../../../services/ContentService/ContentService';
+import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
@@ -228,6 +231,7 @@ import {
     ProposeWritebackFn,
     ReadContentFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -237,6 +241,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
+    ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
@@ -309,6 +314,7 @@ type AiAgentServiceDependencies = {
     spaceModel: SpaceModel;
     projectModel: ProjectModel;
     coderService: CoderService;
+    dashboardService: DashboardService;
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -508,6 +514,8 @@ export class AiAgentService extends BaseService {
 
     private readonly coderService: CoderService;
 
+    private readonly dashboardService: DashboardService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -572,6 +580,7 @@ export class AiAgentService extends BaseService {
         this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.coderService = dependencies.coderService;
+        this.dashboardService = dependencies.dashboardService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -5233,7 +5242,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
-        const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
+        const validateContent: ValidateContentFn = ({ type, content }) =>
+            this.aiAgentContentValidation.validateContent(type, content);
+
+        const runAsyncQuery: RunAsyncQueryFn = (
+            metricQuery,
+            _additionalMetrics,
+            parameters,
+        ) =>
             wrapSentryTransaction(
                 'AiAgent.runAsyncQuery',
                 metricQuery,
@@ -5272,6 +5288,64 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     explore,
                                 ),
                             },
+                            context: QueryExecutionContext.AI,
+                            parameters,
+                        },
+                    );
+                },
+            );
+
+        const runSavedChartQuery: RunSavedChartQueryFn = (args) =>
+            wrapSentryTransaction(
+                'AiAgent.runSavedChartQuery',
+                args,
+                async () => {
+                    const account = fromSession(user);
+                    const limit = getValidAiQueryLimit(
+                        args.limit,
+                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    );
+
+                    if (!args.dashboardSlug) {
+                        return this.asyncQueryService.executeSavedChartQueryAndGetResults(
+                            {
+                                account,
+                                projectUuid,
+                                chartUuid: args.chartUuid,
+                                limit,
+                                context: QueryExecutionContext.AI,
+                            },
+                        );
+                    }
+
+                    const dashboard = await this.dashboardService.getByIdOrSlug(
+                        user,
+                        args.dashboardSlug,
+                        { projectUuid },
+                    );
+                    const tile = dashboard.tiles.find(
+                        (dashboardTile) =>
+                            isDashboardChartTileType(dashboardTile) &&
+                            dashboardTile.properties.savedChartUuid ===
+                                args.chartUuid,
+                    );
+
+                    if (!tile) {
+                        throw new NotFoundError(
+                            `Chart ${args.chartUuid} not found on dashboard ${args.dashboardSlug}`,
+                        );
+                    }
+
+                    return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                        {
+                            account,
+                            projectUuid,
+                            chartUuid: args.chartUuid,
+                            dashboardUuid: dashboard.uuid,
+                            tileUuid: tile.uuid,
+                            dashboardFilters: dashboard.filters,
+                            dashboardSorts: [],
+                            limit,
                             context: QueryExecutionContext.AI,
                         },
                     );
@@ -5851,12 +5925,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             readContent,
             editContent,
             createContent,
+            validateContent,
             getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
@@ -5967,12 +6043,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             readContent,
             editContent,
             createContent,
+            validateContent,
             getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
@@ -6194,10 +6272,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             readContent,
             editContent,
             createContent,
+            validateContent,
             getDashboardCharts,
             findFields,
             findExplores,
             runAsyncQuery,
+            runSavedChartQuery,
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,

@@ -10,6 +10,7 @@ import { AiAgentSkillReference } from '../skills/types';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { AI_WRITEBACK_SECTION } from './systemV2AiWriteback';
+import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
@@ -27,6 +28,7 @@ export const getSystemPromptV2 = (args: {
     enableDataAccess?: boolean;
     enableSelfImprovement?: boolean;
     enableAiWriteback?: boolean;
+    enableContentTools?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -38,6 +40,7 @@ export const getSystemPromptV2 = (args: {
         enableDataAccess = false,
         enableSelfImprovement = false,
         enableAiWriteback = false,
+        enableContentTools = false,
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
@@ -125,6 +128,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{run_sql_section}}',
             canRunSql ? getRunSqlSection(warehouseType, warehouseSchema) : '',
+        )
+        .replace(
+            '{{content_tools_section}}',
+            enableContentTools ? CONTENT_TOOLS_SECTION : '',
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)

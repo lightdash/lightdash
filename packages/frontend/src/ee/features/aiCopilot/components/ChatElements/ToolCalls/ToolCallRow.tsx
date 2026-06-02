@@ -48,6 +48,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'loadSkill',
     'proposeChange',
     'proposeWriteback',
+    'runContentQuery',
     'runSavedChart',
 ]);
 

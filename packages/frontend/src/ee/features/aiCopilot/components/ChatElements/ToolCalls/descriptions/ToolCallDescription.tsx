@@ -259,6 +259,7 @@ export const ToolCallDescription: FC<{
         case 'loadSkill':
         case 'proposeChange':
         case 'proposeWriteback':
+        case 'runContentQuery':
         case 'runSavedChart':
             return <> </>;
         default:

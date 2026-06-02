@@ -1,7 +1,38 @@
 import { z } from 'zod';
+import type { ChartAsCode } from '../../../../types/coder';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION =
     'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
+
+type RequiredMetricQueryKeys = keyof Omit<
+    ChartAsCode['metricQuery'],
+    | 'additionalMetrics'
+    | 'customDimensions'
+    | 'metricOverrides'
+    | 'dimensionOverrides'
+    | 'timezone'
+    | 'pivotDimensions'
+    | 'metadata'
+>;
+
+const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =
+    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
+
+const chartAsCodeMetricQueryShape = {
+    exploreName: z.unknown(),
+    dimensions: z.array(z.unknown()),
+    metrics: z.array(z.unknown()),
+    filters: z.unknown(),
+    sorts: z.array(z.unknown()),
+    limit: z.unknown(),
+    tableCalculations: z.array(z.unknown()),
+} satisfies Record<RequiredMetricQueryKeys, z.ZodTypeAny>;
+
+export const toolChartAsCodeMetricQuerySchema = z
+    .object(chartAsCodeMetricQueryShape)
+    // Strict OpenAI schemas cannot use optional fields; passthrough preserves optional chart-as-code fields when present.
+    .passthrough()
+    .describe(TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION);
 
 const baseContentSchema = z.object({
     slug: z
@@ -39,7 +70,7 @@ export const toolCreateContentArgsSchema = z.object({
         baseContentSchema
             .extend({
                 tableName: z.string().min(1),
-                metricQuery: z.unknown(),
+                metricQuery: toolChartAsCodeMetricQuerySchema,
                 chartConfig: z.unknown(),
                 pivotConfig: z.unknown(),
                 tableConfig: z.unknown(),

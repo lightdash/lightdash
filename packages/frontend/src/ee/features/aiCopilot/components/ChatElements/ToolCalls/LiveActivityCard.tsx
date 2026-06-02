@@ -83,6 +83,7 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
     'proposeChange',
+    'runContentQuery',
     'runSavedChart',
 ]);
 
@@ -102,6 +103,7 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'proposeChange',
     'proposeWriteback',
+    'runContentQuery',
     'runSavedChart',
 ]);
 

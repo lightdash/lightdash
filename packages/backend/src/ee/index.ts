@@ -184,6 +184,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spaceModel: models.getSpaceModel(),
                     projectModel: models.getProjectModel(),
                     coderService: repository.getCoderService(),
+                    dashboardService: repository.getDashboardService(),
                     savedChartService: repository.getSavedChartService(),
                     contentService: repository.getContentService(),
                     aiOrganizationSettingsService:

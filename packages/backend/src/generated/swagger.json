@@ -12828,7 +12828,7 @@
                 "type": "string",
                 "enum": [
                     "generateDashboard",
-                    "generateVisualization",
+                    "runQuery",
                     "runSql",
                     "proposeChange",
                     "findContent"
@@ -13744,7 +13744,7 @@
                 "type": "string",
                 "enum": [
                     "generateDashboard",
-                    "generateVisualization",
+                    "runQuery",
                     "runSql",
                     "findContent",
                     "generateBarVizConfig",
@@ -13767,7 +13767,6 @@
                     "getProjectInfo",
                     "loadSkill",
                     "proposeWriteback",
-                    "runQuery",
                     "runSavedChart",
                     "listWarehouseTables",
                     "describeWarehouseTable",
@@ -14152,6 +14151,57 @@
                                                                         "type": "string",
                                                                         "nullable": true
                                                                     },
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "fieldValueType",
+                                                                                "fieldFilterType",
+                                                                                "fieldType",
+                                                                                "fieldId",
+                                                                                "table",
+                                                                                "label",
+                                                                                "description",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "baseTable": {
@@ -14178,57 +14228,6 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "fieldValueType",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "table",
-                                                                                "label",
-                                                                                "fieldId",
-                                                                                "description",
-                                                                                "name"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -14239,8 +14238,8 @@
                                                                 },
                                                                 "required": [
                                                                     "rationale",
-                                                                    "explore",
                                                                     "fields",
+                                                                    "explore",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -14365,6 +14364,19 @@
                                                     "slug",
                                                     "name"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
