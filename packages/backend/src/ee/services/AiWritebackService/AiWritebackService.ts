@@ -750,9 +750,26 @@ export class AiWritebackService extends BaseService {
         user: SessionUser;
         projectUuid: string;
     }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
+        const { user, projectUuid } = args;
+        // Explicit permission gate at this service entry point (it's reachable
+        // directly as an agent tool). Mirrors the writeback manage:SourceCode
+        // check; run()/prepareTurn re-checks before any side effect.
+        const project = await this.projectModel.get(projectUuid);
+        const canWriteback = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SourceCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                isProtectedBranch: false,
+            }),
+        );
+        if (!canWriteback) {
+            throw new ForbiddenError();
+        }
+
         const result = await this.run({
-            user: args.user,
-            projectUuid: args.projectUuid,
+            user,
+            projectUuid,
             prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
             source: 'preview_deploy_setup',
         });
