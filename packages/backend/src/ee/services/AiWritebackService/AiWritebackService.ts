@@ -883,9 +883,17 @@ export class AiWritebackService extends BaseService {
                     user,
                     featureFlagId: FeatureFlags.AiPreviewDeploySetup,
                 });
-            const previewDeployStatus = previewDeploySetupEnabled
-                ? await this.detectAndRecordPreviewDeploy(sandbox, projectUuid)
-                : null;
+            // Only detect on a fresh clone. A resumed sandbox's working tree
+            // carries the agent's prior-turn edits (e.g. workflow files it just
+            // wrote), so detecting there is a false positive — detection must
+            // reflect the cloned default-branch state, not in-progress changes.
+            const previewDeployStatus =
+                previewDeploySetupEnabled && !turn.isResume
+                    ? await this.detectAndRecordPreviewDeploy(
+                          sandbox,
+                          projectUuid,
+                      )
+                    : null;
             // When it's not set up, hand the agent the exact files + secrets so
             // it can offer to open a PR adding the preview workflow.
             const previewDeployGuidance =
