@@ -479,6 +479,44 @@ export class AppModel {
     }
 
     /**
+     * Record that a preview app has been promoted into a production app. The
+     * link lives on the preview (source) row so one production app can be the
+     * upstream of many preview apps. Setting it is idempotent — re-promoting
+     * the same preview app just rewrites the same value.
+     */
+    async setUpstreamAppUuid(
+        appId: string,
+        upstreamAppUuid: string,
+    ): Promise<void> {
+        await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .update({ upstream_app_uuid: upstreamAppUuid });
+    }
+
+    /**
+     * Sync the metadata of an existing production app from its preview source
+     * during a follow-up promotion. Only touches the fields promotion owns —
+     * versions are appended separately, the link and ownership stay put.
+     */
+    async syncPromotedApp(
+        appId: string,
+        update: Pick<
+            DbApp,
+            'name' | 'description' | 'space_uuid' | 'design_uuid'
+        >,
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .whereNull('deleted_at')
+            .update(update)
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    /**
      * Atomically set auto-generated name/description, but only for fields
      * that are still at their empty-string default. Used by the background
      * pipeline so it cannot clobber edits the user made while the build

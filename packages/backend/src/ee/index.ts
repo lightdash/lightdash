@@ -110,6 +110,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationDesignModel(),
                     pinnedListModel: models.getPinnedListModel(),
                     projectModel: models.getProjectModel(),
+                    spaceModel: models.getSpaceModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     savedChartService: repository.getSavedChartService(),
@@ -117,6 +118,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
+                    promoteService: repository.getPromoteService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

@@ -1429,6 +1429,53 @@ export class PromoteService extends BaseService {
         };
     }
 
+    /**
+     * Resolve a single source space (by its path) into the upstream project,
+     * creating it — and any missing ancestors — when absent. Returns the
+     * upstream space uuid.
+     *
+     * Data-app promotion needs only to place one entity into a space, so this
+     * builds the minimal space change set (the space plus its ancestors) and
+     * reuses `upsertSpaces` for the actual create + parent-chain + permission
+     * copy, rather than assembling a full chart/dashboard PromotionChanges.
+     */
+    async getOrCreateUpstreamSpace(
+        user: SessionUser,
+        sourceSpaceUuid: string,
+        upstreamProjectUuid: string,
+    ): Promise<string> {
+        const promotedSpace =
+            await this.spaceModel.getSpaceSummary(sourceSpaceUuid);
+
+        const ancestorUuids = await this.spaceModel.getSpaceAncestors({
+            spaceUuid: sourceSpaceUuid,
+            projectUuid: promotedSpace.projectUuid,
+        });
+        const ancestors =
+            ancestorUuids.length > 0
+                ? await this.spaceModel.find({ spaceUuids: ancestorUuids })
+                : [];
+
+        const spaceChanges = await Promise.all(
+            [promotedSpace, ...ancestors].map((space) =>
+                this.getSpaceChange(upstreamProjectUuid, space),
+            ),
+        );
+
+        const result = await this.upsertSpaces(
+            user,
+            promotedSpace.projectUuid,
+            {
+                spaces: spaceChanges,
+                dashboards: [],
+                charts: [],
+            },
+        );
+
+        return PromoteService.getSpaceByPath(result.spaces, promotedSpace.path)
+            .uuid;
+    }
+
     async upsertSpaces(
         user: SessionUser,
         projectUuid: string, // The base project uuid

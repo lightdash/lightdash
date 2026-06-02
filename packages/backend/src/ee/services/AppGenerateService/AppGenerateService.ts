@@ -35,6 +35,8 @@ import {
     type ChartSampleData,
     type DataAppClaudeModel,
     type DataAppTemplate,
+    type PromoteAppAction,
+    type PromoteAppDiff,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
@@ -64,10 +66,12 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -90,11 +94,13 @@ type AppGenerateServiceDeps = {
     organizationDesignModel: OrganizationDesignModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
+    spaceModel: SpaceModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
     dashboardService: DashboardService;
     projectService: ProjectService;
+    promoteService: PromoteService;
 };
 
 type GenerateAppResult = {
@@ -126,6 +132,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly savedChartService: SavedChartService;
@@ -135,6 +143,8 @@ export class AppGenerateService extends BaseService {
     private readonly dashboardService: DashboardService;
 
     private readonly projectService: ProjectService;
+
+    private readonly promoteService: PromoteService;
 
     constructor({
         lightdashConfig,
@@ -146,11 +156,13 @@ export class AppGenerateService extends BaseService {
         organizationDesignModel,
         pinnedListModel,
         projectModel,
+        spaceModel,
         schedulerClient,
         savedChartService,
         spacePermissionService,
         dashboardService,
         projectService,
+        promoteService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -162,11 +174,13 @@ export class AppGenerateService extends BaseService {
         this.organizationDesignModel = organizationDesignModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
+        this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
+        this.promoteService = promoteService;
     }
 
     /**
@@ -3671,6 +3685,306 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /**
+     * Build the `resources` for a copied version (duplicate or promotion).
+     * Carries the chart/dashboard refs and Claude model from the source, but
+     * drops images and clarifications — both are scoped to the source app and
+     * don't survive the copy. The visual result is preserved because bundled
+     * images live in the copied dist assets, not in `resources.images`.
+     */
+    private static buildCopiedResources(
+        sourceResources: AppVersionResources | null,
+    ): AppVersionResources {
+        return {
+            images: [],
+            charts: sourceResources?.charts ?? [],
+            dashboardName: sourceResources?.dashboardName ?? null,
+            clarifications: [],
+            ...(sourceResources?.claudeModel
+                ? { claudeModel: sourceResources.claudeModel }
+                : {}),
+        };
+    }
+
+    /**
+     * Resolve the upstream (production) project a preview app can be promoted
+     * into, throwing when the app's project is not a preview linked to an
+     * upstream. Returns the upstream project's uuid, name and org uuid.
+     */
+    private async getUpstreamProjectForPromotion(projectUuid: string): Promise<{
+        upstreamProjectUuid: string;
+        upstreamProjectName: string;
+        upstreamOrganizationUuid: string;
+    }> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (!project.upstreamProjectUuid) {
+            throw new ParameterError(
+                'Data apps can only be promoted from a preview project linked to an upstream project',
+            );
+        }
+        const upstreamProject = await this.projectModel.getSummary(
+            project.upstreamProjectUuid,
+        );
+        return {
+            upstreamProjectUuid: upstreamProject.projectUuid,
+            upstreamProjectName: upstreamProject.name,
+            upstreamOrganizationUuid: upstreamProject.organizationUuid,
+        };
+    }
+
+    /**
+     * Find the live production app a preview app is currently linked to, or
+     * undefined when there is none (never promoted, or the production app was
+     * deleted). The link lives on the preview row as `upstream_app_uuid`; we
+     * additionally guard that it still points into the expected upstream
+     * project so a stale link can never resolve to the wrong app.
+     */
+    private async findLinkedUpstreamApp(
+        previewApp: Pick<DbApp, 'upstream_app_uuid'>,
+        upstreamProjectUuid: string,
+    ): Promise<(DbApp & { organization_uuid: string }) | undefined> {
+        if (!previewApp.upstream_app_uuid) {
+            return undefined;
+        }
+        const upstreamApp = await this.appModel.findAppByUuid(
+            previewApp.upstream_app_uuid,
+        );
+        if (!upstreamApp || upstreamApp.project_uuid !== upstreamProjectUuid) {
+            return undefined;
+        }
+        return upstreamApp;
+    }
+
+    /**
+     * Preview what promoting a data app into its upstream project will do —
+     * whether it creates a new production app or updates an existing one, and
+     * which space it will land in. Read-only; drives the confirmation dialog.
+     */
+    async getPromoteAppDiff(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<PromoteAppDiff> {
+        await this.assertDataAppsEnabled(user);
+        const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            sourceApp,
+            'Insufficient permissions to promote this data app',
+        );
+
+        const { upstreamProjectUuid, upstreamProjectName } =
+            await this.getUpstreamProjectForPromotion(projectUuid);
+
+        const upstreamApp = await this.findLinkedUpstreamApp(
+            sourceApp,
+            upstreamProjectUuid,
+        );
+
+        const space = sourceApp.space_uuid
+            ? await this.spaceModel.getSpaceSummary(sourceApp.space_uuid)
+            : null;
+
+        return {
+            action: upstreamApp ? 'update' : 'create',
+            upstreamProjectUuid,
+            upstreamProjectName,
+            upstreamAppUuid: upstreamApp?.app_id ?? null,
+            space: space ? { name: space.name, path: space.path } : null,
+        };
+    }
+
+    /**
+     * Promote a data app from a preview project into its upstream (production)
+     * project. The latest ready version is snapshotted as a single new version
+     * in production: a fresh app on first promotion, or an appended version on
+     * the linked production app on follow-up promotions. Built S3 artifacts are
+     * server-side copied into the production app's prefix; the source app is
+     * never modified beyond recording the upstream link.
+     *
+     * Out of scope (v1): chart references in `resources.charts` keep their
+     * preview uuids — the app renders (artifacts are self-contained) but
+     * re-iterating in production won't resolve them.
+     */
+    async promoteApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<{
+        appUuid: string;
+        projectUuid: string;
+        version: number;
+        action: PromoteAppAction;
+    }> {
+        await this.assertDataAppsEnabled(user);
+
+        const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            sourceApp,
+            'Insufficient permissions to promote this data app',
+        );
+
+        const {
+            upstreamProjectUuid,
+            upstreamProjectName,
+            upstreamOrganizationUuid,
+        } = await this.getUpstreamProjectForPromotion(projectUuid);
+
+        // Authoring rights on the upstream project itself — viewers of the
+        // preview must not be able to write into production.
+        this.assertDataAppAbility(
+            user,
+            'create',
+            upstreamOrganizationUuid,
+            upstreamProjectUuid,
+            'Insufficient permissions to promote into the upstream project',
+        );
+
+        const sourceVersion = await this.appModel.getLatestReadyVersion(
+            sourceApp.app_id,
+        );
+        if (!sourceVersion) {
+            throw new ParameterError(
+                'Cannot promote an app that has no successful version',
+            );
+        }
+
+        // Resolve the upstream space (creating it + ancestors if missing) so
+        // the production app mirrors the preview app's placement. Spaceless
+        // apps land at the project root.
+        const targetSpaceUuid = sourceApp.space_uuid
+            ? await this.promoteService.getOrCreateUpstreamSpace(
+                  user,
+                  sourceApp.space_uuid,
+                  upstreamProjectUuid,
+              )
+            : null;
+
+        // Designs are org-scoped and the preview shares the upstream org, so
+        // the design carries over — but guard against a since-deleted design.
+        const targetDesignUuid =
+            sourceApp.design_uuid &&
+            (await this.organizationDesignModel.findInOrganization(
+                upstreamOrganizationUuid,
+                sourceApp.design_uuid,
+            ))
+                ? sourceApp.design_uuid
+                : null;
+
+        const resources = AppGenerateService.buildCopiedResources(
+            sourceVersion.resources ?? null,
+        );
+        // Frame the production version's chat bubble like a duplicate's: the
+        // verb "Promote" plus a markdown link (rendered as an anchor by
+        // ChatMessageContent) back to the preview version it came from, for
+        // provenance.
+        const sourceDisplayName = sourceApp.name || 'untitled app';
+        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        // Re-read the link immediately before branching to narrow (not fully
+        // close) the window where two concurrent first-promotions could both
+        // create a production app. A duplicate is a rare, recoverable outcome.
+        const upstreamApp = await this.findLinkedUpstreamApp(
+            sourceApp,
+            upstreamProjectUuid,
+        );
+
+        const metadata = {
+            name: sourceApp.name,
+            description: sourceApp.description,
+            space_uuid: targetSpaceUuid,
+            design_uuid: targetDesignUuid,
+        };
+
+        const action: PromoteAppAction = upstreamApp ? 'update' : 'create';
+        const targetAppUuid = upstreamApp?.app_id ?? uuidv4();
+        const targetVersion = upstreamApp
+            ? ((await this.appModel.getLatestVersion(targetAppUuid))?.version ??
+                  0) + 1
+            : 1;
+
+        const copiedKeys = await AppGenerateService.copyVersionS3Prefix(
+            s3Client,
+            bucket,
+            { appUuid: sourceApp.app_id, version: sourceVersion.version },
+            { appUuid: targetAppUuid, version: targetVersion },
+        );
+
+        try {
+            if (upstreamApp) {
+                await this.appModel.createVersion(
+                    targetAppUuid,
+                    { version: targetVersion, prompt },
+                    'ready',
+                    user.userUuid,
+                    resources,
+                );
+                await this.appModel.syncPromotedApp(targetAppUuid, metadata);
+            } else {
+                await this.appModel.createWithVersion(
+                    {
+                        app_id: targetAppUuid,
+                        project_uuid: upstreamProjectUuid,
+                        created_by_user_uuid: user.userUuid,
+                        template: sourceApp.template,
+                        ...metadata,
+                    },
+                    { version: targetVersion, prompt },
+                    'ready',
+                    resources,
+                );
+                await this.appModel.setUpstreamAppUuid(
+                    sourceApp.app_id,
+                    targetAppUuid,
+                );
+            }
+            await this.appModel.updateStatusMessage(
+                targetAppUuid,
+                targetVersion,
+                `Promoted to ${upstreamProjectName}`,
+            );
+        } catch (error) {
+            // DB write failed — drop the orphaned S3 copy. On the update path
+            // the copy targets a new (unreferenced) version prefix, so it is
+            // always safe to delete. Cleanup failures are logged and swallowed.
+            await this.cleanupRestoredS3Keys(
+                s3Client,
+                bucket,
+                targetAppUuid,
+                copiedKeys,
+            );
+            throw error;
+        }
+
+        this.analytics.track({
+            event: 'data_app.promoted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: upstreamOrganizationUuid,
+                projectId: upstreamProjectUuid,
+                appUuid: targetAppUuid,
+                version: targetVersion,
+                action,
+                promotedFromAppUuid: sourceApp.app_id,
+                promotedFromProjectId: projectUuid,
+            },
+        });
+
+        this.logger.info(
+            `App ${sourceApp.app_id} v${sourceVersion.version}: promoted (${action}) to app ${targetAppUuid} v${targetVersion} in project ${upstreamProjectUuid} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
+        );
+
+        return {
+            appUuid: targetAppUuid,
+            projectUuid: upstreamProjectUuid,
+            version: targetVersion,
+            action,
+        };
+    }
+
+    /**
      * Duplicate an existing app the user can view into a new personal app
      * owned by the requester. The new app starts at v1 with the source's
      * latest ready version's S3 artifacts (dist.tar + source.tar + any
@@ -3716,16 +4030,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        const sourceResources = sourceVersion.resources ?? null;
-        const resources: AppVersionResources = {
-            images: [],
-            charts: sourceResources?.charts ?? [],
-            dashboardName: sourceResources?.dashboardName ?? null,
-            clarifications: [],
-            ...(sourceResources?.claudeModel
-                ? { claudeModel: sourceResources.claudeModel }
-                : {}),
-        };
+        const resources = AppGenerateService.buildCopiedResources(
+            sourceVersion.resources ?? null,
+        );
 
         const newAppUuid = uuidv4();
         const newVersion = 1;

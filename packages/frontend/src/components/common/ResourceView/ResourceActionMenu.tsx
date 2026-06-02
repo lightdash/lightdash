@@ -24,9 +24,10 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -82,6 +83,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
+    const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
@@ -442,6 +444,21 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         </div>
                                     </Tooltip>
                                 )}
+                            {item.type === ResourceViewItemType.DATA_APP &&
+                                project?.upstreamProjectUuid !== undefined && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconDatabaseExport}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setIsPromoteAppOpen(true)
+                                        }
+                                    >
+                                        Promote data app
+                                    </Menu.Item>
+                                )}
 
                             {user.data?.ability.can(
                                 'manage',
@@ -622,6 +639,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     }}
                 ></PromotionConfirmDialog>
             )}
+            {isPromoteAppOpen &&
+                projectUuid &&
+                item.type === ResourceViewItemType.DATA_APP && (
+                    <PromoteAppModal
+                        projectUuid={projectUuid}
+                        appUuid={item.data.uuid}
+                        opened
+                        onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
         </>
     );
 };

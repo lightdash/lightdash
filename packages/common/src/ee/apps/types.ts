@@ -250,6 +250,34 @@ export type ApiDuplicateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
+export type PromoteAppAction = 'create' | 'update';
+
+/**
+ * Preview of what promoting a data app from a preview project into its
+ * upstream (production) project will do. Drives the confirmation dialog.
+ */
+export type PromoteAppDiff = {
+    // 'create' on first promotion, 'update' when the preview app is already
+    // linked to a live production app (a new version is appended).
+    action: PromoteAppAction;
+    upstreamProjectUuid: string;
+    upstreamProjectName: string;
+    // The production app that will be updated, or null when it will be created.
+    upstreamAppUuid: string | null;
+    // The space (mirrored by path) the app will land in, or null for the
+    // production project root.
+    space: { name: string; path: string } | null;
+};
+
+export type ApiPromoteAppDiffResponse = ApiSuccess<PromoteAppDiff>;
+
+export type ApiPromoteAppResponse = ApiSuccess<{
+    appUuid: string;
+    projectUuid: string;
+    version: number;
+    action: PromoteAppAction;
+}>;
+
 export type ApiDeleteAppResponse = ApiSuccessEmpty;
 
 export type ApiAppSummary = {

@@ -1351,6 +1351,20 @@ export type DataAppDuplicatedEvent = BaseTrack & {
     };
 };
 
+export type DataAppPromotedEvent = BaseTrack & {
+    event: 'data_app.promoted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        action: 'create' | 'update';
+        promotedFromAppUuid: string;
+        promotedFromProjectId: string;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1360,7 +1374,8 @@ export type DataAppEvent =
     | DataAppImageUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
-    | DataAppDuplicatedEvent;
+    | DataAppDuplicatedEvent
+    | DataAppPromotedEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';

@@ -35,6 +35,7 @@ import {
     IconArrowUp,
     IconCopy,
     IconDatabase,
+    IconDatabaseExport,
     IconBrush,
     IconDots,
     IconExternalLink,
@@ -98,6 +99,7 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import { PromoteAppModal } from '../features/apps/components/PromoteAppModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -123,6 +125,7 @@ import {
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useProject } from '../hooks/useProject';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -529,6 +532,11 @@ const AppGenerate: FC = () => {
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+
+    // Promotion is only offered from a preview project linked to an upstream.
+    const { data: project } = useProject(projectUuid);
+    const isPreviewProject = !!project?.upstreamProjectUuid;
     const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
         useContentAction(projectUuid);
 
@@ -2398,6 +2406,27 @@ const AppGenerate: FC = () => {
                                                 ? 'Move to space'
                                                 : 'Add to space'}
                                         </Menu.Item>
+                                        {isPreviewProject &&
+                                            latestReadyVersion && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconDatabaseExport
+                                                            }
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    disabled={!activeAppUuid}
+                                                    onClick={() =>
+                                                        setIsPromoteModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Promote
+                                                </Menu.Item>
+                                            )}
                                         <Menu.Divider />
                                         <Menu.Item
                                             color="red"
@@ -2477,6 +2506,14 @@ const AppGenerate: FC = () => {
                                 initialDescription={appDescription}
                                 onClose={() => setIsUpdateModalOpen(false)}
                                 onConfirm={() => setIsUpdateModalOpen(false)}
+                            />
+                        )}
+                        {isPromoteModalOpen && activeAppUuid && (
+                            <PromoteAppModal
+                                projectUuid={projectUuid}
+                                appUuid={activeAppUuid}
+                                opened
+                                onClose={() => setIsPromoteModalOpen(false)}
                             />
                         )}
                         {isDeleteModalOpen && activeAppUuid && (
