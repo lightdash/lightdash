@@ -3,6 +3,7 @@ import type { ApiSuccess } from '../../types/api/success';
 import type { MetricQuery } from '../../types/metricQuery';
 import type { QueryHistoryStatus } from '../../types/queryHistory';
 import type { AiAgentDocumentStructuredSummary } from './documentTypes';
+import { projectContextEntryKinds } from './projectContext';
 import type { AiAgentReviewClassifierEventType } from './requestTypes';
 
 export type AiAgentReviewClassifierSubject = {
@@ -354,6 +355,40 @@ const aiAgentJudgeTargetRefSchema = z.object({
     key: z.string().nullable(),
 });
 
+// Structured project_context living-document entry the judge emits for
+// project_context findings. `id` is required when op === 'update' (the entry
+// it reviewed was already injected into the turn, so it can reference the id).
+export const aiAgentJudgeProjectContextEntrySchema = z
+    .object({
+        op: z.enum(['create', 'update']),
+        id: z.string().min(1).nullable(),
+        kind: z.enum(projectContextEntryKinds),
+        content: z.string(),
+        terms: z.array(z.string()),
+        objects: z.array(z.string()),
+    })
+    .superRefine((entry, ctx) => {
+        if (entry.op === 'update' && !entry.id) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'id is required when op is update',
+                path: ['id'],
+            });
+        }
+    });
+
+// Concrete type (not z.infer) so tsoa can resolve it where it surfaces in API
+// responses (AiAgentReviewItemSummary). Kept structurally in sync with
+// aiAgentJudgeProjectContextEntrySchema above.
+export type AiAgentJudgeProjectContextEntry = {
+    op: 'create' | 'update';
+    id: string | null;
+    kind: 'definition' | 'context';
+    content: string;
+    terms: string[];
+    objects: string[];
+};
+
 export const aiAgentReviewClassifierJudgeOutputSchema = z.object({
     signal: z.enum([
         'normal_refinement',
@@ -469,6 +504,7 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z.object({
         title: z.string(),
         description: z.string(),
     }),
+    projectContextEntry: aiAgentJudgeProjectContextEntrySchema.nullable(),
 });
 
 export type AiAgentReviewClassifierJudgeOutput = z.infer<
@@ -521,6 +557,7 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
         targetRefs: AiAgentTargetRef[];
         evidenceExcerpts: AiAgentEvidenceExcerpt[];
         recommendation: AiAgentRecommendation | null;
+        projectContextEntry: AiAgentJudgeProjectContextEntry | null;
         createdAt: Date;
     } | null;
 };
@@ -685,6 +722,7 @@ export type AiAgentReviewClassifierSignalFinding = {
     targetRefs: AiAgentTargetRef[];
     evidenceExcerpts: AiAgentEvidenceExcerpt[];
     recommendation: AiAgentRecommendation | null;
+    projectContextEntry: AiAgentJudgeProjectContextEntry | null;
     reviewItem: {
         fingerprint: string;
         title: string;

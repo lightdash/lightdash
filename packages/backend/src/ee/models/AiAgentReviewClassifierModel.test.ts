@@ -452,6 +452,7 @@ describe('AiAgentReviewClassifierModel', () => {
                         },
                     ],
                     recommendation: null,
+                    projectContextEntry: null,
                     reviewItem: {
                         fingerprint: FINGERPRINT,
                         title: 'Review airports.country',

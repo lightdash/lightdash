@@ -874,6 +874,8 @@ export class AiAgentReviewClassifierModel {
                         targetRefs: latest.target_refs ?? [],
                         evidenceExcerpts: latest.evidence_excerpts ?? [],
                         recommendation: latest.recommendation,
+                        projectContextEntry:
+                            latest.project_context_entry ?? null,
                         createdAt: latest.created_at,
                     },
                 };
@@ -1160,6 +1162,9 @@ export class AiAgentReviewClassifierModel {
                         : null,
                     recommendation: finding
                         ? (this.jsonb(finding.recommendation) as never)
+                        : null,
+                    project_context_entry: finding
+                        ? (this.jsonb(finding.projectContextEntry) as never)
                         : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,
