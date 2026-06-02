@@ -220,6 +220,25 @@ export const testCases: TestCase[] = [
             `The response did NOT use limit+sort to approximate the time window`,
         ].join('\n'),
     },
+    {
+        // IMPORTANT: regression test for #23766 — a categorical filter must NOT be
+        // dropped when combined with non-contiguous date periods. Previously the agent
+        // OR'd the whole dimension group, making the categorical filter optional.
+        name: 'should keep categorical filter when combined with non-contiguous date periods',
+        prompt: 'Total order amount for completed orders in either March or May 2024',
+        expectedAnswer: [
+            `Response contains total order amount for completed orders in March and May 2024`,
+            `explore: orders`,
+            `metric: total order amount`,
+            `filters: order date in March 2024 or May 2024 AND status equals completed`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response added a date filter selecting March 2024 and May 2024 (e.g. an equals rule on a month-grain date field with both month values, or two inBetween ranges)`,
+            `The response added a dimension filter for status with value ["completed"]`,
+            `Crucially, the status (categorical) filter MUST be present — it must NOT be dropped`,
+            `The status filter must be combined with the date selection under AND, so completed status applies to both March and May (not OR'd across the whole group, which would make status optional)`,
+        ].join('\n'),
+    },
 ];
 
 type Context = {
