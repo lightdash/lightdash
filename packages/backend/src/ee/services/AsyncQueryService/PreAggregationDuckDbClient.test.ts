@@ -54,6 +54,9 @@ describe('PreAggregationDuckDbClient', () => {
         const createDuckdbWarehouseClient = jest
             .fn()
             .mockReturnValue(warehouseClientMock as unknown as WarehouseClient);
+        const isPreAggregatesEnabled = jest
+            .fn()
+            .mockResolvedValue(resolvedLightdashConfig.preAggregates.enabled);
 
         const client = new PreAggregationDuckDbClient({
             lightdashConfig: resolvedLightdashConfig,
@@ -68,6 +71,7 @@ describe('PreAggregationDuckDbClient', () => {
                               .duckdbQueryMemoryLimit,
                   }
                 : undefined,
+            isPreAggregatesEnabled,
             createDuckdbWarehouseClient,
         });
 
@@ -76,6 +80,7 @@ describe('PreAggregationDuckDbClient', () => {
             preAggregateModel,
             projectModel,
             createDuckdbWarehouseClient,
+            isPreAggregatesEnabled,
         };
     };
 

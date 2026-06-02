@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common';
+import { CommercialFeatureFlags, ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -431,6 +431,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     models.getPreAggregateModel(),
                                 projectModel: models.getProjectModel(),
                                 prometheusMetrics,
+                                isPreAggregatesEnabled: async ({
+                                    organizationUuid,
+                                }) =>
+                                    (
+                                        await models.getFeatureFlagModel().get({
+                                            featureFlagId:
+                                                CommercialFeatureFlags.PreAggregates,
+                                            user: {
+                                                organizationUuid,
+                                                organizationName: '',
+                                                userUuid: '',
+                                            },
+                                        })
+                                    ).enabled,
                                 sharedResourceLimits: context.lightdashConfig
                                     .preAggregates.duckdbQueryMemoryLimit
                                     ? {
@@ -445,8 +459,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
-                        isEnabled: () =>
-                            context.lightdashConfig.preAggregates.enabled,
+                        isEnabled: async ({ organizationUuid }) =>
+                            (
+                                await models.getFeatureFlagModel().get({
+                                    featureFlagId:
+                                        CommercialFeatureFlags.PreAggregates,
+                                    user: {
+                                        organizationUuid,
+                                        organizationName: '',
+                                        userUuid: '',
+                                    },
+                                })
+                            ).enabled,
                         dashboardModel: models.getDashboardModel(),
                         savedChartModel: models.getSavedChartModel(),
                         projectService: repository.getProjectService(),
@@ -522,11 +546,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores) =>
+                    exploreEnhancer: async (explores, flagContext) =>
                         enhanceExploresForPreAggregates({
                             explores,
-                            enabled:
-                                context.lightdashConfig.preAggregates.enabled,
+                            enabled: (
+                                await models.getFeatureFlagModel().get({
+                                    featureFlagId:
+                                        CommercialFeatureFlags.PreAggregates,
+                                    user: flagContext,
+                                })
+                            ).enabled,
                         }),
                 }),
         },

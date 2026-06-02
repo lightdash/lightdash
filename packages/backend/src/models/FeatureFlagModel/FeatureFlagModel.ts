@@ -106,7 +106,7 @@ export class FeatureFlagModel {
     // DB value (user override → org override → flag default) wins. Falls
     // back to the env-derived value when the flag has no DB row and no
     // override applies.
-    private async getWithEnvFallback(
+    protected async getWithEnvFallback(
         args: FeatureFlagLogicArgs,
         envFallback: boolean,
     ): Promise<FeatureFlag> {

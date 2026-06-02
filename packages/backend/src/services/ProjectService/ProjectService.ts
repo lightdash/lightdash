@@ -22,6 +22,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    CommercialFeatureFlags,
     CompiledDimension,
     ContentType,
     convertCustomMetricToDbt,
@@ -395,6 +396,27 @@ export class ProjectService extends BaseService {
     contentVerificationModel: ContentVerificationModel | undefined;
 
     organizationSettingsModel: OrganizationSettingsModel;
+
+    protected async isPreAggregatesEnabledForOrganization({
+        organizationUuid,
+        organizationName = '',
+        userUuid = '',
+    }: {
+        organizationUuid: string;
+        organizationName?: string;
+        userUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: CommercialFeatureFlags.PreAggregates,
+            user: {
+                organizationUuid,
+                organizationName,
+                userUuid,
+            },
+        });
+
+        return enabled;
+    }
 
     constructor({
         lightdashConfig,
@@ -1872,13 +1894,33 @@ export class ProjectService extends BaseService {
         const {
             userUuid,
             projectUuid,
-            explores,
             compilationSource,
             jobUuid,
             requestMethod,
             projectConfigDefaults,
             cliVersion,
         } = args;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const preAggregatesEnabled =
+            await this.isPreAggregatesEnabledForOrganization({
+                organizationUuid,
+                userUuid,
+            });
+        const explores = preAggregatesEnabled
+            ? args.explores
+            : args.explores
+                  .filter(
+                      (explore) =>
+                          isExploreError(explore) ||
+                          explore.type !== ExploreType.PRE_AGGREGATE,
+                  )
+                  .map((explore) =>
+                      isExploreError(explore)
+                          ? explore
+                          : { ...explore, preAggregates: undefined },
+                  );
+
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
@@ -1913,8 +1955,6 @@ export class ProjectService extends BaseService {
 
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
@@ -2015,7 +2055,7 @@ export class ProjectService extends BaseService {
             prevMetricsTreeNodes,
         });
 
-        if (this.lightdashConfig.preAggregates.enabled) {
+        if (preAggregatesEnabled) {
             await this.syncAndEnqueuePreAggregateMaterializations({
                 projectUuid,
                 organizationUuid,
@@ -2583,9 +2623,15 @@ export class ProjectService extends BaseService {
             );
         }
 
+        const preAggregatesEnabled =
+            await this.isPreAggregatesEnabledForOrganization({
+                organizationUuid: project.organizationUuid,
+                userUuid: user.userUuid,
+            });
+
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
-            enabled: this.lightdashConfig.preAggregates.enabled,
+            enabled: preAggregatesEnabled,
         });
 
         await this.saveExploresToCacheAndIndexCatalog({
@@ -3782,14 +3828,20 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery;
         usePreAggregateCache: boolean;
     }): Promise<PreAggregateCheckResult> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
-            throw new ForbiddenError('Pre-aggregates are not enabled');
-        }
-
         const { account, projectUuid, exploreName, metricQuery } = args;
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        if (
+            !(await this.isPreAggregatesEnabledForOrganization({
+                organizationUuid,
+                organizationName: account.organization.name,
+                userUuid: account.user.id,
+            }))
+        ) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -5991,12 +6043,18 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
-    private canViewPreAggregateExplores(
+    private async canViewPreAggregateExplores(
         account: Account,
         organizationUuid: string,
         projectUuid: string,
-    ): boolean {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+    ): Promise<boolean> {
+        if (
+            !(await this.isPreAggregatesEnabledForOrganization({
+                organizationUuid,
+                organizationName: account.organization.name,
+                userUuid: account.user.id,
+            }))
+        ) {
             return false;
         }
 
@@ -6038,11 +6096,11 @@ export class ProjectService extends BaseService {
         );
         const shouldIncludePreAggregateExplores =
             includePreAggregates &&
-            this.canViewPreAggregateExplores(
+            (await this.canViewPreAggregateExplores(
                 account,
                 organizationUuid,
                 projectUuid,
-            );
+            ));
         const visibleExploreSummaries = shouldIncludePreAggregateExplores
             ? allExploreSummaries
             : allExploreSummaries.filter(
@@ -6171,7 +6229,7 @@ export class ProjectService extends BaseService {
                     exploreNames,
                 );
                 const canViewPreAggregateExplores =
-                    this.canViewPreAggregateExplores(
+                    await this.canViewPreAggregateExplores(
                         account,
                         project.organizationUuid,
                         projectUuid,
