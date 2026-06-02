@@ -390,6 +390,14 @@ const useCartesianChartConfig = ({
             ...prev,
             xField,
         }));
+        // Reset the axis type override so the new dimension auto-detects its type
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, type: undefined }, ...axes],
+            };
+        });
     }, []);
 
     const setShowGridX = useCallback((show: boolean) => {
