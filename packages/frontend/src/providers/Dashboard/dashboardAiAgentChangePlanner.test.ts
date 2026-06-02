@@ -19,7 +19,9 @@ const dashboardEditPart = {
             slug: 'jaffle-dashboard',
             name: 'Jaffle dashboard',
             uuid: 'dashboard-uuid',
-            url: '/projects/project-uuid/dashboards/jaffle-dashboard',
+            href: '/projects/project-uuid/dashboards/jaffle-dashboard',
+            warnings: [],
+            versionUuids: { before: null, after: null },
         },
     },
 } as StreamPart;
@@ -41,7 +43,9 @@ const chartEditPart = {
             slug: 'orders-over-time',
             name: 'Orders over time',
             uuid: 'chart-uuid',
-            url: '/projects/project-uuid/saved/chart-uuid',
+            href: '/projects/project-uuid/saved/chart-uuid',
+            warnings: [],
+            versionUuids: { before: null, after: null },
         },
     },
 } as StreamPart;

@@ -1,17 +1,17 @@
 import { z } from 'zod';
 
 export const TOOL_EDIT_CONTENT_DESCRIPTION =
-    'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.';
+    'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting';
 
 export const toolEditContentArgsSchema = z.object({
-    slug: z.string().min(1).describe('Slug of the dashboard or chart to edit.'),
+    slug: z.string().min(1).describe('Slug of the dashboard or chart to edit'),
     type: z
         .enum(['dashboard', 'chart'])
-        .describe('Type of Lightdash content to edit.'),
+        .describe('Type of Lightdash content to edit'),
     patch: z
-        .unknown()
+        .array(z.unknown())
         .describe(
-            'RFC6902 Patch to apply to the current dashboard or chart JSON.',
+            'RFC6902 Patch objects array to apply to the current dashboard or chart JSON',
         ),
 });
 
