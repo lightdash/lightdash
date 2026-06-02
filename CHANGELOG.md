@@ -1,3 +1,12 @@
+## [0.3075.3](https://github.com/lightdash/lightdash/compare/0.3075.2...0.3075.3) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep categorical filters when querying non-contiguous date ranges ([#23769](https://github.com/lightdash/lightdash/issues/23769)) ([0cec223](https://github.com/lightdash/lightdash/commit/0cec223c25b3d50da93f12e2e123ab25ad4eaee1)), closes [#23766](https://github.com/lightdash/lightdash/issues/23766) [#23766](https://github.com/lightdash/lightdash/issues/23766)
+* **apps:** stop data app pages auto-scrolling under NavBar banner ([#23771](https://github.com/lightdash/lightdash/issues/23771)) ([cf3448f](https://github.com/lightdash/lightdash/commit/cf3448fc057f1ef751e3c1b46e312f33bb028d1d))
+* **scheduler:** enforce view access on getScheduler (PROD-8035) ([#23740](https://github.com/lightdash/lightdash/issues/23740)) ([d128383](https://github.com/lightdash/lightdash/commit/d128383963cd93e91c62f8aa182ff247028e2e79))
+
 ## [0.3075.2](https://github.com/lightdash/lightdash/compare/0.3075.1...0.3075.2) (2026-06-02)
 
 
