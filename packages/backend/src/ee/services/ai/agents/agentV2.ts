@@ -323,7 +323,7 @@ const getAgentTools = (
     const tools: ToolSet = {
         findContent,
         discoverFields,
-        searchSemanticLayer,
+        ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
         listProjects,
         getProjectInfo,
         listKnowledgeDocuments,
@@ -380,6 +380,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             knowledgeDocuments: args.knowledgeDocuments,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             enableContentTools:
                 args.enableAgentRevamp && args.enableContentTools,

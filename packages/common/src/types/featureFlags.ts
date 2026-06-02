@@ -213,6 +213,15 @@ export enum FeatureFlags {
     AiWriteback = 'ai-writeback',
 
     /**
+     * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
+     * list/search metrics and dimensions across ALL explores at once (backed
+     * by the catalog search index) to answer project-wide questions like
+     * "find duplicate or confusingly similar metrics". Off by default while
+     * the tool and its prompt routing are validated.
+     */
+    SearchSemanticLayer = 'search-semantic-layer',
+
+    /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
      * detecting whether a repo deploys Lightdash preview projects via GitHub
      * Actions, offering to set it up during a writeback, and the

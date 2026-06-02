@@ -6297,6 +6297,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiAgentRevamp,
             });
+        const { enabled: searchSemanticLayerEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.SearchSemanticLayer,
+            });
         let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
             {
                 user,
@@ -6366,6 +6371,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
+            enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             canRunSql,

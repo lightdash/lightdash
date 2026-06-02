@@ -85,6 +85,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
+    enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
     enablePreviewDeploySetup: boolean;
     canRunSql: boolean;
