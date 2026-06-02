@@ -563,6 +563,7 @@ const AiAgentAdminReviewItemsTable = ({
                 agent?.name,
                 project?.name,
                 reviewItem.latestFinding?.recommendation?.title,
+                reviewItem.latestFinding?.projectContextEntry?.content,
             ]
                 .filter(Boolean)
                 .some((value) => value?.toLowerCase().includes(searchLower));
@@ -913,6 +914,11 @@ const AiAgentAdminReviewItemsTable = ({
                     const reviewItem = row.original;
                     const subcategory =
                         reviewItem.latestFinding?.subcategories[0];
+                    // project_context findings carry the structured entry the
+                    // writeback PR will create/update — preview it so the admin
+                    // sees the exact fact and kind, not the generic rationale.
+                    const contextEntry =
+                        reviewItem.latestFinding?.projectContextEntry ?? null;
                     return (
                         <Stack gap={4}>
                             <Group gap={4} wrap="nowrap">
@@ -923,17 +929,29 @@ const AiAgentAdminReviewItemsTable = ({
                                         ]
                                     }
                                 </CategoryToken>
-                                {subcategory && (
+                                {contextEntry ? (
                                     <CategoryToken secondary>
-                                        {subcategory.replaceAll('_', ' ')}
+                                        {contextEntry.kind}
                                     </CategoryToken>
+                                ) : (
+                                    subcategory && (
+                                        <CategoryToken secondary>
+                                            {subcategory.replaceAll('_', ' ')}
+                                        </CategoryToken>
+                                    )
                                 )}
                                 <SuggestedStep>
                                     {getSuggestedNextStep(reviewItem)}
                                 </SuggestedStep>
                             </Group>
                             <ExpandableText lineClamp={1}>
-                                {getWhyText(reviewItem)}
+                                {contextEntry
+                                    ? `${
+                                          contextEntry.op === 'update'
+                                              ? 'Updates'
+                                              : 'Adds'
+                                      } project context: ${contextEntry.content}`
+                                    : getWhyText(reviewItem)}
                             </ExpandableText>
                         </Stack>
                     );
