@@ -175,6 +175,7 @@ import { getPivotedColumns } from './getPivotedColumns';
 import {
     getColumnTotalQueryFromSource,
     getGrandTotalMetricQuery,
+    getRowTotalQueryFromSource,
 } from './getTotalsQueryFromSource';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -4052,12 +4053,6 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        if (kind !== 'columnTotal') {
-            throw new NotSupportedError(
-                `Calculate-total kind "${kind}" is not yet supported`,
-            );
-        }
-
         // `get` enforces the query belongs to this project and was created by
         // this account — that ownership authorizes the totals query, so we skip
         // the explore-level CASL gate (which embed JWT callers can't pass).
@@ -4070,11 +4065,27 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const { metricQuery, pivotConfiguration } =
-            getColumnTotalQueryFromSource({
-                metricQuery: source.metricQuery,
-                pivotConfiguration: source.pivotConfiguration,
-            });
+        const sourceInputs = {
+            metricQuery: source.metricQuery,
+            pivotConfiguration: source.pivotConfiguration,
+        };
+        let metricQuery: MetricQuery;
+        let pivotConfiguration: PivotConfiguration | undefined;
+        switch (kind) {
+            case 'columnTotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getColumnTotalQueryFromSource(sourceInputs));
+                break;
+            case 'rowTotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getRowTotalQueryFromSource(sourceInputs));
+                break;
+            default:
+                return assertUnreachable(
+                    kind,
+                    `Calculate-total kind "${kind}" is not yet supported`,
+                );
+        }
 
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path

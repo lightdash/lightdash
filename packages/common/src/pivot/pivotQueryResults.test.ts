@@ -1,11 +1,15 @@
 import { type ItemsMap } from '../types/field';
+import { type PivotData } from '../types/pivot';
 import { type ResultRow } from '../types/results';
 import {
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
-import { convertSqlPivotedRowsToPivotData } from './pivotQueryResults';
+import {
+    buildPivotRowTotalKey,
+    convertSqlPivotedRowsToPivotData,
+} from './pivotQueryResults';
 import {
     COMPLEX_SQL_PIVOT_DETAILS,
     COMPLEX_SQL_PIVOTED_ROWS,
@@ -18,6 +22,37 @@ import {
     SQL_PIVOT_DETAILS,
     SQL_PIVOTED_ROWS,
 } from './pivotQueryResults.mock';
+
+// Row totals are warehouse-only, so the tests feed the worker a warehouse map.
+// Reconstruct that map from an expected fixture's own row totals + index values
+// (using the row's metric label for metrics-as-rows, or the total column's
+// field for metrics-as-columns) so fixtures stay the single source of truth.
+const buildWarehouseRowTotalsFromExpected = (
+    expected: PivotData,
+): Record<string, Record<string, number>> => {
+    const map: Record<string, Record<string, number>> = {};
+    const fields = expected.rowTotalFields ?? [];
+    const lastFields = fields[fields.length - 1] ?? [];
+    (expected.rowTotals ?? []).forEach((totalsRow, rowIndex) => {
+        const indexCells = expected.indexValues[rowIndex] ?? [];
+        const entries = indexCells
+            .filter((cell) => cell.type === 'value')
+            .map((cell): [string, unknown] => [
+                cell.fieldId,
+                cell.type === 'value' ? cell.value?.raw : undefined,
+            ]);
+        const key = buildPivotRowTotalKey(entries);
+        if (!map[key]) map[key] = {};
+        const labelCell = indexCells.find((cell) => cell.type === 'label');
+        totalsRow.forEach((value, colIndex) => {
+            if (typeof value !== 'number') return;
+            const metricFieldId =
+                labelCell?.fieldId ?? lastFields[colIndex]?.fieldId;
+            if (metricFieldId) map[key][metricFieldId] = value;
+        });
+    });
+    return map;
+};
 
 describe('convertSqlPivotedRowsToPivotData', () => {
     it('should convert SQL-pivoted rows to PivotData format', () => {
@@ -60,8 +95,141 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             getField: getFieldMock,
             getFieldLabel: (fieldId) => fieldId,
             groupedSubtotals: undefined,
+            warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_WITH_TOTALS,
+            ),
         });
         expect(result).toStrictEqual(EXPECTED_PIVOT_DATA_WITH_TOTALS);
+    });
+
+    it('uses warehouse row totals instead of the client-side sum when provided', () => {
+        const warehouseRowTotals = {
+            [buildPivotRowTotalKey([
+                ['orders_order_date_year', '2025-01-01T00:00:00Z'],
+            ])]: { payments_total_revenue: 999 },
+            [buildPivotRowTotalKey([
+                ['orders_order_date_year', '2024-01-01T00:00:00Z'],
+            ])]: { payments_total_revenue: 888 },
+            [buildPivotRowTotalKey([
+                ['orders_order_date_year', '2023-01-01T00:00:00Z'],
+            ])]: { payments_total_revenue: 777 },
+        };
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            warehouseRowTotals,
+        });
+
+        // Warehouse values replace the client-side sums (1746.77 / 1189.6 / 117.5)
+        expect(result.rowTotals).toStrictEqual([[999], [888], [777]]);
+        // The total column is still attributed to the metric field
+        expect(
+            result.rowTotalFields?.[result.rowTotalFields.length - 1],
+        ).toEqual([{ fieldId: 'payments_total_revenue' }]);
+    });
+
+    it('leaves the row total null (no client-side fallback) when a warehouse value is missing', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            // Only the 2025 row has a warehouse total; the others stay blank.
+            warehouseRowTotals: {
+                [buildPivotRowTotalKey([
+                    ['orders_order_date_year', '2025-01-01T00:00:00Z'],
+                ])]: { payments_total_revenue: 999 },
+            },
+        });
+
+        expect(result.rowTotals).toStrictEqual([[999], [null], [null]]);
+    });
+
+    it('leaves all row totals null when no warehouse totals are provided', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // No client-side computation: the column is allocated but blank.
+        expect(result.rowTotals).toStrictEqual([[null], [null], [null]]);
+        expect(
+            result.rowTotalFields?.[result.rowTotalFields.length - 1],
+        ).toEqual([{ fieldId: 'payments_total_revenue' }]);
+    });
+
+    it('matches warehouse totals keyed by the `<metric>_any` column and `.000Z` dates (real wire shape)', () => {
+        // The flat totals query streams metric columns with the aggregation
+        // suffix and dates with milliseconds — different from the pivot rows'
+        // `...00Z`. Both must still match the rendered rows.
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            warehouseRowTotals: {
+                [buildPivotRowTotalKey([
+                    ['orders_order_date_year', '2025-01-01T00:00:00.000Z'],
+                ])]: { payments_total_revenue_any: 999 },
+                [buildPivotRowTotalKey([
+                    ['orders_order_date_year', '2024-01-01T00:00:00.000Z'],
+                ])]: { payments_total_revenue_any: 888 },
+                [buildPivotRowTotalKey([
+                    ['orders_order_date_year', '2023-01-01T00:00:00.000Z'],
+                ])]: { payments_total_revenue_any: 777 },
+            },
+        });
+
+        expect(result.rowTotals).toStrictEqual([[999], [888], [777]]);
     });
 
     it('should convert SQL-pivoted rows with metricsAsRows: true to PivotData format', () => {
@@ -87,6 +255,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 return fieldId;
             },
             groupedSubtotals: undefined,
+            warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(EXPECTED_PIVOT_DATA_METRICS_AS_ROWS);
@@ -125,6 +296,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 return fieldId;
             },
             groupedSubtotals: undefined,
+            warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA,
+            ),
         });
 
         expect(result).toStrictEqual(EXPECTED_COMPLEX_PIVOT_DATA);
@@ -163,6 +337,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 return fieldId;
             },
             groupedSubtotals: undefined,
+            warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(
@@ -413,6 +590,9 @@ describe('parameter-aware cell formatting (PROD-437)', () => {
             getField: getFieldWithParameterFormat,
             getFieldLabel: (fieldId) => fieldId,
             groupedSubtotals: undefined,
+            warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_WITH_TOTALS,
+            ),
             parameters: { currency: 'eur' },
         });
 

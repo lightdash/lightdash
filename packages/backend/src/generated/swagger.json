@@ -35072,9 +35072,8 @@
             },
             "CalculateTotalKind": {
                 "type": "string",
-                "enum": ["columnTotal"],
-                "nullable": false,
-                "description": "Kinds of totals derivable from an executed pivot query. Only `columnTotal`\nis implemented today; follow-up PRs will widen the union to enable the\ncommented-out variants below."
+                "enum": ["columnTotal", "rowTotal"],
+                "description": "Kinds of totals derivable from an executed pivot query. Follow-up PRs\nwill widen the union to enable the commented-out variants below."
             },
             "ExecuteAsyncCalculateTotalRequestParams": {
                 "properties": {
@@ -60828,7 +60827,7 @@
                         }
                     }
                 },
-                "description": "Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. For pivoted source queries, produces one warehouse-computed total per pivoted column. For non-pivoted source queries, produces a single-row grand total. Currently only `kind: 'columnTotal'` is supported.",
+                "description": "Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. The requested `kind` selects which totals to compute.",
                 "summary": "Calculate totals",
                 "tags": ["v2", "Query"],
                 "security": [],

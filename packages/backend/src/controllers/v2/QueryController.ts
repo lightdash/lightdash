@@ -128,7 +128,7 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. For pivoted source queries, produces one warehouse-computed total per pivoted column. For non-pivoted source queries, produces a single-row grand total. Currently only `kind: 'columnTotal'` is supported.
+     * Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. The requested `kind` selects which totals to compute.
      * @summary Calculate totals
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

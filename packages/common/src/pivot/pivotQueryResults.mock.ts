@@ -1620,11 +1620,14 @@ export const EXPECTED_COMPLEX_PIVOT_DATA: PivotData = {
         ],
     ],
     rowTotalFields: [
-        [null, null],
-        [null, null],
+        [null, null, null],
+        [null, null, null],
         [
             {
                 fieldId: 'payments_total_revenue',
+            },
+            {
+                fieldId: 'orders_average_order_size',
             },
             {
                 fieldId: 'orders_total_order_amount',
@@ -1632,9 +1635,9 @@ export const EXPECTED_COMPLEX_PIVOT_DATA: PivotData = {
         ],
     ],
     columnTotalFields: [[null, { fieldId: undefined }]],
-    rowTotals: [[52.5, 52.5]],
+    rowTotals: [[52.5, 52.5, 52.5]],
     columnTotals: [[52.5, 52.5, 52.5]],
-    cellsCount: 7,
+    cellsCount: 8,
     rowsCount: 1,
     pivotConfig: {
         pivotDimensions: ['payments_payment_method', 'orders_is_completed'],
@@ -1700,6 +1703,12 @@ export const EXPECTED_COMPLEX_PIVOT_DATA: PivotData = {
                         formatted: '52.5',
                     },
                 },
+                'row-total-2': {
+                    value: {
+                        raw: 52.5,
+                        formatted: '52.5',
+                    },
+                },
             },
         ],
         pivotColumnInfo: [
@@ -1745,6 +1754,12 @@ export const EXPECTED_COMPLEX_PIVOT_DATA: PivotData = {
             {
                 fieldId: 'row-total-1',
                 baseId: 'row-total-1',
+                underlyingId: 'orders_average_order_size',
+                columnType: 'rowTotal',
+            },
+            {
+                fieldId: 'row-total-2',
+                baseId: 'row-total-2',
                 underlyingId: 'orders_total_order_amount',
                 columnType: 'rowTotal',
             },
@@ -2015,6 +2030,12 @@ export const EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS: PivotData = {
                     value: {
                         raw: 52.5,
                         formatted: '$52.50',
+                    },
+                },
+                'row-total-0': {
+                    value: {
+                        raw: 52.5,
+                        formatted: '52.5',
                     },
                 },
             },
