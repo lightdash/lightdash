@@ -624,21 +624,23 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting.",
+    "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "patch": {
-          "description": "RFC6902 Patch to apply to the current dashboard or chart JSON.",
+          "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+          "items": {},
+          "type": "array",
         },
         "slug": {
-          "description": "Slug of the dashboard or chart to edit.",
+          "description": "Slug of the dashboard or chart to edit",
           "minLength": 1,
           "type": "string",
         },
         "type": {
-          "description": "Type of Lightdash content to edit.",
+          "description": "Type of Lightdash content to edit",
           "enum": [
             "dashboard",
             "chart",
@@ -649,6 +651,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
       "required": [
         "slug",
         "type",
+        "patch",
       ],
       "type": "object",
     },

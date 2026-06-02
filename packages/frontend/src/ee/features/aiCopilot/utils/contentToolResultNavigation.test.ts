@@ -17,6 +17,8 @@ const dashboardEditResult = {
             name: 'Jaffle dashboard',
             uuid: '2ba751c1-521f-4af5-a910-e40917f2c24e',
             href: '/projects/project-uuid/dashboards/jaffle-dashboard',
+            warnings: [],
+            versionUuids: { before: null, after: null },
         },
     },
 } as AiAgentToolResult;
