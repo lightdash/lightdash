@@ -2,10 +2,14 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     DbtProjectType,
+    detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
+    generatePreviewDeployWorkflowFiles,
     getErrorMessage,
+    getPreviewDeploySecrets,
     isUserWithOrg,
+    isWorkflowFile,
     MissingConfigError,
     ParameterError,
     PullRequestProvider,
@@ -13,7 +17,10 @@ import {
     WarehouseTypes,
     type AiWritebackRunResult,
     type DbtProjectConfig,
+    type PreviewDeploySecret,
+    type ProjectCiStatus,
     type SessionUser,
+    type WorkflowFile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
@@ -40,10 +47,12 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { BaseService } from '../../../services/BaseService';
+import { VERSION } from '../../../version';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
 } from '../../models/AiWritebackThreadModel';
+import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
@@ -89,6 +98,16 @@ export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
 const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 
+// Synthetic prompt for the dedicated preview-deploy setup run. It leans on the
+// "Secondary task" section that run()'s system prompt already injects (with the
+// exact workflow files + secrets) when the repo has no preview-deploy workflow.
+const PREVIEW_DEPLOY_SETUP_PROMPT = [
+    'The user has agreed to set up Lightdash preview deploys for this project.',
+    'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
+    'Keep the workflow structure exactly as shown in that section — the permissions blocks, secret names, lightdash commands, and job/trigger layout are security-reviewed and run with live credentials, so do NOT widen permissions, rename the files, or change the commands. You MAY adapt only the version pinning (action refs, Node version, @lightdash/cli version): use the versions shown by default, but if the repo already has a consistent version-pinning convention in its other .github/workflows files, match it instead. Do NOT modify any dbt models, YAML, or other files.',
+    'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
+].join(' ');
+
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -97,6 +116,7 @@ type AiWritebackServiceDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
+    projectCiStatusModel: ProjectCiStatusModel;
 };
 
 export class AiWritebackService extends BaseService {
@@ -114,6 +134,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly pullRequestsModel: PullRequestsModel;
 
+    private readonly projectCiStatusModel: ProjectCiStatusModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -122,6 +144,7 @@ export class AiWritebackService extends BaseService {
         githubAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
+        projectCiStatusModel,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -131,6 +154,7 @@ export class AiWritebackService extends BaseService {
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
+        this.projectCiStatusModel = projectCiStatusModel;
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -520,6 +544,16 @@ export class AiWritebackService extends BaseService {
             CWD,
             scopedToProject ? { files: [projectSubPath] } : { all: true },
         );
+        if (scopedToProject) {
+            // Also stage Lightdash CI workflow files the agent may have added
+            // when setting up preview deploys — they live at the repo root,
+            // outside the dbt subtree. `.github/workflows` is a known-safe path
+            // (never a scratch location); tolerate its absence when no
+            // preview-deploy setup happened this turn.
+            await sandbox.commands.run(
+                `git -C ${CWD} add .github/workflows 2>/dev/null || true`,
+            );
+        }
     }
 
     /**
@@ -630,6 +664,136 @@ export class AiWritebackService extends BaseService {
      *   session preserved), run the agent with `--continue`, push to the same
      *   branch (updates the existing PR), pause the sandbox again.
      */
+    /**
+     * Secondary task of the writeback agent: while the repo is cloned in the
+     * sandbox, detect whether it already deploys Lightdash preview projects via
+     * GitHub Actions and persist the result. A project already recorded as set
+     * up is not re-scanned. Best-effort — a failure here never blocks the
+     * writeback run.
+     */
+    private async detectAndRecordPreviewDeploy(
+        sandbox: Sandbox,
+        projectUuid: string,
+    ): Promise<ProjectCiStatus | null> {
+        try {
+            const existing =
+                await this.projectCiStatusModel.findByProjectUuid(projectUuid);
+            if (existing?.hasPreviewDeployWorkflow) {
+                // Already set up — don't re-scan this project.
+                return existing;
+            }
+
+            const { stdout: fileList } = await sandbox.commands.run(
+                `git -C ${CWD} ls-files .github/workflows`,
+            );
+            const paths = fileList
+                .split('\n')
+                .map((p) => p.trim())
+                .filter((p) => p.length > 0 && isWorkflowFile(p));
+
+            const files: WorkflowFile[] = await Promise.all(
+                paths.map(async (path) => ({
+                    path,
+                    content: await sandbox.files.read(`${CWD}/${path}`),
+                })),
+            );
+
+            const detection = detectPreviewDeployWorkflow(files);
+
+            let detectedCommitSha: string | null = null;
+            try {
+                const { stdout } = await sandbox.commands.run(
+                    `git -C ${CWD} rev-parse HEAD`,
+                );
+                detectedCommitSha = stdout.trim() || null;
+            } catch {
+                detectedCommitSha = null;
+            }
+
+            const status = await this.projectCiStatusModel.upsert({
+                projectUuid,
+                hasPreviewDeployWorkflow: detection.hasPreviewDeployWorkflow,
+                workflowPath: detection.workflowPath,
+                detectedCommitSha,
+            });
+
+            this.logger.info('AI writeback preview-deploy detection complete', {
+                event: 'ai_writeback.preview_deploy.detected',
+                projectUuid,
+                hasPreviewDeployWorkflow: status.hasPreviewDeployWorkflow,
+                workflowPath: status.workflowPath,
+            });
+
+            return status;
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: preview-deploy detection failed — ignoring: ${getErrorMessage(
+                    error,
+                )}`,
+                {
+                    event: 'ai_writeback.preview_deploy.failed',
+                    projectUuid,
+                },
+            );
+            return null;
+        }
+    }
+
+    /**
+     * Consent action behind the preview-deploy offer: open a dedicated pull
+     * request that adds the Lightdash preview workflow. Runs a second sandbox
+     * via run() with a synthetic prompt — the system prompt already carries the
+     * exact files + secrets because detection finds the workflow missing — so
+     * the workflow files land on their own PR, separate from any semantic-layer
+     * change.
+     *
+     * `aiThreadUuid` enables conversational resume: passing the chat thread's
+     * uuid lets follow-up requests ("also run on workflow_dispatch") update the
+     * SAME pull request instead of opening a new one — same machinery as
+     * proposeWriteback.
+     */
+    async setupPreviewDeploy(args: {
+        user: SessionUser;
+        projectUuid: string;
+        aiThreadUuid?: string;
+        onProgress?: (message: string) => void;
+    }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
+        const { user, projectUuid, aiThreadUuid, onProgress } = args;
+        // Explicit permission gate at this service entry point (it's reachable
+        // directly as an agent tool). Mirrors the writeback manage:SourceCode
+        // check; run()/prepareTurn re-checks before any side effect.
+        const project = await this.projectModel.get(projectUuid);
+        const canWriteback = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SourceCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                isProtectedBranch: false,
+            }),
+        );
+        if (!canWriteback) {
+            throw new ForbiddenError();
+        }
+
+        const result = await this.run({
+            user,
+            projectUuid,
+            prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
+            source: 'preview_deploy_setup',
+            aiThreadUuid,
+            onProgress,
+        });
+        // Pre-fill the secrets we know server-side (instance URL + project UUID)
+        // so the caller can surface concrete values, not generic descriptions.
+        return {
+            ...result,
+            secrets: getPreviewDeploySecrets({
+                projectUuid: args.projectUuid,
+                siteUrl: this.lightdashConfig.siteUrl,
+            }),
+        };
+    }
+
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const { user, projectUuid, prompt, aiThreadUuid, source, onProgress } =
             args;
@@ -711,6 +875,47 @@ export class AiWritebackService extends BaseService {
                 setStage,
             });
 
+            // Secondary task: detect & record whether the repo already deploys
+            // preview projects via GitHub Actions. Best-effort, never blocks.
+            // Gated by its own ai-preview-deploy-setup flag (independent of the
+            // ai-writeback flag that gates the run itself).
+            const { enabled: previewDeploySetupEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                });
+            // Only detect on a fresh clone. A resumed sandbox's working tree
+            // carries the agent's prior-turn edits (e.g. workflow files it just
+            // wrote), so detecting there is a false positive — detection must
+            // reflect the cloned default-branch state, not in-progress changes.
+            const previewDeployStatus =
+                previewDeploySetupEnabled && !turn.isResume
+                    ? await this.detectAndRecordPreviewDeploy(
+                          sandbox,
+                          projectUuid,
+                      )
+                    : null;
+            // When it's not set up, hand the agent the exact files + secrets so
+            // it can offer to open a PR adding the preview workflow.
+            const previewDeployGuidance =
+                previewDeployStatus &&
+                !previewDeployStatus.hasPreviewDeployWorkflow
+                    ? {
+                          workflowFiles: generatePreviewDeployWorkflowFiles({
+                              projectSubPath:
+                                  turn.githubConnection.projectSubPath,
+                              // Pin the CLI to this instance's own version —
+                              // Lightdash packages release in lockstep, so it's
+                              // the matching, self-updating @lightdash/cli pin.
+                              cliVersion: VERSION,
+                          }),
+                          secrets: getPreviewDeploySecrets({
+                              projectUuid,
+                              siteUrl: this.lightdashConfig.siteUrl,
+                          }),
+                      }
+                    : null;
+
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
                 sandbox,
@@ -725,6 +930,7 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
+                    previewDeploy: previewDeployGuidance,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -778,6 +984,8 @@ export class AiWritebackService extends BaseService {
                     prUrl: turn.existingRow?.pr_url ?? null,
                     projectName: turn.projectName,
                     repository,
+                    previewDeployConfigured:
+                        previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
                 };
             }
 
@@ -822,6 +1030,8 @@ export class AiWritebackService extends BaseService {
                 prUrl: applied.prUrl,
                 projectName: turn.projectName,
                 repository,
+                previewDeployConfigured:
+                    previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
             };
         } catch (error) {
             this.logger.error('AI writeback run failed', {
@@ -1167,11 +1377,21 @@ export class AiWritebackService extends BaseService {
         // is free to interleave; we just announce each phase the first time
         // we see it.
         type AgentPhase = 'discovering' | 'editing' | 'compiling';
-        const phaseProgressText: Record<AgentPhase, string> = {
-            discovering: 'Discovering models',
-            editing: 'Editing models',
-            compiling: 'Compiling project',
-        };
+        // Phase labels are task-specific: a dbt writeback edits models, whereas
+        // preview-deploy setup writes CI workflow files — so "Editing models"
+        // would read as nonsense there.
+        const phaseProgressText: Record<AgentPhase, string> =
+            source === 'preview_deploy_setup'
+                ? {
+                      discovering: 'Inspecting repository',
+                      editing: 'Writing workflow files',
+                      compiling: 'Validating workflow',
+                  }
+                : {
+                      discovering: 'Discovering models',
+                      editing: 'Editing models',
+                      compiling: 'Compiling project',
+                  };
         const classifyTool = (
             name: string,
             input: unknown,

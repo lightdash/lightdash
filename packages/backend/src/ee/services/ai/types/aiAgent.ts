@@ -42,6 +42,7 @@ import {
     SearchFieldValuesFn,
     SendFileFn,
     SendSlackBlocksFn,
+    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -84,6 +85,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableAiWriteback: boolean;
+    enablePreviewDeploySetup: boolean;
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
@@ -148,6 +150,7 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
     proposeWriteback: ProposeWritebackFn;
+    setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;

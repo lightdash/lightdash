@@ -6,6 +6,7 @@ export * from './toolGenerateUuidsArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';
 export * from './toolProposeWritebackArgs';
+export * from './toolSetupPreviewDeployArgs';
 export * from './toolReadContentArgs';
 export * from './mcpToolListExploresArgs';
 export * from './toolDashboardArgs';

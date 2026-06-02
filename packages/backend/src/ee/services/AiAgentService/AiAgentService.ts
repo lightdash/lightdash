@@ -236,6 +236,7 @@ import {
     SearchFieldValuesFn,
     SendFileFn,
     SendSlackBlocksFn,
+    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -371,6 +372,8 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
 If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
+
+If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
@@ -5864,6 +5867,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return result;
         };
 
+        const setupPreviewDeploy: SetupPreviewDeployFn = () => {
+            // Surface coarse step progress (Starting sandbox → Cloning project →
+            // … → Committing) under the setupPreviewDeploy header, same as
+            // proposeWriteback. Fire-and-forget — a dropped client must never
+            // take down the run.
+            const setupProgressCallback = (message: string) => {
+                void updateProgress(message, 'setupPreviewDeploy').catch(
+                    (err) => {
+                        Logger.debug(
+                            `Failed to update progress for preview-deploy setup (${message}):`,
+                            err,
+                        );
+                    },
+                );
+            };
+            return wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
+                this.aiWritebackService.setupPreviewDeploy({
+                    user,
+                    projectUuid,
+                    aiThreadUuid: prompt.threadUuid,
+                    onProgress: setupProgressCallback,
+                }),
+            );
+        };
+
         const listProjects: ListProjectsFn = () =>
             wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
                 const projects =
@@ -5964,6 +5992,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
             getExploreCompiler,
@@ -6083,6 +6112,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
         } = this.getAiAgentDependencies(user, prompt, {
@@ -6206,6 +6236,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             aiWritebackEnabled = false;
         }
 
+        // Preview-deploy setup rides the writeback infra, so it requires both
+        // the writeback flag (and trusted identity, applied above) and its own
+        // ai-preview-deploy-setup flag.
+        const { enabled: aiPreviewDeploySetupFlag } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+            });
+        const aiPreviewDeploySetupEnabled =
+            aiWritebackEnabled && aiPreviewDeploySetupFlag;
+
         const canUseContentTools =
             agentRevampEnabled &&
             agentSettings.enableContentTools &&
@@ -6252,6 +6293,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
             enableAiWriteback: aiWritebackEnabled,
+            enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -6311,6 +6353,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
             proposeWriteback,
+            setupPreviewDeploy,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),

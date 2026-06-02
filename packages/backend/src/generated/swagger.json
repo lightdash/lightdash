@@ -13866,6 +13866,7 @@
                     "getProjectInfo",
                     "loadSkill",
                     "proposeWriteback",
+                    "setupPreviewDeploy",
                     "runQuery",
                     "runSavedChart",
                     "listWarehouseTables",
@@ -13891,8 +13892,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13950,8 +13951,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -14018,10 +14019,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -14030,8 +14031,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -14041,16 +14042,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -14143,10 +14144,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -14155,8 +14156,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -14438,10 +14439,19 @@
                                                         ],
                                                         "type": "object"
                                                     },
+                                                    "warnings": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "href": {
                                                         "type": "string"
                                                     },
                                                     "uuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
                                                         "type": "string"
                                                     },
                                                     "status": {
@@ -14451,18 +14461,16 @@
                                                     },
                                                     "slug": {
                                                         "type": "string"
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
+                                                    "warnings",
                                                     "href",
                                                     "uuid",
+                                                    "name",
                                                     "status",
-                                                    "slug",
-                                                    "name"
+                                                    "slug"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14486,13 +14494,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
@@ -14500,8 +14508,8 @@
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "status",
                                                     "slug",
+                                                    "status",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -19433,6 +19441,10 @@
             },
             "AiWritebackRunResult": {
                 "properties": {
+                    "previewDeployConfigured": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
                     "repository": {
                         "type": "string"
                     },
@@ -19452,6 +19464,7 @@
                     }
                 },
                 "required": [
+                    "previewDeployConfigured",
                     "repository",
                     "projectName",
                     "prUrl",
@@ -19459,7 +19472,7 @@
                     "output"
                 ],
                 "type": "object",
-                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted."
+                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted.\n- `previewDeployConfigured` is whether the repo already deploys Lightdash\n  preview projects via GitHub Actions: `true` set up, `false` not set up (the\n  caller may offer to set it up), `null` when it could not be determined."
             },
             "ApiSuccess_AiWritebackRunResult_": {
                 "properties": {
@@ -37469,7 +37482,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3074.0",
+        "version": "0.3077.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

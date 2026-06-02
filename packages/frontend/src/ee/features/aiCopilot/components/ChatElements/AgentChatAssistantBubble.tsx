@@ -5,6 +5,7 @@ import {
     type AiMcpServer,
     isToolProposeChangeResult,
     isToolProposeWritebackResult,
+    isToolSetupPreviewDeployResult,
     type ToolProposeChangeArgs,
     type ToolProposeWritebackOutput,
 } from '@lightdash/common';
@@ -445,15 +446,18 @@ const AssistantBubbleContent: FC<{
     const proposeWritebackMetadata:
         | ToolProposeWritebackOutput['metadata']
         | null = (() => {
-        const persisted = message.toolResults.find(
-            isToolProposeWritebackResult,
-        );
+        // setupPreviewDeploy shares proposeWriteback's output shape and the
+        // same PR-button card, so resolve either tool's result here.
+        const persisted =
+            message.toolResults.find(isToolProposeWritebackResult) ??
+            message.toolResults.find(isToolSetupPreviewDeployResult);
         if (persisted) return persisted.metadata;
 
         const livePart = streamingState?.parts.find(
             (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
                 p.type === 'toolCall' &&
-                p.toolName === 'proposeWriteback' &&
+                (p.toolName === 'proposeWriteback' ||
+                    p.toolName === 'setupPreviewDeploy') &&
                 p.toolResult !== null &&
                 p.isPreliminary !== true,
         );

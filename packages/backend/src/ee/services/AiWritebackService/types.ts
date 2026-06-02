@@ -76,7 +76,8 @@ export type AiWritebackSource =
     | 'web'
     | 'mcp'
     | 'api'
-    | 'admin_review';
+    | 'admin_review'
+    | 'preview_deploy_setup';
 
 export type AiWritebackRunArgs = {
     user: SessionUser;

@@ -103,8 +103,16 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'proposeChange',
     'proposeWriteback',
+    'setupPreviewDeploy',
     'runContentQuery',
     'runSavedChart',
+]);
+
+// Tools that stream coarse step progress ("Starting sandbox", "Cloning
+// project", …) rendered as a single replacing row, instead of per-call rows.
+const TOOLS_WITH_STEP_PROGRESS = new Set<string>([
+    'proposeWriteback',
+    'setupPreviewDeploy',
 ]);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
@@ -505,7 +513,7 @@ const renderInlineLiveStepProgress = (params: {
 }): React.ReactNode => {
     const { latest, isLive, hasPending, stepProgressMessages } = params;
     if (!isLive || !latest || hasPending) return null;
-    if (latest.toolName !== 'proposeWriteback') return null;
+    if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
 
     const currentMessage = stepProgressMessages
         .filter((m) => m.toolName === latest.toolName)
