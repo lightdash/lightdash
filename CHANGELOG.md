@@ -1,3 +1,10 @@
+# [0.3076.0](https://github.com/lightdash/lightdash/compare/0.3075.3...0.3076.0) (2026-06-02)
+
+
+### Features
+
+* add search to AI admin filters ([#23774](https://github.com/lightdash/lightdash/issues/23774)) ([5ca93bf](https://github.com/lightdash/lightdash/commit/5ca93bf0efae44b79a35aa720f03b27060726f35))
+
 ## [0.3075.3](https://github.com/lightdash/lightdash/compare/0.3075.2...0.3075.3) (2026-06-02)
 
 
