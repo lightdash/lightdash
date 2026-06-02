@@ -1,3 +1,10 @@
+## [0.3072.2](https://github.com/lightdash/lightdash/compare/0.3072.1...0.3072.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** when agent modifies a dashboard, properly refresh the tiles/tabs ([#23751](https://github.com/lightdash/lightdash/issues/23751)) ([ed6e663](https://github.com/lightdash/lightdash/commit/ed6e6632ef7542d18ae231492e89d60f27b6f5a7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3072.1](https://github.com/lightdash/lightdash/compare/0.3072.0...0.3072.1) (2026-06-02)
 
 
