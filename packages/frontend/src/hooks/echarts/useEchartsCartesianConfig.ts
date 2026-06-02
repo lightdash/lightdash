@@ -268,11 +268,20 @@ const getAxisType = ({
             ? 'category'
             : defaultLeftAxisType;
 
+    // User-configured axis type overrides the auto-detected type.
+    // Configs are flip-aware: they map to the physical axis the field is rendered on.
+    const xAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.yAxis
+        : validCartesianConfig.eChartsConfig?.xAxis;
+    const yAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.xAxis
+        : validCartesianConfig.eChartsConfig?.yAxis;
+
     return {
-        topAxisType,
-        bottomAxisType,
-        rightAxisType,
-        leftAxisType,
+        topAxisType: xAxisConfiguration?.[1]?.type ?? topAxisType,
+        bottomAxisType: xAxisConfiguration?.[0]?.type ?? bottomAxisType,
+        rightAxisType: yAxisConfiguration?.[1]?.type ?? rightAxisType,
+        leftAxisType: yAxisConfiguration?.[0]?.type ?? leftAxisType,
     };
 };
 

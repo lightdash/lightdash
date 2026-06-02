@@ -665,9 +665,14 @@ export type CompleteEChartsConfig = {
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;
 
+/** ECharts axis type. When unset, the type is auto-detected from the field type. */
+export type EchartsAxisType = 'category' | 'value' | 'time';
+
 type Axis = {
     /** Axis title */
     name?: string;
+    /** Override the auto-detected ECharts axis type */
+    type?: EchartsAxisType;
     /** Minimum value (or 'dataMin' for auto) */
     min?: string | undefined;
     /** Maximum value (or 'dataMax' for auto) */

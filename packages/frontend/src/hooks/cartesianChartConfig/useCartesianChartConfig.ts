@@ -11,6 +11,7 @@ import {
     type CartesianChart,
     type CompleteCartesianChartLayout,
     type ConditionalFormattingConfig,
+    type EchartsAxisType,
     type EchartsGrid,
     type EchartsLegend,
     type ItemsMap,
@@ -518,6 +519,18 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setXAxisType = useCallback(
+        (type: EchartsAxisType | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                const [firstAxis, ...axes] = prevState?.xAxis || [];
+                return {
+                    ...prevState,
+                    xAxis: [{ ...firstAxis, type }, ...axes],
+                };
+            });
+        },
+        [],
+    );
     const setScrollableChart = useCallback((enableDataZoom: boolean) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
@@ -1294,6 +1307,7 @@ const useCartesianChartConfig = ({
         setAxisTitleFontSize,
         setXAxisSort,
         setXAxisLabelRotation,
+        setXAxisType,
         setScrollableChart,
         updateSeries,
         referenceLines,

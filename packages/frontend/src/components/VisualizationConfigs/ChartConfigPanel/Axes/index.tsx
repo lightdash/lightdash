@@ -6,6 +6,7 @@ import {
     getXAxisSort,
     isNumericItem,
     XAxisSort,
+    type EchartsAxisType,
     type ItemsMap,
 } from '@lightdash/common';
 import {
@@ -81,6 +82,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setAxisTitleFontSize,
         setXAxisSort,
         setXAxisLabelRotation,
+        setXAxisType,
         setScrollableChart,
         dirtyChartType,
     } = visualizationConfig.chartConfig;
@@ -265,6 +267,26 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 />
                             </Group>
                         )}
+                    </Group>
+
+                    <Group spacing="xs">
+                        <Config.Label>Axis type</Config.Label>
+                        <Select
+                            value={dirtyEchartsConfig?.xAxis?.[0]?.type ?? ''}
+                            onChange={(value) =>
+                                setXAxisType(
+                                    (value || undefined) as
+                                        | EchartsAxisType
+                                        | undefined,
+                                )
+                            }
+                            data={[
+                                { value: '', label: 'Automatic' },
+                                { value: 'category', label: 'Categorical' },
+                                { value: 'value', label: 'Numerical' },
+                                { value: 'time', label: 'Date' },
+                            ]}
+                        />
                     </Group>
 
                     {getAxisTypeFromField(xAxisField) === 'category' && (
