@@ -15,7 +15,6 @@ import {
     NumberInput,
     Select,
     Stack,
-    Switch,
     Text,
     TextInput,
 } from '@mantine/core';
@@ -172,32 +171,30 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     )}
 
                     {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
-                        <>
-                            <Switch
-                                label="Truncate x-axis"
-                                checked={
-                                    dirtyEchartsConfig?.xAxis?.[0]
-                                        ?.minOffset !== undefined ||
-                                    dirtyEchartsConfig?.xAxis?.[0]
-                                        ?.maxOffset !== undefined
+                        <Checkbox
+                            label="Extra padding"
+                            checked={
+                                dirtyEchartsConfig?.xAxis?.[0]?.minOffset !==
+                                    undefined ||
+                                dirtyEchartsConfig?.xAxis?.[0]?.maxOffset !==
+                                    undefined
+                            }
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setXMaxOffsetValue(
+                                        0,
+                                        DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
+                                    );
+                                    setXMinOffsetValue(
+                                        0,
+                                        DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
+                                    );
+                                } else {
+                                    setXMaxOffsetValue(0, undefined);
+                                    setXMinOffsetValue(0, undefined);
                                 }
-                                onChange={(e) => {
-                                    if (e.target.checked) {
-                                        setXMaxOffsetValue(
-                                            0,
-                                            DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
-                                        );
-                                        setXMinOffsetValue(
-                                            0,
-                                            DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
-                                        );
-                                    } else {
-                                        setXMaxOffsetValue(0, undefined);
-                                        setXMinOffsetValue(0, undefined);
-                                    }
-                                }}
-                            />
-                        </>
+                            }}
+                        />
                     )}
                     <Group spacing="xs">
                         <Group spacing="xs">
