@@ -642,12 +642,12 @@ describe('PivotQueryBuilder', () => {
             // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_ra" ON (g."date" = "revenue_ra"."date" OR (g."date" IS NULL AND "revenue_ra"."date" IS NULL)))',
+                'row_ranking AS (SELECT DISTINCT g."date" AS "date", DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_ra" ON (g."date" = "revenue_ra"."date" OR (g."date" IS NULL AND "revenue_ra"."date" IS NULL)))',
             );
 
             // pivot_query should JOIN with precomputed rankings instead of computing Window functions
             expect(replaceWhitespace(result)).toContain(
-                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index" FROM group_by_query g LEFT JOIN row_ranking rr ON (g."date" = rr."date" OR (g."date" IS NULL AND rr."date" IS NULL)) LEFT JOIN column_ranking cr ON (g."category" = cr."category" OR (g."category" IS NULL AND cr."category" IS NULL)))',
+                'pivot_query AS (SELECT g."date" AS "date", g."category" AS "category", g."revenue_sum" AS "revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index" FROM group_by_query g LEFT JOIN row_ranking rr ON (g."date" = rr."date" OR (g."date" IS NULL AND rr."date" IS NULL)) LEFT JOIN column_ranking cr ON (g."category" = cr."category" OR (g."category" IS NULL AND cr."category" IS NULL)))',
             );
 
             // pivot_query should NOT contain DENSE_RANK (rankings are precomputed)
@@ -1755,9 +1755,9 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."date" asc, g."store_id" asc, g."product_category" asc)',
             );
 
-            // Should include all columns in select references (all should be quoted now)
+            // Should include all columns in select references (all should be quoted and aliased now)
             expect(result).toContain(
-                'g."date", g."store_id", g."product_category", g."category", g."region"',
+                'g."date" AS "date", g."store_id" AS "store_id", g."product_category" AS "product_category", g."category" AS "category", g."region" AS "region"',
             );
         });
 
@@ -4476,7 +4476,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // row_ranking is self-contained: it owns its JOIN to row_anchor
             // and produces row_index as a concrete output column.
             expect(replaceWhitespace(result)).toContain(
-                'row_ranking AS (SELECT DISTINCT g.`event_tier`, DENSE_RANK() OVER (ORDER BY `count_ra`.`count_ra_value` DESC, g.`event_tier` ASC) AS `row_index` FROM group_by_query g LEFT JOIN `count_ra` ON (g.`event_tier` = `count_ra`.`event_tier` OR (g.`event_tier` IS NULL AND `count_ra`.`event_tier` IS NULL)))',
+                'row_ranking AS (SELECT DISTINCT g.`event_tier` AS `event_tier`, DENSE_RANK() OVER (ORDER BY `count_ra`.`count_ra_value` DESC, g.`event_tier` ASC) AS `row_index` FROM group_by_query g LEFT JOIN `count_ra` ON (g.`event_tier` = `count_ra`.`event_tier` OR (g.`event_tier` IS NULL AND `count_ra`.`event_tier` IS NULL)))',
             );
 
             // pivot_query just joins precomputed rankings — no inline
@@ -4938,6 +4938,67 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
         });
 
+        test('Metric sort: pivot_query/row_ranking/column_ranking alias every carried column to a bare name (ClickHouse #23711)', () => {
+            // https://github.com/lightdash/lightdash/issues/23711
+            // ClickHouse's v24+ analyzer exposes a CTE's columns only under
+            // their source alias once the CTE LEFT JOINs 2+ relations, so
+            // multi-join CTEs must alias carried columns to bare names or the
+            // downstream filtered_rows/distinct_groups CTEs fail to resolve them.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'order_date', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'unique_count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                    {
+                        reference: 'amount',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'unique_count',
+                        direction: SortByDirection.DESC,
+                    },
+                    { reference: 'amount', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            // pivot_query: every carried column has an explicit bare alias.
+            expect(result).toContain('g."order_date" AS "order_date"');
+            expect(result).toContain('g."status" AS "status"');
+            expect(result).toContain(
+                'g."unique_count_count" AS "unique_count_count"',
+            );
+            expect(result).toContain('g."amount_sum" AS "amount_sum"');
+
+            // column_ranking aliases its groupBy dim (2 anchor joins).
+            expect(result).toContain(
+                'column_ranking AS (SELECT DISTINCT g."status" AS "status", DENSE_RANK()',
+            );
+            // row_ranking aliases its index dim (2 anchor joins).
+            expect(result).toContain(
+                'row_ranking AS (SELECT DISTINCT g."order_date" AS "order_date", DENSE_RANK()',
+            );
+
+            // The downstream CTEs reference the bare names the aliases expose.
+            expect(result).toContain(
+                'distinct_groups AS (SELECT DISTINCT "status" FROM filtered_rows)',
+            );
+        });
+
         test('Named time-interval index columns sort chronologically via CASE WHEN, not alphabetically (#18245)', () => {
             // https://github.com/lightdash/lightdash/issues/18245
             // Repro: x-axis = month_name (or day_of_week_name, quarter_name)
@@ -5362,7 +5423,7 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             // sortOnly target (orders_status_priority) must lead; orders_status follows as tiebreaker.
             expect(collapsed).toContain(
-                'column_ranking AS (SELECT DISTINCT g."orders_status", DENSE_RANK() OVER (ORDER BY g."orders_status_priority" ASC, g."orders_status" ASC) AS "col_idx"',
+                'column_ranking AS (SELECT DISTINCT g."orders_status" AS "orders_status", DENSE_RANK() OVER (ORDER BY g."orders_status_priority" ASC, g."orders_status" ASC) AS "col_idx"',
             );
         });
 
@@ -5419,7 +5480,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'group by "orders_status", "orders_shipping_method", "status_prio_2", "orders_order_date_month"',
             );
             expect(collapsed).toContain(
-                'column_ranking AS (SELECT DISTINCT g."orders_status", g."orders_shipping_method", DENSE_RANK() OVER (ORDER BY g."status_prio_2" ASC, g."orders_status" ASC, g."orders_shipping_method" ASC) AS "col_idx"',
+                'column_ranking AS (SELECT DISTINCT g."orders_status" AS "orders_status", g."orders_shipping_method" AS "orders_shipping_method", DENSE_RANK() OVER (ORDER BY g."status_prio_2" ASC, g."orders_status" ASC, g."orders_shipping_method" ASC) AS "col_idx"',
             );
         });
 
