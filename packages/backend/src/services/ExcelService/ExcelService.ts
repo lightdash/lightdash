@@ -386,6 +386,7 @@ export class ExcelService {
         options,
         pivotDetails,
         timezone,
+        csvCellsLimit,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -404,6 +405,9 @@ export class ExcelService {
             attachmentDownloadName?: string;
         };
         timezone?: string;
+        // Per-org export limit resolved by the caller; falls back to the
+        // instance default when not provided.
+        csvCellsLimit?: number;
     }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -414,7 +418,8 @@ export class ExcelService {
             await resultsStorageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
-        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const cellsLimit =
+            csvCellsLimit ?? lightdashConfig.query?.csvCellsLimit ?? 100000;
 
         // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
         const maxRows = Math.floor(cellsLimit / fieldCount);

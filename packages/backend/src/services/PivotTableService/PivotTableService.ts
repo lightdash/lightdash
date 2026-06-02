@@ -19,11 +19,13 @@ import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClie
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import {
     generateGenericFileId,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 
 type PivotTableServiceArguments = {
@@ -31,6 +33,7 @@ type PivotTableServiceArguments = {
     fileStorageClient: FileStorageClient;
     downloadFileModel: DownloadFileModel;
     persistentDownloadFileService: PersistentDownloadFileService;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 export class PivotTableService extends BaseService {
@@ -42,17 +45,21 @@ export class PivotTableService extends BaseService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    organizationSettingsModel: OrganizationSettingsModel;
+
     constructor({
         lightdashConfig,
         fileStorageClient,
         downloadFileModel,
         persistentDownloadFileService,
+        organizationSettingsModel,
     }: PivotTableServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.fileStorageClient = fileStorageClient;
         this.downloadFileModel = downloadFileModel;
         this.persistentDownloadFileService = persistentDownloadFileService;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     /**
@@ -74,15 +81,16 @@ export class PivotTableService extends BaseService {
     /**
      * Checks if the rows could be truncated based on cell limit
      */
-    private couldBeTruncated(rows: Record<string, AnyType>[]) {
+    private static couldBeTruncated(
+        rows: Record<string, AnyType>[],
+        cellsLimit: number,
+    ) {
         if (rows.length === 0) return false;
 
         const numberRows = rows.length;
         const numberColumns = Object.keys(rows[0]).length;
 
         // we use floor when limiting the rows, so the need to make sure we got the last row valid
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
@@ -132,7 +140,12 @@ export class PivotTableService extends BaseService {
             await storageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+        const { csvCellsLimit: cellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
 
         // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
         const maxRows = Math.floor(cellsLimit / fieldCount);
@@ -150,7 +163,8 @@ export class PivotTableService extends BaseService {
         }
 
         // Use same truncation logic as original downloadPivotTableCsv
-        const finalTruncated = truncated || this.couldBeTruncated(rows);
+        const finalTruncated =
+            truncated || PivotTableService.couldBeTruncated(rows, cellsLimit);
 
         if (finalTruncated) {
             Logger.warn(

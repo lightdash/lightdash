@@ -62,6 +62,20 @@ export type OrganizationSettings = {
      * override (it still falls back to the base / env base).
      */
     scheduledDeliveryExpirationSecondsGoogleChat: number | null;
+    /**
+     * Max number of rows a query may return for this org. Inherits and is
+     * capped by the instance-wide `LIGHTDASH_QUERY_MAX_LIMIT` (the ceiling);
+     * `null` inherits it. Always resolved to an effective number in API
+     * responses so the frontend can display it directly.
+     */
+    queryLimit: number | null;
+    /**
+     * Max number of cells (rows × columns) a CSV/Excel export may contain for
+     * this org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by
+     * `LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the
+     * default. Always resolved to an effective number in API responses.
+     */
+    csvCellsLimit: number | null;
 };
 
 /**
@@ -70,6 +84,13 @@ export type OrganizationSettings = {
  * delivery transparently falls back to the persistent-download-URL system.
  */
 export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
+
+/**
+ * Postgres `integer` column ceiling. Every numeric org setting is stored in an
+ * `integer` column, so a value above this overflows the column (a DB error, not
+ * a clean validation failure). Used as the hard upper bound for all of them.
+ */
+export const POSTGRES_INTEGER_MAX = 2147483647;
 
 export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
@@ -88,6 +109,8 @@ export type OrganizationSettingsInstanceDefaults = {
     enableOidcLinking: boolean;
     enableOidcToEmailLinking: boolean;
     scheduledDeliveryExpirationSeconds: number;
+    queryLimit: number;
+    csvCellsLimit: number;
 };
 
 /**
@@ -124,4 +147,7 @@ export const resolveEffectiveOrganizationSettings = (
         raw.scheduledDeliveryExpirationSecondsMsTeams ?? null,
     scheduledDeliveryExpirationSecondsGoogleChat:
         raw.scheduledDeliveryExpirationSecondsGoogleChat ?? null,
+    // Limits resolve to an effective number (fall back to the env default).
+    queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
+    csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
 });

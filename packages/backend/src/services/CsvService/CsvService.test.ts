@@ -24,6 +24,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -91,6 +92,7 @@ describe('Csv service', () => {
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,
             spacePermissionService: {} as SpacePermissionService,
+            organizationSettingsModel: {} as OrganizationSettingsModel,
         }),
         fileStorageClient: {} as FileStorageClient,
         savedChartModel: {} as SavedChartModel,
@@ -104,6 +106,7 @@ describe('Csv service', () => {
             fileStorageClient: {} as FileStorageClient,
             downloadFileModel: {} as DownloadFileModel,
             persistentDownloadFileService: {} as PersistentDownloadFileService,
+            organizationSettingsModel: {} as OrganizationSettingsModel,
         }),
         persistentDownloadFileService: {} as PersistentDownloadFileService,
     });

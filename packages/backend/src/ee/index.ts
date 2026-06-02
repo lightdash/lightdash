@@ -345,6 +345,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -454,6 +456,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

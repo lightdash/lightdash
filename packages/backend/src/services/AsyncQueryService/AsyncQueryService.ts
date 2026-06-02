@@ -153,6 +153,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -1416,6 +1417,13 @@ export class AsyncQueryService extends ProjectService {
                               resultsStorageClient,
                               exportsStorageClient: this.exportsStorageClient,
                               lightdashConfig: this.lightdashConfig,
+                              csvCellsLimit: (
+                                  await resolveOrganizationExportLimits(
+                                      this.organizationSettingsModel,
+                                      this.lightdashConfig.query,
+                                      organizationUuid,
+                                  )
+                              ).csvCellsLimit,
                               pivotDetails:
                                   AsyncQueryService.getPivotDetailsFromQueryHistory(
                                       queryHistory,
@@ -4123,6 +4131,12 @@ export class AsyncQueryService extends ProjectService {
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
 
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
+
         const { metricQuery, explore, fieldId } =
             await getFieldValuesMetricQuery({
                 projectUuid,
@@ -4130,7 +4144,7 @@ export class AsyncQueryService extends ProjectService {
                 initialFieldId,
                 search,
                 limit,
-                maxLimit: this.lightdashConfig.query.maxLimit,
+                maxLimit,
                 filters,
                 exploreResolver: this.projectModel,
             });
@@ -4340,11 +4354,18 @@ export class AsyncQueryService extends ProjectService {
             limit,
         };
 
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                savedChartOrganizationUuid,
+            );
+
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQuery,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const queryTags: RunQueryTags = {
@@ -4618,11 +4639,18 @@ export class AsyncQueryService extends ProjectService {
                     : savedChart.metricQuery.sorts,
         };
 
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQueryWithDashboardOverrides,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const exploreDimensions = getDimensions(explore);
@@ -5057,11 +5085,18 @@ export class AsyncQueryService extends ProjectService {
             timezone: metricQuery.timezone,
         };
 
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+
         const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
             underlyingDataMetricQuery,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const {

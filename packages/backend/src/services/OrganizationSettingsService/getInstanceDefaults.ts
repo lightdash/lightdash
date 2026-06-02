@@ -14,4 +14,6 @@ export const getOrganizationSettingsInstanceDefaults = (
     enableOidcToEmailLinking: lightdashConfig.auth.enableOidcToEmailLinking,
     scheduledDeliveryExpirationSeconds:
         lightdashConfig.persistentDownloadUrls.expirationSeconds,
+    queryLimit: lightdashConfig.query.maxLimit,
+    csvCellsLimit: lightdashConfig.query.csvCellsLimit,
 });

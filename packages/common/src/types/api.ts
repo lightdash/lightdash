@@ -470,9 +470,20 @@ export type HealthState = {
     signupUrl: string | undefined;
     helpMenuUrl: string | undefined;
     query: {
+        /** Effective max query rows for the requesting org (the org's
+         *  `query_limit` override, else LIGHTDASH_QUERY_MAX_LIMIT). Drives the
+         *  explorer/SQL-runner row-limit clamp. */
         maxLimit: number;
+        /** Effective new-query default for the org, never above `maxLimit`. */
         defaultLimit: number;
+        /** Effective CSV/Excel cells limit for the requesting org. */
         csvCellsLimit: number;
+        /** Instance ceiling an org admin can set the per-org query rows limit
+         *  to: LIGHTDASH_QUERY_MAX_LIMIT. */
+        queryMaxLimit: number;
+        /** Instance ceiling an org admin can set the per-org CSV cells limit
+         *  to: max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT). */
+        csvMaxLimit: number;
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
     };

@@ -1076,6 +1076,7 @@ export type LightdashConfig = {
         maxLimit: number;
         defaultLimit: number;
         csvCellsLimit: number;
+        csvMaxLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
@@ -2042,6 +2043,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
+            // Ceiling an org admin can set the per-org CSV cells limit to. The
+            // effective cap is max(this, csvCellsLimit) so an instance whose
+            // default already exceeds it is never forced below its own default.
+            csvMaxLimit:
+                getIntegerFromEnvironmentVariable('LIGHTDASH_CSV_MAX_LIMIT') ||
+                5000000,
             timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
             maxPageSize:
                 getIntegerFromEnvironmentVariable(

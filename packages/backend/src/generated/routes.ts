@@ -29126,6 +29126,22 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                csvCellsLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                queryLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 scheduledDeliveryExpirationSecondsGoogleChat: {
                     dataType: 'union',
                     subSchemas: [
@@ -29269,6 +29285,22 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 scheduledDeliveryExpirationSecondsGoogleChat: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                queryLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                csvCellsLimit: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },

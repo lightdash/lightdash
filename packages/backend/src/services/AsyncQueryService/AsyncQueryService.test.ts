@@ -42,6 +42,7 @@ import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { OrganizationModel } from '../../models/OrganizationModel';
+import type { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -280,6 +281,12 @@ const getMockedAsyncQueryService = (
             fileStorageClient: {} as FileStorageClient,
             downloadFileModel: {} as DownloadFileModel,
             persistentDownloadFileService: {} as PersistentDownloadFileService,
+            organizationSettingsModel: {
+                get: jest.fn(async () => ({
+                    queryLimit: null,
+                    csvCellsLimit: null,
+                })),
+            } as unknown as OrganizationSettingsModel,
         }),
         permissionsService: {} as PermissionsService,
         persistentDownloadFileService: {} as PersistentDownloadFileService,
@@ -287,6 +294,12 @@ const getMockedAsyncQueryService = (
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {} as SpacePermissionService,
+        organizationSettingsModel: {
+            get: jest.fn(async () => ({
+                queryLimit: null,
+                csvCellsLimit: null,
+            })),
+        } as unknown as OrganizationSettingsModel,
         ...overrides,
     });
 

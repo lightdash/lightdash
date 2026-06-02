@@ -230,6 +230,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -264,6 +265,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -318,6 +320,7 @@ export type ProjectServiceArguments = {
     spacePermissionService: SpacePermissionService;
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 export class ProjectService extends BaseService {
@@ -391,6 +394,8 @@ export class ProjectService extends BaseService {
 
     contentVerificationModel: ContentVerificationModel | undefined;
 
+    organizationSettingsModel: OrganizationSettingsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -426,6 +431,7 @@ export class ProjectService extends BaseService {
         adminNotificationService,
         spacePermissionService,
         contentVerificationModel,
+        organizationSettingsModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -464,6 +470,7 @@ export class ProjectService extends BaseService {
         this.adminNotificationService = adminNotificationService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -4604,11 +4611,18 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError();
                     }
 
+                    const { maxLimit, csvCellsLimit } =
+                        await resolveOrganizationExportLimits(
+                            this.organizationSettingsModel,
+                            this.lightdashConfig.query,
+                            organizationUuid,
+                        );
+
                     const metricQueryWithLimit = applyMetricQueryLimit(
                         metricQuery,
                         csvLimit,
-                        this.lightdashConfig.query?.csvCellsLimit,
-                        this.lightdashConfig.query?.maxLimit,
+                        csvCellsLimit,
+                        maxLimit,
                     );
 
                     const explore =
@@ -4828,10 +4842,16 @@ export class ProjectService extends BaseService {
             query_context: QueryExecutionContext.SQL_RUNNER,
         };
 
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
+
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
         const cteWithLimit = applyLimitToSqlQuery({
             sqlQuery: sql,
-            limit: this.lightdashConfig.query.maxLimit,
+            limit: maxLimit,
         });
 
         const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
@@ -5160,13 +5180,20 @@ export class ProjectService extends BaseService {
         limit: number;
         filters: AndFilterGroup | undefined;
     }) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
         return getFieldValuesMetricQuery({
             projectUuid,
             table,
             initialFieldId,
             search,
             limit,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+            maxLimit,
             filters,
             exploreResolver: this.projectModel,
         });

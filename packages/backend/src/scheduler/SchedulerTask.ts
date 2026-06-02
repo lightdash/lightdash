@@ -153,6 +153,7 @@ import { DashboardService } from '../services/DashboardService/DashboardService'
 import { DeployService } from '../services/DeployService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
+import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
@@ -2409,7 +2410,15 @@ export default class SchedulerTask {
                 );
             }
 
-            const truncated = this.csvService.couldBeTruncated(rows);
+            const { csvCellsLimit } = await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                payload.organizationUuid,
+            );
+            const truncated = this.csvService.couldBeTruncated(
+                rows,
+                csvCellsLimit,
+            );
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,

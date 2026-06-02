@@ -29884,6 +29884,18 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "csvCellsLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org (overrides `LIGHTDASH_CSV_CELLS_LIMIT`; `null` inherits it).\nAlways resolved to an effective number in API responses."
+                    },
+                    "queryLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Max number of rows a query/export may return for this org (overrides the\ninstance-wide `LIGHTDASH_QUERY_MAX_LIMIT`; `null` inherits it). Always\nresolved to an effective number in API responses so the frontend can\ndisplay it directly."
+                    },
                     "scheduledDeliveryExpirationSecondsGoogleChat": {
                         "type": "number",
                         "format": "double",
@@ -29931,6 +29943,8 @@
                     }
                 },
                 "required": [
+                    "csvCellsLimit",
+                    "queryLimit",
                     "scheduledDeliveryExpirationSecondsGoogleChat",
                     "scheduledDeliveryExpirationSecondsMsTeams",
                     "scheduledDeliveryExpirationSecondsSlack",
@@ -30003,6 +30017,18 @@
                         "format": "double",
                         "nullable": true,
                         "description": "Per-channel override (seconds) for Google Chat deliveries; `null` inherits\nthe base. Google Chat has no instance env var, so this is an org-only\noverride (it still falls back to the base / env base)."
+                    },
+                    "queryLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Max number of rows a query/export may return for this org (overrides the\ninstance-wide `LIGHTDASH_QUERY_MAX_LIMIT`; `null` inherits it). Always\nresolved to an effective number in API responses so the frontend can\ndisplay it directly."
+                    },
+                    "csvCellsLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org (overrides `LIGHTDASH_CSV_CELLS_LIMIT`; `null` inherits it).\nAlways resolved to an effective number in API responses."
                     }
                 },
                 "type": "object",
