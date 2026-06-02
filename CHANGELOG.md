@@ -1,3 +1,15 @@
+# [0.3078.0](https://github.com/lightdash/lightdash/compare/0.3077.1...0.3078.0) (2026-06-02)
+
+
+### Bug Fixes
+
+* remove unused table calculations warning from explorer ([#23783](https://github.com/lightdash/lightdash/issues/23783)) ([ea5756b](https://github.com/lightdash/lightdash/commit/ea5756ba2f30d681b96de30ebabd77c081061c6c))
+
+
+### Features
+
+* **writeback:** sandbox agent detects & offers Lightdash preview-deploy GitHub Actions [PROD-8056] ([#23746](https://github.com/lightdash/lightdash/issues/23746)) ([dd1dad8](https://github.com/lightdash/lightdash/commit/dd1dad8e04685c3c5071debb26c282d76e1f34e6))
+
 ## [0.3077.1](https://github.com/lightdash/lightdash/compare/0.3077.0...0.3077.1) (2026-06-02)
 
 
