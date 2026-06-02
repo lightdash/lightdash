@@ -1563,11 +1563,13 @@ const PivotTable: FC<PivotTableProps> = ({
                               )
                         : buildRowFieldsFromVisibleCells(row, undefined);
 
-                    const rowBackgroundColor = getRowConditionalFormattingColor({
-                        conditionalFormattings,
-                        rowFields: rowLevelFields,
-                        minMaxMap,
-                    });
+                    const rowBackgroundColor = getRowConditionalFormattingColor(
+                        {
+                            conditionalFormattings,
+                            rowFields: rowLevelFields,
+                            minMaxMap,
+                        },
+                    );
 
                     return (
                         <Table.Row
@@ -1783,7 +1785,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                               tooltipContent,
                                               color: conditionalFormattingResult.color,
                                               backgroundColor:
-                                                  rowBackgroundColor ?? undefined,
+                                                  rowBackgroundColor ??
+                                                  undefined,
                                           }
                                         : {
                                               tooltipContent,
