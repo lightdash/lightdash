@@ -44,9 +44,7 @@
     {
       "customType": "regex",
       "description": "Keep the GitHub Action SHAs embedded in the generated preview-deploy workflow template (previewDeployWorkflow.ts) bumped like any other pinned action",
-      "managerFilePatterns": [
-        "/packages/common/src/utils/previewDeployWorkflow\\.ts$/"
-      ],
+      "fileMatch": ["^packages/common/src/utils/previewDeployWorkflow\\.ts$"],
       "matchStrings": [
         "(?<depName>[\\w.-]+/[\\w.-]+)@(?<currentDigest>[a-f0-9]{40}) # (?<currentValue>v[\\w.+-]+)"
       ],
