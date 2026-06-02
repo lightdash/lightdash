@@ -1,7 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
-    DbtProjectType,
     detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
@@ -9,14 +7,12 @@ import {
     getErrorMessage,
     getPreviewDeploySecrets,
     isUserWithOrg,
-    isWorkflowFile,
     MissingConfigError,
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
-    type DbtProjectConfig,
     type PreviewDeploySecret,
     type ProjectCiStatus,
     type SessionUser,
@@ -62,20 +58,19 @@ import {
     COMPILE_STRIPPED_ENV_VARS,
     COMPILE_WRAPPER_PATH,
     CWD,
+    GATHER_REPO_CONTEXT_SANDBOX_PATH,
     GIT_TIMEOUT_MS,
     GIT_USERNAME,
-    PR_DESCRIPTION_CLOSE,
-    PR_DESCRIPTION_OPEN,
     PR_DESCRIPTION_PATH,
-    PR_TITLE_CLOSE,
-    PR_TITLE_OPEN,
     PR_TITLE_PATH,
+    PREVIEW_DEPLOY_SETUP_PROMPT,
     PROMPT_PATH,
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     SHARED_SKILL_PATH,
     SKILLS_DIR,
+    STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
@@ -85,6 +80,7 @@ import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
     AdoptedPullRequest,
+    AgentPhase,
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
@@ -95,20 +91,25 @@ import type {
     TurnContext,
     WarehouseSkillKey,
 } from './types';
+import {
+    buildCoAuthorTrailer,
+    buildNoreplyEmail,
+    classifyToolPhase,
+    extractPrMetadata,
+    getPhaseProgressText,
+    interpretAgentEvent,
+    parseGitNameStatus,
+    parsePullNumber,
+    parseTrackedWorkflowPaths,
+    progressTextForStage,
+    resolveGithubConnection,
+    resolvePrMetadataValue,
+    resolveSandboxTemplateRef,
+    splitStreamBuffer,
+    summarizeToolInput,
+} from './utils';
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
-
-const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
-
-// Synthetic prompt for the dedicated preview-deploy setup run. It leans on the
-// "Secondary task" section that run()'s system prompt already injects (with the
-// exact workflow files + secrets) when the repo has no preview-deploy workflow.
-const PREVIEW_DEPLOY_SETUP_PROMPT = [
-    'The user has agreed to set up Lightdash preview deploys for this project.',
-    'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
-    'Keep the workflow structure exactly as shown in that section — the permissions blocks, secret names, lightdash commands, and job/trigger layout are security-reviewed and run with live credentials, so do NOT widen permissions, rename the files, or change the commands. You MAY adapt only the version pinning (action refs, Node version, @lightdash/cli version): use the versions shown by default, but if the repo already has a consistent version-pinning convention in its other .github/workflows files, match it instead. Do NOT modify any dbt models, YAML, or other files.',
-    'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
-].join(' ');
 
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -190,45 +191,6 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Resolve the target GitHub repository and dbt project sub-folder from a
-     * Lightdash project's dbt connection. AI writeback clones over GitHub and
-     * opens a PR via the GitHub App, so only GitHub-backed dbt connections are
-     * supported.
-     *
-     * `repository` is stored as `owner/repo`. `project_sub_path` is the
-     * sub-folder holding the dbt project, relative to the repo root (stored
-     * with a leading slash, e.g. `/dbt`, and `/` for the repo root); it is
-     * normalised to a path relative to the repo root (`dbt`, or `.` for the
-     * root) so it can be passed straight to the compile's `--project-dir`.
-     */
-    private static resolveGithubConnection(connection: DbtProjectConfig): {
-        owner: string;
-        repo: string;
-        projectSubPath: string;
-    } {
-        if (connection.type !== DbtProjectType.GITHUB) {
-            throw new ParameterError(
-                `AI writeback requires a GitHub dbt connection, but this project uses "${connection.type}"`,
-            );
-        }
-        const [owner, repo] = connection.repository.split('/');
-        if (!owner || !repo) {
-            throw new ParameterError(
-                `Project's dbt connection has an invalid repository "${connection.repository}" (expected "owner/repo")`,
-            );
-        }
-        const relativeSubPath = connection.project_sub_path
-            .trim()
-            .replace(/^\/+/, '')
-            .replace(/\/+$/, '');
-        return {
-            owner,
-            repo,
-            projectSubPath: relativeSubPath === '' ? '.' : relativeSubPath,
-        };
-    }
-
-    /**
      * Resolve GitHub auth for the organization. The installation access token
      * authenticates the in-sandbox clone. We additionally resolve the OAuth user
      * identity (the user who connected the GitHub App for the org) so the pull
@@ -273,11 +235,9 @@ export class AiWritebackService extends BaseService {
             }
             const githubUser = await getAuthenticatedUser(refreshed.token);
             prToken = refreshed.token;
-            // Use the GitHub-provided noreply email so we never need the user's
-            // real address and the commit still links to their profile.
             commitAuthor = {
                 name: githubUser.login,
-                email: `${githubUser.id}+${githubUser.login}@users.noreply.github.com`,
+                email: buildNoreplyEmail(githubUser),
             };
         } catch (error) {
             this.logger.warn(
@@ -290,7 +250,7 @@ export class AiWritebackService extends BaseService {
         let coAuthorTrailer = CO_AUTHOR_TRAILER;
         try {
             const bot = await getAppBotIdentity(installationId);
-            coAuthorTrailer = `Co-authored-by: ${bot.login} <${bot.id}+${bot.login}@users.noreply.github.com>`;
+            coAuthorTrailer = buildCoAuthorTrailer(bot);
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: could not resolve GitHub app bot identity for the co-author trailer; using the default. ${getErrorMessage(
@@ -312,52 +272,16 @@ export class AiWritebackService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
-    /**
-     * Map an internal lifecycle stage to the short progress string surfaced
-     * to the user (e.g. via the Slack bot's "Thinking…" message). One source
-     * of truth so the wording stays consistent if a stage is renamed later.
-     * Keep the strings short — Slack renders them in a single context line.
-     */
-    private static progressTextForStage(
-        stage: AiWritebackFailureStage,
-    ): string | null {
-        switch (stage) {
-            case 'install':
-                return 'Setting up';
-            case 'sandbox':
-                return 'Starting sandbox';
-            case 'clone':
-                return 'Cloning project';
-            case 'agent':
-                return 'Starting sub agent';
-            case 'commit':
-                return 'Committing changes';
-            case 'push':
-                return 'Pushing to GitHub';
-            case 'pull_request':
-                // No user-facing label — the parent tool group is already
-                // labelled "Opening a pull request", so this progress
-                // event would just echo the heading and read as filler.
-                return null;
-            default:
-                return assertUnreachable(
-                    stage,
-                    `Unknown AiWritebackFailureStage: ${String(stage)}`,
-                );
-        }
-    }
-
     private async createSandbox(
         projectUuid: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
         const { e2bAiWritebackTemplateName, e2bAiWritebackTemplateTag } =
             this.lightdashConfig.appRuntime;
-        // E2B treats `name` and `name:default` interchangeably, so an empty
-        // tag is fine — it just resolves to the implicit `default` build.
-        const templateRef = e2bAiWritebackTemplateTag
-            ? `${e2bAiWritebackTemplateName}:${e2bAiWritebackTemplateTag}`
-            : e2bAiWritebackTemplateName;
+        const templateRef = resolveSandboxTemplateRef({
+            name: e2bAiWritebackTemplateName,
+            tag: e2bAiWritebackTemplateTag,
+        });
         const sandbox = await Sandbox.create(templateRef, {
             timeoutMs: SANDBOX_TIMEOUT_MS,
             apiKey: this.getE2bApiKey(),
@@ -456,14 +380,11 @@ export class AiWritebackService extends BaseService {
         if (fromRepo !== null) {
             await sandbox.files.remove(repoPath).catch(() => {});
         }
-        const fromTmpTrimmed = (fromTmp ?? '').trim();
-        const fromRepoTrimmed = (fromRepo ?? '').trim();
-        let source: 'tmp' | 'repo-fallback' | 'default' = 'default';
-        if (fromTmpTrimmed.length > 0) {
-            source = 'tmp';
-        } else if (fromRepoTrimmed.length > 0) {
-            source = 'repo-fallback';
-        }
+        const { source, value } = resolvePrMetadataValue({
+            fromTmp,
+            fromRepo,
+            fallback,
+        });
         this.logger.info(
             `AiWriteback: resolved PR metadata '${fileName}' from ${source}` +
                 `${
@@ -472,52 +393,7 @@ export class AiWritebackService extends BaseService {
                         : ''
                 } (sandboxId=${sandbox.sandboxId})`,
         );
-        const resolved = fromTmpTrimmed || fromRepoTrimmed;
-        return resolved.length > 0 ? resolved : fallback;
-    }
-
-    /**
-     * Pull the PR title and description out of the agent's final stdout via
-     * the structured-output delimiters, and return a copy of the stdout with
-     * those blocks removed so they don't appear in the Slack reply. Either
-     * field may be null when the agent failed to emit it — in that case the
-     * caller falls back to the (less reliable) file-based metadata channel.
-     */
-    private extractPrMetadata(stdout: string): {
-        title: string | null;
-        description: string | null;
-        sanitizedStdout: string;
-    } {
-        const escape = (s: string): string =>
-            s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const titleRe = new RegExp(
-            `${escape(PR_TITLE_OPEN)}([\\s\\S]*?)${escape(PR_TITLE_CLOSE)}`,
-        );
-        const descRe = new RegExp(
-            `${escape(PR_DESCRIPTION_OPEN)}([\\s\\S]*?)${escape(
-                PR_DESCRIPTION_CLOSE,
-            )}`,
-        );
-        const title = stdout.match(titleRe)?.[1].trim() || null;
-        const description = stdout.match(descRe)?.[1].trim() || null;
-        const stripRe = new RegExp(
-            `${escape(PR_TITLE_OPEN)}[\\s\\S]*?${escape(
-                PR_TITLE_CLOSE,
-            )}|${escape(PR_DESCRIPTION_OPEN)}[\\s\\S]*?${escape(
-                PR_DESCRIPTION_CLOSE,
-            )}`,
-            'g',
-        );
-        const sanitizedStdout = stdout
-            .replace(stripRe, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-        this.logger.info(
-            `AiWriteback: extracted PR metadata from stdout (title=${
-                title !== null
-            }, description=${description !== null})`,
-        );
-        return { title, description, sanitizedStdout };
+        return value;
     }
 
     /**
@@ -571,18 +447,7 @@ export class AiWritebackService extends BaseService {
         const { stdout } = await sandbox.commands.run(
             `git -C ${CWD} diff --cached --name-status --no-renames -z`,
         );
-        const parts = stdout.split('\0').filter((p) => p.length > 0);
-        const addPaths: string[] = [];
-        const deletions: { path: string }[] = [];
-        for (let i = 0; i + 1 < parts.length; i += 2) {
-            const status = parts[i];
-            const path = parts[i + 1];
-            if (status.startsWith('D')) {
-                deletions.push({ path });
-            } else {
-                addPaths.push(path);
-            }
-        }
+        const { addPaths, deletions } = parseGitNameStatus(stdout);
         const additions = await Promise.all(
             addPaths.map(async (path) => ({
                 path,
@@ -688,10 +553,7 @@ export class AiWritebackService extends BaseService {
             const { stdout: fileList } = await sandbox.commands.run(
                 `git -C ${CWD} ls-files .github/workflows`,
             );
-            const paths = fileList
-                .split('\n')
-                .map((p) => p.trim())
-                .filter((p) => p.length > 0 && isWorkflowFile(p));
+            const paths = parseTrackedWorkflowPaths(fileList);
 
             const files: WorkflowFile[] = await Promise.all(
                 paths.map(async (path) => ({
@@ -860,7 +722,7 @@ export class AiWritebackService extends BaseService {
             // Stages can opt out of progress reporting by returning null
             // from progressTextForStage when their label would duplicate
             // the parent tool's heading or otherwise add no signal.
-            const progressText = AiWritebackService.progressTextForStage(stage);
+            const progressText = progressTextForStage(stage);
             if (progressText !== null) {
                 reportProgress(progressText);
             }
@@ -968,7 +830,12 @@ export class AiWritebackService extends BaseService {
                 title: prTitle,
                 description: prDescription,
                 sanitizedStdout,
-            } = this.extractPrMetadata(agent.stdout);
+            } = extractPrMetadata(agent.stdout);
+            this.logger.info(
+                `AiWriteback: extracted PR metadata from stdout (title=${
+                    prTitle !== null
+                }, description=${prDescription !== null})`,
+            );
 
             const { hasChanges } = await sandbox.git.status(CWD);
 
@@ -1121,9 +988,7 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const githubConnection = AiWritebackService.resolveGithubConnection(
-            project.dbtConnection,
-        );
+        const githubConnection = resolveGithubConnection(project.dbtConnection);
 
         // Resume only when both the caller supplied a thread uuid AND we
         // have a stored sandbox for it. Otherwise we start fresh.
@@ -1374,151 +1239,56 @@ export class AiWritebackService extends BaseService {
             await sandbox.files.write(WAREHOUSE_SKILL_PATH, skills.warehouse);
         }
 
-        // Parse Claude Code's stream-json output line-by-line so the agent
-        // stage stops being a black box: we log every tool the agent uses
-        // (Read/Edit/Write/Bash/...) as it happens, plus a final summary with
-        // cost + tool-call counts. The Slack reply text and PR-metadata blocks
-        // are reconstituted by overwriting `assistantText` on each new
-        // assistant message — the final message wins, which is the one that
-        // carries the user-facing reply and the structured PR_TITLE/PR_DESCRIPTION
-        // tags (see extractPrMetadata).
+        // Run state folded from Claude Code's stream-json output. The final
+        // assistant message wins for `assistantText` — it carries the
+        // user-facing reply and the PR_TITLE/PR_DESCRIPTION blocks.
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
+        const phaseProgressText = getPhaseProgressText(source);
+        const seenPhases = new Set<AgentPhase>();
 
-        // Rolling tail of stderr so a non-zero exit / timeout can carry the
-        // actual error text into the Sentry event. The full stderr is already
-        // streamed through the per-chunk debug log; we keep only the last
-        // STDERR_TAIL_BYTES so we never inflate a Sentry payload.
-        const STDERR_TAIL_BYTES = 4096;
         let stderrTail = '';
         const appendStderrTail = (chunk: string) => {
             stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
         };
 
-        // Map a single agent tool call to a coarse "phase" so we can stream
-        // semantic progress to the user without firing once per tool. The
-        // ordering — discover → edit → compile — matches the order an
-        // attentive viewer would describe the work, but the agent itself
-        // is free to interleave; we just announce each phase the first time
-        // we see it.
-        type AgentPhase = 'discovering' | 'editing' | 'compiling';
-        // Phase labels are task-specific: a dbt writeback edits models, whereas
-        // preview-deploy setup writes CI workflow files — so "Editing models"
-        // would read as nonsense there.
-        const phaseProgressText: Record<AgentPhase, string> =
-            source === 'preview_deploy_setup'
-                ? {
-                      discovering: 'Inspecting repository',
-                      editing: 'Writing workflow files',
-                      compiling: 'Validating workflow',
-                  }
-                : {
-                      discovering: 'Discovering models',
-                      editing: 'Editing models',
-                      compiling: 'Compiling project',
-                  };
-        const classifyTool = (
-            name: string,
-            input: unknown,
-        ): AgentPhase | null => {
-            if (name === 'Bash') {
-                const command =
-                    input && typeof input === 'object'
-                        ? (input as { command?: unknown }).command
-                        : undefined;
-                if (
-                    typeof command === 'string' &&
-                    command.includes('lightdash compile')
-                ) {
-                    return 'compiling';
-                }
-                return null;
-            }
-            if (name === 'Edit' || name === 'Write') return 'editing';
-            if (name === 'Read' || name === 'Glob' || name === 'Grep') {
-                return 'discovering';
-            }
-            return null;
-        };
-        const seenPhases = new Set<AgentPhase>();
-
-        const summarizeToolInput = (input: unknown): string => {
-            if (input && typeof input === 'object') {
-                const i = input as Record<string, unknown>;
-                if (typeof i.file_path === 'string') return i.file_path;
-                if (typeof i.command === 'string')
-                    return i.command.slice(0, 120);
-                if (typeof i.pattern === 'string') return i.pattern;
-            }
-            try {
-                return JSON.stringify(input ?? null).slice(0, 120);
-            } catch {
-                return '<unserializable>';
-            }
-        };
-
         const handleEvent = (event: unknown): void => {
-            if (!event || typeof event !== 'object') return;
-            const e = event as {
-                type?: string;
-                message?: { content?: unknown };
-                total_cost_usd?: number;
-            };
-            if (e.type === 'assistant') {
-                const content = e.message?.content;
-                if (!Array.isArray(content)) return;
-                let messageText = '';
-                for (const c of content) {
-                    if (c && typeof c === 'object') {
-                        const block = c as {
-                            type?: string;
-                            text?: string;
-                            name?: string;
-                            input?: unknown;
-                        };
-                        if (
-                            block.type === 'text' &&
-                            typeof block.text === 'string'
-                        ) {
-                            messageText += block.text;
-                        } else if (
-                            block.type === 'tool_use' &&
-                            typeof block.name === 'string'
-                        ) {
-                            toolCounts[block.name] =
-                                (toolCounts[block.name] ?? 0) + 1;
-                            this.logger.info('AI writeback agent tool call', {
-                                event: 'ai_writeback.run.tool',
-                                source,
-                                sandboxId: sandbox.sandboxId,
-                                toolName: block.name,
-                                summary: summarizeToolInput(block.input),
-                            });
-                            const phase = classifyTool(block.name, block.input);
-                            if (phase && !seenPhases.has(phase)) {
-                                seenPhases.add(phase);
-                                reportProgress(phaseProgressText[phase]);
-                            }
-                        }
-                    }
-                }
-                if (messageText) assistantText = messageText;
-            } else if (e.type === 'result') {
+            const interpreted = interpretAgentEvent(event);
+            if (interpreted.type === 'result') {
                 this.logger.info('AI writeback agent run summary', {
                     event: 'ai_writeback.run.summary',
                     source,
                     sandboxId: sandbox.sandboxId,
-                    costUsd: e.total_cost_usd ?? null,
+                    costUsd: interpreted.costUsd,
                     warehouseType,
                     toolCounts,
                 });
+                return;
             }
+            if (interpreted.type === 'ignored') return;
+            for (const toolCall of interpreted.toolCalls) {
+                toolCounts[toolCall.name] =
+                    (toolCounts[toolCall.name] ?? 0) + 1;
+                this.logger.info('AI writeback agent tool call', {
+                    event: 'ai_writeback.run.tool',
+                    source,
+                    sandboxId: sandbox.sandboxId,
+                    toolName: toolCall.name,
+                    summary: summarizeToolInput(toolCall.input),
+                });
+                const phase = classifyToolPhase(toolCall);
+                if (phase && !seenPhases.has(phase)) {
+                    seenPhases.add(phase);
+                    reportProgress(phaseProgressText[phase]);
+                }
+            }
+            if (interpreted.text !== null) assistantText = interpreted.text;
         };
 
         const flushBuffer = (): void => {
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
+            const { lines, remainder } = splitStreamBuffer(buffer);
+            buffer = remainder;
             for (const line of lines) {
                 if (line.trim()) {
                     try {
@@ -1786,7 +1556,7 @@ export class AiWritebackService extends BaseService {
             source: PullRequestSource.AI_AGENT,
             owner: turn.githubConnection.owner,
             repo: turn.githubConnection.repo,
-            prNumber: AiWritebackService.parsePullNumber(prUrl),
+            prNumber: parsePullNumber(prUrl),
             prUrl,
         });
 
@@ -1980,23 +1750,11 @@ export class AiWritebackService extends BaseService {
         await updatePullRequest({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
-            pullNumber: AiWritebackService.parsePullNumber(prUrl),
+            pullNumber: parsePullNumber(prUrl),
             title,
             body: description,
             ...auth,
         });
-    }
-
-    /** Extract the numeric PR id from a github.com/owner/repo/pull/<n> URL. */
-    private static parsePullNumber(prUrl: string): number {
-        const last = prUrl.split('/').pop();
-        const n = last ? Number(last) : NaN;
-        if (!Number.isInteger(n) || n <= 0) {
-            throw new ParameterError(
-                `Could not parse pull request number from URL: ${prUrl}`,
-            );
-        }
-        return n;
     }
 
     /**

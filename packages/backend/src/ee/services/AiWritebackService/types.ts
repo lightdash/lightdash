@@ -87,6 +87,50 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'preview_deploy_setup';
 
+/** Coarse phase of the agent's work, inferred from the tools it calls. */
+export type AgentPhase = 'discovering' | 'editing' | 'compiling';
+
+export type AgentToolCall = {
+    name: string;
+    input: unknown;
+};
+
+/**
+ * The meaningful shapes of a Claude Code stream-json line. Everything the host
+ * reacts to (assistant text, tool calls, the final cost summary) is one of
+ * these; every other event type collapses to `ignored`.
+ */
+export type AgentStreamEvent =
+    | { type: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
+    | { type: 'result'; costUsd: number | null }
+    | { type: 'ignored' };
+
+/** Title/description parsed out of the agent's final stdout. */
+export type PrMetadata = {
+    title: string | null;
+    description: string | null;
+    sanitizedStdout: string;
+};
+
+/** Which channel a PR metadata value was ultimately recovered from. */
+export type PrMetadataSource = 'tmp' | 'repo-fallback' | 'default';
+
+export type ResolvedPrMetadata = {
+    source: PrMetadataSource;
+    value: string;
+};
+
+/** Paths parsed from `git diff --cached --name-status -z`, split by op. */
+export type StagedFileChanges = {
+    addPaths: string[];
+    deletions: { path: string }[];
+};
+
+export type GithubIdentity = {
+    login: string;
+    id: number;
+};
+
 export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;

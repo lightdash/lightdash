@@ -120,3 +120,21 @@ export const CLAUDE_MODEL = 'claude-sonnet-4-6';
 // typical repos; this guards against an unusually large checkout taking long
 // enough to eat into the agent budget.
 export const REPO_CONTEXT_TIMEOUT_MS = 30 * 1000;
+
+// Where the host writes the repo-context gathering script inside the sandbox
+// before running it (see buildGatherRepoContextScript).
+export const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
+
+// Last N bytes of the agent's stderr kept for diagnostics on a non-zero exit /
+// timeout, so the Sentry payload carries the real error without inflating it.
+export const STDERR_TAIL_BYTES = 4096;
+
+// Synthetic prompt for the dedicated preview-deploy setup run. It leans on the
+// "Secondary task" section that run()'s system prompt already injects (with the
+// exact workflow files + secrets) when the repo has no preview-deploy workflow.
+export const PREVIEW_DEPLOY_SETUP_PROMPT = [
+    'The user has agreed to set up Lightdash preview deploys for this project.',
+    'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
+    'Keep the workflow structure exactly as shown in that section — the permissions blocks, secret names, lightdash commands, and job/trigger layout are security-reviewed and run with live credentials, so do NOT widen permissions, rename the files, or change the commands. You MAY adapt only the version pinning (action refs, Node version, @lightdash/cli version): use the versions shown by default, but if the repo already has a consistent version-pinning convention in its other .github/workflows files, match it instead. Do NOT modify any dbt models, YAML, or other files.',
+    'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
+].join(' ');
