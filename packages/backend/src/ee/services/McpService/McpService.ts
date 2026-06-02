@@ -10,6 +10,7 @@ import {
     clearAgentToolDefinition,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
+    convertFieldRefToFieldId,
     createToolRunSqlArgsSchema,
     Explore,
     FeatureFlags,
@@ -21,9 +22,11 @@ import {
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
     getItemLabelWithoutTableName,
+    getItemMap,
     getLightdashVersionToolDefinition,
     getQueryResultToolDefinition,
     getSlackAiEchartsConfig,
+    getTotalFilterRules,
     getValidAiQueryLimit,
     isExploreError,
     ItemsMap,
@@ -207,6 +210,13 @@ export type ExtraContext = {
     headerProjectUuid?: string;
 };
 
+type McpEffectiveScope = {
+    tags: string[] | null;
+    spaceAccess: string[] | null;
+    agentUuid: string | null;
+    agentName: string | null;
+};
+
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
 // McpService methods expect. The MCP router (mcpRouter.ts) populates
 // `authInfo.extra` with ExtraContext before the SDK invokes any tool
@@ -339,21 +349,38 @@ export class McpService extends BaseService {
         }
     }
 
+    private async getScopeInfo(
+        context: McpProtocolContext,
+        projectUuid?: string,
+    ) {
+        try {
+            const metadata = await this.getEffectiveScopeFromContext(
+                context,
+                projectUuid,
+            );
+            return [
+                metadata.agentName
+                    ? `Active agent: ${metadata.agentName}`
+                    : null,
+                metadata.tags
+                    ? `Filtered by tags: ${metadata.tags.join(', ')}`
+                    : null,
+            ]
+                .filter(Boolean)
+                .join('. ');
+        } catch (error) {
+            this.logger.warn('Failed to build MCP scope label', { error });
+            return '';
+        }
+    }
+
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
         structuredContent?: Record<string, unknown>,
+        projectUuid?: string,
     ) {
-        const metadata = await this.getActiveContextMetadata(context);
-
-        const scopeInfo = [
-            metadata.agentName ? `Active agent: ${metadata.agentName}` : null,
-            metadata.tags
-                ? `Filtered by tags: ${metadata.tags.join(', ')}`
-                : null,
-        ]
-            .filter(Boolean)
-            .join('. ');
+        const scopeInfo = await this.getScopeInfo(context, projectUuid);
 
         const content = [{ type: 'text' as const, text: toolResult }];
 
@@ -491,6 +518,86 @@ export class McpService extends BaseService {
             },
             userAttributeOverrides,
         };
+    }
+
+    private async assertMetricQueryInEffectiveScope({
+        ctx,
+        user,
+        projectUuid,
+        metricQuery,
+    }: {
+        ctx: McpProtocolContext;
+        user: SessionUser;
+        projectUuid: string;
+        metricQuery: MetricQuery;
+    }) {
+        const tagsFromContext = await this.getEffectiveTagsFromContext(
+            ctx,
+            projectUuid,
+        );
+        const userAttributeOverrides =
+            await this.getUserAttributeOverridesFromContext(ctx);
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            tagsFromContext,
+            metricQuery.exploreName,
+            userAttributeOverrides,
+        );
+        McpService.assertMetricQueryFieldsInExplore(metricQuery, explore);
+    }
+
+    private static assertMetricQueryFieldsInExplore(
+        metricQuery: MetricQuery,
+        explore: Explore,
+    ) {
+        const filterFieldIds = getTotalFilterRules(metricQuery.filters).map(
+            (rule) => rule.target.fieldId,
+        );
+        const additionalMetricFieldIds = (
+            metricQuery.additionalMetrics ?? []
+        ).flatMap((metric) => [
+            metric.baseDimensionName
+                ? `${metric.table}_${metric.baseDimensionName}`
+                : null,
+            metric.baseMetricId ?? null,
+            metric.timeDimensionId ?? null,
+            ...(metric.distinctKeys ?? []).map((fieldRef) =>
+                convertFieldRefToFieldId(fieldRef, metric.table),
+            ),
+            ...(metric.filters ?? []).map((filter) =>
+                convertFieldRefToFieldId(filter.target.fieldRef, metric.table),
+            ),
+        ]);
+
+        const referencedFieldIds = [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...metricQuery.sorts.map((sort) => sort.fieldId),
+            ...filterFieldIds,
+            ...(metricQuery.pivotDimensions ?? []),
+            ...additionalMetricFieldIds,
+        ].filter((fieldId): fieldId is string => !!fieldId);
+
+        const itemMap = getItemMap(
+            explore,
+            metricQuery.additionalMetrics ?? [],
+            metricQuery.tableCalculations ?? [],
+            metricQuery.customDimensions ?? [],
+        );
+        referencedFieldIds.forEach((fieldId) => {
+            if (!itemMap[fieldId]) {
+                throw new NotFoundError(`Field not found: ${fieldId}`);
+            }
+        });
+    }
+
+    private static assertFieldInExplore(fieldId: string, explore: Explore) {
+        const itemMap = getItemMap(explore);
+        if (!itemMap[fieldId]) {
+            throw new NotFoundError(`Field not found: ${fieldId}`);
+        }
     }
 
     private static buildRenderChartQueryTool({
@@ -691,15 +798,7 @@ export class McpService extends BaseService {
               }
             : null;
 
-        const metadata = await this.getActiveContextMetadata(ctx);
-        const scopeInfo = [
-            metadata.agentName ? `Active agent: ${metadata.agentName}` : null,
-            metadata.tags
-                ? `Filtered by tags: ${metadata.tags.join(', ')}`
-                : null,
-        ]
-            .filter(Boolean)
-            .join('. ');
+        const scopeInfo = await this.getScopeInfo(ctx, projectUuid);
 
         const content = [
             {
@@ -836,6 +935,7 @@ export class McpService extends BaseService {
                         sqlRunnerUrl,
                     },
                 },
+                projectUuid,
             );
         }
 
@@ -844,16 +944,21 @@ export class McpService extends BaseService {
             columns,
         });
 
-        return this.buildScopedResponse(ctx, csv, {
-            result: {
-                ...(includeStatus ? { queryUuid } : {}),
-                status: 'done' as const,
-                rows,
-                columns,
-                rowCount: rows.length,
-                sqlRunnerUrl,
+        return this.buildScopedResponse(
+            ctx,
+            csv,
+            {
+                result: {
+                    ...(includeStatus ? { queryUuid } : {}),
+                    status: 'done' as const,
+                    rows,
+                    columns,
+                    rowCount: rows.length,
+                    sqlRunnerUrl,
+                },
             },
-        });
+            projectUuid,
+        );
     }
 
     private getMcpCompatibleSchema<TShape extends ZodRawShape>(
@@ -911,6 +1016,7 @@ export class McpService extends BaseService {
                             exitCode: result.exitCode,
                             prUrl: result.prUrl,
                         },
+                        projectUuid,
                     );
                 } catch (e) {
                     const errorMessage =
@@ -984,7 +1090,11 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
 
-                    const tagsFromContext = await this.getTagsFromContext(ctx);
+                    const tagsFromContext =
+                        await this.getEffectiveTagsFromContext(
+                            ctx,
+                            projectUuid,
+                        );
 
                     const userAttributeOverrides =
                         await this.getUserAttributeOverridesFromContext(ctx);
@@ -1012,6 +1122,8 @@ export class McpService extends BaseService {
                     return await this.buildScopedResponse(
                         ctx,
                         await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
                     );
                 } catch (error) {
                     this.logger.error(
@@ -1046,7 +1158,10 @@ export class McpService extends BaseService {
 
                 const { user } = McpService.getAccount(ctx);
 
-                const tagsFromContext = await this.getTagsFromContext(ctx);
+                const tagsFromContext = await this.getEffectiveTagsFromContext(
+                    ctx,
+                    argsWithProject.projectUuid,
+                );
                 const userAttributeOverrides =
                     await this.getUserAttributeOverridesFromContext(ctx);
                 const availableExplores = await this.getAvailableExplores(
@@ -1076,6 +1191,8 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
                 );
             },
         );
@@ -1115,6 +1232,8 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
                 );
             },
         );
@@ -1153,6 +1272,8 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
                 );
             },
         );
@@ -1428,7 +1549,8 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = McpService.getAccount(ctx);
+                const { user, organizationUuid, account } =
+                    McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
 
@@ -1439,6 +1561,10 @@ export class McpService extends BaseService {
                 }
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
+                const project = await this.projectService.getProject(
+                    projectUuid,
+                    account,
+                );
 
                 // Validates copilot enabled, agent exists, user has access, and returns summary context
                 const agent = await this.aiAgentService.getAgent(
@@ -1457,8 +1583,8 @@ export class McpService extends BaseService {
                     userUuid: user.userUuid,
                     organizationUuid,
                     context: {
-                        projectUuid: existingContext?.context.projectUuid ?? '',
-                        projectName: existingContext?.context.projectName ?? '',
+                        projectUuid: agent.projectUuid,
+                        projectName: project.name,
                         tags: existingContext?.context.tags || null,
                         agentUuid: agent.uuid,
                         agentName: agent.name,
@@ -1773,7 +1899,7 @@ export class McpService extends BaseService {
                 this.trackToolCall(ctx, McpToolName.RENDER_CHART, projectUuid);
 
                 try {
-                    const { account } = McpService.getAccount(ctx);
+                    const { user, account } = McpService.getAccount(ctx);
                     const renderTool =
                         toolRenderChartArgsSchemaTransformed.parse(
                             argsWithProject,
@@ -1801,6 +1927,13 @@ export class McpService extends BaseService {
                                 `Query is not ready to render; current status is ${queryHistory.status}`,
                         );
                     }
+
+                    await this.assertMetricQueryInEffectiveScope({
+                        ctx,
+                        user,
+                        projectUuid,
+                        metricQuery: queryHistory.metricQuery,
+                    });
 
                     const queryTool = McpService.buildRenderChartQueryTool({
                         renderTool,
@@ -1881,6 +2014,8 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
                 );
             },
         );
@@ -1991,7 +2126,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { account } = McpService.getAccount(ctx);
+                const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 this.trackToolCall(
@@ -2062,6 +2197,7 @@ export class McpService extends BaseService {
                                     error: queryHistory.error ?? null,
                                 },
                             },
+                            projectUuid,
                         );
                     }
 
@@ -2087,6 +2223,13 @@ export class McpService extends BaseService {
                     }
 
                     if (isMcpMetricQuery) {
+                        await this.assertMetricQueryInEffectiveScope({
+                            ctx,
+                            user,
+                            projectUuid,
+                            metricQuery: queryHistory.metricQuery,
+                        });
+
                         const results =
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
@@ -2154,15 +2297,28 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
+                const effectiveScope = await this.getEffectiveScopeFromContext(
+                    ctx,
+                    projectUuid,
+                );
                 const verifiedContent =
                     await this.contentVerificationService.listVerifiedContent(
                         user,
                         projectUuid,
                     );
+                const scopedVerifiedContent = verifiedContent.filter(
+                    ({ spaceUuid }) =>
+                        McpService.hasAgentSpaceAccess(
+                            effectiveScope.spaceAccess,
+                            spaceUuid,
+                        ),
+                );
 
                 return this.buildScopedResponse(
                     ctx,
-                    JSON.stringify(verifiedContent, null, 2),
+                    JSON.stringify(scopedVerifiedContent, null, 2),
+                    undefined,
+                    projectUuid,
                 );
             },
         );
@@ -2189,6 +2345,7 @@ export class McpService extends BaseService {
 
                 const metadata = await this.getActiveContextMetadata(ctx);
                 const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.getProjectUuidFromContext(ctx);
 
                 let promptText: string;
 
@@ -2197,7 +2354,7 @@ export class McpService extends BaseService {
                         const agent = await this.aiAgentService.getAgent(
                             user,
                             metadata.agentUuid,
-                            undefined,
+                            projectUuid,
                             { includeSummaryContext: true },
                         );
                         promptText = getMcpAnalystPromptWithContext({
@@ -2248,11 +2405,19 @@ export class McpService extends BaseService {
         return contextRow?.context.projectUuid;
     }
 
-    async getTagsFromContext(context: McpProtocolContext) {
+    private async getEffectiveScopeFromContext(
+        context: McpProtocolContext,
+        projectUuid?: string,
+    ): Promise<McpEffectiveScope> {
         const user = context.authInfo?.extra.user;
 
         if (!user || !user.organizationUuid) {
-            return null;
+            return {
+                tags: null,
+                spaceAccess: null,
+                agentUuid: null,
+                agentName: null,
+            };
         }
 
         const contextRow = await this.mcpContextModel.getContext(
@@ -2260,7 +2425,67 @@ export class McpService extends BaseService {
             user.organizationUuid,
         );
 
-        return contextRow?.context.tags || null;
+        if (!contextRow) {
+            return {
+                tags: null,
+                spaceAccess: null,
+                agentUuid: null,
+                agentName: null,
+            };
+        }
+
+        if (projectUuid && contextRow.context.projectUuid !== projectUuid) {
+            return {
+                tags: null,
+                spaceAccess: null,
+                agentUuid: null,
+                agentName: null,
+            };
+        }
+
+        if (!contextRow.context.agentUuid) {
+            return {
+                tags: contextRow.context.tags || null,
+                spaceAccess: null,
+                agentUuid: null,
+                agentName: null,
+            };
+        }
+
+        const agent = await this.aiAgentService.getAgent(
+            user,
+            contextRow.context.agentUuid,
+            projectUuid,
+        );
+
+        return {
+            tags: agent.tags,
+            spaceAccess: agent.spaceAccess,
+            agentUuid: agent.uuid,
+            agentName: agent.name,
+        };
+    }
+
+    private async getEffectiveTagsFromContext(
+        context: McpProtocolContext,
+        projectUuid?: string,
+    ) {
+        const scope = await this.getEffectiveScopeFromContext(
+            context,
+            projectUuid,
+        );
+        return scope.tags;
+    }
+
+    private static hasAgentSpaceAccess(
+        agentSpaceAccess: string[] | null | undefined,
+        spaceUuid: string,
+    ): boolean {
+        return (
+            !agentSpaceAccess ||
+            agentSpaceAccess.length === 0 ||
+            agentSpaceAccess.includes(spaceUuid)
+        );
     }
 
     async getAgentUuidFromContext(context: McpProtocolContext) {
@@ -2531,11 +2756,21 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get tags from context for filtering
-        const tagsFromContext = await this.getTagsFromContext(context);
+        const tagsFromContext = await this.getEffectiveTagsFromContext(
+            context,
+            projectUuid,
+        );
 
         // Get merged user attributes (DB + session overrides)
         const userAttributes = await this.getMergedUserAttributes(context);
+        const userAttributeOverrides =
+            await this.getUserAttributeOverridesFromContext(context);
+        const filteredExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            tagsFromContext,
+            userAttributeOverrides,
+        );
 
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('McpService.findExplores', args, async () => {
@@ -2545,7 +2780,6 @@ export class McpService extends BaseService {
                     catalogSearch: {
                         searchQuery: args.searchQuery,
                         type: CatalogType.Table,
-                        catalogTags: tagsFromContext || undefined,
                     },
                     context: CatalogSearchContext.MCP,
                     paginateArgs: {
@@ -2553,6 +2787,7 @@ export class McpService extends BaseService {
                         pageSize: 15,
                     },
                     fullTextSearchOperator: 'OR',
+                    filteredExplores,
                 });
 
                 const exploreSearchResults = searchResults.data
@@ -2573,7 +2808,6 @@ export class McpService extends BaseService {
                         catalogSearch: {
                             searchQuery: args.searchQuery,
                             type: CatalogType.Field,
-                            catalogTags: tagsFromContext || undefined,
                         },
                         context: CatalogSearchContext.MCP,
                         paginateArgs: {
@@ -2581,6 +2815,7 @@ export class McpService extends BaseService {
                             pageSize: 50,
                         },
                         fullTextSearchOperator: 'OR',
+                        filteredExplores,
                     });
 
                 const topMatchingFields = fieldSearchResults.data
@@ -2628,8 +2863,10 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get tags from context for filtering
-        const tagsFromContext = await this.getTagsFromContext(context);
+        const tagsFromContext = await this.getEffectiveTagsFromContext(
+            context,
+            projectUuid,
+        );
 
         // Get merged user attributes (DB + session overrides)
         const userAttributes = await this.getMergedUserAttributes(context);
@@ -2699,6 +2936,11 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const effectiveScope = await this.getEffectiveScopeFromContext(
+            context,
+            projectUuid,
+        );
+
         const findContent: FindContentFn = (args) =>
             wrapSentryTransaction('McpService.findContent', args, async () => {
                 const dashboardSearchResults =
@@ -2728,7 +2970,12 @@ export class McpService extends BaseService {
                     );
 
                 return {
-                    content: filteredResults,
+                    content: filteredResults.filter(({ spaceUuid }) =>
+                        McpService.hasAgentSpaceAccess(
+                            effectiveScope.spaceAccess,
+                            spaceUuid,
+                        ),
+                    ),
                 };
             });
 
@@ -2763,8 +3010,10 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get tags from context and fetch available explores
-        const tagsFromContext = await this.getTagsFromContext(context);
+        const tagsFromContext = await this.getEffectiveTagsFromContext(
+            context,
+            projectUuid,
+        );
         const userAttributeOverrides =
             await this.getUserAttributeOverridesFromContext(context);
         const explores = await this.getAvailableExplores(
@@ -2805,7 +3054,10 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get user attribute overrides for row-level security
+        const tagsFromContext = await this.getEffectiveTagsFromContext(
+            context,
+            projectUuid,
+        );
         const userAttributeOverrides =
             await this.getUserAttributeOverridesFromContext(context);
 
@@ -2814,6 +3066,15 @@ export class McpService extends BaseService {
                 'McpService.searchFieldValues',
                 args,
                 async () => {
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        tagsFromContext,
+                        args.table,
+                        userAttributeOverrides,
+                    );
+                    McpService.assertFieldInExplore(args.fieldId, explore);
+
                     const dimensionFilters = args.filters?.dimensions;
                     const andFilters =
                         dimensionFilters && 'and' in dimensionFilters
