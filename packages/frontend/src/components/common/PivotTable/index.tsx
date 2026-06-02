@@ -5,6 +5,7 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getRowConditionalFormattingColor,
     getItemId,
     getPivotRowContextKey,
     isDimension,
@@ -1535,6 +1536,39 @@ const PivotTable: FC<PivotTableProps> = ({
 
                     const toggleExpander = row.getToggleExpandedHandler();
 
+                    // Row-level conditional formatting (PROD-8058): evaluate
+                    // once per row using a representative data column's pivot
+                    // context, then paint every cell in the row.
+                    const representativeHeaderInfo = row
+                        .getVisibleCells()
+                        .find((c) => {
+                            const m = c.column.columnDef.meta;
+                            return (
+                                c.column.id !== ROW_NUMBER_COLUMN_ID &&
+                                m?.type !== 'indexValue' &&
+                                m?.type !== 'label' &&
+                                m?.type !== 'rowTotal'
+                            );
+                        })?.column.columnDef.meta?.headerInfo;
+
+                    const rowLevelFields = representativeHeaderInfo
+                        ? data.pivotConfig.metricsAsRows
+                            ? buildRowFieldsForMetricsAsRows(
+                                  rowIndex,
+                                  representativeHeaderInfo,
+                              )
+                            : buildRowFieldsFromVisibleCells(
+                                  row,
+                                  representativeHeaderInfo,
+                              )
+                        : buildRowFieldsFromVisibleCells(row, undefined);
+
+                    const rowBackgroundColor = getRowConditionalFormattingColor({
+                        conditionalFormattings,
+                        rowFields: rowLevelFields,
+                        minMaxMap,
+                    });
+
                     return (
                         <Table.Row
                             key={`row-${rowIndex}-${data.pivotConfig.metricsAsRows}`}
@@ -1723,21 +1757,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                             getConditionalRuleLabelFromItem,
                                         );
 
+                                    // No cell-level result → fall back to the row fill (if any).
                                     if (
                                         !conditionalFormattingResult ||
                                         !isHexCodeColor(
                                             conditionalFormattingResult.color,
                                         )
                                     ) {
-                                        return undefined;
+                                        return rowBackgroundColor
+                                            ? {
+                                                  tooltipContent,
+                                                  color: readableColor(
+                                                      rowBackgroundColor,
+                                                  ),
+                                                  backgroundColor:
+                                                      rowBackgroundColor,
+                                              }
+                                            : undefined;
                                     }
 
-                                    // When applying to text, set color directly without background
-                                    // When applying to cell, set background and calculate readable text color
+                                    // Cell-level result present: cell wins. Keep the row fill as the background
+                                    // under a TEXT rule so the row stays continuous; a CELL rule overrides bg.
                                     return applyToText
                                         ? {
                                               tooltipContent,
                                               color: conditionalFormattingResult.color,
+                                              backgroundColor:
+                                                  rowBackgroundColor ?? undefined,
                                           }
                                         : {
                                               tooltipContent,
