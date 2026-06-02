@@ -37,16 +37,15 @@ export const runSqlQuery = createAsyncThunk<
     { rejectValue: ApiErrorDetail }
 >(
     'sqlRunner/runSqlQuery',
-    async (
-        { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue },
-    ) => {
+    async ({ sql, limit, projectUuid, parameterValues }, { rejectWithValue }) => {
         try {
+            // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             return await executeSqlQuery(
                 projectUuid,
                 sql,
                 limit,
                 parameterValues,
+                true,
             );
         } catch (error) {
             if (isApiError(error)) {

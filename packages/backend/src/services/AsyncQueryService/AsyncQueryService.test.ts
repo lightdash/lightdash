@@ -739,6 +739,57 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test('prefers requestParameters.invalidateCache over args.invalidateCache', async () => {
+            const mockCacheResult: MissCacheResult = {
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            };
+
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce(mockCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
+                },
+                { query: metricQueryMock, invalidateCache: true },
+            );
+
+            expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
+                projectUuid,
+                expect.any(String),
+                expect.any(Object),
+                true,
+            );
+        });
+
         test('Cache Disabled - Complete Flow', async () => {
             // GIVEN: Service configured with cacheEnabled: false
             const serviceWithoutCache = getMockedAsyncQueryService({
@@ -2397,6 +2448,77 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        describe('cache invalidation', () => {
+            it('skips cache when invalidateCache is true', async () => {
+                const service = getMockedAsyncQueryService({
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        cacheEnabled: true,
+                    },
+                });
+
+                service.warehouseClients = {};
+                service.cacheService = {
+                    isResultsCacheEnabled: jest.fn(async () => true),
+                    findCachedResultsFile: jest.fn(async () => null),
+                } as unknown as ICacheService;
+
+                service.findResultsCache = jest.fn().mockResolvedValue({
+                    cacheHit: false,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
+                } satisfies MissCacheResult);
+
+                (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                jest.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                    undefined,
+                );
+
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                const mockWarehouseClient = {
+                    ...warehouseClientMock,
+                    streamQuery: jest.fn(async (_sql, callback) => {
+                        await callback({
+                            fields: {
+                                test_col: { type: DimensionType.STRING },
+                            },
+                            rows: [],
+                        });
+                    }),
+                };
+
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: mockWarehouseClient,
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                await service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    invalidateCache: true,
+                });
+
+                expect(service.findResultsCache).toHaveBeenCalledWith(
+                    projectUuid,
+                    expect.any(String),
+                    sessionAccount,
+                    true,
+                );
+            });
+        });
+
         describe('user attributes replacement', () => {
             it('should replace user attributes in SQL queries', async () => {
                 // GIVEN: Service with mocked user attributes

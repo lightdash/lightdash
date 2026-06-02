@@ -184,7 +184,6 @@ export const ContentPanel: FC = () => {
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
             } else {
-                // Need to run SQL query first
                 await dispatch(
                     runSqlQuery({
                         sql: sqlToUse,
@@ -193,6 +192,7 @@ export const ContentPanel: FC = () => {
                         parameterValues,
                     }),
                 );
+
                 // If we're on viz tab, also fetch chart data after SQL completes
                 if (activeEditorTab === EditorTabs.VISUALIZATION) {
                     await dispatch(
@@ -415,6 +415,8 @@ export const ContentPanel: FC = () => {
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
                         : (downloadLimit ?? limit),
+                    undefined,
+                    true,
                 );
                 return newQuery.queryUuid;
             }

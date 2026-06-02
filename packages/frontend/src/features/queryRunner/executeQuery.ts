@@ -43,12 +43,18 @@ export const executeSqlQuery = async (
     sql: string,
     limit?: number,
     parameterValues?: ParametersValuesMap,
+    invalidateCache?: boolean,
 ): Promise<ResultsAndColumns> => {
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         url: `/projects/${projectUuid}/query/sql`,
         version: 'v2',
         method: 'POST',
-        body: JSON.stringify({ sql, limit, parameters: parameterValues }),
+        body: JSON.stringify({
+            sql,
+            limit,
+            parameters: parameterValues,
+            invalidateCache,
+        }),
     });
 
     const query = await pollForResults(projectUuid, response.queryUuid);
