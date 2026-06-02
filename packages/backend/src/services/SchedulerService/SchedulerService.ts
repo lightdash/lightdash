@@ -612,7 +612,13 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
-        return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const scheduler =
+            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        await this.checkViewResource(user, scheduler);
+        return scheduler;
     }
 
     async getUserSchedulers(
