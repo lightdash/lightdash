@@ -4670,6 +4670,7 @@ Even if only the part is being changed, make sure to pass the entire value with 
     },
   },
   {
+
     "description": "Run a chart-as-code metric query or saved chart content and return the rows it produces as CSV.
 
 Use this to verify generated or edited chart content before presenting it as complete.
@@ -4842,16 +4843,19 @@ Input modes:
     },
   },
   {
-    "description": "Execute a metric query and create a chart artifact.
+
+    "description": "Execute a metric query.
+
+This tool returns metric query data only. It does not render charts. To visualize a completed query in MCP App-capable clients, call render_chart with the queryUuid and chart configuration after this tool or get_query_result returns done.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
 - If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
+      queryUuid: string,
       rows: Array<Record<string, unknown>>,
       fields: Record<string, unknown>,
-      echartsOption: Record<string, unknown>,
       exploreUrl: string | null
     }
   }
@@ -6534,7 +6538,8 @@ Response shape (MCP CallToolResult):
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
       columns:  string[],                        // column names in order
-      rowCount: number                           // total rows returned
+      rowCount: number,                          // total rows returned
+      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
     }
   }
 - If the query is still running, structuredContent: {
@@ -6552,7 +6557,7 @@ Notes:
 - This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
 - Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
 - On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 ",
