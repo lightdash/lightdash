@@ -1364,11 +1364,21 @@ export class AiWritebackService extends BaseService {
         // is free to interleave; we just announce each phase the first time
         // we see it.
         type AgentPhase = 'discovering' | 'editing' | 'compiling';
-        const phaseProgressText: Record<AgentPhase, string> = {
-            discovering: 'Discovering models',
-            editing: 'Editing models',
-            compiling: 'Compiling project',
-        };
+        // Phase labels are task-specific: a dbt writeback edits models, whereas
+        // preview-deploy setup writes CI workflow files — so "Editing models"
+        // would read as nonsense there.
+        const phaseProgressText: Record<AgentPhase, string> =
+            source === 'preview_deploy_setup'
+                ? {
+                      discovering: 'Inspecting repository',
+                      editing: 'Writing workflow files',
+                      compiling: 'Validating workflow',
+                  }
+                : {
+                      discovering: 'Discovering models',
+                      editing: 'Editing models',
+                      compiling: 'Compiling project',
+                  };
         const classifyTool = (
             name: string,
             input: unknown,
