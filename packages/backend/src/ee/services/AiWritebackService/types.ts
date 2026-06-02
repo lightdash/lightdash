@@ -39,20 +39,11 @@ export type GithubInstallation = {
     installationId: string;
     /** Installation access token — authenticates the in-sandbox clone/push. */
     token: string;
-    /**
-     * OAuth user token used to open/update the pull request so it is attributed
-     * to the GitHub user who connected the app for the org, not the Lightdash
-     * app itself. `null` when no user identity could be resolved, in which case
-     * the PR falls back to being opened by the app installation.
-     */
-    prToken: string | null;
-    /** Author stamped on the writeback commits — the GitHub user, or the bot fallback. */
+    /** Author stamped on the (local) writeback commit — the Lightdash app identity. */
     commitAuthor: GithubCommitAuthor;
     /**
      * `Co-authored-by:` trailer appended to the commit message to credit the
-     * Lightdash app bot (resolved to its avatar-backed GitHub identity), so the
-     * agent's involvement is visible even though the commit is authored as the
-     * user.
+     * Lightdash app bot (resolved to its avatar-backed GitHub identity).
      */
     coAuthorTrailer: string;
 };

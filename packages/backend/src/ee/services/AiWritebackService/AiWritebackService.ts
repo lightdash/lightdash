@@ -30,10 +30,8 @@ import {
     createPullRequest,
     createSignedCommitOnBranch,
     getAppBotIdentity,
-    getAuthenticatedUser,
     getBranchHeadSha,
     getInstallationToken,
-    getOrRefreshToken,
     updatePullRequest,
 } from '../../../clients/github/Github';
 import type { GithubFileChanges } from '../../../clients/github/Github';
@@ -93,7 +91,6 @@ import type {
 } from './types';
 import {
     buildCoAuthorTrailer,
-    buildNoreplyEmail,
     classifyToolPhase,
     extractPrMetadata,
     getPhaseProgressText,
@@ -192,12 +189,14 @@ export class AiWritebackService extends BaseService {
 
     /**
      * Resolve GitHub auth for the organization. The installation access token
-     * authenticates the in-sandbox clone. We additionally resolve the OAuth user
-     * identity (the user who connected the GitHub App for the org) so the pull
-     * request is opened — and the signed commits authored — as a real user
-     * instead of the Lightdash app. Best-effort: any failure resolving the user
-     * identity falls back to the app installation + bot author. Throws only when
-     * no installation exists at all.
+     * authenticates the in-sandbox clone, and the pull request is opened — and
+     * the signed commits authored — as the Lightdash GitHub App itself. We
+     * deliberately do not attribute the PR to a GitHub user: the only user
+     * token we hold belongs to whoever connected the app for the org, which is
+     * almost never the person who triggered the writeback (e.g. via Slack), so
+     * using it misattributes the PR. The triggering user is recorded against
+     * the PR in our own DB instead (see recordWritebackPullRequest). Throws
+     * only when no installation exists at all.
      */
     private async getGithubInstallation(
         organizationUuid: string,
@@ -215,37 +214,10 @@ export class AiWritebackService extends BaseService {
         }
         const token = await getInstallationToken(installationId);
 
-        let prToken: string | null = null;
-        let commitAuthor: GithubCommitAuthor = {
+        const commitAuthor: GithubCommitAuthor = {
             name: COMMIT_AUTHOR_NAME,
             email: COMMIT_AUTHOR_EMAIL,
         };
-        try {
-            const { token: oauthToken, refreshToken } =
-                await this.githubAppInstallationsModel.getAuth(
-                    organizationUuid,
-                );
-            const refreshed = await getOrRefreshToken(oauthToken, refreshToken);
-            if (refreshed.token !== oauthToken) {
-                await this.githubAppInstallationsModel.updateAuth(
-                    organizationUuid,
-                    refreshed.token,
-                    refreshed.refreshToken,
-                );
-            }
-            const githubUser = await getAuthenticatedUser(refreshed.token);
-            prToken = refreshed.token;
-            commitAuthor = {
-                name: githubUser.login,
-                email: buildNoreplyEmail(githubUser),
-            };
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: could not resolve GitHub user identity for org ${organizationUuid}; the PR will be opened by the app. ${getErrorMessage(
-                    error,
-                )}`,
-            );
-        }
 
         let coAuthorTrailer = CO_AUTHOR_TRAILER;
         try {
@@ -262,7 +234,6 @@ export class AiWritebackService extends BaseService {
         return {
             installationId,
             token,
-            prToken,
             commitAuthor,
             coAuthorTrailer,
         };
@@ -476,7 +447,6 @@ export class AiWritebackService extends BaseService {
         description,
         commitAuthor,
         coAuthorTrailer,
-        prToken,
         installationId,
         setStage,
     }: {
@@ -488,7 +458,6 @@ export class AiWritebackService extends BaseService {
         description: string;
         commitAuthor: GithubCommitAuthor;
         coAuthorTrailer: string;
-        prToken: string | null;
         installationId: string;
         setStage: SetStage;
     }): Promise<void> {
@@ -513,7 +482,7 @@ export class AiWritebackService extends BaseService {
             headline: title,
             body,
             fileChanges,
-            ...(prToken ? { token: prToken } : { installationId }),
+            installationId,
         });
     }
 
@@ -1467,7 +1436,6 @@ export class AiWritebackService extends BaseService {
                 prUrl: targetPrUrl,
                 githubConnection: turn.githubConnection,
                 installationId: github.installationId,
-                prToken: github.prToken,
                 commitAuthor: github.commitAuthor,
                 coAuthorTrailer: github.coAuthorTrailer,
                 setStage,
@@ -1504,7 +1472,6 @@ export class AiWritebackService extends BaseService {
             sandbox,
             githubConnection: turn.githubConnection,
             installationId: github.installationId,
-            prToken: github.prToken,
             commitAuthor: github.commitAuthor,
             coAuthorTrailer: github.coAuthorTrailer,
             setStage,
@@ -1578,7 +1545,6 @@ export class AiWritebackService extends BaseService {
         sandbox,
         githubConnection,
         installationId,
-        prToken,
         commitAuthor,
         coAuthorTrailer,
         setStage,
@@ -1588,7 +1554,6 @@ export class AiWritebackService extends BaseService {
         sandbox: Sandbox;
         githubConnection: GithubConnection;
         installationId: string;
-        prToken: string | null;
         commitAuthor: GithubCommitAuthor;
         coAuthorTrailer: string;
         setStage: SetStage;
@@ -1619,7 +1584,7 @@ export class AiWritebackService extends BaseService {
             ));
 
         const branch = `lightdash-ai-writeback/${randomUUID()}`;
-        const auth = prToken ? { token: prToken } : { installationId };
+        const auth = { installationId };
 
         // Create the feature branch on the remote at the base tip, then commit
         // onto it via the API so the commit is signed/verified. expectedHeadOid
@@ -1648,15 +1613,12 @@ export class AiWritebackService extends BaseService {
             description,
             commitAuthor,
             coAuthorTrailer,
-            prToken,
             installationId,
             setStage,
         });
 
         setStage('pull_request');
-        // Open the PR as the user when we resolved their OAuth token (passing a
-        // user token and omitting installationId makes getOctokit auth as the
-        // user); otherwise fall back to the app installation.
+        // The PR is always opened by the Lightdash GitHub App installation.
         const pr = await createPullRequest({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
@@ -1681,7 +1643,6 @@ export class AiWritebackService extends BaseService {
         prUrl,
         githubConnection,
         installationId,
-        prToken,
         commitAuthor,
         coAuthorTrailer,
         setStage,
@@ -1692,7 +1653,6 @@ export class AiWritebackService extends BaseService {
         prUrl: string;
         githubConnection: GithubConnection;
         installationId: string;
-        prToken: string | null;
         commitAuthor: GithubCommitAuthor;
         coAuthorTrailer: string;
         setStage: SetStage;
@@ -1714,7 +1674,7 @@ export class AiWritebackService extends BaseService {
                 'Follow-up changes from the Lightdash AI writeback agent.',
             ));
 
-        const auth = prToken ? { token: prToken } : { installationId };
+        const auth = { installationId };
 
         // The sandbox is on the PR's branch (resumed, or freshly checked out
         // for a pasted link). Commit this turn's edits onto it via the API
@@ -1741,7 +1701,6 @@ export class AiWritebackService extends BaseService {
             description,
             commitAuthor,
             coAuthorTrailer,
-            prToken,
             installationId,
             setStage,
         });

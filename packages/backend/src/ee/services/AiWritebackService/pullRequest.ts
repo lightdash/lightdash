@@ -57,9 +57,7 @@ export const resolveAdoptedPullRequest = async ({
         );
     }
 
-    const auth = github.prToken
-        ? { token: github.prToken }
-        : { installationId: github.installationId };
+    const auth = { installationId: github.installationId };
     const pr = await getPullRequest({
         owner: githubConnection.owner,
         repo: githubConnection.repo,

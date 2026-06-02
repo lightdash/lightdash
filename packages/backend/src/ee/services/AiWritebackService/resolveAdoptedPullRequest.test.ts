@@ -20,7 +20,6 @@ const githubConnection: GithubConnection = {
 const github: GithubInstallation = {
     installationId: 'inst-1',
     token: 'tok',
-    prToken: null,
     commitAuthor: { name: 'a', email: 'a@b.c' },
     coAuthorTrailer: '',
 };
