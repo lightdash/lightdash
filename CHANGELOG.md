@@ -1,3 +1,16 @@
+# [0.3080.0](https://github.com/lightdash/lightdash/compare/0.3079.0...0.3080.0) (2026-06-02)
+
+
+### Bug Fixes
+
+* **pivot:** alias multi-join CTE columns so ClickHouse resolves them downstream (PROD-8026) ([#23711](https://github.com/lightdash/lightdash/issues/23711)) ([#23790](https://github.com/lightdash/lightdash/issues/23790)) ([bda5e29](https://github.com/lightdash/lightdash/commit/bda5e29b79c05c720b50d80d75d207d91059538a))
+
+
+### Features
+
+* **ai:** searchSemanticLayer tool for project-wide metric inventory (PROD-8072) ([#23787](https://github.com/lightdash/lightdash/issues/23787)) ([7a4ae18](https://github.com/lightdash/lightdash/commit/7a4ae186f88eafedebf56d9074aa64bd6c2d2e83))
+* **pivot:** warehouse-computed row totals for pivot tables ([#23780](https://github.com/lightdash/lightdash/issues/23780)) ([e3a3d10](https://github.com/lightdash/lightdash/commit/e3a3d1054a7c09e6e445a12440049e9af11c59a1))
+
 # [0.3079.0](https://github.com/lightdash/lightdash/compare/0.3078.0...0.3079.0) (2026-06-02)
 
 
