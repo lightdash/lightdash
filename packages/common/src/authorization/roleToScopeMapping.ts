@@ -132,6 +132,10 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'manage:SpotlightTableConfig',
         'manage:ContentAsCode',
+        // Redundant for developers (covered by the broad manage above) but
+        // surfaced so admin-cloned custom roles can drop full
+        // `manage:ContentAsCode` and keep self-preview write.
+        'manage:ContentAsCode@self',
         'manage:AiAgent',
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
@@ -247,6 +251,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgentThread',
         'view:ContentAsCode',
         'manage:ContentAsCode',
+        'manage:ContentAsCode@self',
         'view:DataApp',
         'manage:DataApp',
         'manage:DataApp@space',

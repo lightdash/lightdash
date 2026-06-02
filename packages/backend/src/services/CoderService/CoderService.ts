@@ -27,6 +27,7 @@ import {
     NotFoundError,
     ParameterError,
     Project,
+    ProjectType,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
@@ -1233,6 +1234,8 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },
                 }),
             )
@@ -1460,6 +1463,8 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },
                 }),
             )
@@ -1755,6 +1760,8 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },
                 }),
             )
