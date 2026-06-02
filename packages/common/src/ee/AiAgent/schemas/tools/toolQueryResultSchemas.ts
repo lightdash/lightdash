@@ -50,6 +50,7 @@ export const mcpSqlQueryRowsColumnsSchema = z.object({
 export const mcpSqlQueryCompletedResultSchema =
     mcpSqlQueryRowsColumnsSchema.extend({
         status: z.literal('done'),
+        sqlRunnerUrl: z.string().nullable(),
     });
 
 export const mcpMetricQueryResultRowsFieldsSchema = z.object({
@@ -60,19 +61,30 @@ export const mcpMetricQueryResultRowsFieldsSchema = z.object({
 export const mcpMetricQueryCompletedResultSchema =
     mcpMetricQueryResultRowsFieldsSchema.extend({
         status: z.literal('done'),
-        echartsOption: z.unknown().nullable(),
+        queryUuid: createMcpAsyncQueryUuidSchema(),
         exploreUrl: z.string().nullable(),
     });
+
+export const mcpRenderChartResultSchema = z
+    .object({
+        status: z.literal('done'),
+        queryUuid: createMcpAsyncQueryUuidSchema(),
+        exploreUrl: z.string().nullable(),
+        echartsOption: z.unknown().nullable(),
+    })
+    .describe('Rendered chart result for a completed query.');
 
 export const mcpQueryResultDoneSqlResultSchema = z.object({
     status: z.literal('done'),
     queryUuid: createMcpAsyncQueryUuidSchema(),
+    sqlRunnerUrl: z.string().nullable(),
     ...mcpSqlQueryRowsColumnsSchema.shape,
 });
 
 export const mcpQueryResultDoneMetricQueryResultSchema = z.object({
     status: z.literal('done'),
     queryUuid: createMcpAsyncQueryUuidSchema(),
+    exploreUrl: z.string().nullable(),
     ...mcpMetricQueryResultRowsFieldsSchema.shape,
 });
 
@@ -117,3 +129,6 @@ export const mcpGetQueryResultStructuredOutputSchema =
             mcpQueryResultTerminalResultSchema,
         ]),
     );
+
+export const mcpRenderChartStructuredOutputSchema =
+    createMcpStructuredOutputSchema(mcpRenderChartResultSchema);

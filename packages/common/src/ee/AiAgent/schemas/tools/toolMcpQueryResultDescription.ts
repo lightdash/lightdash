@@ -16,6 +16,18 @@ export const MCP_QUERY_COMMON_NOTES = `- ${MCP_QUERY_CLIENT_SUPPORT_NOTE}
 - ${MCP_QUERY_TIMING_NOTE}
 - ${MCP_QUERY_ERROR_NOTE}`;
 
+type McpVisualizationSourceTool =
+    | 'run_metric_query'
+    | 'run_sql'
+    | 'get_query_result';
+
+export const buildMcpVisualizationFollowUpInstruction = (
+    toolName: McpVisualizationSourceTool,
+) =>
+    toolName === 'run_sql'
+        ? 'If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.'
+        : `If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after ${toolName} returns done.`;
+
 type BuildMcpQueryRunResponseDescriptionArgs = {
     contentDescription: string;
     completedResultShape: string;
@@ -41,6 +53,6 @@ ${completedResultShape}
 
 export const MCP_GET_QUERY_RESULT_RESPONSE_DESCRIPTION = `Response shape (MCP CallToolResult):
 - Running: content contains polling status text and structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. ${MCP_QUERY_STRUCTURED_RUNNING_NOTE}
-- Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount }.
-- Completed metric query: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields }.
+- Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount, sqlRunnerUrl }.
+- Completed metric query: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields, exploreUrl }.
 - Failed/cancelled/expired: content contains status/error text and structuredContent.result contains { status, queryUuid, error }.`;

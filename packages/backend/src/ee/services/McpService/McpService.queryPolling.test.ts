@@ -11,6 +11,9 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 jest.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
+    isEnabled: () => false,
+    startSpanManual: (_options: unknown, callback: CallableFunction) =>
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }, jest.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
@@ -45,7 +48,31 @@ const account = {
 const user = {
     userUuid,
     organizationUuid,
+    ability: {
+        can: jest.fn(() => true),
+        cannot: jest.fn(() => false),
+        relevantRuleFor: jest.fn(() => undefined),
+        rules: [],
+    },
 };
+
+const makeExplore = () => ({
+    name: 'orders',
+    baseTable: 'orders',
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            dimensions: {},
+            metrics: {
+                orders_count: {
+                    name: 'orders_count',
+                    tablesReferences: ['orders'],
+                },
+            },
+        },
+    },
+});
 
 const extra = {
     signal: new AbortController().signal,
@@ -68,6 +95,21 @@ const makeQueryHistory = (
     status,
     context,
     error,
+    compiledSql: 'select * from (select 1) limit 10',
+    requestParameters: {
+        sql: 'select 1',
+        limit: 10,
+    },
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: [],
+        metrics: ['orders_count'],
+        sorts: [],
+        filters: {},
+        limit: 10,
+        tableCalculations: [],
+        additionalMetrics: [],
+    },
 });
 
 const makeMcpService = () => {
@@ -92,6 +134,24 @@ const makeMcpService = () => {
         }),
     };
 
+    const shareService = {
+        createShareUrl: jest.fn().mockResolvedValue({ nanoid: 'share-id' }),
+    };
+
+    const projectModel = {
+        findExploresFromCache: jest.fn().mockResolvedValue({
+            orders: makeExplore(),
+        }),
+    };
+
+    const projectService = {
+        getProject: jest.fn().mockResolvedValue({ organizationUuid }),
+    };
+
+    const userAttributesModel = {
+        getAttributeValuesForOrgMember: jest.fn().mockResolvedValue({}),
+    };
+
     const service = new McpService({
         aiAgentService: {},
         aiOrganizationSettingsService: {},
@@ -114,15 +174,15 @@ const makeMcpService = () => {
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel,
-        projectModel: {},
-        projectService: {},
+        projectModel,
+        projectService,
         searchModel: {},
-        shareService: {},
+        shareService,
         spaceService: {},
-        userAttributesModel: {},
+        userAttributesModel,
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
-    return { asyncQueryService, mcpContextModel, service };
+    return { asyncQueryService, mcpContextModel, service, shareService };
 };
 
 const getToolCallback = (toolName: McpToolName) => {
@@ -180,6 +240,37 @@ describe('MCP async query polling', () => {
         });
     });
 
+    it('returns sqlRunnerUrl from a completed run_sql result', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.executeAsyncSqlQuery.mockResolvedValue({ queryUuid });
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(QueryHistoryStatus.READY),
+        );
+        asyncQueryService.getAsyncQueryResults.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [{ one: { value: { raw: 1, formatted: '1' } } }],
+            columns: { one: { reference: 'one' } },
+        });
+
+        const result = await getToolCallback(McpToolName.RUN_SQL)(
+            { sql: 'select 1', limit: 10 },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            structuredContent: {
+                result: {
+                    status: 'done',
+                    rows: [{ one: 1 }],
+                    columns: ['one'],
+                    rowCount: 1,
+                    sqlRunnerUrl:
+                        'https://lightdash.example/projects/project-uuid/sql-runner?share=share-id',
+                },
+            },
+        });
+    });
+
     it('returns running with heartbeatAt from run_metric_query', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
@@ -191,20 +282,6 @@ describe('MCP async query polling', () => {
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             ),
         );
-        jest.spyOn(
-            McpService.prototype as unknown as {
-                getRunMetricQueryDependencies: () => Promise<unknown>;
-            },
-            'getRunMetricQueryDependencies',
-        ).mockResolvedValue({
-            agentContext: {
-                getExplore: jest.fn().mockReturnValue({
-                    name: 'orders',
-                }),
-            },
-            userAttributeOverrides: {},
-        });
-
         const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
             {
                 title: 'Orders',
@@ -234,6 +311,98 @@ describe('MCP async query polling', () => {
                 },
             },
         });
+    });
+
+    it('returns exploreUrl from a completed run_metric_query result', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+            queryUuid,
+        });
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_count: 1 }],
+            fields: {},
+        });
+        const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
+            {
+                title: 'Orders',
+                description: 'Orders count',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_count'],
+                    sorts: [],
+                    limit: 10,
+                },
+                customMetrics: null,
+                tableCalculations: null,
+                chartConfig: null,
+                filters: null,
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            structuredContent: {
+                result: {
+                    status: 'done',
+                    queryUuid,
+                    rows: [{ orders_count: 1 }],
+                    fields: {},
+                    exploreUrl: 'https://lightdash.example/share/share-id',
+                },
+            },
+        });
+    });
+
+    it('renders a chart for completed query results', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_count: 1 }],
+            fields: {},
+        });
+        const result = await getToolCallback(McpToolName.RENDER_CHART)(
+            {
+                queryUuid,
+                title: 'Orders',
+                description: 'Orders count',
+                chartConfig: null,
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            structuredContent: {
+                result: {
+                    status: 'done',
+                    queryUuid,
+                    echartsOption: null,
+                    exploreUrl: 'https://lightdash.example/share/share-id',
+                },
+            },
+            _meta: {
+                result: {
+                    rows: [{ orders_count: 1 }],
+                    fields: {},
+                    echartsOption: null,
+                    exploreUrl: 'https://lightdash.example/share/share-id',
+                },
+            },
+        });
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
     });
 
     it('keeps get_query_result running without fetching result pages', async () => {
@@ -267,7 +436,7 @@ describe('MCP async query polling', () => {
     });
 
     it('returns final SQL rows when get_query_result sees readiness during its wait', async () => {
-        const { asyncQueryService } = makeMcpService();
+        const { asyncQueryService, shareService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
             makeQueryHistory(QueryHistoryStatus.QUEUED),
         );
@@ -293,6 +462,8 @@ describe('MCP async query polling', () => {
                     rows: [{ one: 1 }],
                     columns: ['one'],
                     rowCount: 1,
+                    sqlRunnerUrl:
+                        'https://lightdash.example/projects/project-uuid/sql-runner?share=share-id',
                 },
             },
         });
@@ -302,6 +473,11 @@ describe('MCP async query polling', () => {
                 page: 1,
                 pageSize: undefined,
             }),
+        );
+        expect(shareService.createShareUrl).toHaveBeenCalledWith(
+            user,
+            '/projects/project-uuid/sql-runner',
+            expect.stringContaining('"sql":"select 1"'),
         );
     });
 
@@ -342,6 +518,7 @@ describe('MCP async query polling', () => {
                     queryUuid,
                     rows: [{ orders_count: 1 }],
                     fields: {},
+                    exploreUrl: 'https://lightdash.example/share/share-id',
                 },
             },
         });

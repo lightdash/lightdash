@@ -2501,6 +2501,17 @@ describe('AsyncQueryService', () => {
                 expect(service.getUserAttributes).toHaveBeenCalledWith({
                     account: sessionAccount,
                 });
+
+                const createCall = (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mock.calls[0][1];
+                expect(createCall.requestParameters).toEqual(
+                    expect.objectContaining({
+                        sql: sqlWithUserAttributes,
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                );
             });
 
             it('should handle missing user attributes gracefully', async () => {

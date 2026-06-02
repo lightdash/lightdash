@@ -4856,16 +4856,18 @@ Input modes:
     },
   },
   {
-    "description": "Execute a metric query and create a chart artifact.
+    "description": "Execute a metric query.
+
+This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
 - If the query finishes before the MCP wait window, structuredContent: {
     result: {
       status: "done",
+      queryUuid: string,
       rows: Array<Record<string, unknown>>,
       fields: Record<string, unknown>,
-      echartsOption: Record<string, unknown>,
       exploreUrl: string | null
     }
   }
@@ -6534,6 +6536,7 @@ custom metrics are applied automatically.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
+If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.
 
 The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 
@@ -6548,7 +6551,8 @@ Response shape (MCP CallToolResult):
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
       columns:  string[],                        // column names in order
-      rowCount: number                           // total rows returned
+      rowCount: number,                          // total rows returned
+      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
     }
   }
 - If the query is still running, structuredContent: {
@@ -6566,7 +6570,7 @@ Notes:
 - This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
 - Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
 - Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0 } — distinct from a parse failure.
+- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
 - On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 ",

@@ -5229,8 +5229,12 @@ export class AsyncQueryService extends ProjectService {
                 useTimezoneAwareDateTrunc: false,
             },
             {
-                query: metricQuery,
+                sql,
+                limit,
+                pivotConfiguration,
                 invalidateCache,
+                parameters,
+                context,
             },
         );
 
