@@ -222,4 +222,146 @@ describe('SchedulerService', () => {
             ).not.toHaveBeenCalled();
         });
     });
+
+    describe('reassignSchedulerOwner', () => {
+        const gsheetsScheduler: ChartScheduler = {
+            ...chartSchedulerInPrivateSpace,
+            schedulerUuid: 'gsheetsSchedulerUuid',
+            createdBy: 'currentOwnerUuid',
+            format: SchedulerFormat.GSHEETS,
+        };
+
+        // manage:ScheduledDeliveries but NOT manage:GoogleSheets (custom role)
+        const actorWithoutGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        const actorWithGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+            {
+                subject: 'GoogleSheets',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        // create:ScheduledDeliveries but NOT create:GoogleSheets (custom role)
+        const newOwnerWithoutGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['create'],
+                conditions: { projectUuid },
+            },
+        ]);
+
+        const newOwnerWithGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['create'],
+                conditions: { projectUuid },
+            },
+            {
+                subject: 'GoogleSheets',
+                action: ['create'],
+                conditions: { projectUuid },
+            },
+        ]);
+
+        const buildReassignService = (newOwner: SessionUser) => {
+            const projectModel = {
+                getSummary: jest.fn(async () => ({
+                    organizationUuid,
+                    projectUuid,
+                })),
+            };
+            const reassignSchedulerModel = {
+                getSchedulersByUuid: jest.fn(async () => [gsheetsScheduler]),
+                updateOwner: jest.fn(async () => {}),
+            };
+            const userModel = {
+                findSessionUserAndOrgByUuid: jest.fn(async () => newOwner),
+                getRefreshToken: jest.fn(async () => 'refresh-token'),
+            };
+
+            const reassignService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel:
+                    reassignSchedulerModel as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: savedChartModel as unknown as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {} as AppModel,
+                projectModel: projectModel as unknown as ProjectModel,
+                schedulerClient: schedulerClient as unknown as SchedulerClient,
+                slackClient: {} as SlackClient,
+                emailClient: {} as EmailClient,
+                userModel: userModel as unknown as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+
+            return { reassignService, reassignSchedulerModel };
+        };
+
+        test('should throw ForbiddenError when actor lacks manage:GoogleSheets for a GSHEETS scheduler', async () => {
+            const { reassignService, reassignSchedulerModel } =
+                buildReassignService(newOwnerWithGoogleSheets);
+
+            await expect(
+                reassignService.reassignSchedulerOwner(
+                    actorWithoutGoogleSheets,
+                    projectUuid,
+                    [gsheetsScheduler.schedulerUuid],
+                    newOwnerWithGoogleSheets.userUuid,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(reassignSchedulerModel.updateOwner).not.toHaveBeenCalled();
+        });
+
+        test('should throw ForbiddenError when new owner lacks manage:GoogleSheets for a GSHEETS scheduler', async () => {
+            const { reassignService, reassignSchedulerModel } =
+                buildReassignService(newOwnerWithoutGoogleSheets);
+
+            await expect(
+                reassignService.reassignSchedulerOwner(
+                    actorWithGoogleSheets,
+                    projectUuid,
+                    [gsheetsScheduler.schedulerUuid],
+                    newOwnerWithoutGoogleSheets.userUuid,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(reassignSchedulerModel.updateOwner).not.toHaveBeenCalled();
+        });
+
+        test('should reassign GSHEETS scheduler when both actor and new owner have manage:GoogleSheets', async () => {
+            const { reassignService, reassignSchedulerModel } =
+                buildReassignService(newOwnerWithGoogleSheets);
+
+            await reassignService.reassignSchedulerOwner(
+                actorWithGoogleSheets,
+                projectUuid,
+                [gsheetsScheduler.schedulerUuid],
+                newOwnerWithGoogleSheets.userUuid,
+            );
+
+            expect(reassignSchedulerModel.updateOwner).toHaveBeenCalledWith(
+                [gsheetsScheduler.schedulerUuid],
+                newOwnerWithGoogleSheets.userUuid,
+            );
+        });
+    });
 });

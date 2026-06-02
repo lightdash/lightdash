@@ -937,6 +937,23 @@ export class SchedulerService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+
+            if (
+                scheduler.format === SchedulerFormat.GSHEETS &&
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: {
+                            schedulerUuid: scheduler.schedulerUuid,
+                            schedulerFormat: scheduler.format,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         // Validate new owner exists, is a member of the organization, and can create scheduled deliveries
@@ -979,11 +996,27 @@ export class SchedulerService extends BaseService {
             );
         }
 
-        // Check if any schedulers are GSHEETS format - new owner must have Google refresh token
+        // Check if any schedulers are GSHEETS format - new owner must be able to
+        // create Google Sheets syncs and have an active Google connection
         const hasGsheetsSchedulers = schedulers.some(
             (s) => s.format === SchedulerFormat.GSHEETS,
         );
         if (hasGsheetsSchedulers) {
+            if (
+                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                newOwner.ability.cannot(
+                    'create',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'New owner does not have permission to create Google Sheets scheduled deliveries',
+                );
+            }
+
             try {
                 await this.userModel.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
