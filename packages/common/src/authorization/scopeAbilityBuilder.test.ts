@@ -2291,6 +2291,41 @@ describe('scopeAbilityBuilder', () => {
             expect(ability.can('manage', contentAsCodeSubject)).toBe(true);
         });
 
+        it('manage:ContentAsCode@self allows upload only to own preview projects (PROD-8004)', () => {
+            const ability = buildAbility(['manage:ContentAsCode@self']);
+
+            const ownPreview = subject('ContentAsCode', {
+                organizationUuid: 'org-123',
+                projectUuid: 'project-123',
+                type: ProjectType.PREVIEW,
+                createdByUserUuid: 'user-456',
+            });
+            const ownProduction = subject('ContentAsCode', {
+                organizationUuid: 'org-123',
+                projectUuid: 'project-123',
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: 'user-456',
+            });
+            const othersPreview = subject('ContentAsCode', {
+                organizationUuid: 'org-123',
+                projectUuid: 'project-123',
+                type: ProjectType.PREVIEW,
+                createdByUserUuid: 'another-user',
+            });
+
+            // Can upload to a preview project they created
+            expect(ability.can('manage', ownPreview)).toBe(true);
+
+            // Cannot upload to production, even their own
+            expect(ability.can('manage', ownProduction)).toBe(false);
+
+            // Cannot upload to a preview created by someone else
+            expect(ability.can('manage', othersPreview)).toBe(false);
+
+            // Does not grant blanket manage when the subject lacks self context
+            expect(ability.can('manage', contentAsCodeSubject)).toBe(false);
+        });
+
         it('content as code scopes are gated behind enterprise', () => {
             const builder = new AbilityBuilder<MemberAbility>(Ability);
             buildAbilityFromScopes(

@@ -346,6 +346,14 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
+        // Redundant with the broad grant above, but kept so the system
+        // role mirrors the `manage:ContentAsCode@self` scope a custom role
+        // would carry without full `manage:ContentAsCode`.
+        can('manage', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });

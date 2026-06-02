@@ -501,6 +501,20 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ContentAsCode@self',
+        description:
+            'Upload content as code to preview projects created by the user',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
+    },
+    {
         name: 'manage:PersonalAccessToken',
         description: 'Create and manage personal access tokens',
         isEnterprise: true,
