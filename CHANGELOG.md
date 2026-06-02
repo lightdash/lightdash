@@ -1,3 +1,10 @@
+## [0.3072.1](https://github.com/lightdash/lightdash/compare/0.3072.0...0.3072.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* map Athena float columns as numbers ([#23749](https://github.com/lightdash/lightdash/issues/23749)) ([fb96295](https://github.com/lightdash/lightdash/commit/fb96295bced3a8d7349e505655cd234f271553da))
+
 # [0.3072.0](https://github.com/lightdash/lightdash/compare/0.3071.0...0.3072.0) (2026-06-01)
 
 
