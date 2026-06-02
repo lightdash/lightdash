@@ -369,7 +369,6 @@ const ValidDashboardChartTile: FC<{
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={onSeriesContextMenu}
                 columnOrder={chart.tableConfig.columnOrder}
-                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
                 savedChartUuid={chart.uuid}
                 dashboardFilters={dashboardFilters}
                 invalidateCache={invalidateCache}
@@ -512,7 +511,6 @@ const ValidDashboardChartTileMinimal: FC<{
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
-            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
             colorPalette={colorPalette}

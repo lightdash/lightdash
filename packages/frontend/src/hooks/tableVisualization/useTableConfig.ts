@@ -49,7 +49,6 @@ const useTableConfig = (
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
-    pivotTableMaxColumnLimit: number,
     savedChartUuid?: string,
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
@@ -235,10 +234,7 @@ const useTableConfig = (
             setShowSubtotals(false);
     }, [dimensions.length, numUnpivotedDimensions]);
 
-    // Pivoted source: per-(metric × pivotValue) keys → pivot overlay.
-    // Non-pivoted: flat metricId → number → Results-table totals.
     const projectUuid = useProjectUuid();
-    const hasSqlPivotResults = !!resultsData?.pivotDetails;
     const canFetchAsyncTotals =
         !!resultsData?.queryUuid && !!tableChartConfig?.showColumnCalculation;
     const { data: asyncTotals } = useAsyncCalculateTotal({
@@ -437,7 +433,6 @@ const useTableConfig = (
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
-        pivotTableMaxColumnLimit,
         groupedSubtotals,
         parameters,
     ]);
@@ -633,11 +628,7 @@ const useTableConfig = (
         if (!pivotTableData.data || !pivotTableData.data.columnTotals) {
             return pivotTableData;
         }
-        // Only the SQL-pivot path produces keys our overlay can match
-        // (`<metric>_any_<value>`). In-memory pivots have flat keys, so the
-        // lookups would all miss but the new data ref would still trip
-        // `columnTotalsAreWarehouseComputed`.
-        if (!hasSqlPivotResults || !asyncTotals) {
+        if (!asyncTotals) {
             return pivotTableData;
         }
         const { headerValues } = pivotTableData.data;
@@ -703,7 +694,7 @@ const useTableConfig = (
                 columnTotals: nextColumnTotals,
             },
         };
-    }, [pivotTableData, asyncTotals, hasSqlPivotResults]);
+    }, [pivotTableData, asyncTotals]);
 
     // True when the overlay above replaced `columnTotals` — callers
     // forward this so PivotTable skips the `isSummable` footer gate.

@@ -590,7 +590,6 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                             colorPalette={colorPalette}
                                             isLoading={isLoading}
                                             onSeriesContextMenu={undefined}
-                                            pivotTableMaxColumnLimit={60}
                                             computedSeries={computedSeries}
                                         >
                                             <LightdashVisualization />
