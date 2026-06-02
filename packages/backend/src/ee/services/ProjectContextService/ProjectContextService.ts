@@ -3,13 +3,20 @@ import {
     DbtProjectType,
     ForbiddenError,
     loadProjectContextFile,
+    mergeProjectContextEntry,
     NotFoundError,
+    serializeProjectContextFile,
+    type AiAgentJudgeProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import {
+    createBranch,
+    createPullRequest,
+    createSignedCommitOnBranch,
     getFileContent,
     getInstallationToken,
+    getLastCommit,
 } from '../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -36,6 +43,15 @@ export const projectContextFilePath = (projectSubPath: string): string => {
 export type ProjectContextIngestResult =
     | { ingested: true; entryCount: number }
     | { ingested: false; reason: string };
+
+export type ProjectContextWritebackResult = {
+    prUrl: string;
+    prNumber: number;
+    owner: string;
+    repo: string;
+    op: 'create' | 'update';
+    entryId: string;
+};
 
 type GithubAccess = {
     owner: string;
@@ -179,5 +195,140 @@ export class ProjectContextService extends BaseService {
             entries,
         );
         return { ingested: true, entryCount: entries.length };
+    }
+
+    /**
+     * Deterministic GitHub-API writeback for a judge-emitted project_context
+     * entry: fetch the current file, apply the entry by id, and open a PR on a
+     * fresh branch. No sandbox (distinct from the semantic_layer strategy).
+     * `branchTimestamp` keys the PR branch name (caller supplies it so the
+     * method stays free of wall-clock reads).
+     */
+    async writebackEntry(args: {
+        projectUuid: string;
+        entry: AiAgentJudgeProjectContextEntry;
+        branchTimestamp: number;
+        // The agent thread that motivated this entry, linked from the PR body
+        // so a reviewer can trace it back. Null when the source is unknown.
+        sourceThread: {
+            threadUrl: string;
+            promptUuid: string;
+            threadUuid: string;
+        } | null;
+    }): Promise<ProjectContextWritebackResult> {
+        const access = await this.resolveGithubAccess(args.projectUuid);
+        if (!access) {
+            throw new NotFoundError(
+                'Project is not connected to GitHub or the GitHub App is not installed',
+            );
+        }
+        const { owner, repo, branch, installationId, token } = access;
+        const fileName = projectContextFilePath(access.projectSubPath);
+
+        let existingContent = '';
+        try {
+            const file = await getFileContent({
+                fileName,
+                owner,
+                repo,
+                branch,
+                installationId,
+                token,
+            });
+            existingContent = file.content;
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                throw error;
+            }
+        }
+
+        const { entries, entryId, op } = mergeProjectContextEntry(
+            loadProjectContextFile(existingContent),
+            args.entry,
+        );
+        const serialized = serializeProjectContextFile(entries);
+
+        const lastCommit = await getLastCommit({
+            owner,
+            repo,
+            branch,
+            installationId,
+            token,
+        });
+        const headBranch = `lightdash-project-context/${entryId}-${args.branchTimestamp}`;
+        await createBranch({
+            owner,
+            repo,
+            sha: lastCommit.sha,
+            branch: headBranch,
+            installationId,
+            token,
+        });
+
+        const commitMessage = `${
+            op === 'create' ? 'Add' : 'Update'
+        } project context: ${entryId}`;
+        // Reuse the writeback infra's signed-commit helper (GitHub GraphQL
+        // createCommitOnBranch) so the commit is server-side "Verified", like
+        // the semantic_layer writeback — a single addition overwrites the file
+        // whether it already exists or not.
+        await createSignedCommitOnBranch({
+            owner,
+            repo,
+            branch: headBranch,
+            expectedHeadOid: lastCommit.sha,
+            headline: commitMessage,
+            body: '',
+            fileChanges: {
+                additions: [
+                    {
+                        path: fileName,
+                        contents: Buffer.from(serialized, 'utf-8').toString(
+                            'base64',
+                        ),
+                    },
+                ],
+                deletions: [],
+            },
+            installationId,
+            token,
+        });
+
+        const bodyLines = [
+            `This PR ${
+                op === 'create' ? 'adds a new' : 'updates an'
+            } project context entry from an AI agent review finding.`,
+            `- id: \`${entryId}\``,
+            `- kind: \`${args.entry.kind}\``,
+            '',
+            args.entry.content,
+        ];
+        if (args.sourceThread) {
+            bodyLines.push(
+                '',
+                '---',
+                `[View the agent thread that motivated this entry](${args.sourceThread.threadUrl}) (prompt \`${args.sourceThread.promptUuid}\`).`,
+            );
+        }
+
+        const pr = await createPullRequest({
+            owner,
+            repo,
+            title: commitMessage,
+            body: bodyLines.join('\n'),
+            head: headBranch,
+            base: branch,
+            installationId,
+            token,
+        });
+
+        return {
+            prUrl: pr.html_url,
+            prNumber: pr.number,
+            owner,
+            repo,
+            op,
+            entryId,
+        };
     }
 }
