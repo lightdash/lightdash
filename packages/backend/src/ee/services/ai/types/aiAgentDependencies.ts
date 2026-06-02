@@ -369,6 +369,7 @@ export type LoadAgentSkillFn = (
 
 export type ProposeWritebackFn = (args: {
     prompt: string;
+    prUrl: string | null;
 }) => Promise<AiWritebackRunResult>;
 
 export type SetupPreviewDeployFn = () => Promise<

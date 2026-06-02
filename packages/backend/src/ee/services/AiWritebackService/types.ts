@@ -22,6 +22,14 @@ export type GithubConnection = {
     projectSubPath: string;
 };
 
+export type AdoptedPullRequest = {
+    prUrl: string;
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    headRef: string;
+};
+
 export type GithubCommitAuthor = {
     name: string;
     email: string;
@@ -83,6 +91,9 @@ export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
     prompt: string;
+    // Honoured only when the thread has no writeback PR yet; the PR must live
+    // in the project's own repo (validated before adoption).
+    prUrl?: string | null;
     aiThreadUuid?: string;
     /**
      * Identifies the trigger surface so logs, metrics, and analytics can

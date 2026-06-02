@@ -79,10 +79,12 @@ import {
     SYSTEM_PROMPT_PATH,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { resolveAdoptedPullRequest } from './pullRequest';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
+    AdoptedPullRequest,
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
@@ -795,8 +797,15 @@ export class AiWritebackService extends BaseService {
     }
 
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
-        const { user, projectUuid, prompt, aiThreadUuid, source, onProgress } =
-            args;
+        const {
+            user,
+            projectUuid,
+            prompt,
+            prUrl,
+            aiThreadUuid,
+            source,
+            onProgress,
+        } = args;
         const runStartedAt = performance.now();
 
         // Wrap the optional onProgress in a try/catch so a misbehaving caller
@@ -867,11 +876,22 @@ export class AiWritebackService extends BaseService {
             const github = await this.getGithubInstallation(
                 turn.organizationUuid,
             );
+
+            const adoptedPr =
+                !turn.existingRow && prUrl
+                    ? await resolveAdoptedPullRequest({
+                          prUrl,
+                          githubConnection: turn.githubConnection,
+                          github,
+                      })
+                    : null;
+
             sandbox = await this.acquireSandbox({
                 projectUuid,
                 githubConnection: turn.githubConnection,
                 token: github.token,
                 existingRow: turn.existingRow,
+                adoptBranch: adoptedPr?.headRef ?? null,
                 setStage,
             });
 
@@ -981,7 +1001,7 @@ export class AiWritebackService extends BaseService {
                 return {
                     output: sanitizedStdout,
                     exitCode: agent.exitCode,
-                    prUrl: turn.existingRow?.pr_url ?? null,
+                    prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
                     projectName: turn.projectName,
                     repository,
                     previewDeployConfigured:
@@ -993,6 +1013,7 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 github,
                 hasChanges,
+                adoptedPr,
                 turn,
                 user,
                 projectUuid,
@@ -1185,19 +1206,23 @@ export class AiWritebackService extends BaseService {
     /**
      * Return a running sandbox with the repo present at `CWD`. Resume the
      * stored sandbox when an existing conversation row is provided; otherwise
-     * create a fresh sandbox and clone the repo into it.
+     * create a fresh sandbox and clone the repo into it. When `adoptBranch` is
+     * set, the fresh clone checks out that branch (the pasted PR's head) so the
+     * agent edits on top of the existing PR.
      */
     private async acquireSandbox({
         projectUuid,
         githubConnection,
         token,
         existingRow,
+        adoptBranch,
         setStage,
     }: {
         projectUuid: string;
         githubConnection: GithubConnection;
         token: string;
         existingRow: AiWritebackThreadWithPrUrl | null;
+        adoptBranch: string | null;
         setStage: SetStage;
     }): Promise<Sandbox> {
         setStage('sandbox');
@@ -1241,6 +1266,7 @@ export class AiWritebackService extends BaseService {
                 password: token,
                 depth: 1,
                 timeoutMs: GIT_TIMEOUT_MS,
+                ...(adoptBranch ? { branch: adoptBranch } : {}),
             },
         );
         this.logger.info(
@@ -1625,6 +1651,7 @@ export class AiWritebackService extends BaseService {
         sandbox,
         github,
         hasChanges,
+        adoptedPr,
         turn,
         user,
         projectUuid,
@@ -1636,6 +1663,7 @@ export class AiWritebackService extends BaseService {
         sandbox: Sandbox;
         github: GithubInstallation;
         hasChanges: boolean;
+        adoptedPr: AdoptedPullRequest | null;
         turn: TurnContext;
         user: SessionUser;
         projectUuid: string;
@@ -1649,16 +1677,24 @@ export class AiWritebackService extends BaseService {
                 `AiWriteback: no file changes — skipping PR (sandboxId=${sandbox.sandboxId})`,
             );
             return {
-                prUrl: turn.existingRow?.pr_url ?? null,
+                prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
                 prCreated: false,
                 pauseOnExit: turn.isResume,
             };
         }
 
-        if (turn.existingRow) {
+        // Resume or pasted-link adoption: commit onto the existing PR's branch
+        // (the sandbox is already on it) and refresh its title/description.
+        if (turn.existingRow || adoptedPr) {
+            const targetPrUrl = turn.existingRow?.pr_url ?? adoptedPr?.prUrl;
+            if (!targetPrUrl) {
+                throw new ParameterError(
+                    'Cannot update pull request: the writeback thread is not linked to a pull request',
+                );
+            }
             await this.updateExistingPullRequest({
                 sandbox,
-                existingRow: turn.existingRow,
+                prUrl: targetPrUrl,
                 githubConnection: turn.githubConnection,
                 installationId: github.installationId,
                 prToken: github.prToken,
@@ -1669,12 +1705,28 @@ export class AiWritebackService extends BaseService {
                 prDescription,
             });
             this.logger.info(
-                `AiWriteback: updated PR ${turn.existingRow.pr_url} (sandboxId=${sandbox.sandboxId})`,
+                `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
             );
+
+            // A pasted PR has no thread row yet — record it so the project's
+            // "Pull requests" view lists it and later turns resume in place.
+            if (adoptedPr) {
+                await this.recordWritebackPullRequest({
+                    turn,
+                    projectUuid,
+                    user,
+                    aiThreadUuid,
+                    sandbox,
+                    prUrl: targetPrUrl,
+                });
+            }
+
             return {
-                prUrl: turn.existingRow.pr_url,
+                prUrl: targetPrUrl,
                 prCreated: false,
-                pauseOnExit: true,
+                pauseOnExit: turn.existingRow
+                    ? true
+                    : aiThreadUuid !== undefined,
             };
         }
 
@@ -1693,10 +1745,39 @@ export class AiWritebackService extends BaseService {
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
 
-        // Record the PR so it shows up in the project's "Pull requests" view,
-        // attributed to the user who drove the writeback. The thread row links
-        // to it via pull_request_uuid (the PR URL is no longer stored on the
-        // thread itself).
+        await this.recordWritebackPullRequest({
+            turn,
+            projectUuid,
+            user,
+            aiThreadUuid,
+            sandbox,
+            prUrl,
+        });
+
+        return {
+            prUrl,
+            prCreated: true,
+            pauseOnExit: aiThreadUuid !== undefined,
+        };
+    }
+
+    // Record the PR in the project's "Pull requests" view and link it to the
+    // thread so later turns resume in place. findOrCreate dedupes an adopted PR.
+    private async recordWritebackPullRequest({
+        turn,
+        projectUuid,
+        user,
+        aiThreadUuid,
+        sandbox,
+        prUrl,
+    }: {
+        turn: TurnContext;
+        projectUuid: string;
+        user: SessionUser;
+        aiThreadUuid: string | undefined;
+        sandbox: Sandbox;
+        prUrl: string;
+    }): Promise<void> {
         const pullRequest = await this.pullRequestsModel.findOrCreate({
             organizationUuid: turn.organizationUuid,
             projectUuid,
@@ -1716,12 +1797,6 @@ export class AiWritebackService extends BaseService {
                 pullRequestUuid: pullRequest.pullRequestUuid,
             });
         }
-
-        return {
-            prUrl,
-            prCreated: true,
-            pauseOnExit: aiThreadUuid !== undefined,
-        };
     }
 
     /**
@@ -1833,7 +1908,7 @@ export class AiWritebackService extends BaseService {
      */
     private async updateExistingPullRequest({
         sandbox,
-        existingRow,
+        prUrl,
         githubConnection,
         installationId,
         prToken,
@@ -1844,7 +1919,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
     }: {
         sandbox: Sandbox;
-        existingRow: AiWritebackThreadWithPrUrl;
+        prUrl: string;
         githubConnection: GithubConnection;
         installationId: string;
         prToken: string | null;
@@ -1869,17 +1944,11 @@ export class AiWritebackService extends BaseService {
                 'Follow-up changes from the Lightdash AI writeback agent.',
             ));
 
-        if (!existingRow.pr_url) {
-            throw new ParameterError(
-                'Cannot update pull request: the writeback thread is not linked to a pull request',
-            );
-        }
-
         const auth = prToken ? { token: prToken } : { installationId };
 
-        // The resumed sandbox is still on the feature branch from the prior
-        // turn. Commit this turn's edits onto it via the API (signed) using the
-        // branch's current remote tip as expectedHeadOid.
+        // The sandbox is on the PR's branch (resumed, or freshly checked out
+        // for a pasted link). Commit this turn's edits onto it via the API
+        // (signed) using the branch's current remote tip as expectedHeadOid.
         const featureBranch = (await sandbox.git.status(CWD)).currentBranch;
         if (!featureBranch) {
             throw new ParameterError(
@@ -1908,12 +1977,10 @@ export class AiWritebackService extends BaseService {
         });
 
         setStage('pull_request');
-        // Patch the PR as the user when their OAuth token is available; fall
-        // back to the app installation otherwise.
         await updatePullRequest({
             owner: githubConnection.owner,
             repo: githubConnection.repo,
-            pullNumber: AiWritebackService.parsePullNumber(existingRow.pr_url),
+            pullNumber: AiWritebackService.parsePullNumber(prUrl),
             title,
             body: description,
             ...auth,
