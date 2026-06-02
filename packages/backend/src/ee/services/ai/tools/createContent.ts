@@ -1,6 +1,7 @@
 import { createContentToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
+import { getChartContentWarnings } from '../utils/contentWarnings';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -14,11 +15,21 @@ const contentResult = ({
     content,
     href,
     type,
+    warnings,
 }: {
     content: unknown;
     href: string;
     type: 'dashboard' | 'chart';
-}) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
+    warnings: string[];
+}) => {
+    const warningText =
+        warnings.length > 0 ? `\n---\n${warnings.join('\n')}` : '';
+    return `<${type} href="${href}" />\n---\n${JSON.stringify(
+        content,
+        null,
+        2,
+    )}${warningText}`;
+};
 
 export const getCreateContent = ({ createContent }: Dependencies) =>
     tool({
@@ -29,12 +40,17 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                     type,
                     content,
                 } as Parameters<CreateContentFn>[0]);
+                const warnings =
+                    result.type === 'chart'
+                        ? getChartContentWarnings(result.content)
+                        : [];
                 const metadata = {
                     status: 'success' as const,
                     slug: result.content.slug,
                     name: result.content.name,
                     uuid: result.uuid,
                     href: result.href,
+                    warnings,
                 };
 
                 return {
@@ -42,6 +58,7 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                         content: result.content,
                         href: metadata.href,
                         type: result.type,
+                        warnings,
                     }),
                     metadata,
                 };

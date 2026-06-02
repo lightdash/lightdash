@@ -593,6 +593,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "uuid": {
                   "type": "string",
                 },
+                "warnings": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
               },
               "required": [
                 "status",
@@ -600,6 +606,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "name",
                 "uuid",
                 "href",
+                "warnings",
               ],
               "type": "object",
             },
@@ -706,6 +713,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   ],
                   "type": "object",
                 },
+                "warnings": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
               },
               "required": [
                 "status",
@@ -713,6 +726,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "name",
                 "uuid",
                 "href",
+                "warnings",
                 "versionUuids",
               ],
               "type": "object",
