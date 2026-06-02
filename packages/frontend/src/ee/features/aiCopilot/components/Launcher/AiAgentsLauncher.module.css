@@ -94,6 +94,7 @@
 
 .panel {
     --mantine-scale: 0.9;
+    --ai-chat-input-bg: var(--mantine-color-background-0);
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
     right: 0;
