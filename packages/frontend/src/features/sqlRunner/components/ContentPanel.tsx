@@ -415,6 +415,7 @@ export const ContentPanel: FC = () => {
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
                         : (downloadLimit ?? limit),
+                    // TODO: pass parameterValues (same as handleRunQuery)
                     undefined,
                     true,
                 );
