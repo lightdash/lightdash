@@ -114,5 +114,12 @@ export type PivotData = {
         allCombinedData: ResultRow[];
         pivotColumnInfo: PivotColumn[];
     };
+    /**
+     * Raw values for metrics that are hidden from the pivot output but are
+     * still referenced by conditional-formatting rules (PROD-2372). Keyed by
+     * `getPivotRowContextKey(dimValues)` → (hidden metric fieldId → value).
+     * Absent when no metrics are hidden.
+     */
+    hiddenContextValues?: Record<string, Record<string, ResultValue>>;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
