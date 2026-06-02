@@ -4670,7 +4670,6 @@ Even if only the part is being changed, make sure to pass the entire value with 
     },
   },
   {
-
     "description": "Run a chart-as-code metric query or saved chart content and return the rows it produces as CSV.
 
 Use this to verify generated or edited chart content before presenting it as complete.
@@ -4843,7 +4842,6 @@ Input modes:
     },
   },
   {
-
     "description": "Execute a metric query.
 
 This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.

@@ -11,6 +11,9 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 jest.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
+    isEnabled: () => false,
+    startSpanManual: (_options: unknown, callback: CallableFunction) =>
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }, jest.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
@@ -45,7 +48,31 @@ const account = {
 const user = {
     userUuid,
     organizationUuid,
+    ability: {
+        can: jest.fn(() => true),
+        cannot: jest.fn(() => false),
+        relevantRuleFor: jest.fn(() => undefined),
+        rules: [],
+    },
 };
+
+const makeExplore = () => ({
+    name: 'orders',
+    baseTable: 'orders',
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            dimensions: {},
+            metrics: {
+                orders_count: {
+                    name: 'orders_count',
+                    tablesReferences: ['orders'],
+                },
+            },
+        },
+    },
+});
 
 const extra = {
     signal: new AbortController().signal,
@@ -111,6 +138,20 @@ const makeMcpService = () => {
         createShareUrl: jest.fn().mockResolvedValue({ nanoid: 'share-id' }),
     };
 
+    const projectModel = {
+        findExploresFromCache: jest.fn().mockResolvedValue({
+            orders: makeExplore(),
+        }),
+    };
+
+    const projectService = {
+        getProject: jest.fn().mockResolvedValue({ organizationUuid }),
+    };
+
+    const userAttributesModel = {
+        getAttributeValuesForOrgMember: jest.fn().mockResolvedValue({}),
+    };
+
     const service = new McpService({
         aiAgentService: {},
         aiOrganizationSettingsService: {},
@@ -133,12 +174,12 @@ const makeMcpService = () => {
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel,
-        projectModel: {},
-        projectService: {},
+        projectModel,
+        projectService,
         searchModel: {},
         shareService,
         spaceService: {},
-        userAttributesModel: {},
+        userAttributesModel,
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
     return { asyncQueryService, mcpContextModel, service, shareService };
@@ -241,20 +282,6 @@ describe('MCP async query polling', () => {
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             ),
         );
-        jest.spyOn(
-            McpService.prototype as unknown as {
-                getRunMetricQueryDependencies: () => Promise<unknown>;
-            },
-            'getRunMetricQueryDependencies',
-        ).mockResolvedValue({
-            agentContext: {
-                getExplore: jest.fn().mockReturnValue({
-                    name: 'orders',
-                }),
-            },
-            userAttributeOverrides: {},
-        });
-
         const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
             {
                 title: 'Orders',
@@ -301,20 +328,6 @@ describe('MCP async query polling', () => {
             rows: [{ orders_count: 1 }],
             fields: {},
         });
-        jest.spyOn(
-            McpService.prototype as unknown as {
-                getRunMetricQueryDependencies: () => Promise<unknown>;
-            },
-            'getRunMetricQueryDependencies',
-        ).mockResolvedValue({
-            agentContext: {
-                getExplore: jest.fn().mockReturnValue({
-                    name: 'orders',
-                }),
-            },
-            userAttributeOverrides: {},
-        });
-
         const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
             {
                 title: 'Orders',
@@ -359,20 +372,6 @@ describe('MCP async query polling', () => {
             rows: [{ orders_count: 1 }],
             fields: {},
         });
-        jest.spyOn(
-            McpService.prototype as unknown as {
-                getRunMetricQueryDependencies: () => Promise<unknown>;
-            },
-            'getRunMetricQueryDependencies',
-        ).mockResolvedValue({
-            agentContext: {
-                getExplore: jest.fn().mockReturnValue({
-                    name: 'orders',
-                }),
-            },
-            userAttributeOverrides: {},
-        });
-
         const result = await getToolCallback(McpToolName.RENDER_CHART)(
             {
                 queryUuid,

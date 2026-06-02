@@ -566,7 +566,8 @@ export class McpService extends BaseService {
                 exploreParams,
             );
             return `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
-        } catch (_e) {
+        } catch (error) {
+            this.logger.warn('Failed to build MCP explore URL', { error });
             return null;
         }
     }
@@ -600,7 +601,8 @@ export class McpService extends BaseService {
                 sqlRunnerParams,
             );
             return `${this.lightdashConfig.siteUrl}${sqlRunnerPath}?share=${shareUrl.nanoid}`;
-        } catch (_e) {
+        } catch (error) {
+            this.logger.warn('Failed to build MCP SQL Runner URL', { error });
             return null;
         }
     }
