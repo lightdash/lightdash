@@ -1,6 +1,7 @@
 import {
     AthenaAuthenticationType,
     CreateAthenaCredentials,
+    DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseTypes,
@@ -19,7 +20,11 @@ jest.mock('@aws-sdk/credential-providers', () => ({
 }));
 
 // eslint-disable-next-line import/first -- Must import after mocks are set up
-import { AthenaWarehouseClient } from './AthenaWarehouseClient';
+import {
+    AthenaTypes,
+    AthenaWarehouseClient,
+    convertDataTypeToDimensionType,
+} from './AthenaWarehouseClient';
 
 const baseCredentials: CreateAthenaCredentials = {
     type: WarehouseTypes.ATHENA,
@@ -31,6 +36,18 @@ const baseCredentials: CreateAthenaCredentials = {
     accessKeyId: 'AKID',
     secretAccessKey: 'SECRET',
 };
+
+describe('convertDataTypeToDimensionType', () => {
+    test.each([
+        [AthenaTypes.FLOAT, DimensionType.NUMBER],
+        ['FLOAT', DimensionType.NUMBER],
+        [AthenaTypes.DOUBLE, DimensionType.NUMBER],
+        [AthenaTypes.BIGINT, DimensionType.NUMBER],
+        ['decimal(10, 2)', DimensionType.NUMBER],
+    ])('maps Athena %s columns to %s dimensions', (input, expected) => {
+        expect(convertDataTypeToDimensionType(input)).toBe(expected);
+    });
+});
 
 describe('AthenaWarehouseClient', () => {
     beforeEach(() => {
