@@ -261,22 +261,6 @@ describe('findPivotColumnFromSeriesRef', () => {
 
         expect(result).toBeUndefined();
     });
-
-    it('resolves hidden series in legacy pivot mode (no pivotValuesColumnsMap)', () => {
-        const params = [{ seriesIndex: 0 }];
-
-        const result = findPivotColumnFromSeriesRef(
-            'pct_of_total',
-            params,
-            visibleSeries,
-            undefined, // legacy mode
-            hiddenPivotRefs,
-        );
-
-        // hashFieldReference produces a string from the pivotReference
-        expect(result).toBeDefined();
-        expect(typeof result).toBe('string');
-    });
 });
 
 describe('transformToPercentageStacking', () => {

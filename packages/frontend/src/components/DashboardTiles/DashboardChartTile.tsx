@@ -218,7 +218,6 @@ const computeDashboardChartSeries = (
             defaultShowSymbol: firstSerie?.showSymbol,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.BAR,
-            availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
             pivotKeys: validPivotDimensions,
             resultsData: resultData,
