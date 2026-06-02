@@ -35,7 +35,11 @@ import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
 } from '../PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
-import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
+import {
+    getDuckdbRuntimeConfig,
+    getPreAggregateStorageScope,
+    isPreAggregateUriInScope,
+} from './getDuckdbRuntimeConfig';
 
 const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY = 'pre-aggregate-query-instance';
 
@@ -53,6 +57,7 @@ type PreAggregationDuckDbClientArgs = {
 };
 
 export type ResolvePreAggregationDuckDbArgs = {
+    organizationUuid: string;
     projectUuid: string;
     queryUuid?: string;
     queryTags?: RunQueryTags;
@@ -78,6 +83,7 @@ export enum PreAggregationDuckDbResolveReason {
     MISSING_PRE_AGGREGATE_S3_CONFIG = 'missing_pre_aggregate_s3_config',
     MISSING_DUCKDB_RUNTIME_CONFIG = 'missing_duckdb_runtime_config',
     NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
+    INVALID_MATERIALIZATION_URI = 'invalid_materialization_uri',
     RESOLVE_ERROR = 'resolve_error',
 }
 
@@ -101,7 +107,7 @@ export class PreAggregationDuckDbClient {
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
-    private cachedWarehouseClient: WarehouseClient | null = null;
+    private cachedWarehouseClients = new Map<string, WarehouseClient>();
 
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
@@ -125,25 +131,31 @@ export class PreAggregationDuckDbClient {
                 ));
     }
 
-    private getOrCreateWarehouseClient(): WarehouseClient {
-        if (!this.cachedWarehouseClient) {
+    private getOrCreateWarehouseClient(scope?: string): WarehouseClient {
+        const cacheKey = scope ?? 'legacy-global';
+        const cachedWarehouseClient = this.cachedWarehouseClients.get(cacheKey);
+        if (!cachedWarehouseClient) {
             const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
                 this.lightdashConfig.preAggregates.s3,
+                { scope },
             );
 
             if (!duckdbRuntimeConfig) {
                 throw new Error('Missing DuckDB runtime config');
             }
 
-            this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
+            const warehouseClient = this.createDuckdbWarehouseClient({
                 s3Config: duckdbRuntimeConfig,
                 sharedResourceLimits: this.sharedResourceLimits,
-                instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
+                instanceCacheKey: scope
+                    ? `${PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY}:${scope}`
+                    : PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
             });
+            this.cachedWarehouseClients.set(cacheKey, warehouseClient);
 
             Logger.info('DuckDB warehouse client created and cached for reuse');
         }
-        return this.cachedWarehouseClient;
+        return this.cachedWarehouseClients.get(cacheKey)!;
     }
 
     static getPreAggregationResolutionErrorMessage({
@@ -161,6 +173,8 @@ export class PreAggregationDuckDbClient {
         switch (reason) {
             case PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION:
                 return `No active materialization found for pre-aggregate explore "${preAggregateExploreName}"`;
+            case PreAggregationDuckDbResolveReason.INVALID_MATERIALIZATION_URI:
+                return `Pre-aggregate materialization for "${preAggregateExploreName}" is outside the allowed storage scope`;
             case PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG:
                 return 'Pre-aggregate DuckDB routing is unavailable: missing S3 configuration';
             case PreAggregationDuckDbResolveReason.MISSING_DUCKDB_RUNTIME_CONFIG:
@@ -177,8 +191,8 @@ export class PreAggregationDuckDbClient {
         }
     }
 
-    createExecutionWarehouseClient(): WarehouseClient {
-        return this.getOrCreateWarehouseClient();
+    createExecutionWarehouseClient(scope?: string): WarehouseClient {
+        return this.getOrCreateWarehouseClient(scope);
     }
 
     async resolve(
@@ -274,6 +288,30 @@ export class PreAggregationDuckDbClient {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            };
+        }
+
+        const { bucket } = preAggregateS3Config;
+        const expectedScope = getPreAggregateStorageScope({
+            bucket,
+            organizationUuid: args.organizationUuid,
+            projectUuid: args.projectUuid,
+        });
+        const activeUriIsScoped = isPreAggregateUriInScope({
+            uri: activeMaterialization.materializationUri,
+            bucket,
+            organizationUuid: args.organizationUuid,
+            projectUuid: args.projectUuid,
+        });
+        const isScopedPreAggregateUri =
+            activeMaterialization.materializationUri.includes(
+                '/pre-aggregates/',
+            );
+
+        if (isScopedPreAggregateUri && !activeUriIsScoped) {
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.INVALID_MATERIALIZATION_URI,
             };
         }
 
@@ -385,7 +423,9 @@ export class PreAggregationDuckDbClient {
             });
         }
 
-        const warehouseClient = this.getOrCreateWarehouseClient();
+        const warehouseClient = this.getOrCreateWarehouseClient(
+            activeUriIsScoped ? expectedScope : undefined,
+        );
 
         return {
             resolved: true,

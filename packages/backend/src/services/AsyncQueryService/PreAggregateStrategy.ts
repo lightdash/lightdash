@@ -51,6 +51,7 @@ export interface PreAggregateStrategy {
     }): PreAggregationRoutingDecision;
 
     resolveExecution(params: {
+        organizationUuid: string;
         projectUuid: string;
         queryUuid: string;
         warehouseQuery: string;
@@ -58,7 +59,7 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    createExecutionWarehouseClient(): WarehouseClient;
+    createExecutionWarehouseClient(scope?: string): WarehouseClient;
 
     recordStats(params: {
         projectUuid: string;

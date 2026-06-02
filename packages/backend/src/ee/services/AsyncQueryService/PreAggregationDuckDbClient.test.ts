@@ -80,6 +80,7 @@ describe('PreAggregationDuckDbClient', () => {
     };
 
     const baseResolveArgs = {
+        organizationUuid: 'organizationUuid',
         projectUuid: 'projectUuid',
         metricQuery: {
             ...metricQueryMock,
@@ -213,6 +214,54 @@ describe('PreAggregationDuckDbClient', () => {
                 instanceCacheKey: 'pre-aggregate-query-instance',
             }),
         );
+    });
+
+    test('scopes DuckDB S3 access for scoped materialization URIs', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient({
+            activeMaterialization: {
+                materializationUuid: 'mat-1',
+                queryUuid: 'mat-query-1',
+                materializationUri:
+                    's3://mock_preagg_bucket/pre-aggregates/organizationUuid/projectUuid/abc123.jsonl',
+                format: 'jsonl' as const,
+                columns: null,
+                materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+                totalBytes: 987654,
+            },
+        });
+
+        await client.resolve(baseResolveArgs);
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    scope: 's3://mock_preagg_bucket/pre-aggregates/organizationUuid/projectUuid/',
+                }),
+                instanceCacheKey:
+                    'pre-aggregate-query-instance:s3://mock_preagg_bucket/pre-aggregates/organizationUuid/projectUuid/',
+            }),
+        );
+    });
+
+    test('rejects scoped materialization URIs outside the current org/project', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient({
+            activeMaterialization: {
+                materializationUuid: 'mat-1',
+                queryUuid: 'mat-query-1',
+                materializationUri:
+                    's3://mock_preagg_bucket/pre-aggregates/other-org/projectUuid/abc123.jsonl',
+                format: 'jsonl' as const,
+                columns: null,
+                materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+                totalBytes: 987654,
+            },
+        });
+
+        await expect(client.resolve(baseResolveArgs)).resolves.toEqual({
+            resolved: false,
+            reason: PreAggregationDuckDbResolveReason.INVALID_MATERIALIZATION_URI,
+        });
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
     test('logs selected materialization metadata for debugging', async () => {

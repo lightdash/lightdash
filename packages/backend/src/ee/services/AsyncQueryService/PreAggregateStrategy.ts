@@ -145,12 +145,14 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
     }
 
     async resolveExecution({
+        organizationUuid,
         projectUuid,
         queryUuid,
         warehouseQuery,
         preAggregationRoute,
         resolveArgs,
     }: {
+        organizationUuid: string;
         projectUuid: string;
         queryUuid: string;
         warehouseQuery: string;
@@ -177,6 +179,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         }
 
         const resolution = await this.duckDbClient.resolve({
+            organizationUuid,
             projectUuid,
             queryUuid,
             metricQuery: resolveArgs.metricQuery,
@@ -210,8 +213,8 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         };
     }
 
-    createExecutionWarehouseClient(): WarehouseClient {
-        return this.duckDbClient.createExecutionWarehouseClient();
+    createExecutionWarehouseClient(scope?: string): WarehouseClient {
+        return this.duckDbClient.createExecutionWarehouseClient(scope);
     }
 
     recordStats(params: {

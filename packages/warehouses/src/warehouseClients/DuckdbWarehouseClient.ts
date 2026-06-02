@@ -91,6 +91,7 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
+    scope?: string;
 };
 
 export type DuckdbResourceLimits = {
@@ -921,9 +922,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const secretClause = s3Config.secretKey
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
+        const scopeClause = s3Config.scope
+            ? `SCOPE '${escape(s3Config.scope)}',`
+            : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
+            ${scopeClause}
             ${providerClause}
             ${keyIdClause}
             ${secretClause}
