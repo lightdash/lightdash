@@ -7436,6 +7436,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
 [
   "findExplores",
   "findFields",
+  "searchSemanticLayer",
   "findContent",
   "searchFieldValues",
   "generateVisualization",

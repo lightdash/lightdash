@@ -40,6 +40,7 @@ import {
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
+    SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
@@ -84,6 +85,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
+    enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
     enablePreviewDeploySetup: boolean;
     canRunSql: boolean;
@@ -126,6 +128,7 @@ export type AiAgentDependencies = {
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
+    searchSemanticLayer: SearchSemanticLayerFn;
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;

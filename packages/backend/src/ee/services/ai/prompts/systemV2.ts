@@ -14,6 +14,7 @@ import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
+import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
@@ -27,6 +28,7 @@ export const getSystemPromptV2 = (args: {
     date?: string;
     enableDataAccess?: boolean;
     enableSelfImprovement?: boolean;
+    enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     enableContentTools?: boolean;
     canRunSql?: boolean;
@@ -39,6 +41,7 @@ export const getSystemPromptV2 = (args: {
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableSelfImprovement = false,
+        enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         enableContentTools = false,
         canRunSql = false,
@@ -118,6 +121,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback ? AI_WRITEBACK_SECTION : '',
+        )
+        .replace(
+            '{{search_semantic_layer_section}}',
+            enableSearchSemanticLayer ? SEARCH_SEMANTIC_LAYER_SECTION : '',
         )
         .replace(
             '{{data_access_section}}',

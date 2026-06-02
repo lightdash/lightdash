@@ -35,6 +35,7 @@ import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
+import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import type {
     AiAgentArgs,
@@ -289,6 +290,12 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
+    const searchSemanticLayer = getSearchSemanticLayer({
+        searchSemanticLayer: dependencies.searchSemanticLayer,
+        updateProgress: dependencies.updateProgress,
+        pageSize: 200,
+    });
+
     const listKnowledgeDocuments = getListKnowledgeDocuments({
         listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
     });
@@ -316,6 +323,7 @@ const getAgentTools = (
     const tools: ToolSet = {
         findContent,
         discoverFields,
+        ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
         listProjects,
         getProjectInfo,
         listKnowledgeDocuments,
@@ -372,6 +380,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             knowledgeDocuments: args.knowledgeDocuments,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             enableContentTools:
                 args.enableAgentRevamp && args.enableContentTools,

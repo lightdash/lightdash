@@ -84,6 +84,24 @@ export type FindFieldFn = (
     pagination: Pagination | undefined;
 }>;
 
+export type SearchSemanticLayerFn = (args: {
+    searchQuery: string | null;
+    type: 'metric' | 'dimension' | null;
+    page: number;
+    pageSize: number;
+}) => Promise<{
+    fields: Array<{
+        name: string;
+        label: string;
+        tableName: string;
+        fieldType: string;
+        description?: string;
+        chartUsage?: number;
+        searchRank?: number;
+    }>;
+    pagination: Pagination | undefined;
+}>;
+
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
 export type FindContentFn = (args: {

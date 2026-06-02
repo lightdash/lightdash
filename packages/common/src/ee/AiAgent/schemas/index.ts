@@ -21,6 +21,7 @@ import {
     type ToolRunSavedChartOutput,
     type ToolRunSqlOutput,
     type ToolSearchFieldValuesOutput,
+    type ToolSearchSemanticLayerOutput,
     type ToolTableVizOutput,
     type ToolTimeSeriesOutput,
     type ToolVerticalBarOutput,
@@ -58,6 +59,7 @@ export type AgentToolOutput =
     | ToolRunSavedChartOutput
     | ToolRunSqlOutput
     | ToolSearchFieldValuesOutput
+    | ToolSearchSemanticLayerOutput
     | ToolTableVizOutput
     | ToolTimeSeriesOutput
     | ToolVerticalBarOutput;
