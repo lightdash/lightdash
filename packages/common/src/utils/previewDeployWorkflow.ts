@@ -121,20 +121,24 @@ const CHECKOUT_ACTION =
     'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2';
 const SETUP_NODE_ACTION =
     'actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6';
-// Pin the CLI so a preview run is reproducible and a future CLI release can't
-// silently change behaviour in a workflow holding live credentials.
-const CLI_VERSION = '0.3075.2';
 
 /**
  * Generate the canonical Lightdash preview-on-PR workflow pair.
  *
  * @param projectSubPath dbt project directory within the repo (repo root when
  * null) — passed to the CLI as `--project-dir`.
+ * @param cliVersion the `@lightdash/cli` version to pin. Pass the Lightdash
+ * instance's own version (`VERSION`): every Lightdash package releases in
+ * lockstep, so the instance version is the CLI version that matches it — this
+ * keeps the pin reproducible, compatible, and self-updating with the instance
+ * instead of frozen at a literal that rots.
  */
 export const generatePreviewDeployWorkflowFiles = ({
     projectSubPath,
+    cliVersion,
 }: {
     projectSubPath: string | null;
+    cliVersion: string;
 }): WorkflowFile[] => {
     const projectDir =
         projectSubPath && projectSubPath !== '' ? projectSubPath : '.';
@@ -160,7 +164,7 @@ jobs:
         with:
           node-version: '20.x'
       - name: Install Lightdash CLI
-        run: npm install -g @lightdash/cli@${CLI_VERSION}
+        run: npm install -g @lightdash/cli@${cliVersion}
       - name: Write dbt profiles
         run: echo "$DBT_PROFILES" > profiles.yml
         env:
@@ -189,7 +193,7 @@ jobs:
         with:
           node-version: '20.x'
       - name: Install Lightdash CLI
-        run: npm install -g @lightdash/cli@${CLI_VERSION}
+        run: npm install -g @lightdash/cli@${cliVersion}
       - name: Delete preview project
         run: lightdash stop-preview --name "\${GITHUB_HEAD_REF}"
         env:

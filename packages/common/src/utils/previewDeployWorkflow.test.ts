@@ -111,6 +111,7 @@ describe('generatePreviewDeployWorkflowFiles', () => {
     it('generates a start- and close-preview pair under .github/workflows', () => {
         const files = generatePreviewDeployWorkflowFiles({
             projectSubPath: 'dbt',
+            cliVersion: '0.3075.2',
         });
         const paths = files.map((f) => f.path).sort();
         expect(paths).toEqual([
@@ -122,6 +123,7 @@ describe('generatePreviewDeployWorkflowFiles', () => {
     it('wires the project subpath into --project-dir and is detectable by its own detector', () => {
         const files = generatePreviewDeployWorkflowFiles({
             projectSubPath: 'analytics/dbt',
+            cliVersion: '0.3075.2',
         });
         const start = files.find((f) => f.path.endsWith('start-preview.yml'));
         expect(start?.content).toContain('PROJECT_DIR: analytics/dbt');
@@ -135,14 +137,26 @@ describe('generatePreviewDeployWorkflowFiles', () => {
     it('defaults the project dir to the repo root when subpath is null', () => {
         const files = generatePreviewDeployWorkflowFiles({
             projectSubPath: null,
+            cliVersion: '0.3075.2',
         });
         const start = files.find((f) => f.path.endsWith('start-preview.yml'));
         expect(start?.content).toContain('PROJECT_DIR: .');
     });
 
+    it('pins @lightdash/cli to the supplied (instance) version in both files', () => {
+        const files = generatePreviewDeployWorkflowFiles({
+            projectSubPath: 'dbt',
+            cliVersion: '1.2.3',
+        });
+        files.forEach(({ content }) => {
+            expect(content).toContain('npm install -g @lightdash/cli@1.2.3');
+        });
+    });
+
     it('hardens both workflows: SHA-pinned actions, least-privilege permissions, pinned CLI, timeout', () => {
         const files = generatePreviewDeployWorkflowFiles({
             projectSubPath: 'dbt',
+            cliVersion: '0.3075.2',
         });
         files.forEach(({ content }) => {
             // Actions pinned to a 40-char commit SHA, never a floating tag.

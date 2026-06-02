@@ -68,13 +68,20 @@ Actions. As a SECONDARY task, AFTER you have addressed the user's main request:
 - Briefly tell the user preview deploys aren't set up and OFFER to open a pull
   request adding the Lightdash preview workflow. Do not set it up unless the
   user wants it. Do not block or delay the user's main request on this.
-- If the user agrees (now or in a follow-up message), create these files with
-  their contents copied VERBATIM, then let the host open the PR as usual. Do
-  NOT reformat them, rename the files, change the pinned action SHAs, the Node
-  or CLI versions, the \`permissions\` blocks, or the commands. These workflows
-  are security-reviewed and run with live credentials — altering them (e.g.
-  unpinning an action or widening permissions) is not allowed. The only value
-  that may differ is \`PROJECT_DIR\`, which is already filled in for you below:
+- If the user agrees (now or in a follow-up message), add these files, then let
+  the host open the PR as usual. Keep the workflow STRUCTURE exactly as shown:
+  the \`permissions\` blocks, the secret names and how they are passed, the
+  \`lightdash\` commands, and the job/trigger layout are security-reviewed and
+  run with live credentials, so do NOT widen permissions, rename the files, or
+  change the commands. \`PROJECT_DIR\` is already filled in for you.
+- VERSION PINNING is the one part you may adapt. By DEFAULT use the versions
+  shown below — the GitHub Actions are pinned to commit SHAs, plus a Node
+  version and the \`@lightdash/cli\` version. BUT first inspect the repo's other
+  files under \`.github/workflows\`: if it already follows a consistent
+  convention for pinning versions (e.g. it pins actions to tags like \`@v4\`
+  instead of SHAs, or uses a particular Node version), match the repo's
+  convention instead so the new workflow is consistent with their existing CI.
+  If the repo has no such convention, keep the pinned values exactly as shown.
 
 ${filesBlock}
 

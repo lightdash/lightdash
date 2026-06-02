@@ -47,6 +47,7 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { BaseService } from '../../../services/BaseService';
+import { VERSION } from '../../../version';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
@@ -103,7 +104,7 @@ const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 const PREVIEW_DEPLOY_SETUP_PROMPT = [
     'The user has agreed to set up Lightdash preview deploys for this project.',
     'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
-    'Create those workflow files with their contents copied VERBATIM from that section — do NOT reformat them, rename the files, change the pinned action SHAs, the Node or CLI versions, the permissions blocks, or the commands. They are security-reviewed and run with live credentials. Do NOT modify any dbt models, YAML, or other files.',
+    'Keep the workflow structure exactly as shown in that section — the permissions blocks, secret names, lightdash commands, and job/trigger layout are security-reviewed and run with live credentials, so do NOT widen permissions, rename the files, or change the commands. You MAY adapt only the version pinning (action refs, Node version, @lightdash/cli version): use the versions shown by default, but if the repo already has a consistent version-pinning convention in its other .github/workflows files, match it instead. Do NOT modify any dbt models, YAML, or other files.',
     'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
 ].join(' ');
 
@@ -903,6 +904,10 @@ export class AiWritebackService extends BaseService {
                           workflowFiles: generatePreviewDeployWorkflowFiles({
                               projectSubPath:
                                   turn.githubConnection.projectSubPath,
+                              // Pin the CLI to this instance's own version —
+                              // Lightdash packages release in lockstep, so it's
+                              // the matching, self-updating @lightdash/cli pin.
+                              cliVersion: VERSION,
                           }),
                           secrets: getPreviewDeploySecrets({
                               projectUuid,
