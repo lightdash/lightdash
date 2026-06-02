@@ -1,3 +1,10 @@
+## [0.3077.1](https://github.com/lightdash/lightdash/compare/0.3077.0...0.3077.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* type editContent patch schema ([#23782](https://github.com/lightdash/lightdash/issues/23782)) ([9b1705c](https://github.com/lightdash/lightdash/commit/9b1705c0030066cf152f49358f617df9b71fc9b6))
+
 # [0.3077.0](https://github.com/lightdash/lightdash/compare/0.3076.1...0.3077.0) (2026-06-02)
 
 
