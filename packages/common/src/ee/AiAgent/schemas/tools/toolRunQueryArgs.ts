@@ -12,6 +12,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import {
     buildMcpQueryRunResponseDescription,
+    buildMcpVisualizationFollowUpInstruction,
     MCP_QUERY_COMMON_NOTES,
 } from './toolMcpQueryResultDescription';
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
@@ -140,7 +141,9 @@ const chartConfigSchema = z
 
 export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
-This tool returns metric query data only. It does not render charts. To visualize a completed query in MCP App-capable clients, call render_chart with the queryUuid and chart configuration after this tool or get_query_result returns done.
+This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
+    'run_metric_query',
+)}
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
@@ -201,7 +204,7 @@ Use this after a query tool or get_query_result returns done and the user wants 
 Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
 
 Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — bare CSV text for human/LLM display.
+- content: [{ type: "text", text: string }] — short render status message.
 - structuredContent: {
     result: {
       status: "done",

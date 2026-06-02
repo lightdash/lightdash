@@ -16,6 +16,18 @@ export const MCP_QUERY_COMMON_NOTES = `- ${MCP_QUERY_CLIENT_SUPPORT_NOTE}
 - ${MCP_QUERY_TIMING_NOTE}
 - ${MCP_QUERY_ERROR_NOTE}`;
 
+type McpVisualizationSourceTool =
+    | 'run_metric_query'
+    | 'run_sql'
+    | 'get_query_result';
+
+export const buildMcpVisualizationFollowUpInstruction = (
+    toolName: McpVisualizationSourceTool,
+) =>
+    toolName === 'run_sql'
+        ? 'If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.'
+        : `If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after ${toolName} returns done.`;
+
 type BuildMcpQueryRunResponseDescriptionArgs = {
     contentDescription: string;
     completedResultShape: string;

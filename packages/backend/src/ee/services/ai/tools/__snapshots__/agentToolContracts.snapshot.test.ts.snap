@@ -4846,7 +4846,7 @@ Input modes:
 
     "description": "Execute a metric query.
 
-This tool returns metric query data only. It does not render charts. To visualize a completed query in MCP App-capable clients, call render_chart with the queryUuid and chart configuration after this tool or get_query_result returns done.
+This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
@@ -6524,6 +6524,7 @@ custom metrics are applied automatically.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
+If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.
 
 The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 

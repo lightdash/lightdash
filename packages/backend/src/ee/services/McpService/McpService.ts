@@ -637,7 +637,11 @@ export class McpService extends BaseService {
                 content: [
                     {
                         type: 'text' as const,
-                        text: 'Query returned 0 rows.',
+                        text: `Result rendered for queryUuid: ${queryUuid}, but the query returned 0 rows.${
+                            exploreUrl
+                                ? ` Explore from here: ${exploreUrl}`
+                                : ''
+                        }`,
                     },
                 ],
                 structuredContent: {
@@ -658,19 +662,6 @@ export class McpService extends BaseService {
                 },
             };
         }
-
-        const csvHeaders = fieldIds.map((fieldId) => {
-            const item = fields[fieldId];
-            if (!item) return fieldId;
-            return getItemLabelWithoutTableName(item);
-        });
-        const csvRows = rows.map((row) =>
-            CsvService.convertRowToCsv(row, fields, true, fieldIds),
-        );
-        const csv = stringify(csvRows, {
-            header: true,
-            columns: csvHeaders,
-        });
 
         const echartsOption = await getSlackAiEchartsConfig({
             toolArgs: {
@@ -711,7 +702,9 @@ export class McpService extends BaseService {
         const content = [
             {
                 type: 'text' as const,
-                text: csv,
+                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} rendered for queryUuid: ${queryUuid}.${
+                    exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
+                }`,
             },
         ];
         if (scopeInfo) {

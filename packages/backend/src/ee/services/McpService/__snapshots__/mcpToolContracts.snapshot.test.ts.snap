@@ -357,7 +357,7 @@ Usage tips:
       "agentName": "runQuery",
       "description": "Execute a metric query.
 
-This tool returns metric query data only. It does not render charts. To visualize a completed query in MCP App-capable clients, call render_chart with the queryUuid and chart configuration after this tool or get_query_result returns done.
+This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
@@ -5168,7 +5168,7 @@ Use this after a query tool or get_query_result returns done and the user wants 
 Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
 
 Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — bare CSV text for human/LLM display.
+- content: [{ type: "text", text: string }] — short render status message.
 - structuredContent: {
     result: {
       status: "done",
@@ -7004,6 +7004,7 @@ Usage Tips:
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
+If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.
 
 The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 
@@ -7159,7 +7160,7 @@ Notes:
 
 Use this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
 Each call waits up to the MCP wait window before returning another running response.
-If this returns done and the user wants a visual chart in an MCP App-capable client, call render_chart with the queryUuid and chart configuration. render_chart currently supports completed results from run_metric_query.
+For completed run_metric_query results, If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after get_query_result returns done. render_chart currently supports completed run_metric_query results.
 
 Parameters:
 - queryUuid: The async query UUID returned by run_sql or run_metric_query.

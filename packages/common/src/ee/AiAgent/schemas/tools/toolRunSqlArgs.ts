@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     buildMcpQueryRunResponseDescription,
+    buildMcpVisualizationFollowUpInstruction,
     MCP_QUERY_COMMON_NOTES,
 } from './toolMcpQueryResultDescription';
 
@@ -15,6 +16,7 @@ export const buildRunSqlDescription = (
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
+${buildMcpVisualizationFollowUpInstruction('run_sql')}
 
 The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 
