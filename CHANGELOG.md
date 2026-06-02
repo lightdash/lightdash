@@ -1,3 +1,11 @@
+## [0.3075.2](https://github.com/lightdash/lightdash/compare/0.3075.1...0.3075.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ai-agent:** tolerate Slack user lookup failures in thread list ([#23767](https://github.com/lightdash/lightdash/issues/23767)) ([acf7d69](https://github.com/lightdash/lightdash/commit/acf7d692c6599b0ca980d05081b2b61a37ed6736))
+* **validation:** treat table calc filters as usage ([#23721](https://github.com/lightdash/lightdash/issues/23721)) ([1033bfd](https://github.com/lightdash/lightdash/commit/1033bfd7af359214561221ac971ffdec87ae3d33))
+
 ## [0.3075.1](https://github.com/lightdash/lightdash/compare/0.3075.0...0.3075.1) (2026-06-02)
 
 
