@@ -1,3 +1,10 @@
+# [0.3074.0](https://github.com/lightdash/lightdash/compare/0.3073.0...0.3074.0) (2026-06-02)
+
+
+### Features
+
+* **ai-agents:** add content query verification tool ([#23726](https://github.com/lightdash/lightdash/issues/23726)) ([e7e1e6e](https://github.com/lightdash/lightdash/commit/e7e1e6e39e1ea0a7033d696ef65769957bdf5b96))
+
 # [0.3073.0](https://github.com/lightdash/lightdash/compare/0.3072.2...0.3073.0) (2026-06-02)
 
 
