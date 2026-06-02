@@ -2367,8 +2367,12 @@ export default class SchedulerTask {
             }
 
             if (payload.pivotConfig) {
-                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
+                if (!pivotDetails) {
+                    throw new UnexpectedServerError(
+                        'Cannot export pivoted results without SQL pivot details',
+                    );
+                }
+                // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                 const formattedRows = formatRows(
                     rows,
                     itemMap,
@@ -2381,11 +2385,8 @@ export default class SchedulerTask {
                     pivotConfig: payload.pivotConfig,
                     rows: formattedRows,
                     itemMap,
-                    metricQuery: payload.metricQuery,
                     customLabels: payload.customLabels,
                     onlyRaw: true,
-                    maxColumnLimit:
-                        this.lightdashConfig.pivotTable.maxColumnLimit,
                     pivotDetails,
                     timezone: displayTimezone ?? undefined,
                 });
@@ -3059,8 +3060,12 @@ export default class SchedulerTask {
                     pivotConfig &&
                     isTableChartConfig(chart.chartConfig.config)
                 ) {
-                    // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                    // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
+                    if (!pivotDetails) {
+                        throw new Error(
+                            'Cannot export pivoted results without SQL pivot details',
+                        );
+                    }
+                    // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                     const formattedRows = formatRows(
                         rows,
                         itemMap,
@@ -3073,11 +3078,8 @@ export default class SchedulerTask {
                         pivotConfig,
                         rows: formattedRows,
                         itemMap,
-                        metricQuery: chart.metricQuery,
                         customLabels,
                         onlyRaw: true,
-                        maxColumnLimit:
-                            this.lightdashConfig.pivotTable.maxColumnLimit,
                         pivotDetails,
                         timezone: displayTimezone ?? undefined,
                     });
@@ -3221,8 +3223,12 @@ export default class SchedulerTask {
                             pivotConfig &&
                             isTableChartConfig(chart.chartConfig.config)
                         ) {
-                            // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                            // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
+                            if (!pivotDetails) {
+                                throw new Error(
+                                    'Cannot export pivoted results without SQL pivot details',
+                                );
+                            }
+                            // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                             const formattedRows = formatRows(
                                 rows,
                                 itemMap,
@@ -3235,12 +3241,8 @@ export default class SchedulerTask {
                                 pivotConfig,
                                 rows: formattedRows,
                                 itemMap,
-                                metricQuery: chart.metricQuery,
                                 customLabels,
                                 onlyRaw: true,
-                                maxColumnLimit:
-                                    this.lightdashConfig.pivotTable
-                                        .maxColumnLimit,
                                 pivotDetails,
                                 timezone: displayTimezone ?? undefined,
                             });

@@ -391,60 +391,39 @@ const useTableConfig = (
             rowTotals: tableChartConfig?.showRowCalculation,
         };
 
-        if (resultsData.pivotDetails) {
-            worker
-                .convertSqlPivotedRowsToPivotData({
-                    rows: resultsData.rows,
-                    pivotDetails: resultsData.pivotDetails,
-                    pivotConfig,
-                    getField,
-                    getFieldLabel,
-                    groupedSubtotals,
-                    parameters,
-                })
-                .then((data) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: data,
-                        error: undefined,
-                    });
-                })
-                .catch((e) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: undefined,
-                        error: e.message,
-                    });
-                });
-        } else {
-            worker
-                .pivotQueryResults({
-                    pivotConfig,
-                    metricQuery: resultsData.metricQuery,
-                    rows: resultsData.rows,
-                    groupedSubtotals,
-                    options: {
-                        maxColumns: pivotTableMaxColumnLimit,
-                    },
-                    getField,
-                    getFieldLabel,
-                    parameters,
-                })
-                .then((data) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: data,
-                        error: undefined,
-                    });
-                })
-                .catch((e) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: undefined,
-                        error: e.message,
-                    });
-                });
+        if (!resultsData.pivotDetails) {
+            setPivotTableData({
+                loading: false,
+                data: undefined,
+                error: undefined,
+            });
+            return;
         }
+
+        worker
+            .convertSqlPivotedRowsToPivotData({
+                rows: resultsData.rows,
+                pivotDetails: resultsData.pivotDetails,
+                pivotConfig,
+                getField,
+                getFieldLabel,
+                groupedSubtotals,
+                parameters,
+            })
+            .then((data) => {
+                setPivotTableData({
+                    loading: false,
+                    data: data,
+                    error: undefined,
+                });
+            })
+            .catch((e) => {
+                setPivotTableData({
+                    loading: false,
+                    data: undefined,
+                    error: e.message,
+                });
+            });
     }, [
         resultsData,
         pivotDimensions,
