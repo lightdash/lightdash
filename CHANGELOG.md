@@ -1,3 +1,10 @@
+## [0.3075.1](https://github.com/lightdash/lightdash/compare/0.3075.0...0.3075.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** fix dark mode colors and agent selector portal ([#23764](https://github.com/lightdash/lightdash/issues/23764)) ([2ce8fe2](https://github.com/lightdash/lightdash/commit/2ce8fe20029dc55f7bd0e6e8e4956f08be51519e))
+
 # [0.3075.0](https://github.com/lightdash/lightdash/compare/0.3074.0...0.3075.0) (2026-06-02)
 
 
