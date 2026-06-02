@@ -503,7 +503,7 @@ const AppGenerate: FC = () => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatMessagesRef = useRef<HTMLDivElement>(null);
 
     // Fetch version history (polling is handled by the Web Worker below)
     const {
@@ -937,7 +937,11 @@ const AppGenerate: FC = () => {
     }, [persistLogs, interruptInFlightQueries, clearQueries]);
 
     const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Scroll the chat container itself rather than calling scrollIntoView
+        // on a child — scrollIntoView also scrolls outer ancestors (incl. the
+        // window), which pulls the navbar/preview banner out of view.
+        const el = chatMessagesRef.current;
+        el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
 
     useEffect(() => {
@@ -1464,7 +1468,10 @@ const AppGenerate: FC = () => {
                     className={classes.chatPanelOuter}
                 >
                     <Box className={classes.chatPanel}>
-                        <Box className={classes.chatMessages}>
+                        <Box
+                            ref={chatMessagesRef}
+                            className={classes.chatMessages}
+                        >
                             {hasUnloadedEarlierVersions && (
                                 <Group
                                     gap="xs"
@@ -1936,7 +1943,6 @@ const AppGenerate: FC = () => {
                                     )}
                                 </>
                             )}
-                            <Box ref={messagesEndRef} />
                         </Box>
 
                         {/* Chat Input */}
