@@ -91,6 +91,7 @@ import type {
 } from './types';
 import {
     buildCoAuthorTrailer,
+    buildUserCoAuthorTrailer,
     classifyToolPhase,
     extractPrMetadata,
     getPhaseProgressText,
@@ -1422,6 +1423,13 @@ export class AiWritebackService extends BaseService {
             };
         }
 
+        // Credit the Lightdash user who triggered the writeback as a co-author
+        // (the PR itself is opened by the app), alongside the app-bot trailer.
+        const userTrailer = buildUserCoAuthorTrailer(user);
+        const coAuthorTrailer = userTrailer
+            ? `${github.coAuthorTrailer}\n${userTrailer}`
+            : github.coAuthorTrailer;
+
         // Resume or pasted-link adoption: commit onto the existing PR's branch
         // (the sandbox is already on it) and refresh its title/description.
         if (turn.existingRow || adoptedPr) {
@@ -1437,7 +1445,7 @@ export class AiWritebackService extends BaseService {
                 githubConnection: turn.githubConnection,
                 installationId: github.installationId,
                 commitAuthor: github.commitAuthor,
-                coAuthorTrailer: github.coAuthorTrailer,
+                coAuthorTrailer,
                 setStage,
                 prTitle,
                 prDescription,
@@ -1473,7 +1481,7 @@ export class AiWritebackService extends BaseService {
             githubConnection: turn.githubConnection,
             installationId: github.installationId,
             commitAuthor: github.commitAuthor,
-            coAuthorTrailer: github.coAuthorTrailer,
+            coAuthorTrailer,
             setStage,
             prTitle,
             prDescription,
