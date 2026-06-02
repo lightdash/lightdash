@@ -1,3 +1,11 @@
+# [0.3073.0](https://github.com/lightdash/lightdash/compare/0.3072.2...0.3073.0) (2026-06-02)
+
+
+### Features
+
+* add per-org export limits (query max rows + CSV cells) with `pro-limits` feature flag and admin panel (PROD-7214) ([#23710](https://github.com/lightdash/lightdash/issues/23710)) ([f1849e8](https://github.com/lightdash/lightdash/commit/f1849e84a28896e7f51c1faaceb128bf63da0f66))
+* **content-as-code:** add `manage:ContentAsCode@self` scope restricting writes to own preview projects (PROD-8004) ([#23752](https://github.com/lightdash/lightdash/issues/23752)) ([6e6a345](https://github.com/lightdash/lightdash/commit/6e6a3452d89c04e938878e97bac25597ff352aa4))
+
 ## [0.3072.2](https://github.com/lightdash/lightdash/compare/0.3072.1...0.3072.2) (2026-06-02)
 
 
