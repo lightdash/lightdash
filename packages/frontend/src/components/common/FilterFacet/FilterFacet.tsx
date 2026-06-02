@@ -251,6 +251,7 @@ const FilterFacet = ({
                     <Box px={4} pt={4} pb={6}>
                         <TextInput
                             size="xs"
+                            autoFocus
                             placeholder={searchPlaceholder}
                             value={searchValue ?? ''}
                             onChange={(e) =>
