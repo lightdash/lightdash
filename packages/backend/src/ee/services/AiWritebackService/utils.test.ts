@@ -1,7 +1,9 @@
 import {
     DbtProjectType,
     ParameterError,
+    PullRequestProvider,
     type DbtGithubProjectConfig,
+    type DbtGitlabProjectConfig,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import {
@@ -11,18 +13,23 @@ import {
     PR_TITLE_OPEN,
 } from './constants';
 import {
+    buildCloneTarget,
     buildCoAuthorTrailer,
+    buildGitlabCommitAuthor,
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
     classifyToolPhase,
     extractPrMetadata,
     getPhaseProgressText,
     interpretAgentEvent,
+    parseGithubConnection,
+    parseGitlabConnection,
     parseGitNameStatus,
+    parseMergeRequestUrl,
     parsePullNumber,
+    parsePullRequestUrl,
     parseTrackedWorkflowPaths,
     progressTextForStage,
-    resolveGithubConnection,
     resolvePrMetadataValue,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
@@ -40,9 +47,21 @@ const githubConfig = (
     ...overrides,
 });
 
-describe('resolveGithubConnection', () => {
+const gitlabConfig = (
+    overrides: Partial<DbtGitlabProjectConfig> = {},
+): DbtProjectConfig => ({
+    type: DbtProjectType.GITLAB,
+    personal_access_token: 'pat',
+    repository: 'acme/analytics',
+    branch: 'main',
+    project_sub_path: '/',
+    ...overrides,
+});
+
+describe('parseGithubConnection', () => {
     it('splits owner/repo and normalises the repo-root sub-path', () => {
-        expect(resolveGithubConnection(githubConfig())).toEqual({
+        expect(parseGithubConnection(githubConfig())).toEqual({
+            provider: PullRequestProvider.GITHUB,
             owner: 'acme',
             repo: 'analytics',
             projectSubPath: '.',
@@ -51,7 +70,7 @@ describe('resolveGithubConnection', () => {
 
     it('strips leading and trailing slashes from a nested sub-path', () => {
         expect(
-            resolveGithubConnection(
+            parseGithubConnection(
                 githubConfig({ project_sub_path: '/dbt/project/' }),
             ).projectSubPath,
         ).toBe('dbt/project');
@@ -59,14 +78,114 @@ describe('resolveGithubConnection', () => {
 
     it('throws for a non-GitHub dbt connection', () => {
         expect(() =>
-            resolveGithubConnection({ type: DbtProjectType.DBT }),
+            parseGithubConnection({ type: DbtProjectType.DBT }),
         ).toThrow(ParameterError);
     });
 
     it('throws when the repository is not owner/repo', () => {
         expect(() =>
-            resolveGithubConnection(githubConfig({ repository: 'analytics' })),
+            parseGithubConnection(githubConfig({ repository: 'analytics' })),
         ).toThrow(ParameterError);
+    });
+});
+
+describe('parseGitlabConnection', () => {
+    it('defaults the host to gitlab.com', () => {
+        expect(parseGitlabConnection(gitlabConfig())).toEqual({
+            provider: PullRequestProvider.GITLAB,
+            owner: 'acme',
+            repo: 'analytics',
+            projectSubPath: '.',
+            hostDomain: 'gitlab.com',
+        });
+    });
+
+    it('honours a self-hosted host_domain', () => {
+        expect(
+            parseGitlabConnection(
+                gitlabConfig({ host_domain: 'gitlab.acme.com' }),
+            ).hostDomain,
+        ).toBe('gitlab.acme.com');
+    });
+
+    it('throws for a non-GitLab dbt connection', () => {
+        expect(() => parseGitlabConnection(githubConfig())).toThrow(
+            ParameterError,
+        );
+    });
+});
+
+describe('buildCloneTarget', () => {
+    it('builds a GitHub x-access-token target', () => {
+        expect(
+            buildCloneTarget(parseGithubConnection(githubConfig()), 'tok'),
+        ).toEqual({
+            url: 'https://github.com/acme/analytics.git',
+            username: 'x-access-token',
+            password: 'tok',
+        });
+    });
+
+    it('builds a GitLab oauth2 target honouring the host', () => {
+        expect(
+            buildCloneTarget(
+                parseGitlabConnection(
+                    gitlabConfig({ host_domain: 'gitlab.acme.com' }),
+                ),
+                'tok',
+            ),
+        ).toEqual({
+            url: 'https://gitlab.acme.com/acme/analytics.git',
+            username: 'oauth2',
+            password: 'tok',
+        });
+    });
+});
+
+describe('parsePullRequestUrl', () => {
+    it('parses a github.com pull request link', () => {
+        expect(
+            parsePullRequestUrl('https://github.com/acme/analytics/pull/42'),
+        ).toEqual({ owner: 'acme', repo: 'analytics', pullNumber: 42 });
+    });
+
+    it.each([
+        'https://gitlab.com/acme/analytics/pull/1',
+        'https://github.com/acme/analytics/pull/0',
+        'not a url',
+    ])('throws for %p', (url) => {
+        expect(() => parsePullRequestUrl(url)).toThrow(ParameterError);
+    });
+});
+
+describe('parseMergeRequestUrl', () => {
+    it('parses a merge request link on the connection host', () => {
+        expect(
+            parseMergeRequestUrl(
+                'https://gitlab.com/acme/analytics/-/merge_requests/42',
+                'gitlab.com',
+            ),
+        ).toEqual({ projectPath: 'acme/analytics', mergeRequestIid: 42 });
+    });
+
+    it('parses a nested-group project path', () => {
+        expect(
+            parseMergeRequestUrl(
+                'https://gitlab.acme.com/group/sub/proj/-/merge_requests/7',
+                'gitlab.acme.com',
+            ),
+        ).toEqual({ projectPath: 'group/sub/proj', mergeRequestIid: 7 });
+    });
+
+    it.each([
+        [
+            'https://gitlab.com/acme/analytics/-/merge_requests/1',
+            'gitlab.acme.com',
+        ],
+        ['https://gitlab.com/acme/analytics/pull/1', 'gitlab.com'],
+        ['not a url', 'gitlab.com'],
+    ])('throws for %p on %p', (url, host) => {
+        expect(() => parseMergeRequestUrl(url, host)).toThrow(ParameterError);
     });
 });
 
@@ -75,6 +194,14 @@ describe('parsePullNumber', () => {
         expect(
             parsePullNumber('https://github.com/acme/analytics/pull/42'),
         ).toBe(42);
+    });
+
+    it('extracts the trailing merge request iid', () => {
+        expect(
+            parsePullNumber(
+                'https://gitlab.com/acme/analytics/-/merge_requests/9',
+            ),
+        ).toBe(9);
     });
 
     it.each(['https://github.com/acme/analytics/pull/0', 'no-number', ''])(
@@ -92,7 +219,7 @@ describe('progressTextForStage', () => {
         expect(progressTextForStage('clone')).toBe('Cloning project');
         expect(progressTextForStage('agent')).toBe('Starting sub agent');
         expect(progressTextForStage('commit')).toBe('Committing changes');
-        expect(progressTextForStage('push')).toBe('Pushing to GitHub');
+        expect(progressTextForStage('push')).toBe('Pushing changes');
     });
 
     it('opts pull_request out of progress reporting', () => {
@@ -382,6 +509,34 @@ describe('github identity helpers', () => {
                 email: undefined,
             }),
         ).toBeNull();
+    });
+});
+
+describe('buildGitlabCommitAuthor', () => {
+    it('uses the user name and email when present', () => {
+        expect(
+            buildGitlabCommitAuthor(
+                {
+                    id: 5,
+                    username: 'jdoe',
+                    name: 'Jane Doe',
+                    email: 'jane@acme.com',
+                },
+                'gitlab.com',
+            ),
+        ).toEqual({ name: 'Jane Doe', email: 'jane@acme.com' });
+    });
+
+    it('falls back to a host-scoped noreply email when email is private', () => {
+        expect(
+            buildGitlabCommitAuthor(
+                { id: 5, username: 'jdoe', name: null, email: null },
+                'gitlab.acme.com',
+            ),
+        ).toEqual({
+            name: 'jdoe',
+            email: '5-jdoe@users.noreply.gitlab.acme.com',
+        });
     });
 });
 

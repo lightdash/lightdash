@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DbtProjectType,
     detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
@@ -9,7 +10,6 @@ import {
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
-    PullRequestProvider,
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
@@ -19,25 +19,15 @@ import {
     type WorkflowFile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { randomUUID } from 'crypto';
 import { CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import {
-    createBranch,
-    createPullRequest,
-    createSignedCommitOnBranch,
-    getAppBotIdentity,
-    getBranchHeadSha,
-    getInstallationToken,
-    updatePullRequest,
-} from '../../../clients/github/Github';
-import type { GithubFileChanges } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { BaseService } from '../../../services/BaseService';
@@ -50,15 +40,11 @@ import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
-    CO_AUTHOR_TRAILER,
-    COMMIT_AUTHOR_EMAIL,
-    COMMIT_AUTHOR_NAME,
     COMPILE_STRIPPED_ENV_VARS,
     COMPILE_WRAPPER_PATH,
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
     GIT_TIMEOUT_MS,
-    GIT_USERNAME,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
     PREVIEW_DEPLOY_SETUP_PROMPT,
@@ -72,7 +58,9 @@ import {
     SYSTEM_PROMPT_PATH,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
-import { resolveAdoptedPullRequest } from './pullRequest';
+import { GithubProvider } from './providers/GithubProvider';
+import { GitlabProvider } from './providers/GitlabProvider';
+import type { GitProvider } from './providers/GitProvider';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
@@ -82,25 +70,20 @@ import type {
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
-    GithubCommitAuthor,
-    GithubConnection,
-    GithubInstallation,
+    CloneTarget,
+    GitInstallation,
     SetStage,
     TurnContext,
     WarehouseSkillKey,
 } from './types';
 import {
-    buildCoAuthorTrailer,
-    buildUserCoAuthorTrailer,
     classifyToolPhase,
     extractPrMetadata,
     getPhaseProgressText,
     interpretAgentEvent,
-    parseGitNameStatus,
     parsePullNumber,
     parseTrackedWorkflowPaths,
     progressTextForStage,
-    resolveGithubConnection,
     resolvePrMetadataValue,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
@@ -115,6 +98,7 @@ type AiWritebackServiceDeps = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
     projectCiStatusModel: ProjectCiStatusModel;
@@ -129,13 +113,15 @@ export class AiWritebackService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
-    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
-
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
     private readonly pullRequestsModel: PullRequestsModel;
 
     private readonly projectCiStatusModel: ProjectCiStatusModel;
+
+    private readonly githubProvider: GithubProvider;
+
+    private readonly gitlabProvider: GitlabProvider;
 
     constructor({
         lightdashConfig,
@@ -143,6 +129,7 @@ export class AiWritebackService extends BaseService {
         projectModel,
         featureFlagModel,
         githubAppInstallationsModel,
+        gitlabAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
         projectCiStatusModel,
@@ -152,10 +139,33 @@ export class AiWritebackService extends BaseService {
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
-        this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
         this.projectCiStatusModel = projectCiStatusModel;
+        this.githubProvider = new GithubProvider({
+            githubAppInstallationsModel,
+        });
+        this.gitlabProvider = new GitlabProvider({
+            gitlabAppInstallationsModel,
+            gitlabConfig: lightdashConfig.gitlab,
+        });
+    }
+
+    /**
+     * The single place writeback branches on the git host: map the dbt
+     * connection type to its provider strategy. Everything downstream is
+     * host-agnostic.
+     */
+    private getGitProvider(connectionType: DbtProjectType): GitProvider {
+        if (connectionType === DbtProjectType.GITHUB) {
+            return this.githubProvider;
+        }
+        if (connectionType === DbtProjectType.GITLAB) {
+            return this.gitlabProvider;
+        }
+        throw new ParameterError(
+            `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
+        );
     }
 
     private async assertEnabled(user: SessionUser): Promise<void> {
@@ -186,58 +196,6 @@ export class AiWritebackService extends BaseService {
             );
         }
         return key;
-    }
-
-    /**
-     * Resolve GitHub auth for the organization. The installation access token
-     * authenticates the in-sandbox clone, and the pull request is opened — and
-     * the signed commits authored — as the Lightdash GitHub App itself. We
-     * deliberately do not attribute the PR to a GitHub user: the only user
-     * token we hold belongs to whoever connected the app for the org, which is
-     * almost never the person who triggered the writeback (e.g. via Slack), so
-     * using it misattributes the PR. The triggering user is recorded against
-     * the PR in our own DB instead (see recordWritebackPullRequest). Throws
-     * only when no installation exists at all.
-     */
-    private async getGithubInstallation(
-        organizationUuid: string,
-    ): Promise<GithubInstallation> {
-        // getInstallationId throws NotFoundError when the org hasn't connected
-        // the GitHub App (via /generalSettings/integrations).
-        const installationId =
-            await this.githubAppInstallationsModel.getInstallationId(
-                organizationUuid,
-            );
-        if (!installationId) {
-            throw new ForbiddenError(
-                'GitHub App is not installed for this organization',
-            );
-        }
-        const token = await getInstallationToken(installationId);
-
-        const commitAuthor: GithubCommitAuthor = {
-            name: COMMIT_AUTHOR_NAME,
-            email: COMMIT_AUTHOR_EMAIL,
-        };
-
-        let coAuthorTrailer = CO_AUTHOR_TRAILER;
-        try {
-            const bot = await getAppBotIdentity(installationId);
-            coAuthorTrailer = buildCoAuthorTrailer(bot);
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: could not resolve GitHub app bot identity for the co-author trailer; using the default. ${getErrorMessage(
-                    error,
-                )}`,
-            );
-        }
-
-        return {
-            installationId,
-            token,
-            commitAuthor,
-            coAuthorTrailer,
-        };
     }
 
     private static elapsed(start: number): number {
@@ -366,125 +324,6 @@ export class AiWritebackService extends BaseService {
                 } (sandboxId=${sandbox.sandboxId})`,
         );
         return value;
-    }
-
-    /**
-     * Stage the agent's changes for commit. We deliberately avoid
-     * `git add --all`: the agent can leave scratch files (e.g. PR metadata) in
-     * the working tree, and staging everything is how those leaked into PRs.
-     * Instead we stage only the dbt project subtree the writeback is scoped to,
-     * so anything outside it can never be committed. When the dbt project IS
-     * the repo root we cannot narrow the path, so we fall back to staging all
-     * and rely on resolvePrMetadata having scrubbed the known scratch files
-     * before this runs.
-     */
-    private async stageChanges(
-        sandbox: Sandbox,
-        projectSubPath: string,
-    ): Promise<void> {
-        const scopedToProject = projectSubPath !== '.';
-        this.logger.info(
-            `AiWriteback: staging ${
-                scopedToProject
-                    ? `'${projectSubPath}'`
-                    : 'all (dbt project is the repo root)'
-            } (sandboxId=${sandbox.sandboxId})`,
-        );
-        await sandbox.git.add(
-            CWD,
-            scopedToProject ? { files: [projectSubPath] } : { all: true },
-        );
-        if (scopedToProject) {
-            // Also stage Lightdash CI workflow files the agent may have added
-            // when setting up preview deploys — they live at the repo root,
-            // outside the dbt subtree. `.github/workflows` is a known-safe path
-            // (never a scratch location); tolerate its absence when no
-            // preview-deploy setup happened this turn.
-            await sandbox.commands.run(
-                `git -C ${CWD} add .github/workflows 2>/dev/null || true`,
-            );
-        }
-    }
-
-    /**
-     * Read the staged changes out of the sandbox as a set of file additions and
-     * deletions for a GitHub API commit. `-z` keeps paths NUL-separated so paths
-     * with spaces survive; `--no-renames` collapses renames into delete + add so
-     * each record is a simple (status, path) pair. Paths are repo-root-relative,
-     * which is what `createCommitOnBranch` expects.
-     */
-    private static async collectFileChanges(
-        sandbox: Sandbox,
-    ): Promise<GithubFileChanges> {
-        const { stdout } = await sandbox.commands.run(
-            `git -C ${CWD} diff --cached --name-status --no-renames -z`,
-        );
-        const { addPaths, deletions } = parseGitNameStatus(stdout);
-        const additions = await Promise.all(
-            addPaths.map(async (path) => ({
-                path,
-                contents: Buffer.from(
-                    await sandbox.files.read(`${CWD}/${path}`),
-                    'utf-8',
-                ).toString('base64'),
-            })),
-        );
-        return { additions, deletions };
-    }
-
-    /**
-     * Stage the agent's edits and commit them to `branch` via the GitHub API so
-     * the commit is signed/verified and authored by the user (or the app, when
-     * no user token is available). A local commit is also made — never pushed —
-     * purely to advance the sandbox HEAD so a subsequent resume turn's staged
-     * diff contains only that turn's edits.
-     */
-    private async commitChangesToBranch({
-        sandbox,
-        githubConnection,
-        branch,
-        expectedHeadOid,
-        title,
-        description,
-        commitAuthor,
-        coAuthorTrailer,
-        installationId,
-        setStage,
-    }: {
-        sandbox: Sandbox;
-        githubConnection: GithubConnection;
-        branch: string;
-        expectedHeadOid: string;
-        title: string;
-        description: string;
-        commitAuthor: GithubCommitAuthor;
-        coAuthorTrailer: string;
-        installationId: string;
-        setStage: SetStage;
-    }): Promise<void> {
-        setStage('commit');
-        await this.stageChanges(sandbox, githubConnection.projectSubPath);
-        const fileChanges =
-            await AiWritebackService.collectFileChanges(sandbox);
-        await sandbox.git.commit(CWD, title, {
-            authorName: commitAuthor.name,
-            authorEmail: commitAuthor.email,
-        });
-
-        setStage('push');
-        const body = description
-            ? `${description}\n\n${coAuthorTrailer}`
-            : coAuthorTrailer;
-        await createSignedCommitOnBranch({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            branch,
-            expectedHeadOid,
-            headline: title,
-            body,
-            fileChanges,
-            installationId,
-        });
     }
 
     /**
@@ -669,7 +508,7 @@ export class AiWritebackService extends BaseService {
             warehouseType: turn.warehouseType,
         });
 
-        const repository = `${turn.githubConnection.owner}/${turn.githubConnection.repo}`;
+        const repository = `${turn.gitConnection.owner}/${turn.gitConnection.repo}`;
 
         const tracker = this.startTracking({ user, projectUuid, turn });
 
@@ -705,23 +544,25 @@ export class AiWritebackService extends BaseService {
         // such row, so the default kill is fine.
         let pauseOnExit = turn.isResume;
         try {
-            const github = await this.getGithubInstallation(
+            const installation = await turn.provider.resolveInstallation(
                 turn.organizationUuid,
             );
 
             const adoptedPr =
                 !turn.existingRow && prUrl
-                    ? await resolveAdoptedPullRequest({
+                    ? await turn.provider.adoptPullRequest({
                           prUrl,
-                          githubConnection: turn.githubConnection,
-                          github,
+                          connection: turn.gitConnection,
+                          installation,
                       })
                     : null;
 
             sandbox = await this.acquireSandbox({
                 projectUuid,
-                githubConnection: turn.githubConnection,
-                token: github.token,
+                cloneTarget: turn.provider.getCloneTarget(
+                    turn.gitConnection,
+                    installation,
+                ),
                 existingRow: turn.existingRow,
                 adoptBranch: adoptedPr?.headRef ?? null,
                 setStage,
@@ -741,7 +582,9 @@ export class AiWritebackService extends BaseService {
             // wrote), so detecting there is a false positive — detection must
             // reflect the cloned default-branch state, not in-progress changes.
             const previewDeployStatus =
-                previewDeploySetupEnabled && !turn.isResume
+                previewDeploySetupEnabled &&
+                !turn.isResume &&
+                turn.provider.supportsPreviewDeploy
                     ? await this.detectAndRecordPreviewDeploy(
                           sandbox,
                           projectUuid,
@@ -754,8 +597,7 @@ export class AiWritebackService extends BaseService {
                 !previewDeployStatus.hasPreviewDeployWorkflow
                     ? {
                           workflowFiles: generatePreviewDeployWorkflowFiles({
-                              projectSubPath:
-                                  turn.githubConnection.projectSubPath,
+                              projectSubPath: turn.gitConnection.projectSubPath,
                               // Pin the CLI to this instance's own version —
                               // Lightdash packages release in lockstep, so it's
                               // the matching, self-updating @lightdash/cli pin.
@@ -771,11 +613,11 @@ export class AiWritebackService extends BaseService {
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
                 sandbox,
-                turn.githubConnection.projectSubPath,
+                turn.gitConnection.projectSubPath,
             );
             const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
             const systemPrompt = buildSystemPrompt(
-                turn.githubConnection.projectSubPath,
+                turn.gitConnection.projectSubPath,
                 {
                     projectName: turn.projectName,
                     repository,
@@ -848,7 +690,7 @@ export class AiWritebackService extends BaseService {
 
             const applied = await this.applyAgentChanges({
                 sandbox,
-                github,
+                installation,
                 hasChanges,
                 adoptedPr,
                 turn,
@@ -958,7 +800,9 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const githubConnection = resolveGithubConnection(project.dbtConnection);
+        // Resolve the git host once; the rest of the run stays host-agnostic.
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        const gitConnection = provider.resolveConnection(project.dbtConnection);
 
         // Resume only when both the caller supplied a thread uuid AND we
         // have a stored sandbox for it. Otherwise we start fresh.
@@ -974,7 +818,8 @@ export class AiWritebackService extends BaseService {
         return {
             organizationUuid: user.organizationUuid,
             projectName: project.name,
-            githubConnection,
+            provider,
+            gitConnection,
             existingRow,
             isResume: existingRow !== null,
             warehouseType,
@@ -997,8 +842,8 @@ export class AiWritebackService extends BaseService {
         const eventBase = {
             organizationId: turn.organizationUuid,
             projectId: projectUuid,
-            owner: turn.githubConnection.owner,
-            repo: turn.githubConnection.repo,
+            owner: turn.gitConnection.owner,
+            repo: turn.gitConnection.repo,
             isResume: turn.isResume,
         };
         const startedAt = Date.now();
@@ -1047,15 +892,13 @@ export class AiWritebackService extends BaseService {
      */
     private async acquireSandbox({
         projectUuid,
-        githubConnection,
-        token,
+        cloneTarget,
         existingRow,
         adoptBranch,
         setStage,
     }: {
         projectUuid: string;
-        githubConnection: GithubConnection;
-        token: string;
+        cloneTarget: CloneTarget;
         existingRow: AiWritebackThreadWithPrUrl | null;
         adoptBranch: string | null;
         setStage: SetStage;
@@ -1088,22 +931,19 @@ export class AiWritebackService extends BaseService {
         const { sandbox } = await this.createSandbox(projectUuid);
 
         setStage('clone');
-        // Clone over HTTPS using the installation token as the password.
-        // `depth: 1` keeps the clone shallow (we only need the tip to branch
-        // off) and `timeoutMs` overrides the E2B SDK's 60s default, which a
-        // slow clone was exceeding with `deadline_exceeded`.
+        // Clone over HTTPS with the access token as the password (provider-
+        // built target). `depth: 1` keeps the clone shallow (we only need the
+        // tip to branch off) and `timeoutMs` overrides the E2B SDK's 60s
+        // default, which a slow clone was exceeding with `deadline_exceeded`.
         const cloneStartedAt = Date.now();
-        await sandbox.git.clone(
-            `https://github.com/${githubConnection.owner}/${githubConnection.repo}.git`,
-            {
-                path: CWD,
-                username: GIT_USERNAME,
-                password: token,
-                depth: 1,
-                timeoutMs: GIT_TIMEOUT_MS,
-                ...(adoptBranch ? { branch: adoptBranch } : {}),
-            },
-        );
+        await sandbox.git.clone(cloneTarget.url, {
+            path: CWD,
+            username: cloneTarget.username,
+            password: cloneTarget.password,
+            depth: 1,
+            timeoutMs: GIT_TIMEOUT_MS,
+            ...(adoptBranch ? { branch: adoptBranch } : {}),
+        });
         this.logger.info(
             `AiWriteback: repo cloned (sandboxId=${sandbox.sandboxId}, ${
                 Date.now() - cloneStartedAt
@@ -1377,19 +1217,20 @@ export class AiWritebackService extends BaseService {
 
     /**
      * Translate the agent's effect on the working tree into the right
-     * GitHub side-effect and decide whether the sandbox should outlive this
-     * turn. Three branches, no nesting:
+     * pull/merge request side-effect (delegated to the resolved provider) and
+     * decide whether the sandbox should outlive this turn. Three branches, no
+     * nesting:
      *
-     * 1. No changes — nothing to push. Existing PR (if any) is the answer;
+     * 1. No changes — nothing to push. Existing request (if any) is the answer;
      *    keep the sandbox warm only when resuming.
-     * 2. Resume + changes — push to the checked-out branch; existing PR
-     *    auto-updates on GitHub.
-     * 3. Fresh + changes — branch, commit, push, open the PR; persist the
+     * 2. Resume or adopted + changes — land onto the checked-out branch and
+     *    refresh the existing request.
+     * 3. Fresh + changes — branch, land, open a new request; persist the
      *    conversation row if the caller supplied an `aiThreadUuid`.
      */
     private async applyAgentChanges({
         sandbox,
-        github,
+        installation,
         hasChanges,
         adoptedPr,
         turn,
@@ -1401,7 +1242,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
     }: {
         sandbox: Sandbox;
-        github: GithubInstallation;
+        installation: GitInstallation;
         hasChanges: boolean;
         adoptedPr: AdoptedPullRequest | null;
         turn: TurnContext;
@@ -1423,15 +1264,8 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        // Credit the Lightdash user who triggered the writeback as a co-author
-        // (the PR itself is opened by the app), alongside the app-bot trailer.
-        const userTrailer = buildUserCoAuthorTrailer(user);
-        const coAuthorTrailer = userTrailer
-            ? `${github.coAuthorTrailer}\n${userTrailer}`
-            : github.coAuthorTrailer;
-
-        // Resume or pasted-link adoption: commit onto the existing PR's branch
-        // (the sandbox is already on it) and refresh its title/description.
+        // Resume or pasted-link adoption: land onto the existing request's
+        // branch (the sandbox is already on it) and refresh its title/body.
         if (turn.existingRow || adoptedPr) {
             const targetPrUrl = turn.existingRow?.pr_url ?? adoptedPr?.prUrl;
             if (!targetPrUrl) {
@@ -1439,16 +1273,19 @@ export class AiWritebackService extends BaseService {
                     'Cannot update pull request: the writeback thread is not linked to a pull request',
                 );
             }
-            await this.updateExistingPullRequest({
+            await turn.provider.updatePullRequest({
                 sandbox,
+                connection: turn.gitConnection,
+                installation,
                 prUrl: targetPrUrl,
-                githubConnection: turn.githubConnection,
-                installationId: github.installationId,
-                commitAuthor: github.commitAuthor,
-                coAuthorTrailer,
+                title: await this.resolvePrTitle(sandbox, prTitle, true),
+                description: await this.resolvePrDescription(
+                    sandbox,
+                    prDescription,
+                    true,
+                ),
+                user,
                 setStage,
-                prTitle,
-                prDescription,
             });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -1476,15 +1313,18 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        const prUrl = await this.openInitialPullRequest({
+        const prUrl = await turn.provider.openPullRequest({
             sandbox,
-            githubConnection: turn.githubConnection,
-            installationId: github.installationId,
-            commitAuthor: github.commitAuthor,
-            coAuthorTrailer,
+            connection: turn.gitConnection,
+            installation,
+            title: await this.resolvePrTitle(sandbox, prTitle, false),
+            description: await this.resolvePrDescription(
+                sandbox,
+                prDescription,
+                false,
+            ),
+            user,
             setStage,
-            prTitle,
-            prDescription,
         });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -1504,6 +1344,40 @@ export class AiWritebackService extends BaseService {
             prCreated: true,
             pauseOnExit: aiThreadUuid !== undefined,
         };
+    }
+
+    /**
+     * Resolve the request title. Prefer the structured-output value parsed from
+     * the agent's stdout; fall back to the file-based channel (and finally a
+     * generic default) only when the agent failed to emit the structured block.
+     * Provider-independent, so the provider receives a final string.
+     */
+    private resolvePrTitle(
+        sandbox: Sandbox,
+        prTitle: string | null,
+        isUpdate: boolean,
+    ): Promise<string> {
+        if (prTitle !== null) return Promise.resolve(prTitle);
+        return this.resolvePrMetadata(
+            sandbox,
+            PR_TITLE_PATH,
+            isUpdate ? 'AI writeback follow-up' : 'AI writeback changes',
+        );
+    }
+
+    private resolvePrDescription(
+        sandbox: Sandbox,
+        prDescription: string | null,
+        isUpdate: boolean,
+    ): Promise<string> {
+        if (prDescription !== null) return Promise.resolve(prDescription);
+        return this.resolvePrMetadata(
+            sandbox,
+            PR_DESCRIPTION_PATH,
+            isUpdate
+                ? 'Follow-up changes from the Lightdash AI writeback agent.'
+                : 'Changes generated by the Lightdash AI writeback agent.',
+        );
     }
 
     // Record the PR in the project's "Pull requests" view and link it to the
@@ -1527,10 +1401,10 @@ export class AiWritebackService extends BaseService {
             organizationUuid: turn.organizationUuid,
             projectUuid,
             createdByUserUuid: user.userUuid,
-            provider: PullRequestProvider.GITHUB,
+            provider: turn.provider.provider,
             source: PullRequestSource.AI_AGENT,
-            owner: turn.githubConnection.owner,
-            repo: turn.githubConnection.repo,
+            owner: turn.gitConnection.owner,
+            repo: turn.gitConnection.repo,
             prNumber: parsePullNumber(prUrl),
             prUrl,
         });
@@ -1542,186 +1416,6 @@ export class AiWritebackService extends BaseService {
                 pullRequestUuid: pullRequest.pullRequestUuid,
             });
         }
-    }
-
-    /**
-     * First conversational/one-shot turn that produced changes: read the
-     * agent's chosen PR title/description, create a feature branch, commit,
-     * push, and open a new pull request. Returns the new PR's URL.
-     */
-    private async openInitialPullRequest({
-        sandbox,
-        githubConnection,
-        installationId,
-        commitAuthor,
-        coAuthorTrailer,
-        setStage,
-        prTitle,
-        prDescription,
-    }: {
-        sandbox: Sandbox;
-        githubConnection: GithubConnection;
-        installationId: string;
-        commitAuthor: GithubCommitAuthor;
-        coAuthorTrailer: string;
-        setStage: SetStage;
-        prTitle: string | null;
-        prDescription: string | null;
-    }): Promise<string> {
-        // The current branch right after clone is the default branch — that
-        // becomes the PR base. Capture it before we branch off.
-        const baseBranch =
-            (await sandbox.git.status(CWD)).currentBranch ?? 'main';
-
-        // Prefer the structured-output values parsed from the agent's stdout.
-        // Fall back to the file-based channel (and finally a generic default)
-        // only when the agent failed to emit the structured blocks.
-        const title =
-            prTitle ??
-            (await this.resolvePrMetadata(
-                sandbox,
-                PR_TITLE_PATH,
-                'AI writeback changes',
-            ));
-        const description =
-            prDescription ??
-            (await this.resolvePrMetadata(
-                sandbox,
-                PR_DESCRIPTION_PATH,
-                'Changes generated by the Lightdash AI writeback agent.',
-            ));
-
-        const branch = `lightdash-ai-writeback/${randomUUID()}`;
-        const auth = { installationId };
-
-        // Create the feature branch on the remote at the base tip, then commit
-        // onto it via the API so the commit is signed/verified. expectedHeadOid
-        // is the base tip we just branched from.
-        const baseOid = await getBranchHeadSha({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            branch: baseBranch,
-            ...auth,
-        });
-        await createBranch({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            sha: baseOid,
-            branch,
-            ...auth,
-        });
-        await sandbox.git.createBranch(CWD, branch);
-
-        await this.commitChangesToBranch({
-            sandbox,
-            githubConnection,
-            branch,
-            expectedHeadOid: baseOid,
-            title,
-            description,
-            commitAuthor,
-            coAuthorTrailer,
-            installationId,
-            setStage,
-        });
-
-        setStage('pull_request');
-        // The PR is always opened by the Lightdash GitHub App installation.
-        const pr = await createPullRequest({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            title,
-            body: description,
-            head: branch,
-            base: baseBranch,
-            ...auth,
-        });
-        return pr.html_url;
-    }
-
-    /**
-     * Resume turn that produced changes: the feature branch is already
-     * checked out from the prior turn. Read the agent's refreshed PR
-     * title/description, commit + push to that branch (existing PR picks up
-     * the commits automatically), then patch the PR's title and body so the
-     * GitHub view stays in sync with the latest agent output.
-     */
-    private async updateExistingPullRequest({
-        sandbox,
-        prUrl,
-        githubConnection,
-        installationId,
-        commitAuthor,
-        coAuthorTrailer,
-        setStage,
-        prTitle,
-        prDescription,
-    }: {
-        sandbox: Sandbox;
-        prUrl: string;
-        githubConnection: GithubConnection;
-        installationId: string;
-        commitAuthor: GithubCommitAuthor;
-        coAuthorTrailer: string;
-        setStage: SetStage;
-        prTitle: string | null;
-        prDescription: string | null;
-    }): Promise<void> {
-        const title =
-            prTitle ??
-            (await this.resolvePrMetadata(
-                sandbox,
-                PR_TITLE_PATH,
-                'AI writeback follow-up',
-            ));
-        const description =
-            prDescription ??
-            (await this.resolvePrMetadata(
-                sandbox,
-                PR_DESCRIPTION_PATH,
-                'Follow-up changes from the Lightdash AI writeback agent.',
-            ));
-
-        const auth = { installationId };
-
-        // The sandbox is on the PR's branch (resumed, or freshly checked out
-        // for a pasted link). Commit this turn's edits onto it via the API
-        // (signed) using the branch's current remote tip as expectedHeadOid.
-        const featureBranch = (await sandbox.git.status(CWD)).currentBranch;
-        if (!featureBranch) {
-            throw new ParameterError(
-                'Cannot update pull request: the sandbox is not on a feature branch',
-            );
-        }
-        const expectedHeadOid = await getBranchHeadSha({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            branch: featureBranch,
-            ...auth,
-        });
-
-        await this.commitChangesToBranch({
-            sandbox,
-            githubConnection,
-            branch: featureBranch,
-            expectedHeadOid,
-            title,
-            description,
-            commitAuthor,
-            coAuthorTrailer,
-            installationId,
-            setStage,
-        });
-
-        setStage('pull_request');
-        await updatePullRequest({
-            owner: githubConnection.owner,
-            repo: githubConnection.repo,
-            pullNumber: parsePullNumber(prUrl),
-            title,
-            body: description,
-            ...auth,
-        });
     }
 
     /**

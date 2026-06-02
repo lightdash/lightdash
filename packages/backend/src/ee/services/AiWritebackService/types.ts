@@ -1,6 +1,11 @@
-import type { SessionUser, WarehouseTypes } from '@lightdash/common';
+import type {
+    PullRequestProvider,
+    SessionUser,
+    WarehouseTypes,
+} from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { AiWritebackThreadWithPrUrl } from '../../models/AiWritebackThreadModel';
+import type { GitProvider } from './providers/GitProvider';
 
 /**
  * The canonical warehouse keys we ship a skill file for. Several
@@ -16,11 +21,33 @@ export type WarehouseSkillKey =
     | 'databricks'
     | 'trino';
 
+/** Commit author identity stamped on writeback commits, for any git host. */
+export type GitCommitAuthor = {
+    name: string;
+    email: string;
+};
+
 export type GithubConnection = {
+    provider: PullRequestProvider.GITHUB;
     owner: string;
     repo: string;
     projectSubPath: string;
 };
+
+export type GitlabConnection = {
+    provider: PullRequestProvider.GITLAB;
+    owner: string;
+    repo: string;
+    projectSubPath: string;
+    /** `gitlab.com` or a self-hosted instance host, e.g. `gitlab.acme.com`. */
+    hostDomain: string;
+};
+
+/**
+ * The dbt repo a writeback run targets. Discriminated by `provider` so the
+ * service can read the shared fields while each provider narrows for its own.
+ */
+export type GitConnection = GithubConnection | GitlabConnection;
 
 export type AdoptedPullRequest = {
     prUrl: string;
@@ -30,17 +57,13 @@ export type AdoptedPullRequest = {
     headRef: string;
 };
 
-export type GithubCommitAuthor = {
-    name: string;
-    email: string;
-};
-
 export type GithubInstallation = {
+    provider: PullRequestProvider.GITHUB;
     installationId: string;
     /** Installation access token — authenticates the in-sandbox clone/push. */
     token: string;
     /** Author stamped on the (local) writeback commit — the Lightdash app identity. */
-    commitAuthor: GithubCommitAuthor;
+    commitAuthor: GitCommitAuthor;
     /**
      * `Co-authored-by:` trailer appended to the commit message to credit the
      * Lightdash app bot (resolved to its avatar-backed GitHub identity).
@@ -48,12 +71,34 @@ export type GithubInstallation = {
     coAuthorTrailer: string;
 };
 
+export type GitlabInstallation = {
+    provider: PullRequestProvider.GITLAB;
+    /** OAuth access token for the org's GitLab app install — clone, push, MR API. */
+    token: string;
+    /** Instance base URL, e.g. `https://gitlab.com` or a self-hosted URL. */
+    instanceUrl: string;
+    /** Author stamped on the writeback commits — the GitLab user, or the fallback. */
+    commitAuthor: GitCommitAuthor;
+};
+
+/** Resolved auth for the run's git host. Discriminated by `provider`. */
+export type GitInstallation = GithubInstallation | GitlabInstallation;
+
+/** HTTPS clone target; credentials are supplied out-of-band, never in the URL. */
+export type CloneTarget = {
+    url: string;
+    username: string;
+    password: string;
+};
+
 export type SetStage = (stage: AiWritebackFailureStage) => void;
 
 export type TurnContext = {
     organizationUuid: string;
     projectName: string;
-    githubConnection: GithubConnection;
+    /** Resolved once from the dbt connection type; the service never re-branches. */
+    provider: GitProvider;
+    gitConnection: GitConnection;
     existingRow: AiWritebackThreadWithPrUrl | null;
     isResume: boolean;
     /**
