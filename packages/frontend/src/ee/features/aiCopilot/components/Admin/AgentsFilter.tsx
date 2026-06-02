@@ -1,6 +1,6 @@
 import { Group, Text } from '@mantine-8/core';
 import { IconRobotFace } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import FilterFacet, {
     type FilterFacetGroup,
@@ -19,6 +19,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
     setSelectedAgentUuids,
     selectedProjectUuids,
 }) => {
+    const [searchValue, setSearchValue] = useState('');
     const organizationAiAgents = useAiAgentAdminAgents();
     const { data: projects } = useProjects();
 
@@ -31,6 +32,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
     const groups = useMemo<FilterFacetGroup[]>(() => {
         if (!organizationAiAgents.data || !projects) return [];
 
+        const search = searchValue.trim().toLowerCase();
         const projectByUuid = new Map(
             projects.map((project) => [project.projectUuid, project]),
         );
@@ -58,32 +60,38 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
         return Array.from(groupedByProject.entries()).map(
             ([projectUuid, { projectName, agents }]) => ({
                 label: projectName,
-                options: agents.map((agent) => {
-                    const disabled =
-                        hasSelectedProjects &&
-                        !selectedProjectsSet.has(projectUuid);
-                    return {
-                        value: agent.uuid,
-                        searchLabel: agent.name,
-                        disabled,
-                        label: (
-                            <Group gap="two" wrap="nowrap">
-                                <LightdashUserAvatar
-                                    size={16}
-                                    name={agent.name}
-                                    src={agent.imageUrl}
-                                />
-                                <Text
-                                    fz="xs"
-                                    c={disabled ? 'ldGray.5' : 'ldGray.9'}
-                                    truncate
-                                >
-                                    {agent.name}
-                                </Text>
-                            </Group>
-                        ),
-                    };
-                }),
+                options: agents
+                    .filter(
+                        (agent) =>
+                            !search ||
+                            agent.name.toLowerCase().includes(search),
+                    )
+                    .map((agent) => {
+                        const disabled =
+                            hasSelectedProjects &&
+                            !selectedProjectsSet.has(projectUuid);
+                        return {
+                            value: agent.uuid,
+                            searchLabel: agent.name,
+                            disabled,
+                            label: (
+                                <Group gap="two" wrap="nowrap">
+                                    <LightdashUserAvatar
+                                        size={16}
+                                        name={agent.name}
+                                        src={agent.imageUrl}
+                                    />
+                                    <Text
+                                        fz="xs"
+                                        c={disabled ? 'ldGray.5' : 'ldGray.9'}
+                                        truncate
+                                    >
+                                        {agent.name}
+                                    </Text>
+                                </Group>
+                            ),
+                        };
+                    }),
             }),
         );
     }, [
@@ -91,6 +99,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
         projects,
         hasSelectedProjects,
         selectedProjectsSet,
+        searchValue,
     ]);
 
     const effectiveSelectedAgentUuids = useMemo(() => {
@@ -122,7 +131,14 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                     ? 'Filter threads by AI agent (filtered by selected projects)'
                     : 'Filter threads by AI agent'
             }
-            emptyLabel="No agents available."
+            emptyLabel={
+                searchValue
+                    ? 'No agents match your search.'
+                    : 'No agents available.'
+            }
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            searchPlaceholder="Search agents..."
             helperText={
                 hasSelectedProjects
                     ? 'Showing agents from selected projects only'
