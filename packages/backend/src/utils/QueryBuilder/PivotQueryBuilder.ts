@@ -806,8 +806,12 @@ export class PivotQueryBuilder {
         // pivot column header combination maps to exactly one col_idx.
         // sortOnlyDimensions are NOT included here — they are helper dims that
         // only drive the ORDER BY, not the column identity.
+        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
         const groupByRefs = groupByColumns
-            .map((col) => `g.${q}${col.reference}${q}`)
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            )
             .join(', ');
 
         // Build ORDER BY clause for column_index.
@@ -1218,8 +1222,12 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
+        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
         const indexRefs = indexColumns
-            .map((col) => `g.${q}${col.reference}${q}`)
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            )
             .join(', ');
 
         // Reuse buildRowIndexOrderBy to get the same ORDER BY logic
@@ -1269,26 +1277,37 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
+        // Alias to bare names so filtered_rows/distinct_groups can resolve them
+        // (ClickHouse exposes multi-join CTE columns only under the `g.` qualifier).
         const selectReferences = [
-            ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
-            ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
+            ...indexColumns.map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            ),
+            ...groupByColumns.map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            ),
             // Passthrough dimensions: hidden non-sort pivot dims that need
             // to flow through to row data for cross-field richText/image
             // templates. They are in group_by_query (added by
             // getGroupByQuerySQL) but not pivot-spread, so include them
             // explicitly here so they reach the final SELECT.
             ...(passthroughDimensions || []).map(
-                (col) => `g.${q}${col.reference}${q}`,
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
             ),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
                     col.aggregation,
                 );
-                return `g.${q}${fieldName}${q}`;
+                return `g.${q}${fieldName}${q} AS ${q}${fieldName}${q}`;
             }),
             // Implicit metrics — carried under their original column name
-            ...this.implicitMetricReferences.map((ref) => `g.${q}${ref}${q}`),
+            ...this.implicitMetricReferences.map(
+                (ref) => `g.${q}${ref}${q} AS ${q}${ref}${q}`,
+            ),
         ];
 
         if (usePrecomputedRankings) {
