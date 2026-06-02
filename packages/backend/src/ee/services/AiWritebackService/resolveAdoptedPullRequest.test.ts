@@ -83,6 +83,16 @@ describe('AiWritebackService.resolveAdoptedPullRequest', () => {
         ).rejects.toThrow(/fork/);
     });
 
+    it('rejects a PR whose head repo is unknown', async () => {
+        mockGetPullRequest.mockResolvedValue({
+            ...openPr,
+            headRepoFullName: null,
+        });
+        await expect(
+            adopt('https://github.com/acme/analytics/pull/42'),
+        ).rejects.toThrow(ParameterError);
+    });
+
     it('matches the project repo case-insensitively and normalizes the url', async () => {
         mockGetPullRequest.mockResolvedValue(openPr);
         await expect(

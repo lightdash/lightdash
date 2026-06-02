@@ -548,7 +548,6 @@ export const getPullRequest = async ({
     state: 'open' | 'closed';
     merged: boolean;
     headRef: string;
-    baseRef: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
 }> => {
@@ -566,7 +565,6 @@ export const getPullRequest = async ({
             state: response.data.state === 'closed' ? 'closed' : 'open',
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
-            baseRef: response.data.base.ref,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
         };
     } catch (e) {

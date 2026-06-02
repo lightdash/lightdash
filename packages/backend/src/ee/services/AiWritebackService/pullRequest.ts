@@ -78,11 +78,11 @@ export const resolveAdoptedPullRequest = async ({
         );
     }
     if (
-        pr.headRepoFullName &&
+        !pr.headRepoFullName ||
         pr.headRepoFullName.toLowerCase() !== projectRepo.toLowerCase()
     ) {
         throw new ParameterError(
-            `Pull request #${parsed.pullNumber} is from a fork (${pr.headRepoFullName}); I can only edit pull requests whose branch lives in ${projectRepo}.`,
+            `Pull request #${parsed.pullNumber} is from a fork (${pr.headRepoFullName ?? 'unknown repository'}); I can only edit pull requests whose branch lives in ${projectRepo}.`,
         );
     }
 
