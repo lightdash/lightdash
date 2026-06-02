@@ -128,6 +128,8 @@ All charts share a common base structure:
 
 Use `spaceSlug` for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard.
 
+Spaces can be nested. Use `parent/child` syntax in `spaceSlug` for sub-spaces, for example `"sales/forecasts"`. A bare slug like `"sales-forecasts"` is a flat top-level space; the slash defines the hierarchy.
+
 ## Choosing the Right Chart Type
 
 | Data Pattern                | Recommended Chart          | Why                                                |
