@@ -122,6 +122,7 @@ export const getToolCallChipLabel = (
         case 'runSql':
         case 'runContentQuery':
         case 'runSavedChart':
+        case 'generateHashes':
         case 'improveContext':
         case 'proposeChange':
             return null;

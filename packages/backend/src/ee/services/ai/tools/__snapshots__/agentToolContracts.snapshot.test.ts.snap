@@ -2788,6 +2788,59 @@ Table calculations perform row-by-row calculations on query results without coll
     },
   },
   {
+    "description": "Generate deterministic base-36 hashes for input strings.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "description": "Input strings to hash.",
+          "items": {
+            "type": "string",
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "inputs",
+      ],
+      "type": "object",
+    },
+    "name": "generateHashes",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Generate one or more UUIDs to use as stable identifiers when creating new objects.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7444,6 +7497,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "runSql",
   "discoverFields",
   "generateDashboard",
+  "generateHashes",
   "generateUuids",
   "getDashboardCharts",
   "readContent",

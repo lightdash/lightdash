@@ -98,6 +98,7 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'listProjects',
     'getProjectInfo',
     'listContent',
+    'generateHashes',
     'generateUuids',
     'improveContext',
     'loadSkill',

@@ -158,9 +158,12 @@ Spaces can be nested. Use `parent/child` syntax in `spaceSlug` for sub-spaces, f
 | `sankey`     | Flow diagrams            | `sankey-chart-reference`     |
 | `custom`     | Vega-Lite                | `custom-viz-reference`       |
 
+For period comparisons, read `period-over-period-reference` in addition to the chart type reference.
+
 Start with:
 
 - `dashboard-reference` for dashboards
     - `dashboard-best-practices` for tips on effective dashboard design
 - `cartesian-chart-reference` for bar, line, area, or scatter charts
 - the specific chart resource for any other chart type
+- `period-over-period-reference` when adding or editing period-over-period comparison metrics

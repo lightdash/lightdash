@@ -61,7 +61,7 @@ export const isSupportedPeriodOverPeriodGranularity = (
     granularity: TimeFrames,
 ) => validPeriodOverPeriodGranularities.includes(granularity);
 
-const hashStringToBase36 = (input: string): string => {
+export const hashStringToBase36 = (input: string): string => {
     // Deterministic, non-cryptographic hash (no deps).
     // Polynomial rolling hash modulo a large prime (lint-safe: no bitwise ops).
     const MODULUS = 2_147_483_647; // 2^31 - 1

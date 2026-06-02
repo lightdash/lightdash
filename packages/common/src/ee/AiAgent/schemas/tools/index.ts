@@ -2,6 +2,7 @@ export * from './toolDefinitions';
 export * from './toolQueryResultSchemas';
 export * from './toolDiscoverFieldsArgs';
 export * from './toolEditContentArgs';
+export * from './toolGenerateHashesArgs';
 export * from './toolGenerateUuidsArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';

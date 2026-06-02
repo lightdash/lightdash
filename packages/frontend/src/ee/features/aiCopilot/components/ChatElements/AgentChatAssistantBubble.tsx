@@ -103,6 +103,7 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 const HIDDEN_TOOL_NAMES = new Set<AiAgentToolName>([
     'improveContext',
     'proposeChange',
+    'generateHashes',
     'generateUuids',
 ]);
 

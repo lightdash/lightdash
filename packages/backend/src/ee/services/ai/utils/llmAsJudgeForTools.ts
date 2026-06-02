@@ -29,6 +29,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
     loadSkill: 'load_skill',
+    generateHashes: 'generate_hashes',
     generateUuids: 'generate_uuids',
     generateVisualization: 'query_result',
     runQuery: 'query_result',
