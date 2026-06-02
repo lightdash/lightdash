@@ -34,6 +34,7 @@ export * from './toolRunQueryArgs';
 export * from './toolRunSavedChartArgs';
 export * from './toolRunSqlArgs';
 export * from './toolSearchFieldValuesArgs';
+export * from './toolSearchSemanticLayerArgs';
 export * from './toolTableVizArgs';
 export * from './toolTimeSeriesArgs';
 export * from './toolVerticalBarArgs';

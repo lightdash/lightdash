@@ -42,6 +42,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
     ContentType,
@@ -234,6 +235,7 @@ import {
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
+    SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
@@ -4953,6 +4955,76 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return { fields: enrichedFields, pagination };
             });
 
+        const searchSemanticLayer: SearchSemanticLayerFn = (args) =>
+            wrapSentryTransaction(
+                'AiAgent.searchSemanticLayer',
+                args,
+                async () => {
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+
+                    const filteredExplores = await this.getAvailableExplores(
+                        user,
+                        projectUuid,
+                        agentSettings.tags,
+                    );
+
+                    const hasQuery = !!args.searchQuery?.trim();
+                    const filterByType = {
+                        metric: CatalogFilter.Metrics,
+                        dimension: CatalogFilter.Dimensions,
+                    };
+                    const filter = args.type
+                        ? filterByType[args.type]
+                        : undefined;
+
+                    const { data: catalogItems, pagination } =
+                        await this.catalogService.searchCatalog({
+                            projectUuid,
+                            userAttributes,
+                            catalogSearch: {
+                                searchQuery: args.searchQuery ?? '',
+                                type: CatalogType.Field,
+                                filter,
+                            },
+                            context: CatalogSearchContext.AI_AGENT,
+                            paginateArgs: {
+                                page: args.page,
+                                pageSize: args.pageSize,
+                            },
+                            // When there is no search query we want the full
+                            // inventory, so do not drop unmatched rows.
+                            excludeUnmatched: hasQuery,
+                            fullTextSearchOperator: 'OR',
+                            filteredExplores,
+                        });
+
+                    const fields = catalogItems
+                        .filter((item) => item.type === CatalogType.Field)
+                        .map((field) => ({
+                            name: field.name,
+                            label: field.label,
+                            tableName: field.tableName,
+                            fieldType: field.fieldType,
+                            description: field.description,
+                            chartUsage: field.chartUsage ?? 0,
+                            searchRank: field.searchRank,
+                        }));
+
+                    return { fields, pagination };
+                },
+            );
+
         const updateProgress: UpdateProgressFn = (progress, toolName) => {
             if (isSlackPrompt(prompt)) {
                 return this.updateSlackResponseWithProgress(prompt, progress);
@@ -5973,6 +6045,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getDashboardCharts,
             findFields,
             findExplores,
+            searchSemanticLayer,
             updateProgress,
             getPrompt,
             runAsyncQuery,
@@ -6092,6 +6165,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getDashboardCharts,
             findFields,
             findExplores,
+            searchSemanticLayer,
             updateProgress,
             getPrompt,
             runAsyncQuery,
@@ -6334,6 +6408,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getDashboardCharts,
             findFields,
             findExplores,
+            searchSemanticLayer,
             runAsyncQuery,
             runSavedChartQuery,
             runSqlJob,

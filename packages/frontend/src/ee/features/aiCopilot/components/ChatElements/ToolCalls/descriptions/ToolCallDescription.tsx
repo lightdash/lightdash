@@ -249,6 +249,7 @@ export const ToolCallDescription: FC<{
                     toolOutput={knowledgeDocumentOutput}
                 />
             );
+        case 'searchSemanticLayer':
         case 'listKnowledgeDocuments':
         case 'listProjects':
         case 'getProjectInfo':

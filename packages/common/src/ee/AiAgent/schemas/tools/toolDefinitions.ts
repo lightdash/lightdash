@@ -181,6 +181,11 @@ import {
     toolSearchFieldValuesOutputSchema,
 } from './toolSearchFieldValuesArgs';
 import {
+    TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION,
+    toolSearchSemanticLayerArgsSchema,
+    toolSearchSemanticLayerOutputSchema,
+} from './toolSearchSemanticLayerArgs';
+import {
     TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
     toolSetupPreviewDeployArgsSchema,
     toolSetupPreviewDeployOutputSchema,
@@ -235,6 +240,16 @@ export const findFieldsToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
+    mcp: { annotations: readOnlyAnnotations },
+});
+
+export const searchSemanticLayerToolDefinition = defineTool({
+    name: 'searchSemanticLayer',
+    title: 'Search semantic layer',
+    description: TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolSearchSemanticLayerArgsSchema,
+    agent: { outputSchema: toolSearchSemanticLayerOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -711,6 +726,7 @@ export const runAiWritebackToolDefinition = defineTool({
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findFields: typeof findFieldsToolDefinition;
+    searchSemanticLayer: typeof searchSemanticLayerToolDefinition;
     findContent: typeof findContentToolDefinition;
     searchFieldValues: typeof searchFieldValuesToolDefinition;
     generateVisualization: typeof generateVisualizationToolDefinition;
@@ -747,6 +763,7 @@ type AgentToolDefinitionsByName = {
 export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findExplores: findExploresToolDefinition,
     findFields: findFieldsToolDefinition,
+    searchSemanticLayer: searchSemanticLayerToolDefinition,
     findContent: findContentToolDefinition,
     searchFieldValues: searchFieldValuesToolDefinition,
     generateVisualization: generateVisualizationToolDefinition,
@@ -783,6 +800,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
     findFieldsToolDefinition,
+    searchSemanticLayerToolDefinition,
     findContentToolDefinition,
     searchFieldValuesToolDefinition,
     generateVisualizationToolDefinition,

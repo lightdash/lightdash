@@ -40,6 +40,7 @@ import {
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
+    SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
@@ -126,6 +127,7 @@ export type AiAgentDependencies = {
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
+    searchSemanticLayer: SearchSemanticLayerFn;
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;

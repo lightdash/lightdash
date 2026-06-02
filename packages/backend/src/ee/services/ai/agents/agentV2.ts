@@ -35,6 +35,7 @@ import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
+import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import type {
     AiAgentArgs,
@@ -289,6 +290,12 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
+    const searchSemanticLayer = getSearchSemanticLayer({
+        searchSemanticLayer: dependencies.searchSemanticLayer,
+        updateProgress: dependencies.updateProgress,
+        pageSize: 200,
+    });
+
     const listKnowledgeDocuments = getListKnowledgeDocuments({
         listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
     });
@@ -316,6 +323,7 @@ const getAgentTools = (
     const tools: ToolSet = {
         findContent,
         discoverFields,
+        searchSemanticLayer,
         listProjects,
         getProjectInfo,
         listKnowledgeDocuments,
