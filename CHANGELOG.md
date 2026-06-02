@@ -1,3 +1,10 @@
+# [0.3079.0](https://github.com/lightdash/lightdash/compare/0.3078.0...0.3079.0) (2026-06-02)
+
+
+### Features
+
+* **ai-writeback:** update an existing PR when its link is pasted ([#23772](https://github.com/lightdash/lightdash/issues/23772)) ([b99f277](https://github.com/lightdash/lightdash/commit/b99f2774109252e9122bb3976ceac6c9d058d75f))
+
 # [0.3078.0](https://github.com/lightdash/lightdash/compare/0.3077.1...0.3078.0) (2026-06-02)
 
 
