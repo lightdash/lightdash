@@ -1259,6 +1259,7 @@ export type LightdashConfig = {
     mcp: {
         enabled: boolean;
         runSqlMaxLimit: number;
+        timeoutMs: number;
     };
     customRoles: {
         enabled: boolean;
@@ -2332,6 +2333,10 @@ export const parseConfig = (): LightdashConfig => {
             runSqlMaxLimit:
                 getIntegerFromEnvironmentVariable('MCP_RUN_SQL_MAX_LIMIT') ||
                 AI_DEFAULT_MAX_QUERY_LIMIT,
+            timeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'MCP_CONNECTION_TIMEOUT_MS',
+                ) || 20_000,
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',

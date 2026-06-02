@@ -376,6 +376,13 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
     }
 }
 
+export class McpTimeoutError extends Error {
+    constructor(operation: string, timeoutMs: number) {
+        super(`MCP ${operation} timed out after ${timeoutMs}ms`);
+        this.name = 'McpTimeoutError';
+    }
+}
+
 export const isMcpAuthorizationError = (error: unknown): boolean =>
     error instanceof UnauthorizedError ||
     (error instanceof Error &&
@@ -476,6 +483,10 @@ const getMcpUserFacingErrorMessage = (error: Error): string => {
         return error.message;
     }
 
+    if (error instanceof McpTimeoutError) {
+        return 'The MCP server took too long to respond and was disconnected. Check that it is available, then try again.';
+    }
+
     if (error.message.includes('MCP HTTP Transport Error')) {
         if (
             error.message.includes('HTTP 401') ||
@@ -531,14 +542,73 @@ export const createHttpMcpClient = async (
     }
 };
 
+const withMcpTimeout = <T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    operation: string,
+    onLateResolve?: (value: T) => void,
+): Promise<T> =>
+    new Promise<T>((resolve, reject) => {
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            reject(new McpTimeoutError(operation, timeoutMs));
+        }, timeoutMs);
+
+        void promise.then(
+            (value) => {
+                clearTimeout(timer);
+                if (timedOut) {
+                    onLateResolve?.(value);
+                } else {
+                    resolve(value);
+                }
+            },
+            (error) => {
+                clearTimeout(timer);
+                if (!timedOut) {
+                    reject(error);
+                }
+            },
+        );
+    });
+
+export const createHttpMcpClientWithTimeout = (
+    mcpServer: McpServerConnectionArgs,
+    timeoutMs: number,
+    onUncaughtError?: (error: unknown) => void,
+): Promise<MCPClient> =>
+    withMcpTimeout(
+        createHttpMcpClient(mcpServer, onUncaughtError),
+        timeoutMs,
+        `connection to "${mcpServer.name}"`,
+        (client) => {
+            void client.close().catch((closeError) => {
+                Logger.error(
+                    `[AiAgent][MCP][${mcpServer.name}] Failed to close MCP client abandoned after connection timeout`,
+                    closeError,
+                );
+            });
+        },
+    );
+
 export const testMcpConnection = async (
     mcpServer: McpServerConnectionArgs,
+    timeoutMs: number,
     onUncaughtError?: (error: unknown) => void,
 ): Promise<McpConnectionMetadata> => {
-    const client = await createHttpMcpClient(mcpServer, onUncaughtError);
+    const client = await createHttpMcpClientWithTimeout(
+        mcpServer,
+        timeoutMs,
+        onUncaughtError,
+    );
 
     try {
-        await client.tools();
+        await withMcpTimeout(
+            client.tools(),
+            timeoutMs,
+            `tool discovery for "${mcpServer.name}"`,
+        );
         return {
             iconUrl: getMcpServerIconUrl(client.serverInfo, mcpServer.url),
         };
@@ -649,7 +719,6 @@ export class AiAgentMcpRuntimeClient {
         return mcpServer.resolvedCredentialScope ?? 'user';
     }
 
-    // eslint-disable-next-line class-methods-use-this
     async testConnection(args: {
         name: string;
         url: string;
@@ -671,6 +740,7 @@ export class AiAgentMcpRuntimeClient {
                     : null,
                 resolvedCredentialScope: args.bearerToken ? 'shared' : null,
             },
+            this.lightdashConfig.mcp.timeoutMs,
             args.onUncaughtError,
         );
     }
@@ -810,7 +880,7 @@ export class AiAgentMcpRuntimeClient {
         let mcpClient: MCPClient | undefined;
 
         try {
-            mcpClient = await createHttpMcpClient(
+            mcpClient = await createHttpMcpClientWithTimeout(
                 {
                     ...args.mcpServer,
                     oauthProvider:
@@ -826,6 +896,7 @@ export class AiAgentMcpRuntimeClient {
                               })
                             : undefined,
                 },
+                this.lightdashConfig.mcp.timeoutMs,
                 (error) => {
                     Logger.error(
                         `[AiAgent][MCP][${args.mcpServer.name}] Uncaught MCP client error during tool discovery`,
@@ -834,7 +905,11 @@ export class AiAgentMcpRuntimeClient {
                 },
             );
 
-            const tools = await mcpClient.listTools();
+            const tools = await withMcpTimeout(
+                mcpClient.listTools(),
+                this.lightdashConfig.mcp.timeoutMs,
+                `tool discovery for "${args.mcpServer.name}"`,
+            );
 
             await this.persistRuntimeState({
                 serverUuid: args.mcpServer.uuid,
@@ -922,8 +997,9 @@ export class AiAgentMcpRuntimeClient {
 
                 try {
                     log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
-                    mcpClient = await createHttpMcpClient(
+                    mcpClient = await createHttpMcpClientWithTimeout(
                         mcpServer,
+                        this.lightdashConfig.mcp.timeoutMs,
                         (error) => {
                             Logger.error(
                                 `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
@@ -932,7 +1008,11 @@ export class AiAgentMcpRuntimeClient {
                         },
                     );
 
-                    const tools = await mcpClient.tools();
+                    const tools = await withMcpTimeout(
+                        mcpClient.tools(),
+                        this.lightdashConfig.mcp.timeoutMs,
+                        `tool discovery for "${mcpServer.name}"`,
+                    );
                     await this.persistRuntimeState({
                         serverUuid: mcpServer.uuid,
                         connectionStatus: 'connected',

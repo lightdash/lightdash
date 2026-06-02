@@ -46,6 +46,11 @@ describe('resolveMcpTools', () => {
         aiAgentModel,
         lightdashConfig: {
             siteUrl: 'https://lightdash.example.com',
+            mcp: {
+                enabled: true,
+                runSqlMaxLimit: 5000,
+                timeoutMs: 20_000,
+            },
         } as LightdashConfig,
     });
 
@@ -286,6 +291,82 @@ describe('resolveMcpTools', () => {
             credentialScope: 'user',
             userUuid: 'user-uuid',
         });
+    });
+
+    it('marks a server unavailable when the connection times out', async () => {
+        const fastTimeoutClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                mcp: { enabled: true, runSqlMaxLimit: 5000, timeoutMs: 20 },
+            } as LightdashConfig,
+        });
+        const server = getMcpServer({ name: 'Slow MCP' });
+
+        createHttpMcpClientSpy.mockImplementation(
+            () =>
+                new Promise<MCPClient>(() => {
+                    // never resolves — simulates a hung MCP server
+                }),
+        );
+
+        const result = await fastTimeoutClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.tools).toEqual({});
+        expect(result.unavailableMcpServers).toEqual([
+            {
+                serverUuid: server.uuid,
+                serverName: 'Slow MCP',
+                message:
+                    'The MCP server took too long to respond and was disconnected. Check that it is available, then try again.',
+                status: 'error',
+            },
+        ]);
+    });
+
+    it('closes a client that connects after the timeout (late-close)', async () => {
+        const fastTimeoutClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                mcp: { enabled: true, runSqlMaxLimit: 5000, timeoutMs: 20 },
+            } as LightdashConfig,
+        });
+        const close = jest.fn().mockResolvedValue(undefined);
+        const server = getMcpServer({ name: 'Slow MCP' });
+
+        let resolveConnect: ((client: MCPClient) => void) | undefined;
+        createHttpMcpClientSpy.mockImplementation(
+            () =>
+                new Promise<MCPClient>((resolve) => {
+                    resolveConnect = resolve;
+                }),
+        );
+
+        const result = await fastTimeoutClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toHaveLength(1);
+        expect(close).not.toHaveBeenCalled();
+
+        resolveConnect!({
+            serverInfo: { name: 'Slow MCP', version: '1.0.0' },
+            tools: async () => ({}),
+            close,
+        } as unknown as MCPClient);
+
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
+
+        expect(close).toHaveBeenCalledTimes(1);
     });
 });
 
