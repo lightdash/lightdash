@@ -191,6 +191,13 @@ const DashboardTileStatusProvider: React.FC<
         setScreenshotErroredTiles(new Set());
     }, [dashboardTiles, activeTab]);
 
+    // Reset loaded tracking when the active tab changes so areAllChartsLoaded
+    // reflects the newly mounted tab's tiles, not stale entries from a
+    // previously visited tab.
+    useEffect(() => {
+        setLoadedTiles(new Set());
+    }, [activeTab]);
+
     // Memoized mapping of tile UUIDs to their display names
     const tileNamesById = useMemo(() => {
         if (!dashboardTiles) return {};
