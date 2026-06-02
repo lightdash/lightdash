@@ -65,6 +65,7 @@ import {
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
+import { getActiveTabForTabs } from './getActiveTabForTabs';
 import useDashboardContext from './useDashboardContext';
 import useDashboardTileStatusContext from './useDashboardTileStatusContext';
 
@@ -332,13 +333,14 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // visible tab if the URL points at a hidden tab. In edit mode all tabs are selectable.
     useEffect(() => {
         if (dashboardTabs && dashboardTabs.length > 0) {
-            const selectableTabs = isEditMode
-                ? dashboardTabs
-                : dashboardTabs.filter((tab) => !tab.hidden);
-            const tabsForFallback =
-                selectableTabs.length > 0 ? selectableTabs : dashboardTabs;
-            const urlMatch = selectableTabs.find((tab) => tab.uuid === tabUuid);
-            setActiveTab(urlMatch ?? tabsForFallback[0]);
+            setActiveTab((currentActiveTab) =>
+                getActiveTabForTabs(
+                    dashboardTabs,
+                    tabUuid,
+                    isEditMode,
+                    currentActiveTab,
+                ),
+            );
         }
     }, [dashboardTabs, tabUuid, isEditMode]);
 

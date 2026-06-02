@@ -33,11 +33,6 @@ type ContentLinkProps = {
     onDashboardLinkClick?: (url: string) => void;
 };
 
-const getDashboardRouteKey = (pathname: string) => {
-    const match = pathname.match(/^\/projects\/([^/]+)\/dashboards\/([^/]+)/);
-    return match ? `${match[1]}/${match[2]}` : null;
-};
-
 export const ContentLink: FC<ContentLinkProps> = ({
     contentType,
     props,
@@ -80,11 +75,6 @@ export const ContentLink: FC<ContentLinkProps> = ({
             pathname: targetUrl.pathname,
             search: targetUrl.search,
         });
-        const isCurrentDashboard =
-            getDashboardRouteKey(location.pathname) ===
-            getDashboardRouteKey(targetUrl.pathname);
-
-        if (isCurrentDashboard) return;
 
         if (onDashboardLinkClick) {
             onDashboardLinkClick(targetPath);

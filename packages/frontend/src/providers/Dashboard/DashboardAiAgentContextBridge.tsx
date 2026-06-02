@@ -1,5 +1,4 @@
 import {
-    type Dashboard,
     type DashboardChartTile,
     type DashboardFilters,
     type DashboardTile,
@@ -12,6 +11,7 @@ import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollT
 import { useAiAgentStoreSelector } from '../../ee/features/aiCopilot/store/hooks';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
+import { planDashboardAiAgentChanges } from './dashboardAiAgentChangePlanner';
 import useDashboardContext from './useDashboardContext';
 
 const emptyFilters: DashboardFilters = {
@@ -29,9 +29,7 @@ const DashboardAiAgentContextBridge = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
-    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -61,39 +59,16 @@ const DashboardAiAgentContextBridge = () => {
         [dashboardUuid, projectUuid],
     );
 
-    const scrollToChartTile = useCallback(
-        (tile: DashboardChartTile, tabs: Dashboard['tabs']) => {
-            const focusRequestId = (focusRequestIdRef.current += 1);
-            const tab = tile.tabUuid
-                ? tabs.find(
-                      (dashboardTab) => dashboardTab.uuid === tile.tabUuid,
-                  )
-                : undefined;
-            if (tab) setActiveTab(tab);
+    const scrollToChartTile = useCallback((tile: DashboardChartTile) => {
+        const focusRequestId = (focusRequestIdRef.current += 1);
 
+        window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-                window.requestAnimationFrame(() => {
-                    if (focusRequestId !== focusRequestIdRef.current) return;
-                    scrollToDashboardTile(tile.uuid);
-                });
+                if (focusRequestId !== focusRequestIdRef.current) return;
+                scrollToDashboardTile(tile.uuid);
             });
-        },
-        [setActiveTab],
-    );
-
-    const successfulContentResults = useMemo(
-        () =>
-            activeThreadParts.flatMap((part) =>
-                part.type === 'toolCall' &&
-                (part.toolName === 'createContent' ||
-                    part.toolName === 'editContent') &&
-                part.isPreliminary === false &&
-                part.toolResult?.metadata.status === 'success'
-                    ? [part]
-                    : [],
-            ),
-        [activeThreadParts],
-    );
+        });
+    }, []);
 
     const refreshChartTilesFromTiles = useCallback(
         async (
@@ -154,16 +129,10 @@ const DashboardAiAgentContextBridge = () => {
             });
 
             if (options?.focusTile) {
-                scrollToChartTile(matchingTiles[0], dashboardTabs);
+                scrollToChartTile(matchingTiles[0]);
             }
         },
-        [
-            dashboardTabs,
-            dashboardUuid,
-            projectUuid,
-            queryClient,
-            scrollToChartTile,
-        ],
+        [dashboardUuid, projectUuid, queryClient, scrollToChartTile],
     );
 
     const refreshDashboard = useCallback(
@@ -207,7 +176,7 @@ const DashboardAiAgentContextBridge = () => {
                     (tile) => tile.properties.chartSlug === chartSlugToFocus,
                 );
                 if (tileToFocus) {
-                    scrollToChartTile(tileToFocus, freshDashboard.tabs);
+                    scrollToChartTile(tileToFocus);
                     return true;
                 }
             }
@@ -238,62 +207,47 @@ const DashboardAiAgentContextBridge = () => {
     useEffect(() => {
         if (!currentDashboardSlug || !projectUuid || !dashboardUuid) return;
 
-        for (const part of successfulContentResults) {
-            const contentSlug =
-                part.toolResult?.metadata.status === 'success'
-                    ? part.toolResult.metadata.slug
-                    : part.toolName === 'createContent'
-                      ? part.toolArgs.content.slug
-                      : part.toolArgs.slug;
-            const targetDashboardSlug =
-                part.toolName === 'createContent'
-                    ? 'dashboardSlug' in part.toolArgs.content
-                        ? part.toolArgs.content.dashboardSlug
-                        : undefined
-                    : undefined;
+        const plan = planDashboardAiAgentChanges({
+            parts: activeThreadParts,
+            handledToolCallIds: handledToolCallIdsRef.current,
+            currentDashboardSlug,
+            pendingChartSlugToFocus: pendingChartSlugToFocusRef.current,
+        });
 
-            if (handledToolCallIdsRef.current.has(part.toolCallId)) continue;
+        for (const toolCallId of plan.handledToolCallIds) {
+            handledToolCallIdsRef.current.add(toolCallId);
+        }
+        pendingChartSlugToFocusRef.current = plan.pendingChartSlugToFocus;
 
-            handledToolCallIdsRef.current.add(part.toolCallId);
-
-            switch (part.toolArgs.type) {
-                case 'chart':
-                    if (
-                        part.toolName === 'createContent' &&
-                        targetDashboardSlug === currentDashboardSlug
-                    ) {
-                        pendingChartSlugToFocusRef.current = contentSlug;
-                        void refreshDashboard(contentSlug).then((focused) => {
+        for (const action of plan.actions) {
+            switch (action.type) {
+                case 'refreshChart':
+                    void refreshChartTiles(action.chartSlug, {
+                        focusTile: action.focusTile,
+                    });
+                    break;
+                case 'refreshDashboard':
+                    void refreshDashboard(action.focusChartSlug).then(
+                        (focused) => {
                             if (
                                 focused &&
                                 pendingChartSlugToFocusRef.current ===
-                                    contentSlug
+                                    action.focusChartSlug
                             ) {
                                 pendingChartSlugToFocusRef.current = null;
                             }
-                        });
-                        continue;
-                    }
-
-                    void refreshChartTiles(contentSlug, { focusTile: true });
-                    continue;
-                case 'dashboard':
-                    if (contentSlug !== currentDashboardSlug) continue;
-                    void refreshDashboard(
-                        pendingChartSlugToFocusRef.current ?? undefined,
-                    ).then((focused) => {
-                        if (focused) pendingChartSlugToFocusRef.current = null;
-                    });
-                    continue;
+                        },
+                    );
+                    break;
             }
         }
     }, [
+        activeThreadParts,
         currentDashboardSlug,
         dashboardUuid,
         projectUuid,
         refreshChartTiles,
         refreshDashboard,
-        successfulContentResults,
     ]);
 
     return null;
