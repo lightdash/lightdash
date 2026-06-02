@@ -82,31 +82,33 @@ export const getPreviewDeploySecrets = ({
 }: {
     projectUuid: string;
     siteUrl: string;
-}): PreviewDeploySecret[] => [
-    {
-        name: 'LIGHTDASH_URL',
-        value: siteUrl,
-        description: 'The base URL of your Lightdash instance.',
-    },
-    {
-        name: 'LIGHTDASH_PROJECT',
-        value: projectUuid,
-        description:
-            'The UUID of the Lightdash project to base preview projects on.',
-    },
-    {
-        name: 'LIGHTDASH_API_KEY',
-        value: null,
-        description:
-            'A Lightdash personal access token (Settings → Personal access tokens). Lightdash cannot create this for you.',
-    },
-    {
-        name: 'DBT_PROFILES',
-        value: null,
-        description:
-            'A dbt profiles.yml with your warehouse connection. Lightdash never stores your warehouse password, so you must add this yourself.',
-    },
-];
+}): PreviewDeploySecret[] => {
+    const baseUrl = siteUrl.replace(/\/+$/, '');
+    return [
+        {
+            name: 'LIGHTDASH_URL',
+            value: siteUrl,
+            description: 'The base URL of your Lightdash instance.',
+        },
+        {
+            name: 'LIGHTDASH_PROJECT',
+            value: projectUuid,
+            description:
+                'The UUID of the Lightdash project to base preview projects on.',
+        },
+        {
+            name: 'LIGHTDASH_API_KEY',
+            value: null,
+            description: `A Lightdash personal access token — create one at ${baseUrl}/generalSettings/personalAccessTokens. Lightdash cannot create this for you.`,
+        },
+        {
+            name: 'DBT_PROFILES',
+            value: null,
+            description:
+                'A dbt profiles.yml with your warehouse connection. Lightdash never stores your warehouse password, so you must add this yourself.',
+        },
+    ];
+};
 
 const PREVIEW_WORKFLOW_PATH = `${WORKFLOWS_DIR}start-preview.yml`;
 const CLOSE_WORKFLOW_PATH = `${WORKFLOWS_DIR}close-preview.yml`;

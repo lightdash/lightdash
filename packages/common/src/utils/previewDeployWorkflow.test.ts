@@ -90,6 +90,21 @@ describe('getPreviewDeploySecrets', () => {
         expect(byName.LIGHTDASH_API_KEY).toBeNull();
         expect(byName.DBT_PROFILES).toBeNull();
     });
+
+    it('links to the personal access tokens page (no double slash)', () => {
+        const apiKey = secrets.find((s) => s.name === 'LIGHTDASH_API_KEY');
+        expect(apiKey?.description).toContain(
+            'https://app.lightdash.cloud/generalSettings/personalAccessTokens',
+        );
+        const trailing = getPreviewDeploySecrets({
+            projectUuid: 'p',
+            siteUrl: 'https://app.lightdash.cloud/',
+        }).find((s) => s.name === 'LIGHTDASH_API_KEY');
+        expect(trailing?.description).toContain(
+            'https://app.lightdash.cloud/generalSettings/personalAccessTokens',
+        );
+        expect(trailing?.description).not.toContain('cloud//general');
+    });
 });
 
 describe('generatePreviewDeployWorkflowFiles', () => {
