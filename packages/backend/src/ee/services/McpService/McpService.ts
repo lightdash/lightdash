@@ -4,13 +4,13 @@ import {
     AiResultType,
     ApiKeyAccount,
     assertUnreachable,
-    buildRunSqlDescription,
     CatalogType,
     ChartType,
     clearAgentToolDefinition,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     createToolRunSqlArgsSchema,
+    DEFAULT_RUN_SQL_LIMIT,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -176,7 +176,6 @@ const mcpGetCurrentAgentTool = getCurrentAgentToolDefinition.for('mcp');
 const mcpRunMetricQueryTool = runQueryToolDefinition.for('mcp');
 const mcpRenderChartTool = renderChartToolDefinition.for('mcp');
 const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
-const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
 
@@ -1965,20 +1964,23 @@ export class McpService extends BaseService {
             },
         );
 
-        // TODO: move config-dependent tool contracts into defineTool so
-        // description and inputSchema can be resolved from one runtime-aware
-        // definition instead of being rebuilt here.
+        const runSqlDefaultLimit = DEFAULT_RUN_SQL_LIMIT;
+        const { runSqlMaxLimit } = this.lightdashConfig.mcp;
         const runSqlArgsSchema = createToolRunSqlArgsSchema({
-            maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
+            defaultLimit: runSqlDefaultLimit,
+            maxLimit: runSqlMaxLimit,
+        });
+        const mcpRunSqlTool = runSqlToolDefinition.for('mcp', {
+            descriptionVars: {
+                defaultLimit: runSqlDefaultLimit,
+                maxLimit: runSqlMaxLimit,
+            },
         });
         this.mcpServer.registerTool(
             mcpRunSqlTool.name,
             {
                 title: mcpRunSqlTool.title,
-                description: buildRunSqlDescription(
-                    500,
-                    this.lightdashConfig.mcp.runSqlMaxLimit,
-                ),
+                description: mcpRunSqlTool.description,
                 inputSchema: this.getMcpCompatibleSchema(runSqlArgsSchema),
                 outputSchema: mcpRunSqlTool.outputSchema,
                 annotations: mcpRunSqlTool.annotations,
@@ -1999,7 +2001,7 @@ export class McpService extends BaseService {
                             account,
                             projectUuid,
                             sql: args.sql,
-                            limit: args.limit ?? 500,
+                            limit: args.limit ?? runSqlDefaultLimit,
                             context: QueryExecutionContext.MCP_RUN_SQL,
                         });
 
@@ -2030,14 +2032,14 @@ export class McpService extends BaseService {
                         ctx,
                         projectUuid,
                         sql: args.sql,
-                        limit: args.limit ?? 500,
+                        limit: args.limit ?? runSqlDefaultLimit,
                     });
 
                     return await this.buildSqlQueryResultResponse({
                         ctx,
                         queryUuid,
                         projectUuid,
-                        pageSize: args.limit ?? 500,
+                        pageSize: args.limit ?? runSqlDefaultLimit,
                         includeStatus: false,
                         sqlRunnerUrl,
                     });

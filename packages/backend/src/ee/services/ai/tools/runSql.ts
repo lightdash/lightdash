@@ -1,6 +1,6 @@
 import {
-    buildRunSqlDescription,
     createToolRunSqlArgsSchema,
+    DEFAULT_RUN_SQL_LIMIT,
     isSlackPrompt,
     runSqlToolDefinition,
     type AnyType,
@@ -34,8 +34,6 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
 };
-
-const toolDefinition = runSqlToolDefinition.for('agent');
 
 // Strip --line and /* block */ comments + string literals so subsequent
 // keyword checks don't false-positive on text that's inside a comment or a
@@ -89,9 +87,15 @@ export const getRunSql = ({
     const inputSchema = createToolRunSqlArgsSchema({
         maxLimit: maxQueryLimit,
     });
+    const toolDefinition = runSqlToolDefinition.for('agent', {
+        descriptionVars: {
+            defaultLimit: DEFAULT_RUN_SQL_LIMIT,
+            maxLimit: maxQueryLimit,
+        },
+    });
 
     return tool({
-        description: buildRunSqlDescription(500, maxQueryLimit),
+        description: toolDefinition.description,
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,

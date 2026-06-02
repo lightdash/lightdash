@@ -100,8 +100,8 @@ const makeMcpService = (): McpService =>
         userAttributesModel: {},
     } as ConstructorParameters<typeof McpService>[0]);
 
-const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
-    (toolDefinition) => toolDefinition.for('mcp').name,
+const sharedMcpToolDefinitionNames = mcpToolDefinitions.map((toolDefinition) =>
+    toolDefinition.runtimeName('mcp'),
 );
 
 describe('MCP tool contracts', () => {

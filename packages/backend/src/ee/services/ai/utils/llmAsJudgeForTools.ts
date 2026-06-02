@@ -1,5 +1,7 @@
 import {
     agentToolDefinitionsByName,
+    DEFAULT_RUN_SQL_LIMIT,
+    DEFAULT_RUN_SQL_MAX_LIMIT,
     isToolName,
     type ToolName,
 } from '@lightdash/common';
@@ -56,7 +58,15 @@ const getToolInfo = (toolName: string) => {
 const availableTools = Object.entries(agentToolDefinitionsByName).map(
     ([name, definition]) => ({
         name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
-        description: definition.description,
+        description:
+            name === 'runSql'
+                ? definition.for('agent', {
+                      descriptionVars: {
+                          defaultLimit: DEFAULT_RUN_SQL_LIMIT,
+                          maxLimit: DEFAULT_RUN_SQL_MAX_LIMIT,
+                      },
+                  }).description
+                : definition.description,
     }),
 );
 
