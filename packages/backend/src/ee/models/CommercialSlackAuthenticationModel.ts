@@ -140,7 +140,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     notification_channel: notificationChannel,
                     app_profile_photo_url: appProfilePhotoUrl,
                     ai_thread_access_consent: aiThreadAccessConsent ?? false,
-                    ai_require_oauth: aiRequireOAuth ?? false,
+                    ai_require_oauth: aiRequireOAuth ?? true,
                     ai_multi_agent_channel_id: aiMultiAgentChannelId ?? null,
                     unfurls_enabled: unfurlsEnabled,
                 })

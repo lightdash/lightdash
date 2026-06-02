@@ -100,7 +100,7 @@ const SlackSettingsPanel: FC = () => {
             appProfilePhotoUrl: null,
             slackChannelProjectMappings: [],
             aiThreadAccessConsent: false,
-            aiRequireOAuth: false,
+            aiRequireOAuth: true,
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
             unfurlsEnabled: true,
@@ -120,7 +120,7 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.slackChannelProjectMappings ?? [],
             aiThreadAccessConsent:
                 slackInstallation.aiThreadAccessConsent ?? false,
-            aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
+            aiRequireOAuth: slackInstallation.aiRequireOAuth ?? true,
             aiMultiAgentChannelId:
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
             aiMultiAgentProjectUuids:
