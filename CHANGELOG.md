@@ -1,3 +1,15 @@
+# [0.3081.0](https://github.com/lightdash/lightdash/compare/0.3080.2...0.3081.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-review:** judge turns with the next turn's correction (ZAP-456) ([#23797](https://github.com/lightdash/lightdash/issues/23797)) ([3681eee](https://github.com/lightdash/lightdash/commit/3681eeec746cb99a1d395803150ff806cb45fc60))
+
+
+### Features
+
+* **ai-writeback:** add GitLab merge-request writeback ([#23804](https://github.com/lightdash/lightdash/issues/23804)) ([e59e931](https://github.com/lightdash/lightdash/commit/e59e9314fa4e65392a6ca728fd66ff54a1fbe1aa))
+
 ## [0.3080.2](https://github.com/lightdash/lightdash/compare/0.3080.1...0.3080.2) (2026-06-03)
 
 
