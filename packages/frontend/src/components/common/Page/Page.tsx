@@ -36,7 +36,6 @@ type StyleProps = {
     noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
     reserveSidebarToggle?: boolean;
-    backgroundColor?: string;
     fullPageScroll?: boolean;
 };
 
@@ -80,7 +79,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     noContentPadding = false,
     noSidebarPadding = false,
     flexContent = false,
-    backgroundColor,
     fullPageScroll = false,
     children,
 }) => {
@@ -112,13 +110,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             <Box
                 id="page-root"
                 className={classes.root}
-                style={
-                    backgroundColor
-                        ? {
-                              '--page-background-color': backgroundColor,
-                          }
-                        : undefined
-                }
                 data-with-navbar={withNavbar}
                 data-with-header={!!header}
                 data-has-banner={hasBanner}
@@ -127,7 +118,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 data-with-sidebar={withSidebar}
                 data-sidebar-resizing={isSidebarResizing}
                 data-centered-root={withCenteredRoot}
-                data-has-background={!!backgroundColor}
             >
                 {sidebar ? (
                     <Sidebar

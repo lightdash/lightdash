@@ -49,10 +49,6 @@
     justify-content: center;
 }
 
-.root[data-has-background='true'] {
-    background-color: var(--page-background-color);
-}
-
 .content {
     width: 100%;
     min-width: var(--page-content-width);
