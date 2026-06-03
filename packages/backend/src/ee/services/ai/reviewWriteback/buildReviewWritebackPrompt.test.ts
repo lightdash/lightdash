@@ -57,17 +57,26 @@ const baseItem = (
             rationale: 'Disambiguate it from total_order_amount.',
             targetRefs: [],
         },
-        createdAt: new Date('2026-05-26T00:00:00.000Z'),
         projectContextEntry: null,
+        createdAt: new Date('2026-05-26T00:00:00.000Z'),
     },
     ...overrides,
 });
 
+const expectPromptPlan = (plan: ReturnType<typeof planReviewWriteback>) => {
+    if (plan.strategy !== 'prompt') {
+        throw new Error(`expected a prompt plan, got ${plan.strategy}`);
+    }
+    return plan;
+};
+
 describe('planReviewWriteback', () => {
     it('builds a deterministic one-shot prompt for semantic_layer items', () => {
-        const plan = planReviewWriteback(
-            baseItem(),
-            new Map([['orders', 'models/orders.yml']]),
+        const plan = expectPromptPlan(
+            planReviewWriteback(
+                baseItem(),
+                new Map([['orders', 'models/orders.yml']]),
+            ),
         );
 
         expect(plan.aggregationKey).toBeNull();
@@ -86,17 +95,41 @@ describe('planReviewWriteback', () => {
     });
 
     it('omits the yaml path when the model is not in the resolved map', () => {
-        const plan = planReviewWriteback(baseItem());
+        const plan = expectPromptPlan(planReviewWriteback(baseItem()));
 
         expect(plan.promptText).toContain('metric "orders.average_order_size"');
         expect(plan.promptText).not.toContain('(yaml:');
     });
 
-    it('throws for unsupported root causes', () => {
+    it('returns a project_context plan when the finding carries an entry', () => {
+        const item = baseItem({ primaryRootCause: 'project_context' });
+        const entry = {
+            op: 'create' as const,
+            id: null,
+            kind: 'definition' as const,
+            content: '"HR" = high-risk cohort.',
+            terms: ['HR'],
+            objects: [],
+        };
+        if (item.latestFinding) {
+            item.latestFinding.projectContextEntry = entry;
+        }
+
+        const plan = planReviewWriteback(item);
+        expect(plan).toEqual({ strategy: 'project_context', entry });
+    });
+
+    it('throws for a project_context item with no entry', () => {
         expect(() =>
             planReviewWriteback(
                 baseItem({ primaryRootCause: 'project_context' }),
             ),
+        ).toThrow('requires a projectContextEntry');
+    });
+
+    it('throws for unsupported root causes', () => {
+        expect(() =>
+            planReviewWriteback(baseItem({ primaryRootCause: 'data_gap' })),
         ).toThrow('not supported');
     });
 });

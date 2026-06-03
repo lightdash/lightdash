@@ -17,6 +17,8 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    PullRequestProvider,
+    PullRequestSource,
     UpdateAiAgentReviewItemStatus,
     type SessionUser,
 } from '@lightdash/common';
@@ -28,6 +30,7 @@ import {
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type PullRequestsModel } from '../../models/PullRequestsModel';
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
@@ -39,6 +42,7 @@ import {
     planReviewWriteback,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
 import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
+import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
 type AiAgentAdminServiceDependencies = {
     aiAgentModel: AiAgentModel;
@@ -46,6 +50,8 @@ type AiAgentAdminServiceDependencies = {
     featureFlagService: FeatureFlagService;
     projectModel: ProjectModel;
     aiWritebackService: AiWritebackService;
+    projectContextService: ProjectContextService;
+    pullRequestsModel: PullRequestsModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     schedulerClient: CommercialSchedulerClient;
     userModel: UserModel;
@@ -64,6 +70,24 @@ const parsePullRequestUrl = (
 
 // Longer than the worker's 30-min job timeout — past this, a queued/running writeback has lost its worker and is treated as failed so the UI recovers and retries.
 const WRITEBACK_STALE_MS = 35 * 60 * 1000;
+
+// Root causes that can open a writeback PR (both also require a GitHub-connected
+// project). project_context additionally needs the judge-emitted entry.
+const hasWritebackStrategy = (
+    item: AiAgentReviewItemSummary,
+    { projectContextEnabled }: { projectContextEnabled: boolean },
+): boolean => {
+    if (item.primaryRootCause === 'semantic_layer') {
+        return true;
+    }
+    if (item.primaryRootCause === 'project_context') {
+        return (
+            projectContextEnabled &&
+            item.latestFinding?.projectContextEntry != null
+        );
+    }
+    return false;
+};
 
 const isWritebackStale = (
     item: AiAgentReviewItemSummary,
@@ -98,6 +122,10 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiWritebackService: AiWritebackService;
 
+    private readonly projectContextService: ProjectContextService;
+
+    private readonly pullRequestsModel: PullRequestsModel;
+
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -112,6 +140,8 @@ export class AiAgentAdminService extends BaseService {
         this.featureFlagService = dependencies.featureFlagService;
         this.projectModel = dependencies.projectModel;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.projectContextService = dependencies.projectContextService;
+        this.pullRequestsModel = dependencies.pullRequestsModel;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
         this.schedulerClient = dependencies.schedulerClient;
@@ -205,19 +235,25 @@ export class AiAgentAdminService extends BaseService {
             statuses,
         });
 
+        const [writebackEnabled, projectContextEnabled] = await Promise.all([
+            this.isWritebackFeatureEnabled(user),
+            this.isProjectContextFeatureEnabled(user),
+        ]);
         const overrides = await this.reconcileLinkedPullRequests(
+            user.userUuid,
             organizationUuid,
             items,
+            { projectContextEnabled },
         );
 
-        const writebackEnabled = await this.isWritebackFeatureEnabled(user);
         const githubProjects = writebackEnabled
             ? await this.getGithubProjectUuids(
                   items
                       .filter(
                           (item) =>
-                              item.primaryRootCause === 'semantic_layer' &&
-                              item.projectUuid !== null,
+                              hasWritebackStrategy(item, {
+                                  projectContextEnabled,
+                              }) && item.projectUuid !== null,
                       )
                       .map((item) => item.projectUuid as string),
               )
@@ -228,7 +264,7 @@ export class AiAgentAdminService extends BaseService {
             const override = overrides.get(item.fingerprint);
             const writebackEligible =
                 writebackEnabled &&
-                item.primaryRootCause === 'semantic_layer' &&
+                hasWritebackStrategy(item, { projectContextEnabled }) &&
                 item.projectUuid !== null &&
                 githubProjects.has(item.projectUuid);
             return withStaleWritebackOverride(
@@ -268,6 +304,24 @@ export class AiAgentAdminService extends BaseService {
         return classifier.enabled && engine.enabled;
     }
 
+    private async isProjectContextFeatureEnabled(
+        user: SessionUser,
+    ): Promise<boolean> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return false;
+        }
+        const flag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiProjectContext,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+        return flag.enabled;
+    }
+
     private async getGithubProjectUuids(
         projectUuids: string[],
     ): Promise<Set<string>> {
@@ -293,8 +347,14 @@ export class AiAgentAdminService extends BaseService {
      * re-opened. Best effort — a GitHub failure for one item is skipped.
      */
     private async reconcileLinkedPullRequests(
+        userUuid: string,
         organizationUuid: string,
         items: AiAgentReviewItemSummary[],
+        {
+            projectContextEnabled,
+        }: {
+            projectContextEnabled: boolean;
+        },
     ): Promise<
         Map<
             string,
@@ -358,6 +418,20 @@ export class AiAgentAdminService extends BaseService {
                         },
                     );
                     overrides.set(item.fingerprint, { status, prState });
+                    // Loop closure: a merged project_context PR changed the file,
+                    // so re-ingest to refresh the cache for future agent turns.
+                    if (
+                        pr.merged &&
+                        projectContextEnabled &&
+                        item.primaryRootCause === 'project_context' &&
+                        item.projectUuid
+                    ) {
+                        await this.schedulerClient.ingestProjectContext({
+                            projectUuid: item.projectUuid,
+                            organizationUuid,
+                            userUuid,
+                        });
+                    }
                 } catch (error) {
                     this.logger.warn(
                         `Failed to reconcile PR state for review item ${item.fingerprint}: ${error}`,
@@ -500,18 +574,6 @@ export class AiAgentAdminService extends BaseService {
             throw new ForbiddenError('AI writeback is not enabled');
         }
 
-        // Fail fast at the click rather than queue → run → fail on the worker.
-        if (!this.lightdashConfig.appRuntime.e2bApiKey) {
-            throw new MissingConfigError(
-                'E2B API key is not configured (E2B_API_KEY)',
-            );
-        }
-        if (!this.lightdashConfig.aiWriteback.anthropicApiKey) {
-            throw new MissingConfigError(
-                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
-            );
-        }
-
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -520,10 +582,30 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
-        if (reviewItem.primaryRootCause !== 'semantic_layer') {
+        const projectContextEnabled =
+            reviewItem.primaryRootCause === 'project_context'
+                ? await this.isProjectContextFeatureEnabled(user)
+                : false;
+        if (!hasWritebackStrategy(reviewItem, { projectContextEnabled })) {
             throw new ParameterError(
-                'Writeback is only supported for semantic-layer review items',
+                'Writeback is not available for this review item',
             );
+        }
+        // The semantic_layer strategy runs in the e2b sandbox with Claude Code,
+        // so fail fast at the click rather than queue → run → fail on the
+        // worker. project_context uses a deterministic GitHub merge — no sandbox,
+        // no Anthropic key — so these checks don't apply to it.
+        if (reviewItem.primaryRootCause === 'semantic_layer') {
+            if (!this.lightdashConfig.appRuntime.e2bApiKey) {
+                throw new MissingConfigError(
+                    'E2B API key is not configured (E2B_API_KEY)',
+                );
+            }
+            if (!this.lightdashConfig.aiWriteback.anthropicApiKey) {
+                throw new MissingConfigError(
+                    'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
+                );
+            }
         }
         if (reviewItem.linkedPrUrl && reviewItem.prState === 'open') {
             throw new ParameterError(
@@ -638,23 +720,59 @@ export class AiAgentAdminService extends BaseService {
                 reviewItem,
                 buildYmlPathByModel(Object.values(explores)),
             );
-            const result = await this.aiWritebackService.run({
-                user,
-                projectUuid,
-                prompt: plan.promptText,
-                source: 'admin_review',
-                onProgress: (message) => {
-                    void setProgress(message);
-                },
-            });
 
-            if (result.prUrl) {
+            let prUrl: string | null;
+            if (plan.strategy === 'project_context') {
+                await setProgress('Updating project context…');
+                const finding = reviewItem.latestFinding;
+                const sourceThread = finding
+                    ? {
+                          threadUrl: `${this.lightdashConfig.siteUrl}/projects/${finding.projectUuid}/ai-agents/${finding.agentUuid}/threads/${finding.threadUuid}`,
+                          promptUuid: finding.promptUuid,
+                          threadUuid: finding.threadUuid,
+                      }
+                    : null;
+                const writeback =
+                    await this.projectContextService.writebackEntry({
+                        projectUuid,
+                        entry: plan.entry,
+                        branchTimestamp: Date.now(),
+                        sourceThread,
+                    });
+                prUrl = writeback.prUrl;
+                // Surface the PR in the project's Pull Requests list with
+                // AI_AGENT provenance, same as the semantic_layer writeback.
+                await this.pullRequestsModel.findOrCreate({
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid: userUuid,
+                    provider: PullRequestProvider.GITHUB,
+                    source: PullRequestSource.AI_AGENT,
+                    owner: writeback.owner,
+                    repo: writeback.repo,
+                    prNumber: writeback.prNumber,
+                    prUrl: writeback.prUrl,
+                });
+            } else {
+                const result = await this.aiWritebackService.run({
+                    user,
+                    projectUuid,
+                    prompt: plan.promptText,
+                    source: 'admin_review',
+                    onProgress: (message) => {
+                        void setProgress(message);
+                    },
+                });
+                prUrl = result.prUrl;
+            }
+
+            if (prUrl) {
                 await this.aiAgentReviewClassifierModel.setReviewItemPrLink({
                     fingerprint,
                     organizationUuid,
                     projectUuid,
                     agentUuid,
-                    linkedPrUrl: result.prUrl,
+                    linkedPrUrl: prUrl,
                     prState: 'open',
                 });
                 await setTerminal('completed', 'Opened pull request');
@@ -697,10 +815,13 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
-        const writebackEnabled = await this.isWritebackFeatureEnabled(user);
+        const [writebackEnabled, projectContextEnabled] = await Promise.all([
+            this.isWritebackFeatureEnabled(user),
+            this.isProjectContextFeatureEnabled(user),
+        ]);
         const writebackEligible =
             writebackEnabled &&
-            reviewItem.primaryRootCause === 'semantic_layer' &&
+            hasWritebackStrategy(reviewItem, { projectContextEnabled }) &&
             reviewItem.projectUuid !== null &&
             (await this.getGithubProjectUuids([reviewItem.projectUuid])).has(
                 reviewItem.projectUuid,

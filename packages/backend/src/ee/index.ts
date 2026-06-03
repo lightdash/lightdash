@@ -225,6 +225,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    projectContextService:
+                        repository.getProjectContextService<ProjectContextService>(),
+                    pullRequestsModel: models.getPullRequestsModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     schedulerClient:

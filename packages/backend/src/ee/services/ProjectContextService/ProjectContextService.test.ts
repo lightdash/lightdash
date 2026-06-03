@@ -8,8 +8,12 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
+    createBranch,
+    createPullRequest,
+    createSignedCommitOnBranch,
     getFileContent,
     getInstallationToken,
+    getLastCommit,
 } from '../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -22,10 +26,18 @@ import {
 jest.mock('../../../clients/github/Github', () => ({
     getFileContent: jest.fn(),
     getInstallationToken: jest.fn(),
+    getLastCommit: jest.fn(),
+    createBranch: jest.fn(),
+    createSignedCommitOnBranch: jest.fn(),
+    createPullRequest: jest.fn(),
 }));
 
 const mockGetFileContent = getFileContent as jest.Mock;
 const mockGetInstallationToken = getInstallationToken as jest.Mock;
+const mockGetLastCommit = getLastCommit as jest.Mock;
+const mockCreateBranch = createBranch as jest.Mock;
+const mockCreateSignedCommitOnBranch = createSignedCommitOnBranch as jest.Mock;
+const mockCreatePullRequest = createPullRequest as jest.Mock;
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 const ORG_UUID = '00000000-0000-0000-0000-000000000002';
@@ -219,5 +231,131 @@ describe('ProjectContextService.ingestProjectContext', () => {
             service.ingestProjectContext(userWithIngestAccess(), PROJECT_UUID),
         ).rejects.toThrow('500 from GitHub');
         expect(getCachedEntries()).toEqual(existingEntries());
+    });
+});
+
+describe('ProjectContextService.writebackEntry', () => {
+    const judgeEntry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"HR" = high-risk cohort.',
+        terms: ['HR'],
+        objects: [],
+    };
+
+    beforeEach(() => {
+        mockGetLastCommit.mockResolvedValue({ sha: 'base-sha' });
+        mockCreateBranch.mockResolvedValue({});
+        mockCreateSignedCommitOnBranch.mockResolvedValue({
+            oid: 'commit-sha',
+            url: 'https://github.com/acme/analytics/commit/commit-sha',
+        });
+        mockCreatePullRequest.mockResolvedValue({
+            html_url: 'https://github.com/acme/analytics/pull/7',
+            number: 7,
+        });
+    });
+
+    test('creates the file and opens a PR when it does not yet exist', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+
+        const result = await service.writebackEntry({
+            projectUuid: PROJECT_UUID,
+            entry: judgeEntry,
+            branchTimestamp: 1000,
+            sourceThread: null,
+        });
+
+        expect(result).toEqual({
+            prUrl: 'https://github.com/acme/analytics/pull/7',
+            prNumber: 7,
+            owner: 'acme',
+            repo: 'analytics',
+            op: 'create',
+            entryId: 'hr',
+        });
+        expect(mockCreateSignedCommitOnBranch).toHaveBeenCalledTimes(1);
+        const commitArgs = mockCreateSignedCommitOnBranch.mock.calls[0][0];
+        expect(commitArgs).toMatchObject({
+            branch: 'lightdash-project-context/hr-1000',
+            expectedHeadOid: 'base-sha',
+        });
+        expect(commitArgs.fileChanges.additions[0].path).toBe(
+            'lightdash.project_context.yml',
+        );
+        expect(mockCreateBranch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sha: 'base-sha',
+                branch: 'lightdash-project-context/hr-1000',
+            }),
+        );
+    });
+
+    test('updates the existing file when present and reports op=update', async () => {
+        mockGetFileContent.mockResolvedValue({
+            content: `
+- id: hr
+  kind: definition
+  content: old
+  terms: [HR]
+`,
+            sha: 'file-sha',
+        });
+        const { service } = makeService({});
+
+        const result = await service.writebackEntry({
+            projectUuid: PROJECT_UUID,
+            entry: { ...judgeEntry, op: 'update', id: 'hr' },
+            branchTimestamp: 2000,
+            sourceThread: null,
+        });
+
+        expect(result.op).toBe('update');
+        // op=update is decided by merging into the existing entry, not by a
+        // file SHA — the signed commit overwrites the file either way.
+        const commitArgs = mockCreateSignedCommitOnBranch.mock.calls[0][0];
+        const updated = Buffer.from(
+            commitArgs.fileChanges.additions[0].contents,
+            'base64',
+        ).toString('utf-8');
+        expect(updated).toContain('"HR" = high-risk cohort.');
+        expect(updated).not.toContain('content: old');
+    });
+
+    test('throws when the project has no GitHub access', async () => {
+        const { service } = makeService({ installationId: undefined });
+        await expect(
+            service.writebackEntry({
+                projectUuid: PROJECT_UUID,
+                entry: judgeEntry,
+                branchTimestamp: 1,
+                sourceThread: null,
+            }),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    test('links the originating agent thread in the PR body', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+
+        await service.writebackEntry({
+            projectUuid: PROJECT_UUID,
+            entry: judgeEntry,
+            branchTimestamp: 1000,
+            sourceThread: {
+                threadUrl:
+                    'https://app.lightdash.com/projects/p/ai-agents/a/threads/t',
+                promptUuid: 'prompt-123',
+                threadUuid: 't',
+            },
+        });
+
+        const body = mockCreatePullRequest.mock.calls[0][0].body as string;
+        expect(body).toContain(
+            'https://app.lightdash.com/projects/p/ai-agents/a/threads/t',
+        );
+        expect(body).toContain('prompt-123');
     });
 });

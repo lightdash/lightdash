@@ -215,7 +215,8 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
-     * Open a writeback pull request for a semantic-layer review item
+     * Open a writeback pull request for a review item (semantic-layer or
+     * project-context root cause)
      * @summary Create AI agent review item writeback PR
      */
     @Middlewares([

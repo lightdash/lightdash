@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     isExploreError,
+    type AiAgentJudgeProjectContextEntry,
     type AiAgentReviewItemSummary,
     type AiAgentSemanticTargetRef,
     type AiAgentTargetRef,
@@ -9,14 +10,23 @@ import {
 } from '@lightdash/common';
 
 /**
- * Output of a review-writeback strategy. `aggregationKey` is null for one-shot
- * PRs (semantic_layer) and set for cumulative living-document flows that resume
- * an existing writeback thread (e.g. project_context).
+ * Output of a review-writeback strategy. Two execution shapes:
+ * - `prompt`: a natural-language prompt run in the e2b/Claude Code sandbox
+ *   (semantic_layer). `aggregationKey` is null for one-shot PRs and set for
+ *   cumulative living-document flows that resume an existing writeback thread.
+ * - `project_context`: a structured entry applied by a deterministic
+ *   GitHub-API merge of lightdash.project_context.yml — no sandbox.
  */
-export type ReviewWritebackPlan = {
-    promptText: string;
-    aggregationKey: string | null;
-};
+export type ReviewWritebackPlan =
+    | {
+          strategy: 'prompt';
+          promptText: string;
+          aggregationKey: string | null;
+      }
+    | {
+          strategy: 'project_context';
+          entry: AiAgentJudgeProjectContextEntry;
+      };
 
 // Resolves each model's dbt YAML path from compiled explores so the writeback agent edits the right file (the judge only gives names).
 export const buildYmlPathByModel = (
@@ -102,15 +112,17 @@ const buildSemanticLayerWritebackPrompt = (
     ].filter((section): section is string => section !== null);
 
     return {
+        strategy: 'prompt',
         promptText: sections.join('\n\n'),
         aggregationKey: null,
     };
 };
 
 /**
- * Per-root-cause strategy dispatcher. Only semantic_layer is implemented today;
- * other root causes (e.g. project_context living document) plug in here with
- * their own prompt + aggregationKey without touching the bridge.
+ * Per-root-cause strategy dispatcher. Two strategies are implemented:
+ * `semantic_layer` → a sandbox prompt, and `project_context` → a structured
+ * entry for the deterministic GitHub-API merge. Other root causes throw until
+ * they plug in here with their own strategy.
  */
 export const planReviewWriteback = (
     item: AiAgentReviewItemSummary,
@@ -118,6 +130,15 @@ export const planReviewWriteback = (
 ): ReviewWritebackPlan => {
     if (item.primaryRootCause === 'semantic_layer') {
         return buildSemanticLayerWritebackPrompt(item, ymlPathByModel);
+    }
+    if (item.primaryRootCause === 'project_context') {
+        const entry = item.latestFinding?.projectContextEntry ?? null;
+        if (!entry) {
+            throw new Error(
+                'Writeback for project_context requires a projectContextEntry on the finding',
+            );
+        }
+        return { strategy: 'project_context', entry };
     }
     throw new Error(
         `Writeback is not supported for root cause "${item.primaryRootCause}"`,
