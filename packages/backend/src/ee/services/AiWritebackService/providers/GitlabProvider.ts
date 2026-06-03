@@ -9,9 +9,11 @@ import {
     PullRequestProvider,
     UnexpectedServerError,
     type DbtProjectConfig,
+    type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Sandbox } from 'e2b';
+import type { Logger } from 'winston';
 import {
     createPullRequest,
     getGitlabUser,
@@ -19,7 +21,6 @@ import {
     getOrRefreshToken,
     updateMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
-import Logger from '../../../../logging/logger';
 import type { GitlabAppInstallationsModel } from '../../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { COMMIT_AUTHOR_EMAIL, COMMIT_AUTHOR_NAME, CWD } from '../constants';
 import type {
@@ -35,6 +36,7 @@ import type {
 import {
     buildCloneTarget,
     buildGitlabCommitAuthor,
+    buildUserCoAuthorTrailer,
     parseGitlabConnection,
     parseMergeRequestUrl,
     parsePullNumber,
@@ -68,6 +70,24 @@ const asGitlabInstallation = (
     return installation;
 };
 
+/**
+ * The OAuth token is only valid against the instance it was issued by, and the
+ * clone/MR API target the dbt repo's host. If those hosts differ (self-hosted
+ * misconfiguration) the token is silently rejected as "Invalid GitLab access
+ * token"; fail early with an actionable message instead.
+ */
+const assertSameHost = (
+    connection: GitlabConnection,
+    installation: GitlabInstallation,
+): void => {
+    const installHost = new URL(installation.instanceUrl).hostname;
+    if (installHost !== connection.hostDomain) {
+        throw new ParameterError(
+            `This project's GitLab host (${connection.hostDomain}) does not match the connected GitLab app instance (${installHost}). Connect the GitLab app for ${connection.hostDomain}.`,
+        );
+    }
+};
+
 type GitlabConfig = {
     clientId: string | undefined;
     clientSecret: string | undefined;
@@ -76,6 +96,7 @@ type GitlabConfig = {
 type GitlabProviderDeps = {
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     gitlabConfig: GitlabConfig;
+    logger: Logger;
 };
 
 export class GitlabProvider implements GitProvider {
@@ -88,12 +109,16 @@ export class GitlabProvider implements GitProvider {
 
     private readonly gitlabConfig: GitlabConfig;
 
+    private readonly logger: Logger;
+
     constructor({
         gitlabAppInstallationsModel,
         gitlabConfig,
+        logger,
     }: GitlabProviderDeps) {
         this.gitlabAppInstallationsModel = gitlabAppInstallationsModel;
         this.gitlabConfig = gitlabConfig;
+        this.logger = logger;
     }
 
     resolveConnection(dbtConnection: DbtProjectConfig): GitConnection {
@@ -104,10 +129,10 @@ export class GitlabProvider implements GitProvider {
         connection: GitConnection,
         installation: GitInstallation,
     ): CloneTarget {
-        return buildCloneTarget(
-            asGitlabConnection(connection),
-            asGitlabInstallation(installation).token,
-        );
+        const gitlabConnection = asGitlabConnection(connection);
+        const gitlabInstallation = asGitlabInstallation(installation);
+        assertSameHost(gitlabConnection, gitlabInstallation);
+        return buildCloneTarget(gitlabConnection, gitlabInstallation.token);
     }
 
     /**
@@ -170,7 +195,7 @@ export class GitlabProvider implements GitProvider {
                 new URL(auth.gitlabInstanceUrl).hostname,
             );
         } catch (error) {
-            Logger.warn(
+            this.logger.warn(
                 `AiWriteback: could not resolve GitLab user identity for org ${organizationUuid}; commits use the default author. ${getErrorMessage(
                     error,
                 )}`,
@@ -186,7 +211,7 @@ export class GitlabProvider implements GitProvider {
     }
 
     async openPullRequest(args: OpenPullRequestArgs): Promise<string> {
-        const { sandbox, title, description, setStage } = args;
+        const { sandbox, title, description, user, setStage } = args;
         const connection = asGitlabConnection(args.connection);
         const installation = asGitlabInstallation(args.installation);
 
@@ -203,6 +228,7 @@ export class GitlabProvider implements GitProvider {
             installation,
             branch,
             title,
+            user,
             setStage,
         });
 
@@ -221,7 +247,7 @@ export class GitlabProvider implements GitProvider {
     }
 
     async updatePullRequest(args: UpdatePullRequestArgs): Promise<void> {
-        const { sandbox, prUrl, title, description, setStage } = args;
+        const { sandbox, prUrl, title, description, user, setStage } = args;
         const connection = asGitlabConnection(args.connection);
         const installation = asGitlabInstallation(args.installation);
 
@@ -240,6 +266,7 @@ export class GitlabProvider implements GitProvider {
             installation,
             branch: featureBranch,
             title,
+            user,
             setStage,
         });
 
@@ -260,6 +287,7 @@ export class GitlabProvider implements GitProvider {
     ): Promise<AdoptedPullRequest> {
         const connection = asGitlabConnection(args.connection);
         const installation = asGitlabInstallation(args.installation);
+        assertSameHost(connection, installation);
         const { projectPath, mergeRequestIid } = parseMergeRequestUrl(
             args.prUrl,
             connection.hostDomain,
@@ -312,9 +340,10 @@ export class GitlabProvider implements GitProvider {
     }
 
     /**
-     * Stage the agent's edits, commit them locally as the GitLab user, and push
-     * the branch over HTTPS (`oauth2:<token>`). GitLab commits are unsigned —
-     * there is no app-signing equivalent — which is accepted.
+     * Stage the agent's edits, commit them locally as the GitLab user (crediting
+     * the triggering Lightdash user as a co-author), and push the branch over
+     * HTTPS (`oauth2:<token>`). GitLab commits are unsigned — there is no
+     * app-signing equivalent — which is accepted.
      */
     private async landChanges({
         sandbox,
@@ -322,6 +351,7 @@ export class GitlabProvider implements GitProvider {
         installation,
         branch,
         title,
+        user,
         setStage,
     }: {
         sandbox: Sandbox;
@@ -329,11 +359,14 @@ export class GitlabProvider implements GitProvider {
         installation: GitlabInstallation;
         branch: string;
         title: string;
+        user: SessionUser;
         setStage: SetStage;
     }): Promise<void> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath);
-        await commitLocal(sandbox, title, installation.commitAuthor);
+        await stageChanges(sandbox, connection.projectSubPath, this.logger);
+        const userTrailer = buildUserCoAuthorTrailer(user);
+        const message = userTrailer ? `${title}\n\n${userTrailer}` : title;
+        await commitLocal(sandbox, message, installation.commitAuthor);
 
         setStage('push');
         await sandbox.git.push(CWD, {

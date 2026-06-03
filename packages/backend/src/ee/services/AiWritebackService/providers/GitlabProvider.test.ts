@@ -24,6 +24,7 @@ const mockGetMergeRequest = getMergeRequest as jest.MockedFunction<
 const provider = new GitlabProvider({
     gitlabAppInstallationsModel: {} as never,
     gitlabConfig: { clientId: 'id', clientSecret: 'secret' },
+    logger: { info: jest.fn(), warn: jest.fn() } as never,
 });
 
 const connection: GitlabConnection = {
@@ -70,6 +71,15 @@ describe('GitlabProvider.getCloneTarget', () => {
             password: 'gl-token',
         });
     });
+
+    it('rejects when the repo host differs from the connected app instance', () => {
+        expect(() =>
+            provider.getCloneTarget(
+                { ...connection, hostDomain: 'gitlab.acme.com' },
+                installation, // instanceUrl is https://gitlab.com
+            ),
+        ).toThrow(/does not match the connected GitLab app instance/);
+    });
 });
 
 describe('GitlabProvider.openPullRequest', () => {
@@ -113,6 +123,35 @@ describe('GitlabProvider.openPullRequest', () => {
                 token: 'gl-token',
                 hostDomain: 'gitlab.com',
             }),
+        );
+    });
+
+    it('credits the triggering user as a commit co-author', async () => {
+        mockCreatePullRequest.mockResolvedValue({
+            html_url: 'https://gitlab.com/acme/analytics/-/merge_requests/42',
+            title: 'Add metric',
+            number: 42,
+        });
+        const sandbox = fakeSandbox();
+
+        await provider.openPullRequest({
+            sandbox: sandbox as never,
+            connection,
+            installation,
+            title: 'Add metric',
+            description: 'Adds revenue.',
+            user: {
+                firstName: 'Jane',
+                lastName: 'Doe',
+                email: 'jane@acme.com',
+            } as never,
+            setStage: jest.fn(),
+        });
+
+        expect(sandbox.git.commit).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining('Co-authored-by: Jane Doe <jane@acme.com>'),
+            expect.anything(),
         );
     });
 });

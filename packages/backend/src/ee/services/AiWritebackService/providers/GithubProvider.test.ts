@@ -13,6 +13,7 @@ const mockGetPullRequest = getPullRequest as jest.MockedFunction<
 
 const provider = new GithubProvider({
     githubAppInstallationsModel: {} as never,
+    logger: { info: jest.fn(), warn: jest.fn() } as never,
 });
 
 const connection: GithubConnection = {

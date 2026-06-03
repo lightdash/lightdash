@@ -144,10 +144,12 @@ export class AiWritebackService extends BaseService {
         this.projectCiStatusModel = projectCiStatusModel;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
+            logger: this.logger,
         });
         this.gitlabProvider = new GitlabProvider({
             gitlabAppInstallationsModel,
             gitlabConfig: lightdashConfig.gitlab,
+            logger: this.logger,
         });
     }
 

@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Sandbox } from 'e2b';
+import type { Logger } from 'winston';
 import {
     createBranch,
     createPullRequest,
@@ -22,7 +23,6 @@ import {
     getPullRequest,
     updatePullRequest,
 } from '../../../../clients/github/Github';
-import Logger from '../../../../logging/logger';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import {
     CO_AUTHOR_TRAILER,
@@ -87,6 +87,7 @@ const githubAuth = (
 
 type GithubProviderDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    logger: Logger;
 };
 
 export class GithubProvider implements GitProvider {
@@ -96,8 +97,11 @@ export class GithubProvider implements GitProvider {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
-    constructor({ githubAppInstallationsModel }: GithubProviderDeps) {
+    private readonly logger: Logger;
+
+    constructor({ githubAppInstallationsModel, logger }: GithubProviderDeps) {
         this.githubAppInstallationsModel = githubAppInstallationsModel;
+        this.logger = logger;
     }
 
     resolveConnection(dbtConnection: DbtProjectConfig): GitConnection {
@@ -149,7 +153,7 @@ export class GithubProvider implements GitProvider {
             const bot = await getAppBotIdentity(installationId);
             coAuthorTrailer = buildCoAuthorTrailer(bot);
         } catch (error) {
-            Logger.warn(
+            this.logger.warn(
                 `AiWriteback: could not resolve GitHub app bot identity for the co-author trailer; using the default. ${getErrorMessage(
                     error,
                 )}`,
@@ -347,7 +351,7 @@ export class GithubProvider implements GitProvider {
         setStage: SetStage;
     }): Promise<void> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath);
+        await stageChanges(sandbox, connection.projectSubPath, this.logger);
         const fileChanges = await collectFileChanges(sandbox);
         await commitLocal(sandbox, title, installation.commitAuthor);
 

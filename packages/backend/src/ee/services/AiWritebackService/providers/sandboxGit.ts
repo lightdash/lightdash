@@ -1,6 +1,6 @@
 import type { Sandbox } from 'e2b';
+import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
-import Logger from '../../../../logging/logger';
 import { CWD } from '../constants';
 import type { GitCommitAuthor } from '../types';
 import { parseGitNameStatus } from '../utils';
@@ -17,9 +17,10 @@ import { parseGitNameStatus } from '../utils';
 export const stageChanges = async (
     sandbox: Sandbox,
     projectSubPath: string,
+    logger: Logger,
 ): Promise<void> => {
     const scopedToProject = projectSubPath !== '.';
-    Logger.info(
+    logger.info(
         `AiWriteback: staging ${
             scopedToProject
                 ? `'${projectSubPath}'`
