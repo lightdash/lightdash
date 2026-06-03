@@ -644,6 +644,48 @@ export const getSegmentDimensionsForMetric = (
         return d.spotlight?.segmentBy !== false;
     });
 
+/**
+ * Resolve the metric's spotlight `default_segment` to a segment dimension name,
+ * but only if it is one of the dimensions currently available to segment by.
+ * Returns null when there is no default or it is not available.
+ */
+export const getInitialDefaultSegment = (
+    metric: Pick<CatalogField, 'spotlightDefaultSegment'> | undefined,
+    availableSegmentDimensions: CompiledDimension[],
+): string | null => {
+    const name = metric?.spotlightDefaultSegment;
+    if (!name) return null;
+    const isAvailable = availableSegmentDimensions.some((d) => d.name === name);
+    return isAvailable ? name : null;
+};
+
+/**
+ * Build the Metrics Explorer `FilterRule` (targeting a resolved fieldId) from the
+ * metric's spotlight `default_filter` (which targets a dimension by fieldRef),
+ * but only if that dimension is currently available to filter by.
+ * Returns undefined when there is no default or it is not available.
+ */
+export const getInitialDefaultFilterRule = (
+    metric: Pick<CatalogField, 'spotlightDefaultFilter'> | undefined,
+    availableFilterDimensions: CompiledDimension[],
+): FilterRule | undefined => {
+    const defaultFilter = metric?.spotlightDefaultFilter;
+    if (!defaultFilter) return undefined;
+    const { fieldRef } = defaultFilter.target;
+    const name = fieldRef.includes('.')
+        ? fieldRef.split('.').slice(-1)[0]
+        : fieldRef;
+    const dimension = availableFilterDimensions.find((d) => d.name === name);
+    if (!dimension) return undefined;
+    // MetricFilterRule is a FilterRule that targets by fieldRef; the explorer
+    // needs the resolved fieldId, so carry the rule over and swap the target.
+    const { target, ...rest } = defaultFilter;
+    return {
+        ...rest,
+        target: { fieldId: getItemId(dimension) },
+    };
+};
+
 export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],
 ): MetricWithAssociatedTimeDimension[] =>
