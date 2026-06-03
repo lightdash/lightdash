@@ -202,6 +202,16 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         [availableCustomGranularities],
     );
 
+    // View mode: enabled standard granularities, reusing standardGranularities so
+    // sub-day options stay hidden when no TIMESTAMP dimension exists (matches edit mode).
+    const enabledStandardGranularities = useMemo(
+        () =>
+            standardGranularities.filter((g) =>
+                dateZoomGranularities.includes(g),
+            ),
+        [standardGranularities, dateZoomGranularities],
+    );
+
     // View mode: enabled custom granularities, reusing the sorted order from customGranularities
     const enabledCustomGranularities = useMemo(
         () =>
@@ -427,19 +437,17 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                 </Menu.Item>
                             </Tooltip>
 
-                            {dateZoomGranularities
-                                .filter((g) => isStandardDateGranularity(g))
-                                .map((granularity) => (
-                                    <ViewModeGranularityItem
-                                        key={granularity}
-                                        granularity={granularity}
-                                        label={granularity}
-                                        isActive={
-                                            dateZoomGranularity === granularity
-                                        }
-                                        onSelect={handleSelectGranularity}
-                                    />
-                                ))}
+                            {enabledStandardGranularities.map((granularity) => (
+                                <ViewModeGranularityItem
+                                    key={granularity}
+                                    granularity={granularity}
+                                    label={granularity}
+                                    isActive={
+                                        dateZoomGranularity === granularity
+                                    }
+                                    onSelect={handleSelectGranularity}
+                                />
+                            ))}
 
                             {enabledCustomGranularities.length > 0 && (
                                 <>
