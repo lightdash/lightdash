@@ -32,6 +32,8 @@ import {
     WeekDay,
 } from '../utils/timeFrames';
 
+export const DEFAULT_FILTER_CASE_SENSITIVE = true;
+
 /**
  * Formats computed Date boundaries for relative date operators (IN_THE_PAST, etc.)
  * by converting UTC back to the project timezone before formatting as YYYY-MM-DD.
@@ -118,7 +120,7 @@ export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
-    caseSensitive: boolean = true,
+    caseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
 ): string => {
     const nonEmptyFilterValues = filter.values?.filter((v) => v !== '');
 
@@ -764,7 +766,7 @@ export const renderFilterRuleSql = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
-    caseSensitive: boolean = true,
+    caseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
@@ -865,7 +867,7 @@ export const renderFilterRuleSqlFromField = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
-    exploreCaseSensitive: boolean = true,
+    exploreCaseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     sourceTimezone?: string,
@@ -878,12 +880,12 @@ export const renderFilterRuleSqlFromField = (
         : field.compiledSql;
 
     // Determine if this filter should be case sensitive
-    // Priority: filter-rule-level override > field-level setting > explore-level setting > default true
+    // Priority: filter-rule-level override > field-level setting > explore-level setting > default
     let caseSensitive: boolean;
     if (filterRule.caseSensitive !== undefined) {
         caseSensitive = filterRule.caseSensitive;
     } else if (isMetric(field)) {
-        caseSensitive = true;
+        caseSensitive = DEFAULT_FILTER_CASE_SENSITIVE;
     } else if ('caseSensitive' in field && field.caseSensitive !== undefined) {
         caseSensitive = field.caseSensitive;
     } else {

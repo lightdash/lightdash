@@ -7,6 +7,7 @@ import {
     CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
+    DEFAULT_FILTER_CASE_SENSITIVE,
     DimensionType,
     Explore,
     ExploreCompiler,
@@ -1598,7 +1599,8 @@ export class MetricQueryBuilder {
                 startOfWeek,
                 adapterType,
                 timezone,
-                this.args.explore.caseSensitive ?? true,
+                this.args.explore.caseSensitive ??
+                    DEFAULT_FILTER_CASE_SENSITIVE,
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
                 this.columnTimezone,

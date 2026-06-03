@@ -49,6 +49,12 @@ const renderResolved = (
                     fieldValueType={f.fieldValueType}
                     fieldFilterType={f.fieldFilterType}
                     isFromJoinedTable={f.isFromJoinedTable}
+                    {...(f.caseSensitiveFilters === 'not_applicable'
+                        ? {}
+                        : {
+                              caseSensitiveFilters:
+                                  f.caseSensitiveFilters === 'true',
+                          })}
                 >
                     {f.description ? (
                         <description>{f.description}</description>
