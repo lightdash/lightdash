@@ -6097,7 +6097,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     hasPreviewDeployWorkflow: boolean;
                     workflowPath: string | null;
                 } | null = null;
-                if (isGitProjectType(dbtConnection)) {
+                // Gate the CI lookup on the same SourceCode permission
+                // getOrScanProjectCiStatus enforces, checked up-front so a user
+                // who can view the project but not its source simply doesn't get
+                // this optional field — no swallowed ForbiddenError. Genuine
+                // operational failures (GitHub API, decryption) are logged at
+                // warn (visible) and still never fail getProjectInfo.
+                const canViewSourceCode = auditedAbility.can(
+                    'view',
+                    subject('SourceCode', { organizationUuid, projectUuid }),
+                );
+                if (isGitProjectType(dbtConnection) && canViewSourceCode) {
                     try {
                         const ciStatus =
                             await this.aiWritebackService.getOrScanProjectCiStatus(
@@ -6112,8 +6122,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                               }
                             : null;
                     } catch (err) {
-                        Logger.debug(
-                            'getProjectInfo: preview-deploy CI lookup failed:',
+                        Logger.warn(
+                            'getProjectInfo: preview-deploy CI lookup failed',
                             err,
                         );
                     }
