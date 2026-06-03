@@ -13987,6 +13987,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -14473,19 +14486,6 @@
                                                     "name",
                                                     "status"
                                                 ],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -20347,6 +20347,39 @@
                 "required": ["targetRefs", "rationale", "title", "actionType"],
                 "type": "object"
             },
+            "AiAgentJudgeProjectContextEntry": {
+                "properties": {
+                    "objects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "terms": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["definition", "context"]
+                    },
+                    "id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "op": {
+                        "type": "string",
+                        "enum": ["create", "update"]
+                    }
+                },
+                "required": ["objects", "terms", "content", "kind", "id", "op"],
+                "type": "object"
+            },
             "AiAgentReviewItemSummary": {
                 "allOf": [
                     {
@@ -20359,6 +20392,14 @@
                                     "createdAt": {
                                         "type": "string",
                                         "format": "date-time"
+                                    },
+                                    "projectContextEntry": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentJudgeProjectContextEntry"
+                                            }
+                                        ],
+                                        "nullable": true
                                     },
                                     "recommendation": {
                                         "allOf": [
@@ -20410,6 +20451,7 @@
                                 },
                                 "required": [
                                     "createdAt",
+                                    "projectContextEntry",
                                     "recommendation",
                                     "evidenceExcerpts",
                                     "targetRefs",
@@ -37645,7 +37687,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3080.0",
+        "version": "0.3081.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

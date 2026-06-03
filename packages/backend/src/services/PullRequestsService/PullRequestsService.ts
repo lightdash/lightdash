@@ -16,6 +16,7 @@ import {
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { BaseService } from '../BaseService';
 import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationService';
@@ -24,6 +25,7 @@ type PullRequestsServiceArguments = {
     lightdashConfig: LightdashConfig;
     pullRequestsModel: PullRequestsModel;
     gitIntegrationService: GitIntegrationService;
+    projectModel: ProjectModel;
 };
 
 type PullRequestMetadata = { title: string; state: PullRequestState };
@@ -35,11 +37,14 @@ export class PullRequestsService extends BaseService {
 
     private readonly gitIntegrationService: GitIntegrationService;
 
+    private readonly projectModel: ProjectModel;
+
     constructor(args: PullRequestsServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
         this.pullRequestsModel = args.pullRequestsModel;
         this.gitIntegrationService = args.gitIntegrationService;
+        this.projectModel = args.projectModel;
     }
 
     /**
@@ -101,12 +106,16 @@ export class PullRequestsService extends BaseService {
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<PullRequestWithStatus[]>> {
+        // Authorize against the project's own organization (resource-derived),
+        // not the caller's org.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid,
                     projectUuid,
                 }),
             )

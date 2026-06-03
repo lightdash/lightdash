@@ -441,6 +441,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     pullRequestsModel: this.models.getPullRequestsModel(),
                     gitIntegrationService: this.getGitIntegrationService(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
