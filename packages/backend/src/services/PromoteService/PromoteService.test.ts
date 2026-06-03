@@ -41,6 +41,9 @@ const projectModel = {
 };
 
 const savedChartModel = {
+    getSummary: jest.fn(async () => ({
+        projectUuid: promotedChart.projectUuid,
+    })),
     get: jest.fn(async () => promotedChart.chart),
     find: jest.fn(async () => [existingUpstreamChart.chart]),
     create: jest.fn(async () => existingUpstreamChart.chart),
@@ -91,6 +94,21 @@ const spacePermissionService = {
     })),
     getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
 };
+
+const userWithAbilities = (
+    rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+): SessionUser => ({
+    ...user,
+    role: OrganizationMemberRole.DEVELOPER,
+    ability: new Ability<PossibleAbilities>(rules),
+});
+
+const userWithPromotePermissions = userWithAbilities([
+    { subject: 'Dashboard', action: ['promote', 'manage'] },
+    { subject: 'SavedChart', action: ['promote', 'manage'] },
+    { subject: 'Space', action: ['create', 'manage'] },
+]);
+
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
         lightdashConfig: lightdashConfigMock,
@@ -1229,7 +1247,7 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         const changes = await service.getPromoteDashboardDiff(
-            user,
+            userWithPromotePermissions,
             dashboardWithOnlySqlTile.uuid,
         );
 
@@ -1248,6 +1266,74 @@ describe('PromoteService promoting and mutating changes', () => {
                 },
             },
         ]);
+    });
+
+    test('getPromoteChartDiff rejects users without chart promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamChart.space,
+        ]);
+
+        await expect(
+            service.getPromoteChartDiff(
+                userWithoutPromotePermissions,
+                promotedChart.chart.uuid,
+            ),
+        ).rejects.toThrow(
+            /you don't have access to edit this chart in the origin project/,
+        );
+    });
+
+    test('getPromoteSqlChartDiff rejects users without SQL chart promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamSqlChart.space,
+        ]);
+
+        await expect(
+            service.getPromoteSqlChartDiff(
+                userWithoutPromotePermissions,
+                promotedSqlChart.project.projectUuid,
+                promotedSqlChart.savedSqlUuid,
+            ),
+        ).rejects.toThrow(
+            /you don't have access to edit this SQL chart in the origin project/,
+        );
+    });
+
+    test('getPromoteDashboardDiff rejects users without dashboard promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+        const dashboardWithoutTiles = {
+            ...promotedDashboard.dashboard,
+            tiles: [],
+        };
+
+        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
+            async () => dashboardWithoutTiles,
+        );
+        (dashboardModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.dashboard,
+        ]);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithoutPromotePermissions,
+                dashboardWithoutTiles.uuid,
+            ),
+        ).rejects.toThrow(
+            /You do not have the right access permissions on the origin space and dashboard/,
+        );
     });
 });
 

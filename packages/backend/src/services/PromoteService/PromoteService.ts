@@ -1155,6 +1155,14 @@ export class PromoteService extends BaseService {
             chartUuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteChartPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedChart,
+            upstreamChart,
+        );
+
         const promotionChanges = await this.getChartChanges(
             promotedChart,
             upstreamChart,
@@ -1190,6 +1198,14 @@ export class PromoteService extends BaseService {
                 upstreamProjectUuid,
                 savedSqlUuid,
             );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteSqlChartPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedSqlChart,
+            upstreamSqlChart,
+        );
 
         const { promotionChanges, sqlChartChange } =
             await this.getSqlChartChanges(promotedSqlChart, upstreamSqlChart);
@@ -1294,12 +1310,38 @@ export class PromoteService extends BaseService {
             );
 
         // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-        const [promotionChanges, , , sqlCharts] =
+        const [promotionChanges, promotedCharts, promotedSqlCharts, sqlCharts] =
             await this.getPromotionDashboardChanges(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
             );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteDashboardPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedDashboard,
+            upstreamDashboard,
+        );
+        promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
+            PromoteService.checkPromoteChartPermissions(
+                auditedAbility,
+                user.organizationUuid!,
+                promotedChart,
+                upstreamChart,
+                promotedDashboard,
+            ),
+        );
+        promotedSqlCharts.forEach(({ promotedSqlChart, upstreamSqlChart }) =>
+            PromoteService.checkPromoteSqlChartPermissions(
+                auditedAbility,
+                user.organizationUuid!,
+                promotedSqlChart,
+                upstreamSqlChart,
+                promotedDashboard,
+            ),
+        );
 
         return {
             ...promotionChanges,
