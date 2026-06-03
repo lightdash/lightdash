@@ -459,6 +459,10 @@ export class EmbedController extends BaseController {
         };
     }
 
+    /**
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
+     * @summary Calculate subtotals for embed chart
+     */
     @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-subtotals')
     @OperationId('embedCalculateSubtotalsFromSavedChart')
@@ -528,6 +532,7 @@ export class EmbedController extends BaseController {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals for embed query
      */
     @SuccessResponse('200', 'Success')

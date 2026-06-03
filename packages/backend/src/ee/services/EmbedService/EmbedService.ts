@@ -1687,6 +1687,7 @@ export class EmbedService extends BaseService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1901,6 +1902,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
      */
     async calculateSubtotalsFromQuery(
         account: AnonymousAccount,

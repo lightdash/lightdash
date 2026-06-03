@@ -434,6 +434,7 @@ export class ProjectController extends BaseController {
 
     /**
      * Calculate subtotals from a metricQuery
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals from query
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

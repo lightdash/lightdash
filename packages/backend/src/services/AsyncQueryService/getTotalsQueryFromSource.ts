@@ -127,6 +127,65 @@ export const getColumnTotalQueryFromSource = (
     };
 };
 
+type GetSubtotalQueryFromSourceArgs = GetTotalQueryFromSourceArgs & {
+    subtotalDimensions: string[];
+};
+
+// Subtotals collapse the inner row dimensions while keeping the pivot columns,
+// so we re-run grouped by `subtotalDimensions` plus the pivot `groupByColumns`
+// and emit a flat (non-pivoted) result: one row per subtotal-group × pivot
+// value. Correct for every metric type. The treemap (no pivot) case just groups
+// by `subtotalDimensions`.
+export const getColumnSubtotalQueryFromSource = (
+    source: GetSubtotalQueryFromSourceArgs,
+): GetTotalQueryFromSourceResult => {
+    const subtotalDimensions = source.subtotalDimensions ?? [];
+    if (subtotalDimensions.length === 0) {
+        throw new NotSupportedError(
+            'Column subtotals require at least one subtotal dimension',
+        );
+    }
+
+    const groupByFieldIds = (
+        source.pivotConfiguration?.groupByColumns ?? []
+    ).map((g) => g.reference);
+
+    const sourceDimensionIds = new Set(source.metricQuery.dimensions);
+    const missing = [...subtotalDimensions, ...groupByFieldIds].filter(
+        (id) => !sourceDimensionIds.has(id),
+    );
+    if (missing.length > 0) {
+        throw new NotSupportedError(
+            `Column subtotal query references dimensions that were not in the source query: ${missing.join(', ')}`,
+        );
+    }
+
+    const popMetricIds = getPopMetricIds(source.metricQuery);
+
+    const subtotalMetricQuery: MetricQuery = {
+        ...source.metricQuery,
+        dimensions: [...new Set([...subtotalDimensions, ...groupByFieldIds])],
+        sorts: [],
+        tableCalculations: [],
+        metrics: source.metricQuery.metrics.filter(
+            (id) => !popMetricIds.has(id),
+        ),
+        additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
+            (am) => !isPeriodOverPeriodAdditionalMetric(am),
+        ),
+    };
+
+    assertNoBlockingFilters(
+        subtotalMetricQuery,
+        'Column subtotals cannot be calculated when the source query uses metric or table-calculation filters',
+    );
+
+    return {
+        metricQuery: subtotalMetricQuery,
+        pivotConfiguration: undefined,
+    };
+};
+
 // Returns the field-id references for a `PivotConfiguration.indexColumn`,
 // which can be a single column, an array, or undefined.
 const getIndexColumnFieldIds = (

@@ -5,14 +5,13 @@ import type {
     ItemsMap,
     Metric,
     MetricQuery,
-    ParametersValuesMap,
     TableCalculation,
     TableCalculationMetadata,
     TreemapChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import useEmbed from '../ee/providers/Embed/useEmbed';
-import { useCalculateSubtotals } from './useCalculateSubtotals';
+import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
+import { useProjectUuid } from './useProjectUuid';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type TreemapChartConfig = {
@@ -76,7 +75,6 @@ export type TreemapChartConfigFn = (
     dimensions: Record<string, CustomDimension | Dimension>,
     numericMetrics: Record<string, Metric | TableCalculation>,
     tableCalculationsMetadata?: TableCalculationMetadata[],
-    parameters?: ParametersValuesMap,
 ) => TreemapChartConfig;
 
 const useTreemapChartConfig: TreemapChartConfigFn = (
@@ -86,9 +84,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     dimensions,
     numericMetrics,
     tableCalculationsMetadata,
-    parameters,
 ) => {
-    const { embedToken } = useEmbed();
+    const projectUuid = useProjectUuid();
 
     const [visibleMin, setVisibleMin] = useState(
         treemapConfig?.visibleMin ?? 100,
@@ -215,14 +212,14 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         [],
     );
 
-    const { data: groupedSubtotals } = useCalculateSubtotals({
-        metricQuery: resultsData?.metricQuery,
-        explore: resultsData?.metricQuery?.exploreName,
-        showSubtotals: true,
-        columnOrder: groupFieldIds,
+    const { data: groupedSubtotals } = useAsyncCalculateSubtotals({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        dimensions: resultsData?.metricQuery?.dimensions,
+        columnOrder: groupFieldIds.filter((id): id is string => id !== null),
         pivotDimensions: undefined,
-        parameters,
-        embedToken,
+        enabled: true,
+        invalidateCache: undefined,
     });
 
     const data = useMemo(() => {
