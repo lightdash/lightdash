@@ -8,8 +8,6 @@ import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
-// eslint-disable-next-line css-modules/no-unused-class
-import { dashboardCSSVars } from '../../../../../components/common/Dashboard/dashboard.constants';
 import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
@@ -349,13 +347,12 @@ const EmbedDashboard: FC<{
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
             id="embed-scroll-container"
-            style={{
-                ...dashboardCSSVars,
-                ...(containerStyles ?? {
+            style={
+                containerStyles ?? {
                     height: '100vh',
                     overflowY: 'auto',
-                }),
-            }}
+                }
+            }
         >
             <EmbedDashboardHeader
                 dashboard={dashboard}
