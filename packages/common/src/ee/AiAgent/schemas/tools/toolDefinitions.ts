@@ -124,6 +124,11 @@ import {
     toolListWarehouseTablesOutputSchema,
 } from './toolListWarehouseTablesArgs';
 import {
+    TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
+    toolLoadProjectContextArgsSchema,
+    toolLoadProjectContextOutputSchema,
+} from './toolLoadProjectContextArgs';
+import {
     TOOL_LOAD_SKILL_DESCRIPTION,
     toolLoadSkillArgsSchema,
     toolLoadSkillOutputSchema,
@@ -496,6 +501,15 @@ export const loadSkillToolDefinition = defineTool({
     agent: { outputSchema: toolLoadSkillOutputSchema },
 });
 
+export const loadProjectContextToolDefinition = defineTool({
+    name: 'loadProjectContext',
+    title: 'Load project context',
+    description: TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolLoadProjectContextArgsSchema,
+    agent: { outputSchema: toolLoadProjectContextOutputSchema },
+});
+
 export const proposeChangeToolDefinition = defineTool({
     name: 'proposeChange',
     title: 'Propose change',
@@ -759,6 +773,7 @@ type AgentToolDefinitionsByName = {
     listContent: typeof listContentToolDefinition;
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
+    loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     proposeWriteback: typeof proposeWritebackToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
@@ -797,6 +812,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listContent: listContentToolDefinition,
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
+    loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     proposeWriteback: proposeWritebackToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
@@ -837,6 +853,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listContentToolDefinition,
     improveContextToolDefinition,
     loadSkillToolDefinition,
+    loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
     proposeWritebackToolDefinition,
     setupPreviewDeployToolDefinition,

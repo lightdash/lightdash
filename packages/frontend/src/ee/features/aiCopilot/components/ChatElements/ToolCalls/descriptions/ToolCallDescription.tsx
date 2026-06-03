@@ -259,6 +259,7 @@ export const ToolCallDescription: FC<{
         case 'generateUuids':
         case 'improveContext':
         case 'loadSkill':
+        case 'loadProjectContext':
         case 'proposeChange':
         case 'proposeWriteback':
         case 'runContentQuery':

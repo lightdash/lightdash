@@ -7507,6 +7507,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "listContent",
   "improveContext",
   "loadSkill",
+  "loadProjectContext",
   "proposeChange",
   "proposeWriteback",
   "setupPreviewDeploy",

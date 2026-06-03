@@ -21,6 +21,7 @@ import {
     IconSelector,
     IconTable,
     IconTerminal2,
+    IconVocabulary,
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
@@ -51,6 +52,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             listProjects: IconFolders,
             getProjectInfo: IconPlugConnected,
             loadSkill: IconBook2,
+            loadProjectContext: IconVocabulary,
             proposeChange: IconPencil,
             proposeWriteback: IconPencil,
             generateVisualization: IconTable,

@@ -126,6 +126,10 @@ export const getToolCallChipLabel = (
         case 'improveContext':
         case 'proposeChange':
             return null;
+        case 'loadProjectContext': {
+            const args = toolArgs as { search?: string | null };
+            return args.search ?? null;
+        }
         case 'loadSkill': {
             const args = toolArgs as {
                 name?: string;

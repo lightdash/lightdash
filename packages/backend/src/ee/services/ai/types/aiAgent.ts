@@ -3,6 +3,7 @@ import {
     AiAgentDocumentSummary,
     AiMcpServer,
     AiMcpServerConnectionStatus,
+    ProjectContextEntry,
     WarehouseTypes,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
@@ -74,6 +75,9 @@ export type UnavailableMcpServer = {
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     knowledgeDocuments: AiAgentDocumentSummary[];
+    projectContext: ProjectContextEntry[];
+    // Whether the project_context feature is on for this turn (Control = off).
+    projectContextEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -119,6 +123,8 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    // The whole cached project_context document.
+    getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;
