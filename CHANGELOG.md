@@ -1,3 +1,15 @@
+# [0.3088.0](https://github.com/lightdash/lightdash/compare/0.3087.2...0.3088.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-project-context:** serialize entries before jsonb insert ([#23864](https://github.com/lightdash/lightdash/issues/23864)) ([860c95a](https://github.com/lightdash/lightdash/commit/860c95a87b472bbf5088ba7c2a7d1cff64dec7c0))
+
+
+### Features
+
+* **ai-project-context:** preview the writeback diff before opening the PR ([#23856](https://github.com/lightdash/lightdash/issues/23856)) ([8a7499f](https://github.com/lightdash/lightdash/commit/8a7499fd9fb66a5112de88e771d2968a1c25fcbc))
+
 ## [0.3087.2](https://github.com/lightdash/lightdash/compare/0.3087.1...0.3087.2) (2026-06-03)
 
 
