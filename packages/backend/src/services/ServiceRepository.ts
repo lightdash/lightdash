@@ -1109,6 +1109,8 @@ export class ServiceRepository
                     changesetModel: this.models.getChangesetModel(),
                     catalogModel: this.models.getCatalogModel(),
                     projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
