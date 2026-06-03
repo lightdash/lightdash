@@ -629,11 +629,15 @@ export const convertModelMetric = ({
 
     // Metric owner takes precedence over model owner
     const owner = metric.spotlight?.owner ?? modelOwner;
-    const [defaultFilter] = parseFilters(
+    const [parsedDefaultFilter] = parseFilters(
         metric.spotlight?.default_filter
             ? [metric.spotlight.default_filter]
             : undefined,
     );
+    // A spotlight default filter is pre-applied but removable, i.e. non-required.
+    const defaultFilter = parsedDefaultFilter
+        ? { ...parsedDefaultFilter, required: false }
+        : undefined;
 
     return {
         fieldType: FieldType.METRIC,

@@ -1,5 +1,27 @@
 import { type MetricWithAssociatedTimeDimension } from './catalog';
-import type { Dimension, ItemsMap } from './field';
+import { DimensionType, type Dimension, type ItemsMap } from './field';
+import { FilterOperator } from './filter';
+
+/**
+ * Operators the Metrics Explorer filter UI can render (see getOperatorOptions).
+ * The compile-time validation of a metric's spotlight `default_filter` and the
+ * explorer's operator dropdown both read from this single list.
+ */
+export const METRICS_EXPLORER_FILTER_OPERATORS: readonly FilterOperator[] = [
+    FilterOperator.EQUALS,
+    FilterOperator.NOT_EQUALS,
+];
+
+/**
+ * A dimension whose type can be used to segment or filter in the Metrics
+ * Explorer: a string or boolean that is not a time-derived dimension.
+ */
+export const isMetricsExplorerCompatibleDimension = (
+    dimension: Pick<Dimension, 'type' | 'timeIntervalBaseDimensionName'>,
+): boolean =>
+    !dimension.timeIntervalBaseDimensionName &&
+    (dimension.type === DimensionType.STRING ||
+        dimension.type === DimensionType.BOOLEAN);
 
 export enum MetricExplorerComparison {
     NONE = 'none',

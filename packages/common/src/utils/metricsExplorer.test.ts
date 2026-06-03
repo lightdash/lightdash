@@ -124,6 +124,7 @@ describe('getInitialDefaultFilterRule', () => {
                     target: { fieldRef: 'region' },
                     operator: FilterOperator.EQUALS,
                     values: ['EMEA'],
+                    required: false,
                 },
             } as CatalogField,
             [dimRegion],
@@ -131,6 +132,7 @@ describe('getInitialDefaultFilterRule', () => {
         expect(rule?.operator).toBe(FilterOperator.EQUALS);
         expect(rule?.values).toEqual(['EMEA']);
         expect(rule?.target.fieldId).toBe('orders_region');
+        expect(rule?.required).toBe(false);
     });
 
     test('resolves a joined (table-qualified) fieldRef to its fieldId', () => {

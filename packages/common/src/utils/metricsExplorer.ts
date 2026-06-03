@@ -29,6 +29,7 @@ import {
     type FilterRule,
 } from '../types/filter';
 import {
+    isMetricsExplorerCompatibleDimension,
     MetricExplorerComparison,
     type MetricExploreDataPoint,
     type MetricExplorerDateRange,
@@ -38,6 +39,7 @@ import { type WarehouseTypes } from '../types/projects';
 import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { createFilterRuleFromModelRequiredFilterRule } from './filters';
 import { getItemId } from './item';
 
 dayjs.extend(isoWeek);
@@ -587,13 +589,7 @@ export const getAvailableTimeDimensionsFromTables = (
 export const getTypeValidFilterDimensions = (
     dimensions: CompiledDimension[],
 ): CompiledDimension[] =>
-    dimensions.filter((d) => {
-        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
-        if (d.timeIntervalBaseDimensionName) return false;
-        return (
-            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
-        );
-    });
+    dimensions.filter(isMetricsExplorerCompatibleDimension);
 
 /**
  * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
@@ -620,13 +616,7 @@ export const getFilterDimensionsForMetric = (
 export const getTypeValidSegmentDimensions = (
     dimensions: CompiledDimension[],
 ): CompiledDimension[] =>
-    dimensions.filter((d) => {
-        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
-        if (d.timeIntervalBaseDimensionName) return false;
-        return (
-            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
-        );
-    });
+    dimensions.filter(isMetricsExplorerCompatibleDimension);
 
 /**
  * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
@@ -668,10 +658,8 @@ export const getInitialDefaultSegment = (
 
 /**
  * Build the Metrics Explorer `FilterRule` from the metric's spotlight
- * `default_filter`. The stored rule (a `MetricFilterRule`) targets a dimension
- * by fieldRef; the explorer needs the resolved fieldId — the same fieldRef→fieldId
- * conversion model/required filters use (`createFilterRuleFromModelRequiredFilterRule`).
- * Returns undefined when there is no default or the dimension is not available.
+ * `default_filter`. Returns undefined when there is no default or the dimension
+ * is not available to filter by.
  */
 export const getInitialDefaultFilterRule = (
     metric:
@@ -681,19 +669,17 @@ export const getInitialDefaultFilterRule = (
 ): FilterRule | undefined => {
     const defaultFilter = metric?.spotlightDefaultFilter;
     if (!defaultFilter) return undefined;
-    const fieldId = convertFieldRefToFieldId(
-        defaultFilter.target.fieldRef,
+    // A spotlight default filter is a non-required, pre-applied filter — the
+    // same shape as a model default filter — so reuse that loader to resolve
+    // fieldRef→fieldId and carry `required` through unchanged.
+    const filterRule = createFilterRuleFromModelRequiredFilterRule(
+        defaultFilter,
         metric.tableName,
     );
     const isAvailable = availableFilterDimensions.some(
-        (d) => getItemId(d) === fieldId,
+        (d) => getItemId(d) === filterRule.target.fieldId,
     );
-    if (!isAvailable) return undefined;
-    const { target, ...rest } = defaultFilter;
-    return {
-        ...rest,
-        target: { fieldId },
-    };
+    return isAvailable ? filterRule : undefined;
 };
 
 export const getAvailableCompareMetrics = (

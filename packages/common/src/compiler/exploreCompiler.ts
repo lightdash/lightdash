@@ -10,7 +10,6 @@ import {
     type Table,
 } from '../types/explore';
 import {
-    DimensionType,
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
@@ -26,8 +25,12 @@ import {
     type FieldCompilationError,
     type Metric,
 } from '../types/field';
-import { FilterOperator, type ModelRequiredFilterRule } from '../types/filter';
+import { type ModelRequiredFilterRule } from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import {
+    isMetricsExplorerCompatibleDimension,
+    METRICS_EXPLORER_FILTER_OPERATORS,
+} from '../types/metricsExplorer';
 import { type PreAggregateDef } from '../types/preAggregate';
 import {
     dateGranularityToTimeFrameMap,
@@ -185,12 +188,6 @@ export const getParsedReference = (
     return { refTable, refName };
 };
 
-// The Metrics Explorer filter UI can only render "is" / "is not"
-const EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS = new Set<FilterOperator>([
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-]);
-
 /**
  * Validate metric spotlight `default_segment` / `default_filter` at compile time.
  * Stricter than the segment_by/filter_by allowlists: a wrong default silently
@@ -230,9 +227,7 @@ const validateSpotlightDefaults = (
         const dimension = resolveDimension(ref);
         const isSegmentable =
             dimension !== undefined &&
-            !dimension.timeIntervalBaseDimensionName &&
-            (dimension.type === DimensionType.STRING ||
-                dimension.type === DimensionType.BOOLEAN);
+            isMetricsExplorerCompatibleDimension(dimension);
         if (!isSegmentable) {
             throw new CompileError(
                 `Metric "${metric.name}": default_segment '${ref}' must reference an existing dimension that is segmentable (string or boolean)`,
@@ -258,7 +253,7 @@ const validateSpotlightDefaults = (
             );
         }
         if (
-            !EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS.has(
+            !METRICS_EXPLORER_FILTER_OPERATORS.includes(
                 spotlight.defaultFilter.operator,
             )
         ) {
