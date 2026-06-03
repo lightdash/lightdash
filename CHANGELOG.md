@@ -1,3 +1,10 @@
+## [0.3084.1](https://github.com/lightdash/lightdash/compare/0.3084.0...0.3084.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** move suggestion chips below input and remove loading states ([#23812](https://github.com/lightdash/lightdash/issues/23812)) ([640abfc](https://github.com/lightdash/lightdash/commit/640abfc7568b71569de26d9d960fe52608a3ba78))
+
 # [0.3084.0](https://github.com/lightdash/lightdash/compare/0.3083.0...0.3084.0) (2026-06-03)
 
 
