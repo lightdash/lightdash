@@ -230,4 +230,4 @@ jobs:
                       \"username\": \"Release QA\",
                       \"text\": \"<!channel> :x: Release QA workflow failed for *${TAG}* — the Claude QA agent likely never ran. <${RUN_URL}|View run logs>\"
                     }" \
-                    ${{ secrets.SLACK_WEBHOOK_URL }}
+                    ${{ secrets.SLACK_QA_WEBHOOK_URL }}
