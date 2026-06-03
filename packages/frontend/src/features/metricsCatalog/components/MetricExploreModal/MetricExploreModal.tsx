@@ -261,9 +261,29 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         [segmentDimensionsQuery.data, currentMetric],
     );
 
-    // Seed the metric's YAML spotlight defaults (default_segment / default_filter)
-    // once the dimension allowlists have loaded. Guarded by seededMetricRef so it
-    // runs at most once per metric and is not a server-state-into-effect mirror.
+    // The metric's YAML spotlight defaults, resolved against the loaded
+    // dimension allowlists (null/undefined when absent or unavailable).
+    const defaultSegment = useMemo(
+        () =>
+            getInitialDefaultSegment(
+                currentMetric,
+                availableSegmentByDimensions,
+            ),
+        [currentMetric, availableSegmentByDimensions],
+    );
+    const defaultFilterRule = useMemo(
+        () =>
+            getInitialDefaultFilterRule(
+                currentMetric,
+                availableFilterByDimensions,
+            ),
+        [currentMetric, availableFilterByDimensions],
+    );
+
+    // Seed the defaults into query state once the dimension allowlists have
+    // loaded. Guarded by seededMetricRef so it runs at most once per metric and
+    // is not a server-state-into-effect mirror. The filter UI is seeded
+    // separately via MetricExploreFilter's initial value (it is uncontrolled).
     const dimensionsReady =
         !segmentDimensionsQuery.isLoading && !filterDimensionsQuery.isLoading;
     const currentMetricId = currentMetric
@@ -276,14 +296,6 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         seededMetricRef.current !== currentMetricId
     ) {
         seededMetricRef.current = currentMetricId;
-        const defaultSegment = getInitialDefaultSegment(
-            currentMetric,
-            availableSegmentByDimensions,
-        );
-        const defaultFilterRule = getInitialDefaultFilterRule(
-            currentMetric,
-            availableFilterByDimensions,
-        );
         if (defaultSegment !== null) {
             setQuery({
                 comparison: MetricExplorerComparison.NONE,
@@ -529,7 +541,11 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                 <MetricExploreFilter
                                     dimensions={availableFilterByDimensions}
                                     onFilterApply={handleFilterApply}
-                                    key={`${tableName}-${metricName}`}
+                                    initialFilterRule={defaultFilterRule}
+                                    key={`${tableName}-${metricName}-${
+                                        defaultFilterRule?.target.fieldId ??
+                                        'none'
+                                    }`}
                                 />
 
                                 <MetricExploreSegmentationPicker
