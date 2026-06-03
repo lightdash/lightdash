@@ -421,6 +421,7 @@ describe('AiAgentReviewClassifierModel', () => {
 
     describe('createTurnSignal', () => {
         it('persists a classified signal with inline finding fields', async () => {
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
             tracker.on.insert(AiAgentTurnSignalTableName).responseOnce([
                 {
                     ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
@@ -461,6 +462,12 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toBe(TURN_SIGNAL_UUID);
+            // Supersede: the turn's prior signal is deleted before the new one
+            // is inserted (one current signal per turn).
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain(
+                AiAgentTurnSignalTableName,
+            );
             expect(tracker.history.insert).toHaveLength(2);
             expect(tracker.history.insert[1].sql).toContain(
                 AiAgentReviewItemTableName,
@@ -468,6 +475,7 @@ describe('AiAgentReviewClassifierModel', () => {
         });
 
         it('does not upsert a review item when the turn is not promoted', async () => {
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
             tracker.on.insert(AiAgentTurnSignalTableName).responseOnce([
                 {
                     ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,

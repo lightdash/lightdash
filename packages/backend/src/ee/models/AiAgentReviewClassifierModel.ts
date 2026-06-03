@@ -1110,57 +1110,70 @@ export class AiAgentReviewClassifierModel {
 
     async createTurnSignal(args: CreateTurnSignalArgs): Promise<string> {
         const { finding, turnSignal } = args;
-        const [row] = await this.database<AiAgentTurnSignalTable>(
-            AiAgentTurnSignalTableName,
-        )
-            .insert({
-                ai_agent_review_run_uuid: args.runUuid,
-                ai_prompt_uuid: turnSignal.subject.assistantPromptUuid,
-                ai_thread_uuid: turnSignal.subject.threadUuid,
-                organization_uuid: turnSignal.subject.organizationUuid,
-                project_uuid: turnSignal.subject.projectUuid,
-                agent_uuid: turnSignal.subject.agentUuid,
-                interaction_source: turnSignal.interactionSource,
-                source_ref: this.jsonb(turnSignal.sourceRef) as never,
-                signal: turnSignal.signal,
-                implicit_signal_sources: this.jsonb(
-                    turnSignal.implicitSignalSources,
-                ) as never,
-                confidence: turnSignal.confidence,
-                promoted_to_finding: turnSignal.promotedToFinding,
-                promotion_reason: turnSignal.promotionReason,
-                tool_evidence_refs: this.jsonb(
-                    turnSignal.toolEvidenceRefs,
-                ) as never,
-                fingerprint: finding?.reviewItem.fingerprint,
-                primary_root_cause: finding?.primaryRootCause,
-                secondary_root_causes: finding
-                    ? (this.jsonb(finding.secondaryRootCauses) as never)
-                    : null,
-                subcategories: finding
-                    ? (this.jsonb(finding.subcategories) as never)
-                    : null,
-                fix_targets: finding
-                    ? (this.jsonb(finding.fixTargets) as never)
-                    : null,
-                target_refs: finding
-                    ? (this.jsonb(finding.targetRefs) as never)
-                    : null,
-                evidence_excerpts: finding
-                    ? (this.jsonb(finding.evidenceExcerpts) as never)
-                    : null,
-                recommendation: finding
-                    ? (this.jsonb(finding.recommendation) as never)
-                    : null,
-                owner_type: finding?.reviewItem.ownerType,
-                review_item_title: finding?.reviewItem.title,
-                review_item_description: finding?.reviewItem.description,
-                runtime_context_snapshot: this.jsonb(
-                    turnSignal.runtimeContextSnapshot,
-                ) as never,
-                model_metadata: this.jsonb(turnSignal.modelMetadata) as never,
-            })
-            .returning('ai_agent_review_turn_signal_uuid');
+        const [row] = await this.database.transaction(async (trx) => {
+            // Supersede: keep one current signal per turn. A re-review (once a
+            // later turn supplies the correction) replaces the earlier judgment
+            // instead of stacking a second signal — so the queue shows the
+            // latest verdict and findingCount counts distinct turns, not
+            // re-reviews of the same turn.
+            await trx(AiAgentTurnSignalTableName)
+                .where('ai_prompt_uuid', turnSignal.subject.assistantPromptUuid)
+                .delete();
+            const inserted = await trx<AiAgentTurnSignalTable>(
+                AiAgentTurnSignalTableName,
+            )
+                .insert({
+                    ai_agent_review_run_uuid: args.runUuid,
+                    ai_prompt_uuid: turnSignal.subject.assistantPromptUuid,
+                    ai_thread_uuid: turnSignal.subject.threadUuid,
+                    organization_uuid: turnSignal.subject.organizationUuid,
+                    project_uuid: turnSignal.subject.projectUuid,
+                    agent_uuid: turnSignal.subject.agentUuid,
+                    interaction_source: turnSignal.interactionSource,
+                    source_ref: this.jsonb(turnSignal.sourceRef) as never,
+                    signal: turnSignal.signal,
+                    implicit_signal_sources: this.jsonb(
+                        turnSignal.implicitSignalSources,
+                    ) as never,
+                    confidence: turnSignal.confidence,
+                    promoted_to_finding: turnSignal.promotedToFinding,
+                    promotion_reason: turnSignal.promotionReason,
+                    tool_evidence_refs: this.jsonb(
+                        turnSignal.toolEvidenceRefs,
+                    ) as never,
+                    fingerprint: finding?.reviewItem.fingerprint,
+                    primary_root_cause: finding?.primaryRootCause,
+                    secondary_root_causes: finding
+                        ? (this.jsonb(finding.secondaryRootCauses) as never)
+                        : null,
+                    subcategories: finding
+                        ? (this.jsonb(finding.subcategories) as never)
+                        : null,
+                    fix_targets: finding
+                        ? (this.jsonb(finding.fixTargets) as never)
+                        : null,
+                    target_refs: finding
+                        ? (this.jsonb(finding.targetRefs) as never)
+                        : null,
+                    evidence_excerpts: finding
+                        ? (this.jsonb(finding.evidenceExcerpts) as never)
+                        : null,
+                    recommendation: finding
+                        ? (this.jsonb(finding.recommendation) as never)
+                        : null,
+                    owner_type: finding?.reviewItem.ownerType,
+                    review_item_title: finding?.reviewItem.title,
+                    review_item_description: finding?.reviewItem.description,
+                    runtime_context_snapshot: this.jsonb(
+                        turnSignal.runtimeContextSnapshot,
+                    ) as never,
+                    model_metadata: this.jsonb(
+                        turnSignal.modelMetadata,
+                    ) as never,
+                })
+                .returning('ai_agent_review_turn_signal_uuid');
+            return inserted;
+        });
 
         if (turnSignal.promotedToFinding && finding) {
             await this.ensureReviewItem({
