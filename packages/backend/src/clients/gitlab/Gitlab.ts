@@ -66,7 +66,10 @@ const makeGitlabRequest = async (
     const response = await fetch(url, {
         ...options,
         headers: {
-            'PRIVATE-TOKEN': token,
+            // `Authorization: Bearer` accepts OAuth tokens, personal access
+            // tokens, and project access tokens; `PRIVATE-TOKEN` rejects OAuth
+            // tokens (writeback uses the org's GitLab app-install OAuth token).
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             ...options.headers,
         },
