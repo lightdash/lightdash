@@ -2746,9 +2746,11 @@ export class MetricQueryBuilder {
                             return `CROSS JOIN ${metricCte.name}`;
                         }
                         return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
-                            .map(
-                                (alias) =>
-                                    `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
+                            .map((alias) =>
+                                warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${unaffectedMetricsCteName}.${alias}`,
+                                    `${metricCte.name}.${alias}`,
+                                ),
                             )
                             .join(' AND ')}`;
                     }),
@@ -2780,7 +2782,10 @@ export class MetricQueryBuilder {
                                     )})`;
                                 }
                                 // default to joining on all dimensions
-                                return `( ${unaffectedMetricsCteName}.${alias} = ${popMetricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${popMetricCte.name}.${alias} IS NULL ) )`;
+                                return warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${unaffectedMetricsCteName}.${alias}`,
+                                    `${popMetricCte.name}.${alias}`,
+                                );
                             })
                             .join(' AND ')}`;
                     }),
@@ -2954,9 +2959,11 @@ export class MetricQueryBuilder {
                 } else {
                     ddJoins.push(
                         `INNER JOIN ${ddCteName} ON ${outerKeyAliases
-                            .map(
-                                (alias) =>
-                                    `( ${baseCteName}.${alias} = ${ddCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${ddCteName}.${alias} IS NULL ) )`,
+                            .map((alias) =>
+                                warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${baseCteName}.${alias}`,
+                                    `${ddCteName}.${alias}`,
+                                ),
                             )
                             .join(' AND ')}`,
                     );
@@ -3452,9 +3459,11 @@ export class MetricQueryBuilder {
             } else {
                 naJoins.push(
                     `INNER JOIN ${naResultsCteName} ON ${dimensionAlias
-                        .map(
-                            (alias) =>
-                                `( ${baseCteName}.${alias} = ${naResultsCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naResultsCteName}.${alias} IS NULL ) )`,
+                        .map((alias) =>
+                            warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${naResultsCteName}.${alias}`,
+                            ),
                         )
                         .join(' AND ')}`,
                 );
@@ -3484,7 +3493,10 @@ export class MetricQueryBuilder {
                         .trim()
                         .replace(/\s+AS\s+.*$/i, '')
                         .trim();
-                    return `( ${expr} = ${naCteName}.${qId} OR ( ${expr} IS NULL AND ${naCteName}.${qId} IS NULL ) )`;
+                    return warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                        expr,
+                        `${naCteName}.${qId}`,
+                    );
                 },
             );
             const cteJoinClause =
@@ -3517,9 +3529,11 @@ export class MetricQueryBuilder {
             } else {
                 naJoins.push(
                     `INNER JOIN ${naMixedCteName} ON ${dimensionAlias
-                        .map(
-                            (alias) =>
-                                `( ${baseCteName}.${alias} = ${naMixedCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naMixedCteName}.${alias} IS NULL ) )`,
+                        .map((alias) =>
+                            warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${naMixedCteName}.${alias}`,
+                            ),
                         )
                         .join(' AND ')}`,
                 );
@@ -3942,9 +3956,11 @@ export class MetricQueryBuilder {
             );
             if (nonPivotDimIds.length > 0) {
                 const joinCondition = nonPivotDimIds
-                    .map(
-                        (dimId) =>
-                            `(${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} = row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} OR (${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL AND row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL))`,
+                    .map((dimId) =>
+                        this.args.warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                            `${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                            `row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                        ),
                     )
                     .join(' AND ');
                 joinClauses.push(`LEFT JOIN row_totals ON ${joinCondition}`);
@@ -4260,7 +4276,10 @@ export class MetricQueryBuilder {
                                     true,
                                 )})`;
                             }
-                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
+                            return this.args.warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${popCteName}.${alias}`,
+                            );
                         })
                         .join(' AND ')}`,
                 );

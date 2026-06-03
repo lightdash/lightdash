@@ -209,6 +209,18 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
         // ClickHouse has a native median function
         return `median(${valueSql})`;
     }
+
+    getNullSafeEqualJoinSql(left: string, right: string): string {
+        // ClickHouse's analyzer can't determine join keys from the generic
+        // `a = b OR (a IS NULL AND b IS NULL)` form in deep CTE chains; its
+        // native `<=>` (isNotDistinctFrom) operator is accepted as a join key.
+        return `${left} <=> ${right}`;
+    }
+
+    buildArray(elements: string[]): string {
+        // ClickHouse rejects the `ARRAY[...]` form; arrays are `[...]`.
+        return `[${elements.join(', ')}]`;
+    }
 }
 
 export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickhouseCredentials> {

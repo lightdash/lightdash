@@ -833,7 +833,7 @@ export class PivotQueryBuilder {
         Object.values(columnAnchorCTEs).forEach(({ cteName }) => {
             const joinConditions = groupByColumns
                 .map((col) =>
-                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                    this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                         `g.${q}${col.reference}${q}`,
                         `${q}${cteName}${q}.${q}${col.reference}${q}`,
                     ),
@@ -1246,7 +1246,7 @@ export class PivotQueryBuilder {
         Object.values(rowAnchorQueries).forEach(({ cteName }) => {
             const joinConditions = indexColumns
                 .map((col) =>
-                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                    this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                         `g.${q}${col.reference}${q}`,
                         `${q}${cteName}${q}.${q}${col.reference}${q}`,
                     ),
@@ -1321,7 +1321,7 @@ export class PivotQueryBuilder {
             if (indexColumns.length > 0) {
                 const rowRankJoinConditions = indexColumns
                     .map((col) =>
-                        this.warehouseSqlBuilder.getNullSafeEqualSql(
+                        this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                             `g.${q}${col.reference}${q}`,
                             `rr.${q}${col.reference}${q}`,
                         ),
@@ -1334,7 +1334,7 @@ export class PivotQueryBuilder {
 
             const colRankJoinConditions = groupByColumns
                 .map((col) =>
-                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                    this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                         `g.${q}${col.reference}${q}`,
                         `cr.${q}${col.reference}${q}`,
                     ),
@@ -1367,7 +1367,7 @@ export class PivotQueryBuilder {
                 if (indexColumns.length > 0) {
                     const joinConditions = indexColumns
                         .map((col) =>
-                            this.warehouseSqlBuilder.getNullSafeEqualSql(
+                            this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                                 `g.${q}${col.reference}${q}`,
                                 `${q}${cteName}${q}.${q}${col.reference}${q}`,
                             ),
@@ -1381,7 +1381,7 @@ export class PivotQueryBuilder {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
                     .map((col) =>
-                        this.warehouseSqlBuilder.getNullSafeEqualSql(
+                        this.warehouseSqlBuilder.getNullSafeEqualJoinSql(
                             `g.${q}${col.reference}${q}`,
                             `${q}${cteName}${q}.${q}${col.reference}${q}`,
                         ),

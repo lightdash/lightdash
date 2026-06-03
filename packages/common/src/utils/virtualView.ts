@@ -117,6 +117,7 @@ export const createTemporaryVirtualView = (
         getFieldQuoteChar: () => '"',
         getFloatingType: () => 'FLOAT',
         getNullSafeEqualSql: defaultNullSafeEqualSql,
+        getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
         getMetricSql: () => '',
         concatString: (...args) => args.join(''),
         getAllTables: async () => [],

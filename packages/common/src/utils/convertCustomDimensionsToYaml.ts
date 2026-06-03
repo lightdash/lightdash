@@ -137,6 +137,7 @@ const warehouseClientMock: WarehouseClient = {
         return 'FLOAT';
     },
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     escapeString(value) {
         return value;
     },

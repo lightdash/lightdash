@@ -27,6 +27,7 @@ const mockWarehouseSqlBuilder = {
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getStartOfWeek: () => WeekDay.MONDAY,
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getStringQuoteChar: () => "'",
     // Mirrors WarehouseBaseSqlBuilder.escapeString: double quotes, strip SQL
     // comments, escape backslashes, drop null bytes.
@@ -1650,6 +1651,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -1682,6 +1684,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -3503,6 +3506,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const itemsMap: ItemsMap = {
@@ -3961,6 +3965,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const itemsMapWithTc: ItemsMap = {
@@ -4443,6 +4448,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -4508,6 +4514,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -4996,6 +5003,73 @@ SELECT * FROM group_by_query LIMIT 50`);
             // The downstream CTEs reference the bare names the aliases expose.
             expect(result).toContain(
                 'distinct_groups AS (SELECT DISTINCT "status" FROM filtered_rows)',
+            );
+        });
+
+        test('Metric sort: ClickHouse uses the native `<=>` operator in JOIN ON, but keeps the OR form in the row-anchor CASE WHEN (#23711)', () => {
+            // https://github.com/lightdash/lightdash/issues/23711
+            // ClickHouse's analyzer cannot determine join keys from the generic
+            // `a = b OR (a IS NULL AND b IS NULL)` form in the deep pivot CTE
+            // chain. Its native `<=>` operator is accepted as a join key, but is
+            // unsupported in the SELECT list — so the row-anchor MAX(CASE WHEN …)
+            // must keep the OR form.
+            const clickhouseSqlBuilder = {
+                getFieldQuoteChar: () => '"',
+                getAdapterType: () => SupportedDbtAdapter.CLICKHOUSE,
+                getStartOfWeek: () => WeekDay.MONDAY,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
+                getNullSafeEqualJoinSql: (left: string, right: string) =>
+                    `${left} <=> ${right}`,
+                getStringQuoteChar: () => "'",
+                escapeString: (v: string) => v,
+            } as unknown as WarehouseSqlBuilder;
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'order_date', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'amount',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    { reference: 'amount', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                clickhouseSqlBuilder,
+            );
+
+            const result = replaceWhitespace(builder.toSql());
+
+            // JOIN ON conditions use the native `<=>` operator.
+            expect(result).toContain(
+                'LEFT JOIN row_ranking rr ON g."order_date" <=> rr."order_date"',
+            );
+            expect(result).toContain(
+                'LEFT JOIN column_ranking cr ON g."status" <=> cr."status"',
+            );
+            // Anchor CTE joins also use `<=>`.
+            expect(result).toContain('g."status" <=> "amount_ca"."status"');
+            expect(result).toContain(
+                'g."order_date" <=> "amount_ra"."order_date"',
+            );
+
+            // No JOIN ON falls back to the OR form on ClickHouse.
+            expect(result).not.toContain(
+                'ON (g."status" = "amount_ca"."status" OR',
+            );
+
+            // The row-anchor MAX(CASE WHEN …) projection keeps the OR form,
+            // since `<=>` is unsupported in the SELECT list.
+            expect(result).toContain(
+                'MAX(CASE WHEN (q."status" = ac."anchor_status" OR (q."status" IS NULL AND ac."anchor_status" IS NULL)) THEN',
             );
         });
 

@@ -81,6 +81,7 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -138,6 +139,7 @@ export const bigqueryClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '`',
     getFloatingType: () => 'FLOAT64',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getCatalog: async () => ({
         default: {
             public: {

@@ -85,6 +85,7 @@ export interface WarehouseSqlBuilder {
     getFieldQuoteChar: () => string;
     getFloatingType: () => string;
     getNullSafeEqualSql: (left: string, right: string) => string;
+    getNullSafeEqualJoinSql: (left: string, right: string) => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
     escapeString: (value: string) => string;
