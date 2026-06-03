@@ -1564,3 +1564,82 @@ describe('getNameChanges', () => {
         });
     });
 });
+
+describe('idempotent model rename (new name extends old, e.g. orders -> orders_restricted)', () => {
+    const nameChanges = {
+        from: 'orders',
+        to: 'orders_restricted',
+        fromReference: 'orders',
+        toReference: 'orders_restricted',
+        fromFieldName: undefined,
+        toFieldName: undefined,
+    };
+    const factory = createRenameFactory({ ...nameChanges, isPrefix: true });
+
+    test('replaceId renames bare ids but is a no-op on already-renamed ids', () => {
+        expect(factory.replaceId('orders_status')).toBe(
+            'orders_restricted_status',
+        );
+        // already renamed -> unchanged (previously doubled to orders_restricted_restricted_status)
+        expect(factory.replaceId('orders_restricted_status')).toBe(
+            'orders_restricted_status',
+        );
+    });
+
+    test('replaceString is a no-op on already-renamed ids', () => {
+        expect(factory.replaceString('orders_status')).toBe(
+            'orders_restricted_status',
+        );
+        expect(factory.replaceString('orders_restricted_status')).toBe(
+            'orders_restricted_status',
+        );
+    });
+
+    test('replaceFull renames the bare model but is a no-op on the renamed model', () => {
+        expect(factory.replaceFull('orders')).toBe('orders_restricted');
+        expect(factory.replaceFull('orders_restricted')).toBe(
+            'orders_restricted',
+        );
+    });
+
+    test('renameSavedChart is idempotent: applying the rename twice equals applying it once', () => {
+        const once = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: chartMocked,
+            nameChanges,
+            validate: false,
+        }).updatedChart;
+        const twice = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: once,
+            nameChanges,
+            validate: false,
+        }).updatedChart;
+
+        expect(twice).toEqual(once);
+        // sanity: the first rename happened and did not double anything
+        expect(once.tableName).toBe('orders_restricted');
+        expect(once.metricQuery.exploreName).toBe('orders_restricted');
+        expect(once.metricQuery.dimensions).toEqual([
+            'orders_restricted_status',
+            'orders_restricted_order_date_week',
+        ]);
+        expect(JSON.stringify(twice)).not.toContain(
+            'orders_restricted_restricted',
+        );
+    });
+
+    test('a normal rename (new name does not extend old) is unaffected by the guard', () => {
+        const normal = createRenameFactory({
+            from: 'payment',
+            to: 'invoice',
+            fromReference: 'payment',
+            toReference: 'invoice',
+            fromFieldName: undefined,
+            toFieldName: undefined,
+            isPrefix: true,
+        });
+        expect(normal.replaceId('payment_amount')).toBe('invoice_amount');
+        expect(normal.replaceFull('payment')).toBe('invoice');
+    });
+});

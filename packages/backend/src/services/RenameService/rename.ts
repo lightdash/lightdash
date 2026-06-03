@@ -53,16 +53,32 @@ export const createRenameFactory = ({
     let replaceFieldReference: (str: string) => string;
     let replaceFieldName: (str: string) => string;
     let replaceDotFieldId: (str: string) => string;
+    // When the new model name extends the old one (e.g. `orders` -> `orders_restricted`),
+    // a naive prefix replace re-matches its own output, so re-running the rename stacks
+    // the suffix (`orders_restricted_restricted_...`). Guard the prefix replacers below so
+    // they skip already-renamed values, keeping model renames idempotent.
+    const newNameExtendsOld = isPrefix && to.startsWith(`${from}_`);
     if (isPrefix) {
         replaceId = (str: string) =>
-            str.replace(new RegExp(`^${from}_`, 'g'), `${to}_`); // table prefix (eg: payment_)
+            newNameExtendsOld && str.startsWith(`${to}_`)
+                ? str // already renamed
+                : str.replace(new RegExp(`^${from}_`, 'g'), `${to}_`); // table prefix (eg: payment_)
         replaceReference = (str: string) =>
             str.replace(
                 new RegExp(`\\$\\{${fromReference}\\.`, 'g'),
                 `\${${toReference}.`,
             ); // SQL normally uses "." on references
         replaceString = (str: string) =>
-            str.replace(new RegExp(`${from}_`, 'g'), `${to}_`);
+            str.replace(
+                newNameExtendsOld
+                    ? // skip occurrences already followed by the new suffix (already renamed)
+                      new RegExp(
+                          `${from}_(?!${to.slice(from.length + 1)}_)`,
+                          'g',
+                      )
+                    : new RegExp(`${from}_`, 'g'),
+                `${to}_`,
+            );
         replaceDotFieldId = (str: string) =>
             str.replace(new RegExp(`^${from}\\.`, 'g'), `${to}.`);
         replaceFieldReference = (str: string) => str; // table prefix (eg: payment_)
@@ -121,7 +137,10 @@ export const createRenameFactory = ({
             });
             return Object.assign({}, ...keyValues);
         },
-        replaceFull: (str: string) => str.replaceAll(from, to), // Full name replace, used in tables
+        replaceFull: (str: string) =>
+            newNameExtendsOld && str === to
+                ? str // already renamed
+                : str.replaceAll(from, to), // Full name replace, used in tables
         replaceList: (list: string[]) => list.map((item) => replaceId(item)),
         replaceOptionalList: (list: string[] | undefined) =>
             list ? list.map((item) => replaceId(item)) : undefined,
