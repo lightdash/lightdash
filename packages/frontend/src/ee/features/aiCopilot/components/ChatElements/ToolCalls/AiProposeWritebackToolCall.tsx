@@ -7,21 +7,28 @@ import {
     Stack,
     Text,
     ThemeIcon,
+    Tooltip,
 } from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconExternalLink,
     IconEye,
     IconGitPullRequest,
+    IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
-import { usePullRequestPreview } from '../../../hooks/usePullRequestPreview';
+import {
+    isPreviewWaitTimedOut,
+    usePullRequestPreview,
+} from '../../../hooks/usePullRequestPreview';
 
 type Props = {
     metadata: ToolProposeWritebackOutput['metadata'];
     projectUuid: string;
+    /** When the write-back PR was opened — anchors the ~10 min preview wait. */
+    prCreatedAt: string;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
@@ -55,6 +62,7 @@ const summarisePrUrl = (prUrl: string): string | null => {
 export const AiProposeWritebackToolCall: FC<Props> = ({
     metadata,
     projectUuid,
+    prCreatedAt,
 }) => {
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
 
@@ -65,11 +73,14 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
 
     // Only wait for a preview URL when one is actually expected — poll unless we
     // positively know the repo has no preview workflow (avoids polling forever
-    // on repos that never produce a preview).
+    // on repos that never produce a preview). The poll also stops ~10 min after
+    // the PR was opened.
     const { data: preview } = usePullRequestPreview(
         projectUuid,
         previewDeployConfigured === false ? null : prUrl,
+        prCreatedAt,
     );
+    const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
 
     if (metadata.status === 'error') {
         return (
@@ -165,7 +176,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                         >
                             View preview
                         </Button>
-                    ) : previewDeployConfigured ? (
+                    ) : previewDeployConfigured && !previewTimedOut ? (
                         // A preview deploy is configured but its URL hasn't been
                         // posted yet — surface that it's on the way rather than
                         // showing nothing.
@@ -177,6 +188,23 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                         >
                             Preparing preview…
                         </Button>
+                    ) : previewDeployConfigured && previewTimedOut ? (
+                        // Configured but no preview URL after ~10 min — the
+                        // deploy likely failed or was skipped. Tell the user
+                        // rather than spinning forever.
+                        <Tooltip
+                            withinPortal
+                            multiline
+                            w={220}
+                            label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
+                        >
+                            <Group gap={4} wrap="nowrap" c="ldGray.6">
+                                <MantineIcon icon={IconInfoCircle} size={14} />
+                                <Text size="xs" c="ldGray.6">
+                                    Preview didn't appear
+                                </Text>
+                            </Group>
+                        </Tooltip>
                     ) : null}
                     <Button
                         component="a"

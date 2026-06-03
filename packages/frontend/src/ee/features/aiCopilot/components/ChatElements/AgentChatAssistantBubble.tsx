@@ -906,6 +906,7 @@ const AssistantBubbleContent: FC<{
                 <AiProposeWritebackToolCall
                     metadata={proposeWritebackMetadata}
                     projectUuid={projectUuid}
+                    prCreatedAt={message.createdAt}
                 />
             )}
         </>
