@@ -573,6 +573,25 @@ export type UpdateAiAgentReviewItemStatus = {
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
 
+/**
+ * Preview of the file change a writeback PR would make, computed deterministically
+ * (no PR opened). Only available for the project_context strategy — semantic_layer
+ * runs in a sandbox, so there is no static diff to show before the PR is created.
+ */
+export type AiAgentReviewItemWritebackPreview =
+    | {
+          available: true;
+          fileName: string;
+          before: string;
+          after: string;
+          op: 'create' | 'update';
+          entryId: string;
+      }
+    | { available: false };
+
+export type ApiAiAgentReviewItemWritebackPreviewResponse =
+    ApiSuccess<AiAgentReviewItemWritebackPreview>;
+
 export type AiAgentReviewSignalSummary = {
     uuid: string;
     runUuid: string;

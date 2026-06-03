@@ -5,6 +5,7 @@ import {
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
+    type ApiAiAgentReviewItemWritebackPreviewResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
@@ -160,6 +161,33 @@ export const useAiAgentAdminReviewItem = (
         queryFn: () => getAiAgentAdminReviewItem(fingerprint),
         enabled: options?.enabled ?? true,
         refetchInterval: options?.refetchInterval,
+    });
+};
+
+const getAiAgentReviewItemWritebackPreview = async (fingerprint: string) => {
+    return lightdashApi<
+        ApiAiAgentReviewItemWritebackPreviewResponse['results']
+    >({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/writeback-preview`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentReviewItemWritebackPreview = (
+    fingerprint: string,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<
+        ApiAiAgentReviewItemWritebackPreviewResponse['results'],
+        ApiError
+    >({
+        queryKey: ['ai-agent-admin-review-item-writeback-preview', fingerprint],
+        queryFn: () => getAiAgentReviewItemWritebackPreview(fingerprint),
+        enabled: options?.enabled ?? true,
     });
 };
 

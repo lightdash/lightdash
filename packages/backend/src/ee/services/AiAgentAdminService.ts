@@ -20,6 +20,7 @@ import {
     PullRequestProvider,
     PullRequestSource,
     UpdateAiAgentReviewItemStatus,
+    type AiAgentReviewItemWritebackPreview,
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
@@ -830,6 +831,50 @@ export class AiAgentAdminService extends BaseService {
             { ...reviewItem, writebackEligible },
             Date.now(),
         );
+    }
+
+    /**
+     * Compute the diff a writeback PR would make, without opening it. Only the
+     * project_context strategy has a deterministic preview; semantic_layer runs
+     * in a sandbox, so it returns `{ available: false }`.
+     */
+    async getReviewItemWritebackPreview(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemWritebackPreview> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        if (reviewItem.projectUuid === null) {
+            return { available: false };
+        }
+
+        let plan: ReturnType<typeof planReviewWriteback>;
+        try {
+            plan = planReviewWriteback(reviewItem);
+        } catch {
+            return { available: false };
+        }
+        if (plan.strategy !== 'project_context') {
+            return { available: false };
+        }
+
+        const preview = await this.projectContextService.previewWriteback({
+            projectUuid: reviewItem.projectUuid,
+            entry: plan.entry,
+        });
+        return { available: true, ...preview };
     }
 
     /**

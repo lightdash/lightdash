@@ -249,7 +249,17 @@ export const applyProjectContextWriteback = (
             } else {
                 entriesNode.add(node);
             }
-            return { content: doc.toString({ lineWidth: 0 }), entryId, op };
+            // flowCollectionPadding:false keeps `[a, b]` from being re-emitted
+            // as `[ a, b ]`, so untouched flow lines stay byte-identical and the
+            // diff is just the changed entry.
+            return {
+                content: doc.toString({
+                    lineWidth: 0,
+                    flowCollectionPadding: false,
+                }),
+                entryId,
+                op,
+            };
         }
     }
 

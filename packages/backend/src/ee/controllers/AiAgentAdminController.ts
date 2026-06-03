@@ -14,6 +14,7 @@ import {
     KnexPaginateArgs,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
+    type ApiAiAgentReviewItemWritebackPreviewResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -237,6 +238,31 @@ export class AiAgentAdminController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentAdminService().createReviewItemWriteback(
+                    toSessionUser(req.account),
+                    fingerprint,
+                ),
+        };
+    }
+
+    /**
+     * Preview the file change a writeback PR would make, without opening it.
+     * Only project_context findings have a deterministic diff.
+     * @summary Preview AI agent review item writeback diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items/{fingerprint}/writeback-preview')
+    @OperationId('getAiAgentReviewItemWritebackPreview')
+    async getReviewItemWritebackPreview(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemWritebackPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().getReviewItemWritebackPreview(
                     toSessionUser(req.account),
                     fingerprint,
                 ),

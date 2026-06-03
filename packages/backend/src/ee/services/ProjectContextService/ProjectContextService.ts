@@ -203,6 +203,54 @@ export class ProjectContextService extends BaseService {
      * `branchTimestamp` keys the PR branch name (caller supplies it so the
      * method stays free of wall-clock reads).
      */
+    /**
+     * Compute the file change a writeback would make, without opening a PR.
+     * Fetches the current file and applies the entry deterministically, so the
+     * caller can show a before/after diff before committing to the PR.
+     */
+    async previewWriteback(args: {
+        projectUuid: string;
+        entry: AiAgentJudgeProjectContextEntry;
+    }): Promise<{
+        fileName: string;
+        before: string;
+        after: string;
+        op: 'create' | 'update';
+        entryId: string;
+    }> {
+        const access = await this.resolveGithubAccess(args.projectUuid);
+        if (!access) {
+            throw new NotFoundError(
+                'Project is not connected to GitHub or the GitHub App is not installed',
+            );
+        }
+        const fileName = projectContextFilePath(access.projectSubPath);
+
+        let before = '';
+        try {
+            const file = await getFileContent({
+                fileName,
+                owner: access.owner,
+                repo: access.repo,
+                branch: access.branch,
+                installationId: access.installationId,
+                token: access.token,
+            });
+            before = file.content;
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                throw error;
+            }
+        }
+
+        const {
+            content: after,
+            entryId,
+            op,
+        } = applyProjectContextWriteback(before, args.entry);
+        return { fileName, before, after, op, entryId };
+    }
+
     async writebackEntry(args: {
         projectUuid: string;
         entry: AiAgentJudgeProjectContextEntry;
