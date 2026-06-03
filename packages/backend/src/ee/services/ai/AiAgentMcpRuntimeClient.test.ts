@@ -7,6 +7,7 @@ import {
     AiAgentMcpRuntimeClient,
     createHttpMcpClient,
     McpAuthorizationRequiredError,
+    McpTimeoutError,
 } from './AiAgentMcpRuntimeClient';
 import type { AiAgentMcpServer } from './types/aiAgent';
 
@@ -46,6 +47,9 @@ describe('resolveMcpTools', () => {
         aiAgentModel,
         lightdashConfig: {
             siteUrl: 'https://lightdash.example.com',
+            ai: {
+                copilot: { mcpConnectionTimeoutMs: 20_000 },
+            },
         } as LightdashConfig,
     });
 
@@ -287,6 +291,82 @@ describe('resolveMcpTools', () => {
             userUuid: 'user-uuid',
         });
     });
+
+    it('marks a server unavailable when the connection times out', async () => {
+        const fastTimeoutClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: { copilot: { mcpConnectionTimeoutMs: 20 } },
+            } as LightdashConfig,
+        });
+        const server = getMcpServer({ name: 'Slow MCP' });
+
+        createHttpMcpClientSpy.mockImplementation(
+            () =>
+                new Promise<MCPClient>(() => {
+                    // never resolves — simulates a hung MCP server
+                }),
+        );
+
+        const result = await fastTimeoutClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.tools).toEqual({});
+        expect(result.unavailableMcpServers).toEqual([
+            {
+                serverUuid: server.uuid,
+                serverName: 'Slow MCP',
+                message:
+                    'The MCP server took too long to respond and was disconnected. Check that it is available, then try again.',
+                status: 'error',
+            },
+        ]);
+    });
+
+    it('closes a client that connects after the timeout (late-close)', async () => {
+        const fastTimeoutClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: { copilot: { mcpConnectionTimeoutMs: 20 } },
+            } as LightdashConfig,
+        });
+        const close = jest.fn().mockResolvedValue(undefined);
+        const server = getMcpServer({ name: 'Slow MCP' });
+
+        let resolveConnect: ((client: MCPClient) => void) | undefined;
+        createHttpMcpClientSpy.mockImplementation(
+            () =>
+                new Promise<MCPClient>((resolve) => {
+                    resolveConnect = resolve;
+                }),
+        );
+
+        const result = await fastTimeoutClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toHaveLength(1);
+        expect(close).not.toHaveBeenCalled();
+
+        resolveConnect!({
+            serverInfo: { name: 'Slow MCP', version: '1.0.0' },
+            tools: async () => ({}),
+            close,
+        } as unknown as MCPClient);
+
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
+
+        expect(close).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('createHttpMcpClient', () => {
@@ -300,14 +380,17 @@ describe('createHttpMcpClient', () => {
         );
 
         await expect(
-            createHttpMcpClient({
-                uuid: 'oauth-server',
-                name: 'OAuth MCP',
-                url: 'https://oauth.example.com/mcp',
-                authType: 'oauth',
-                resolvedCredential: null,
-                resolvedCredentialScope: null,
-            }),
+            createHttpMcpClient(
+                {
+                    uuid: 'oauth-server',
+                    name: 'OAuth MCP',
+                    url: 'https://oauth.example.com/mcp',
+                    authType: 'oauth',
+                    resolvedCredential: null,
+                    resolvedCredentialScope: null,
+                },
+                20_000,
+            ),
         ).rejects.toEqual(
             new McpAuthorizationRequiredError(
                 'OAuth MCP',
@@ -315,5 +398,53 @@ describe('createHttpMcpClient', () => {
                 'user',
             ),
         );
+    });
+
+    it('wraps transport fetch so a hanging request times out as McpTimeoutError', async () => {
+        let transportFetch: typeof globalThis.fetch | undefined;
+        jest.mocked(mcpSdk.createMCPClient).mockImplementation(
+            async (config) => {
+                const { transport } = config;
+                if ('fetch' in transport) {
+                    transportFetch = transport.fetch as typeof globalThis.fetch;
+                }
+                return {
+                    serverInfo: { name: 'Hang MCP', version: '1.0.0' },
+                    tools: async () => ({}),
+                    close: jest.fn().mockResolvedValue(undefined),
+                } as unknown as MCPClient;
+            },
+        );
+
+        await createHttpMcpClient(
+            {
+                uuid: 'hang-server',
+                name: 'Hang MCP',
+                url: 'https://hang.example.com/mcp',
+                authType: 'none',
+                resolvedCredential: null,
+                resolvedCredentialScope: null,
+            },
+            20,
+        );
+
+        expect(transportFetch).toBeDefined();
+
+        const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(
+            (_input, init) =>
+                new Promise((_resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () => {
+                        reject(init.signal?.reason);
+                    });
+                }),
+        );
+
+        try {
+            await expect(
+                transportFetch!('https://hang.example.com/mcp'),
+            ).rejects.toBeInstanceOf(McpTimeoutError);
+        } finally {
+            fetchSpy.mockRestore();
+        }
     });
 });

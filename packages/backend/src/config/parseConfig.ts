@@ -987,6 +987,9 @@ export const getAiConfig = () => ({
         getFloatFromEnvironmentVariable(
             'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
         ) ?? 0.6,
+    mcpConnectionTimeoutMs:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_MCP_TIMEOUT_MS') ||
+        20_000,
 });
 
 export type LoggingConfig = {
