@@ -1,67 +1,27 @@
 ---
 name: developing-in-lightdash
-description: Use when reading and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.
+description: Use when reading, creating, and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.
 ---
 
 # Developing in Lightdash
 
 Use this skill when working with Lightdash dashboards and charts.
 
-Use content tools:
+## What You Can Do
 
-For reads, call `readContent` with:
-
-- `type: "dashboard"` or `type: "chart"`
-- `slug: "your-content-slug"`
-
-This should return the current dashboard or chart JSON for the requested content.
-
-For edits, call `editContent` with:
-
-- `type: "dashboard"` or `type: "chart"`
-- `slug: "your-content-slug"`
-- `patch: [...]`
-
-`patch` should describe the requested RFC6902 JSON edit.
-
-### Recommended workflow for editing Dashboards:
-
-1. Call `readContent` and inspect the current JSON shape.
-2. Always read the `dashboard-reference` resource
-3. Build the smallest possible JSON Patch.
-4. Call `editContent` with that patch.
-5. Re-read if needed to verify the final state.
-
-### Recommended workflow for editing Charts/Dashboard Tiles:
-
-1. Call `readContent` for the chart slug.
-2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below)
-3. If you add or change filters, verify exact filter values before patching.
-4. If you change the chart's name or purpose, also update dashboards that reference that chart.
-5. Build the smallest possible JSON Patch.
-6. If you changed the chart's `metricQuery`, call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery`.
-7. Call `editContent` with that patch.
-8. Re-read if needed to verify the final state.
-
-### Recommended workflow for creating new Charts:
-
-1. Use `discoverFields` to explore available fields and plan your chart
-2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
-3. Build the full chart JSON with that metric query and other required fields.
-4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
-5. Call `createContent` with the verified chart JSON.
-
-### Recommended workflow for creating new Dashboards:
-
-1. Always read the `dashboard-reference` and `dashboard-best-practices` resources
-2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
-3. Use `discoverFields` to explore available fields and plan which charts to include.
-4. Create an empty dashboard shell first
-5. Start building charts and adding them to the dashboard one by one, use the workflow outlined above for creating charts
+| Task                          | Tools/Action                                                | References                            |
+| ----------------------------- | ----------------------------------------------------------- | ------------------------------------- |
+| Read dashboards and charts    | `readContent`                                               | `dashboard-reference`, chart refs     |
+| Edit dashboards               | `editContent` with RFC6902 JSON Patch                       | `dashboard-reference`                 |
+| Edit charts and tiles         | `editContent`, then update referencing dashboards if needed | Chart refs, `dashboard-reference`     |
+| Create charts                 | `discoverFields`, `runContentQuery`, `createContent`        | Chart refs                            |
+| Create dashboards             | `discoverFields`, `createContent`                           | `dashboard-reference`, best practices |
+| Add period comparisons        | Edit chart `metricQuery` and config                         | `period-over-period-reference`        |
+| Verify changed metric queries | `runContentQuery` with `source.type: "metricQuery"`         | Chart refs                            |
 
 Rules:
 
-- Always read content before editing.
+- Always read content before editing if you have not read it since the last user message.
 - Preserve unrelated fields.
 - Prefer minimal patches.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
@@ -75,6 +35,43 @@ Rules:
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows the old title because tile `title` and `chartName` do not auto-update | If you change a chart's name or purpose, also update dashboard tiles that reference its `chartSlug` |
 | **Including unused dimensions in `metricQuery`**        | Extra dimensions change grouping and can produce wrong numbers                                   | Every dimension in `metricQuery.dimensions` must be used by the chart configuration                 |
 | **Missing `contentType`**                               | Content type becomes ambiguous                                                                   | Always keep `contentType: "chart"` or `contentType: "dashboard"`                                    |
+
+## Core Workflows
+
+### Edit Dashboards
+
+1. Call `readContent` and inspect the current JSON shape.
+2. Always read the `dashboard-reference` resource.
+3. Build the smallest possible JSON Patch.
+4. Call `editContent` with that patch.
+5. Re-read if needed to verify the final state.
+
+### Edit Charts and Dashboard Tiles
+
+1. Call `readContent` for the chart slug.
+2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below).
+3. If you add or change filters, verify exact filter values before patching.
+4. If you change the chart's name or purpose, also update dashboards that reference that chart.
+5. Build the smallest possible JSON Patch.
+6. If you changed the chart's `metricQuery`, call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery`.
+7. Call `editContent` with that patch.
+8. Re-read if needed to verify the final state.
+
+### Create Charts
+
+1. Use `discoverFields` to explore available fields and plan your chart.
+2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
+3. Build the full chart JSON with that metric query and other required fields.
+4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
+5. Call `createContent` with the verified chart JSON.
+
+### Create Dashboards
+
+1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
+2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
+3. Use `discoverFields` to explore available fields and plan which charts to include.
+4. Create an empty dashboard shell first.
+5. Start building charts and adding them to the dashboard one by one, using the workflow above for creating charts.
 
 ## Editing Charts
 
@@ -160,10 +157,23 @@ Spaces can be nested. Use `parent/child` syntax in `spaceSlug` for sub-spaces, f
 
 For period comparisons, read `period-over-period-reference` in addition to the chart type reference.
 
-Start with:
+## Resources
 
-- `dashboard-reference` for dashboards
-    - `dashboard-best-practices` for tips on effective dashboard design
-- `cartesian-chart-reference` for bar, line, area, or scatter charts
-- the specific chart resource for any other chart type
-- `period-over-period-reference` when adding or editing period-over-period comparison metrics
+### Charts
+
+- `cartesian-chart-reference` - Bar, line, area, scatter
+- `pie-chart-reference` - Parts of whole
+- `table-chart-reference` - Data tables
+- `big-number-chart-reference` - KPIs
+- `funnel-chart-reference` - Conversion funnels
+- `gauge-chart-reference` - Progress indicators
+- `treemap-chart-reference` - Hierarchical composition
+- `map-chart-reference` - Geographic data
+- `sankey-chart-reference` - Flow diagrams
+- `custom-viz-reference` - Vega-Lite
+- `period-over-period-reference` - PoP comparisons
+
+### Dashboards
+
+- `dashboard-reference` - Dashboard structure, layout, tabs, tiles, and filters
+- `dashboard-best-practices` - Dashboard design guidance
