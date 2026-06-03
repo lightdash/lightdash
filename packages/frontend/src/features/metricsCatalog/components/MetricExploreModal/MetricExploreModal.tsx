@@ -2,6 +2,8 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getDefaultDateRangeFromInterval,
     getFilterDimensionsForMetric,
+    getInitialDefaultFilterRule,
+    getInitialDefaultSegment,
     getSegmentDimensionsForMetric,
     MetricExplorerComparison,
     type CatalogField,
@@ -31,7 +33,14 @@ import {
     IconChevronUp,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../../components/LightdashVisualization';
@@ -136,8 +145,13 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         return 'segmentDimension' in query ? query.segmentDimension : null;
     }, [query]);
 
+    // Tracks the metric whose YAML spotlight defaults have already been applied,
+    // so the defaults seed once per metric and never clobber later user edits.
+    const seededMetricRef = useRef<string | null>(null);
+
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
+        seededMetricRef.current = null;
         setTimeDimensionOverride(undefined);
         setDateRange(undefined);
         setFilterRule(undefined);
@@ -246,6 +260,40 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
             ),
         [segmentDimensionsQuery.data, currentMetric],
     );
+
+    // Seed the metric's YAML spotlight defaults (default_segment / default_filter)
+    // once the dimension allowlists have loaded. Guarded by seededMetricRef so it
+    // runs at most once per metric and is not a server-state-into-effect mirror.
+    const dimensionsReady =
+        !segmentDimensionsQuery.isLoading && !filterDimensionsQuery.isLoading;
+    const currentMetricId = currentMetric
+        ? `${currentMetric.tableName}.${currentMetric.name}`
+        : null;
+    if (
+        dimensionsReady &&
+        currentMetric &&
+        currentMetricId !== null &&
+        seededMetricRef.current !== currentMetricId
+    ) {
+        seededMetricRef.current = currentMetricId;
+        const defaultSegment = getInitialDefaultSegment(
+            currentMetric,
+            availableSegmentByDimensions,
+        );
+        const defaultFilterRule = getInitialDefaultFilterRule(
+            currentMetric,
+            availableFilterByDimensions,
+        );
+        if (defaultSegment !== null) {
+            setQuery({
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: defaultSegment,
+            });
+        }
+        if (defaultFilterRule !== undefined) {
+            setFilterRule(defaultFilterRule);
+        }
+    }
 
     // Keyboard navigation
     useHotkeys([
