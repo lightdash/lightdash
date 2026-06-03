@@ -1,3 +1,10 @@
+## [0.3084.2](https://github.com/lightdash/lightdash/compare/0.3084.1...0.3084.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* upgrade express-session 1.17.2→1.18.1 in backend (cookie XSS) ([#23825](https://github.com/lightdash/lightdash/issues/23825)) ([c7a165e](https://github.com/lightdash/lightdash/commit/c7a165e7c68eb466f847c5a8ef4bbe956dd27106))
+
 ## [0.3084.1](https://github.com/lightdash/lightdash/compare/0.3084.0...0.3084.1) (2026-06-03)
 
 
