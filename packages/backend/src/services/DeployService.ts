@@ -19,7 +19,12 @@ import { BaseService } from './BaseService';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
-) => (Explore | ExploreError)[];
+    context: {
+        organizationUuid: string;
+        organizationName: string;
+        userUuid: string;
+    },
+) => Promise<(Explore | ExploreError)[]>;
 
 type ProjectServiceInterface = {
     saveExploresToCacheAndIndexCatalog: (args: {
@@ -59,7 +64,7 @@ export class DeployService extends BaseService {
         this.projectModel = args.projectModel;
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
-        this.exploreEnhancer = args.exploreEnhancer ?? ((e) => e);
+        this.exploreEnhancer = args.exploreEnhancer ?? (async (e) => e);
     }
 
     async startDeploySession(
@@ -209,11 +214,18 @@ export class DeployService extends BaseService {
                 DeploySessionStatus.FINALIZING,
             );
 
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
+
             // Get all explores from the session and enhance them
             // (e.g., EE generates virtual pre-aggregate explores from attached defs)
             const uploadedExplores =
                 await this.deploySessionModel.getAllExplores(sessionUuid);
-            const explores = this.exploreEnhancer(uploadedExplores);
+            const explores = await this.exploreEnhancer(uploadedExplores, {
+                organizationUuid: project.organizationUuid,
+                organizationName: user.organizationName ?? '',
+                userUuid: user.userUuid,
+            });
 
             this.logger.info(
                 `Finalizing deploy session ${sessionUuid} with ${explores.length} explores`,
@@ -232,8 +244,6 @@ export class DeployService extends BaseService {
             });
 
             // Schedule validation (same as in original finalizeDeploy)
-            const project =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
             await this.schedulerClient.generateValidation({
                 userUuid: user.userUuid,
                 projectUuid,

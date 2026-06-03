@@ -49,6 +49,9 @@ type PreAggregationDuckDbClientArgs = {
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
     prometheusMetrics?: PrometheusMetrics;
     sharedResourceLimits?: DuckdbResourceLimits;
+    isPreAggregatesEnabled: (args: {
+        organizationUuid: string;
+    }) => Promise<boolean>;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
         sharedResourceLimits?: DuckdbResourceLimits;
@@ -107,6 +110,10 @@ export class PreAggregationDuckDbClient {
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
+    private readonly isPreAggregatesEnabled: (args: {
+        organizationUuid: string;
+    }) => Promise<boolean>;
+
     private cachedWarehouseClients = new Map<string, WarehouseClient>();
 
     constructor(args: PreAggregationDuckDbClientArgs) {
@@ -115,6 +122,7 @@ export class PreAggregationDuckDbClient {
         this.projectModel = args.projectModel;
         this.prometheusMetrics = args.prometheusMetrics;
         this.sharedResourceLimits = args.sharedResourceLimits;
+        this.isPreAggregatesEnabled = args.isPreAggregatesEnabled;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) =>
@@ -239,7 +247,11 @@ export class PreAggregationDuckDbClient {
     private async _resolve(
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+        if (
+            !(await this.isPreAggregatesEnabled({
+                organizationUuid: args.organizationUuid,
+            }))
+        ) {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED,

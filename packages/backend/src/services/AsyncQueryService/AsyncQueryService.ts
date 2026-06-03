@@ -460,21 +460,24 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private getPreAggregationRoutingDecision({
+    private async getPreAggregationRoutingDecision({
+        organizationUuid,
         metricQuery,
         explore,
         context,
         forceWarehouse,
     }: {
+        organizationUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
         forceWarehouse: boolean;
-    }): PreAggregationRoutingDecision {
+    }): Promise<PreAggregationRoutingDecision> {
         if (forceWarehouse) {
             return { target: 'warehouse' };
         }
         return this.preAggregateStrategy.getRoutingDecision({
+            organizationUuid,
             metricQuery,
             explore,
             context,
@@ -4020,7 +4023,8 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            organizationUuid,
             metricQuery,
             explore,
             context,
@@ -4494,7 +4498,8 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            organizationUuid: savedChartOrganizationUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -4820,7 +4825,8 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            organizationUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -6114,7 +6120,8 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            organizationUuid,
             metricQuery,
             explore,
             context,

@@ -14,6 +14,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
+            [CommercialFeatureFlags.PreAggregates]:
+                this.getPreAggregatesFlag.bind(this),
         };
     }
 
@@ -39,5 +41,14 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
 
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
         return dbResult ?? { id: featureFlagId, enabled: false };
+    }
+
+    private async getPreAggregatesFlag(
+        args: FeatureFlagLogicArgs,
+    ): Promise<{ id: string; enabled: boolean }> {
+        return this.getWithEnvFallback(
+            args,
+            this.lightdashConfig.preAggregates.enabled,
+        );
     }
 }
