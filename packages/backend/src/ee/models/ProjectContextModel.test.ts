@@ -24,7 +24,7 @@ describe('ProjectContextModel', () => {
         tracker.reset();
     });
 
-    test('stores entries as JSONB data instead of a JSON string', async () => {
+    test('serializes entries to a JSON string so pg writes valid jsonb', async () => {
         const entries: ProjectContextEntry[] = [
             {
                 id: 'hr',
@@ -44,11 +44,11 @@ describe('ProjectContextModel', () => {
             expect.arrayContaining([
                 PROJECT_UUID,
                 PROJECT_CONTEXT_FILE_VERSION,
-                entries,
+                JSON.stringify(entries),
             ]),
         );
-        expect(tracker.history.insert[0].bindings).not.toContain(
-            JSON.stringify(entries),
-        );
+        // A raw JS array binding is what pg turns into an array literal and
+        // rejects for jsonb, so it must NOT be passed through unstringified.
+        expect(tracker.history.insert[0].bindings).not.toContainEqual(entries);
     });
 });
