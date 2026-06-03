@@ -16,7 +16,6 @@ import {
     Group,
     Loader,
     Menu,
-    Paper,
     SegmentedControl,
     Stack,
     Text,
@@ -53,7 +52,6 @@ import {
     useRef,
     useState,
 } from 'react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
@@ -74,6 +72,7 @@ import {
     useCreateAiAgentReviewItemWriteback,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
+import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { SearchFilter } from './SearchFilter';
 
@@ -1089,22 +1088,10 @@ const AiAgentAdminReviewItemsTable = ({
 
                     if (agent) {
                         return (
-                            <Tooltip
-                                label={projectName}
-                                withArrow
-                                disabled={!project}
-                            >
-                                <Group gap="xs" wrap="nowrap">
-                                    <LightdashUserAvatar
-                                        size={20}
-                                        name={agent.name}
-                                        src={agent.imageUrl}
-                                    />
-                                    <Text fz="sm" c="ldGray.9" truncate>
-                                        {agent.name}
-                                    </Text>
-                                </Group>
-                            </Tooltip>
+                            <AgentNamePill
+                                name={agent.name}
+                                imageUrl={agent.imageUrl}
+                            />
                         );
                     }
 
@@ -1275,29 +1262,10 @@ const AiAgentAdminReviewItemsTable = ({
 
                     if (agent) {
                         return (
-                            <Tooltip
-                                label={project?.name ?? 'Unknown project'}
-                                withArrow
-                                disabled={!project}
-                            >
-                                <Paper px="xs" w="fit-content" maw="100%">
-                                    <Group gap="two" wrap="nowrap">
-                                        <LightdashUserAvatar
-                                            size={16}
-                                            name={agent.name}
-                                            src={agent.imageUrl}
-                                        />
-                                        <Text
-                                            fz="sm"
-                                            fw={600}
-                                            c="ldGray.9"
-                                            truncate
-                                        >
-                                            {agent.name}
-                                        </Text>
-                                    </Group>
-                                </Paper>
-                            </Tooltip>
+                            <AgentNamePill
+                                name={agent.name}
+                                imageUrl={agent.imageUrl}
+                            />
                         );
                     }
 
@@ -1405,7 +1373,6 @@ const AiAgentAdminReviewItemsTable = ({
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                 borderTop: 'none',
-                verticalAlign: 'top',
             },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
@@ -1488,7 +1455,6 @@ const AiAgentAdminReviewItemsTable = ({
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                 borderTop: 'none',
-                verticalAlign: 'top',
             },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
