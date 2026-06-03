@@ -147,6 +147,12 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams;
 
+// Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
+export const getDateZoomFromRequestParameters = (
+    params: ExecuteAsyncQueryRequestParams | undefined,
+): DateZoom | undefined =>
+    params && 'dateZoom' in params ? params.dateZoom : undefined;
+
 /**
  * Kinds of totals derivable from an executed pivot query. Follow-up PRs
  * will widen the union to enable the commented-out variants below.
