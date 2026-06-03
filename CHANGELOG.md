@@ -1,3 +1,11 @@
+# [0.3086.0](https://github.com/lightdash/lightdash/compare/0.3085.1...0.3086.0) (2026-06-03)
+
+
+### Features
+
+* **changesets:** add a dependencies column to the changesets table ([#23854](https://github.com/lightdash/lightdash/issues/23854)) ([e8f4894](https://github.com/lightdash/lightdash/commit/e8f4894f22d19aee0b7297c40fe3a02623a83336)), closes [#23851](https://github.com/lightdash/lightdash/issues/23851)
+* **changesets:** show chart & dashboard dependencies per change ([#23851](https://github.com/lightdash/lightdash/issues/23851)) ([5fe4711](https://github.com/lightdash/lightdash/commit/5fe47115eb64a9fe0c06a7b3649e9ed4bde519ef))
+
 ## [0.3085.1](https://github.com/lightdash/lightdash/compare/0.3085.0...0.3085.1) (2026-06-03)
 
 
