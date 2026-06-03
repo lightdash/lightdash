@@ -399,6 +399,37 @@ export const getMergeRequest = async ({
     };
 };
 
+/**
+ * Read a merge request's notes (comments). Used to surface the preview-project
+ * URL that the dbt repo's CI posts on the MR. Returns note bodies oldest-first
+ * — the same contract as the GitHub comments reader — so
+ * `extractPreviewUrlFromComments` (which scans newest-last) picks the most
+ * recent preview. System notes (auto-generated activity) and empty bodies are
+ * dropped. Fetches the 100 most recent notes; preview comments are recent, so a
+ * single page is enough.
+ */
+export const getMergeRequestComments = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iid: number }): Promise<string[]> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}/notes?order_by=created_at&sort=desc&per_page=100`,
+    );
+    const notes: Array<{ body?: string; system?: boolean }> =
+        await makeGitlabRequest(url, token);
+
+    return notes
+        .filter((note) => !note.system)
+        .map((note) => note.body ?? '')
+        .filter((body) => body.length > 0)
+        .reverse();
+};
+
 /** Patch a merge request's title/description (writeback resume turns). */
 export const updateMergeRequest = async ({
     owner,

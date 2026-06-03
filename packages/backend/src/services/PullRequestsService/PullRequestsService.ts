@@ -206,7 +206,7 @@ export class PullRequestsService extends BaseService {
      * this reads the PR's comments and extracts the link.
      *
      * Returns `{ previewUrl: null }` (rather than throwing) whenever a preview
-     * isn't available yet — an unknown PR, a non-GitHub provider, missing git
+     * isn't available yet — an unknown PR, an unsupported provider, missing git
      * credentials, or a transient provider error — so the caller can poll until
      * the preview appears without surfacing errors.
      */
@@ -240,47 +240,77 @@ export class PullRequestsService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Only GitHub is supported for reading preview comments today.
-        if (pullRequest.provider !== PullRequestProvider.GITHUB) {
-            return { previewUrl: null };
-        }
-
         try {
-            // Read the PR's comments using the GitHub App installation — the
-            // same identity the write-back used to open the PR — so a stale
-            // OAuth user token can't block the lookup. Fall back to the
-            // project's stored credentials (e.g. a personal access token) only
-            // when there is no installation.
-            let installationId: string | undefined;
-            let token: string | undefined;
-            try {
-                installationId =
-                    await this.gitIntegrationService.getInstallationId(user);
-            } catch {
+            if (pullRequest.provider === PullRequestProvider.GITHUB) {
+                // Read the PR's comments using the GitHub App installation —
+                // the same identity the write-back used to open the PR — so a
+                // stale OAuth user token can't block the lookup. Fall back to
+                // the project's stored credentials (e.g. a personal access
+                // token) only when there is no installation.
+                let installationId: string | undefined;
+                let token: string | undefined;
+                try {
+                    installationId =
+                        await this.gitIntegrationService.getInstallationId(
+                            user,
+                        );
+                } catch {
+                    const credentials =
+                        await this.gitIntegrationService.getGitCredentials(
+                            user,
+                            projectUuid,
+                        );
+                    if (credentials.type !== DbtProjectType.GITHUB) {
+                        return { previewUrl: null };
+                    }
+                    installationId = credentials.installationId;
+                    token = credentials.token;
+                }
+                const comments = await GithubClient.getPullRequestComments({
+                    owner: pullRequest.owner,
+                    repo: pullRequest.repo,
+                    pullNumber: pullRequest.prNumber,
+                    installationId,
+                    token,
+                });
+                return {
+                    previewUrl: extractPreviewUrlFromComments(
+                        comments,
+                        this.lightdashConfig.siteUrl,
+                    ),
+                };
+            }
+
+            if (pullRequest.provider === PullRequestProvider.GITLAB) {
+                // GitLab has no installation-token equivalent here, so read the
+                // MR's notes with the project's stored GitLab credentials (PAT
+                // + host domain for self-hosted), the same creds used to
+                // resolve live MR metadata.
                 const credentials =
                     await this.gitIntegrationService.getGitCredentials(
                         user,
                         projectUuid,
                     );
-                if (credentials.type !== DbtProjectType.GITHUB) {
+                if (credentials.type !== DbtProjectType.GITLAB) {
                     return { previewUrl: null };
                 }
-                installationId = credentials.installationId;
-                token = credentials.token;
+                const comments = await GitlabClient.getMergeRequestComments({
+                    owner: pullRequest.owner,
+                    repo: pullRequest.repo,
+                    iid: pullRequest.prNumber,
+                    token: credentials.token,
+                    hostDomain: credentials.hostDomain,
+                });
+                return {
+                    previewUrl: extractPreviewUrlFromComments(
+                        comments,
+                        this.lightdashConfig.siteUrl,
+                    ),
+                };
             }
-            const comments = await GithubClient.getPullRequestComments({
-                owner: pullRequest.owner,
-                repo: pullRequest.repo,
-                pullNumber: pullRequest.prNumber,
-                installationId,
-                token,
-            });
-            return {
-                previewUrl: extractPreviewUrlFromComments(
-                    comments,
-                    this.lightdashConfig.siteUrl,
-                ),
-            };
+
+            // Unsupported provider — nothing to read.
+            return { previewUrl: null };
         } catch (error) {
             this.logger.warn('Failed to resolve pull request preview URL', {
                 projectUuid,
