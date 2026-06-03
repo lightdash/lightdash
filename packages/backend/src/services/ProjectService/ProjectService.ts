@@ -74,6 +74,7 @@ import {
     getErrorMessage,
     getFields,
     getIntrinsicUserAttributes,
+    getInvalidDbtEnvironmentVariableKeys,
     getItemId,
     getMetricOverridesWithPopInheritance,
     getMetrics,
@@ -2101,6 +2102,7 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+        ProjectService.validateDbtEnvironmentVariables(newProjectData);
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -2324,6 +2326,7 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
+        ProjectService.validateDbtEnvironmentVariables(data);
 
         let encryptedData: string;
         try {
@@ -2438,6 +2441,7 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
             );
+            ProjectService.validateDbtEnvironmentVariables(createProject);
 
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
@@ -2713,6 +2717,24 @@ export class ProjectService extends BaseService {
         }
     }
 
+    static validateDbtEnvironmentVariables(
+        project: Pick<CreateProjectOptionalCredentials, 'dbtConnection'>,
+    ) {
+        const invalidKeys = getInvalidDbtEnvironmentVariableKeys(
+            'environment' in project.dbtConnection
+                ? project.dbtConnection.environment
+                : undefined,
+        );
+
+        if (invalidKeys.length > 0) {
+            throw new ParameterError(
+                `Invalid dbt environment variable keys: ${invalidKeys.join(
+                    ', ',
+                )}. dbt environment variable keys must be uppercase and start with DBT_.`,
+            );
+        }
+    }
+
     async updateAndScheduleAsyncWork(
         projectUuid: string,
         account: Account,
@@ -2759,6 +2781,7 @@ export class ProjectService extends BaseService {
         );
 
         this.validateConfigSecrets(updatedProject);
+        ProjectService.validateDbtEnvironmentVariables(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
 
