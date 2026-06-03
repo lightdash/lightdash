@@ -212,6 +212,44 @@ tiles:
     y: 0
 ```
 
+**IMPORTANT:** Tab rendering depends on `tabs` and tile `tabUuid` values:
+
+- If no tabs are defined, all tiles render in a single untabbed dashboard view.
+- If tabs are defined, tiles with `tabUuid: null` render on the default/first tab.
+- Avoid relying on this defaulting behavior. When using tabs, set each tile's `tabUuid` explicitly.
+
+Example: no tabs, so both tiles render together in one untabbed view.
+
+```yaml
+tabs: []
+
+tiles:
+  - tabUuid: null
+    type: saved_chart
+  - tabUuid: null
+    type: saved_chart
+```
+
+Example: tabs are defined, so the `null` tile renders on "Overview" and the other tile renders on "Details".
+
+```yaml
+tabs:
+  - name: "Overview"
+    hidden: false
+    order: 0
+    uuid: "b3f1a2c4-d5e6-4f78-9abc-def012345678"
+  - name: "Details"
+    hidden: false
+    order: 1
+    uuid: "c4d2b3e5-f6a7-4089-bcde-f12345678901"
+
+tiles:
+  - tabUuid: null
+    type: saved_chart
+  - tabUuid: "c4d2b3e5-f6a7-4089-bcde-f12345678901"
+    type: saved_chart
+```
+
 ## Dashboard Filters
 
 ### Dimension Filters
