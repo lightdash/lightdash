@@ -444,15 +444,31 @@ const AssistantBubbleContent: FC<{
     //     slice mirrors AI SDK output-available chunks into each part's
     //     toolResult, which is the full tool return shape {result,metadata}.
     //     We re-shape to the structured `metadata` the card expects.
-    const proposeWritebackMetadata:
-        | ToolProposeWritebackOutput['metadata']
-        | null = (() => {
+    const proposeWritebackResult: {
+        metadata: ToolProposeWritebackOutput['metadata'];
+        // setupPreviewDeploy reuses this card but its PR only adds the preview
+        // workflow — it never previews itself, so the card hides the preview
+        // affordance when this is true.
+        isPreviewDeploySetup: boolean;
+    } | null = (() => {
         // setupPreviewDeploy shares proposeWriteback's output shape and the
         // same PR-button card, so resolve either tool's result here.
-        const persisted =
-            message.toolResults.find(isToolProposeWritebackResult) ??
-            message.toolResults.find(isToolSetupPreviewDeployResult);
-        if (persisted) return persisted.metadata;
+        const writebackResult = message.toolResults.find(
+            isToolProposeWritebackResult,
+        );
+        if (writebackResult)
+            return {
+                metadata: writebackResult.metadata,
+                isPreviewDeploySetup: false,
+            };
+        const setupResult = message.toolResults.find(
+            isToolSetupPreviewDeployResult,
+        );
+        if (setupResult)
+            return {
+                metadata: setupResult.metadata,
+                isPreviewDeploySetup: true,
+            };
 
         const livePart = streamingState?.parts.find(
             (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
@@ -465,7 +481,11 @@ const AssistantBubbleContent: FC<{
         const liveOutput = livePart?.toolResult as
             | ToolProposeWritebackOutput
             | undefined;
-        return liveOutput?.metadata ?? null;
+        if (!liveOutput?.metadata) return null;
+        return {
+            metadata: liveOutput.metadata,
+            isPreviewDeploySetup: livePart?.toolName === 'setupPreviewDeploy',
+        };
     })();
 
     const mcpUnavailableNotices = streamingState?.mcpUnavailableNotices ?? [];
@@ -903,11 +923,14 @@ const AssistantBubbleContent: FC<{
                     toolResult={proposeChangeToolResult}
                 />
             )}
-            {proposeWritebackMetadata && (
+            {proposeWritebackResult && (
                 <AiProposeWritebackToolCall
-                    metadata={proposeWritebackMetadata}
+                    metadata={proposeWritebackResult.metadata}
                     projectUuid={projectUuid}
                     prCreatedAt={message.createdAt}
+                    isPreviewDeploySetup={
+                        proposeWritebackResult.isPreviewDeploySetup
+                    }
                 />
             )}
         </>

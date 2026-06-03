@@ -10,6 +10,7 @@ import {
     UnexpectedServerError,
     type DbtProjectConfig,
     type SessionUser,
+    type WorkflowFile,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Sandbox } from 'e2b';
@@ -337,6 +338,12 @@ export class GitlabProvider implements GitProvider {
             pullNumber: mergeRequestIid,
             headRef: mr.sourceBranch,
         };
+    }
+
+    // GitLab has no Lightdash preview-deploy support (`supportsPreviewDeploy`
+    // is false), so there is nothing to scan for.
+    async readPreviewDeployWorkflowFiles(): Promise<WorkflowFile[]> {
+        return [];
     }
 
     /**

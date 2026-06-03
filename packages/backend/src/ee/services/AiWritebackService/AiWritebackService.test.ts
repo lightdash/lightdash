@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
+    ParameterError,
     PullRequestProvider,
     WarehouseTypes,
     type MemberAbility,
@@ -549,5 +550,53 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(result).toMatchObject({ exitCode: 0, prUrl: null });
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('AiWritebackService.setupPreviewDeploy', () => {
+    const userWithManageSourceCode = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const gitlabProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITLAB,
+            personal_access_token: 'pat',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'gitlab.acme.com',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    it('rejects a non-GitHub project — automated GitHub Actions setup is GitHub-only', async () => {
+        const run = jest.fn();
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(gitlabProject()),
+            } as AnyType,
+        });
+        jest.spyOn(service as AnyType, 'run').mockImplementation(run);
+
+        await expect(
+            (service as AnyType).setupPreviewDeploy({
+                user: userWithManageSourceCode(),
+                projectUuid: 'p1',
+            }),
+        ).rejects.toThrow(ParameterError);
+        // The guard fires before any sandbox run is started.
+        expect(run).not.toHaveBeenCalled();
     });
 });

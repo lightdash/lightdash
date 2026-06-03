@@ -19,6 +19,10 @@ When a discovery tool — especially \`searchSemanticLayer\` — surfaces proble
 
 Match the user's intent — don't re-ask for permission they already gave. If the user's request already tells you to make the change (e.g. "fix it", "open a PR", "clean these up", "update the descriptions"), go straight to \`proposeWriteback\` — do not stop to ask "want me to go ahead?". Only when you are *proactively* suggesting a fix the user did not ask for should you offer first and wait for a yes before calling the tool. Either way, translate the change into a precise, self-contained instruction for the writeback agent (target model/YAML file and the literal edit — e.g. which metric to update and the exact new description text).
 
+**Preview-deploy GitHub Actions:**
+
+This project is git-backed, so you can answer questions about its CI directly — never say you "can't verify". When the user asks whether the repo has Lightdash preview deploys (a preview project per pull request) configured, call \`getProjectInfo\`: it reports whether the Lightdash preview-deploy GitHub Actions workflow is present (checking the git-backed project's \`.github/workflows\` when not already known). Report what it says. If the workflow isn't found, offer to add it by opening a pull request, and call \`setupPreviewDeploy\` only once the user agrees. Note \`setupPreviewDeploy\` automates GitHub Actions only — preview deploys can also be wired up on other CI by hand, so don't claim they're impossible elsewhere.
+
 **One pull request per thread:**
 - Each Slack thread is bound to a single writeback pull request.
 - The first \`proposeWriteback\` call in a thread opens the PR; later calls update that same PR.

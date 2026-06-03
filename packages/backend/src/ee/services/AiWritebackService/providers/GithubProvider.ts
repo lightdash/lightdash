@@ -9,6 +9,7 @@ import {
     UnexpectedServerError,
     type DbtProjectConfig,
     type SessionUser,
+    type WorkflowFile,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Sandbox } from 'e2b';
@@ -21,6 +22,7 @@ import {
     getBranchHeadSha,
     getInstallationToken,
     getPullRequest,
+    getRepoWorkflowFiles,
     updatePullRequest,
 } from '../../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -319,6 +321,20 @@ export class GithubProvider implements GitProvider {
             pullNumber: parsed.pullNumber,
             headRef: pr.headRef,
         };
+    }
+
+    async readPreviewDeployWorkflowFiles(
+        connection: GitConnection,
+        installation: GitInstallation,
+    ): Promise<WorkflowFile[]> {
+        const gh = asGithubConnection(connection);
+        // Reads the repo's default branch (no `ref`), matching the in-sandbox
+        // scan which detects on the freshly-cloned default branch.
+        return getRepoWorkflowFiles({
+            owner: gh.owner,
+            repo: gh.repo,
+            ...githubAuth(asGithubInstallation(installation)),
+        });
     }
 
     /**
