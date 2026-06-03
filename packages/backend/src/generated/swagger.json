@@ -3702,6 +3702,12 @@
                             "owner": {
                                 "type": "string"
                             },
+                            "defaultFilter": {
+                                "$ref": "#/components/schemas/MetricFilterRule"
+                            },
+                            "defaultSegment": {
+                                "type": "string"
+                            },
                             "segmentBy": {
                                 "items": {
                                     "type": "string"
@@ -33661,6 +33667,12 @@
                                     }
                                 ],
                                 "nullable": true
+                            },
+                            "spotlightDefaultFilter": {
+                                "$ref": "#/components/schemas/MetricFilterRule"
+                            },
+                            "spotlightDefaultSegment": {
+                                "type": "string"
                             },
                             "spotlightSegmentBy": {
                                 "items": {

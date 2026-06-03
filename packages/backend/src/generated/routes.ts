@@ -3352,6 +3352,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     owner: { dataType: 'string' },
+                    defaultFilter: { ref: 'MetricFilterRule' },
+                    defaultSegment: { dataType: 'string' },
                     segmentBy: {
                         dataType: 'array',
                         array: { dataType: 'string' },
@@ -33038,6 +33040,8 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        spotlightDefaultFilter: { ref: 'MetricFilterRule' },
+                        spotlightDefaultSegment: { dataType: 'string' },
                         spotlightSegmentBy: {
                             dataType: 'array',
                             array: { dataType: 'string' },
