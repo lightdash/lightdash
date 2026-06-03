@@ -1,12 +1,11 @@
 import {
     Box,
     Flex,
-    getDefaultZIndex,
     Paper,
     Transition,
     type FlexProps,
     type MantineTransition,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
@@ -15,7 +14,6 @@ import {
     SIDEBAR_ANIMATION_DURATION,
     SIDEBAR_DEFAULT_WIDTH,
     SIDEBAR_MIN_WIDTH,
-    SIDEBAR_RESIZE_HANDLE_WIDTH,
 } from './constants';
 import classes from './Sidebar.module.css';
 import { SidebarPosition, type SidebarWidthProps } from './types';
@@ -40,39 +38,10 @@ const ResizeHandle: FC<{
     onMouseDown: (event: React.MouseEvent) => void;
 }> = ({ position, isResizing, onMouseDown }) => (
     <Box
-        h="100%"
-        w={SIDEBAR_RESIZE_HANDLE_WIDTH}
-        pos="absolute"
-        top={0}
-        {...(position === SidebarPosition.LEFT
-            ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
-            : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
+        className={classes.resizeHandle}
+        data-position={position}
+        data-resizing={isResizing}
         onMouseDown={onMouseDown}
-        sx={(theme) => ({
-            cursor: 'col-resize',
-            zIndex: getDefaultZIndex('app') + 1,
-            ...(isResizing
-                ? {
-                      background: theme.fn.linearGradient(
-                          90,
-                          theme.colorScheme === 'dark'
-                              ? theme.colors.blue[5]
-                              : theme.colors.blue[3],
-                          'transparent',
-                      ),
-                  }
-                : {
-                      ...theme.fn.hover({
-                          background: theme.fn.linearGradient(
-                              90,
-                              theme.colorScheme === 'dark'
-                                  ? theme.colors.blue[7]
-                                  : theme.colors.blue[1],
-                              'transparent',
-                          ),
-                      }),
-                  }),
-        })}
     />
 );
 
@@ -113,15 +82,16 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                     ref={sidebarRef}
                     direction="column"
                     className={classes.floatContainer}
-                    style={{ width: isCollapsed ? 0 : sidebarWidth }}
+                    style={{
+                        '--sidebar-width': `${sidebarWidth}px`,
+                    }}
                     {...containerProps}
                 >
                     <Paper
                         shadow="lg"
                         radius={0}
                         className={classes.floatingPanel}
-                        style={{ width: sidebarWidth }}
-                        data-collapsed={isCollapsed ? 'true' : 'false'}
+                        data-collapsed={isCollapsed}
                         data-testid={
                             isCollapsed
                                 ? 'common-sidebar-collapsed'
@@ -152,9 +122,6 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
         );
     }
 
-    const sidebarPadding = noSidebarPadding ? 0 : 16;
-    const contentWidth = sidebarWidth - sidebarPadding * 2;
-
     const transition: MantineTransition = {
         in: {
             opacity: 1,
@@ -178,10 +145,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             <Flex
                 ref={sidebarRef}
                 direction="column"
-                pos="relative"
-                h="100%"
-                mah="100%"
-                sx={{ zIndex: 1 }}
+                className={classes.sidebarContainer}
                 {...containerProps}
             >
                 <Transition
@@ -193,30 +157,16 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                         <>
                             <Paper
                                 shadow="lg"
+                                radius={0}
+                                className={classes.sidebarPaper}
                                 style={{
                                     ...style,
-                                    width: sidebarWidth,
-                                    padding: sidebarPadding,
-                                    paddingBottom: 0,
+                                    '--sidebar-width': `${sidebarWidth}px`,
                                 }}
-                                radius={0}
-                                sx={{
-                                    display: 'flex',
-                                    flexGrow: 1,
-                                    flexDirection: 'column',
-                                    overflow: 'hidden',
-                                }}
+                                data-no-padding={noSidebarPadding}
                                 data-testid="common-sidebar"
                             >
-                                <Box
-                                    sx={{
-                                        flexGrow: 1,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        width: contentWidth,
-                                        minHeight: 0,
-                                    }}
-                                >
+                                <Box className={classes.sidebarContent}>
                                     {children}
                                 </Box>
                             </Paper>

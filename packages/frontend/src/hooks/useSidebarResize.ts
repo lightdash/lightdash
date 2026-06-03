@@ -1,4 +1,4 @@
-import { useViewportSize } from '@mantine/hooks';
+import { useViewportSize } from '@mantine-8/hooks';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { PAGE_MIN_CONTENT_WIDTH } from '../components/common/Page/constants';
 import { SidebarPosition } from '../components/common/Page/types';
