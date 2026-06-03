@@ -1,4 +1,4 @@
-import { Drawer, Group, Stack } from '@mantine-8/core';
+import { Drawer, Group, Stack, Text } from '@mantine-8/core';
 import { useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
@@ -31,14 +31,31 @@ export const AiReviewsSettingsPage = () => {
 
     return (
         <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Reviews', active: true },
-                    ]}
-                />
-            </Group>
+            <Stack gap={4}>
+                <Group justify="space-between" align="flex-start">
+                    <PageBreadcrumbs
+                        items={[
+                            {
+                                title: 'Ask AI',
+                                to: '/generalSettings/ai/general',
+                            },
+                            { title: 'Reviews', active: true },
+                        ]}
+                    />
+                </Group>
+
+                <Text c="dimmed" fz="sm" maw={760}>
+                    Answers an agent probably got wrong, grouped by root cause:{' '}
+                    <Text span fw={600} fz="inherit">
+                        Semantic layer
+                    </Text>{' '}
+                    findings open a dbt metrics PR, and{' '}
+                    <Text span fw={600} fz="inherit">
+                        Project context
+                    </Text>{' '}
+                    findings add a definition to your project context file.
+                </Text>
+            </Stack>
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 

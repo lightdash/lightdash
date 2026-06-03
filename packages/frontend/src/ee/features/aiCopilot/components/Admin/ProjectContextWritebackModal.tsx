@@ -124,7 +124,7 @@ export const ProjectContextWritebackModal: FC<
                                     'Opening pull request…'}
                             </Text>
                             <Text fz="sm" c="ldGray.5">
-                                This runs in the background — safe to close.
+                                Runs in the background, safe to close.
                             </Text>
                         </>
                     )}
@@ -164,8 +164,8 @@ export const ProjectContextWritebackModal: FC<
 
                     {previewData?.available === false && (
                         <Text fz="sm" c="ldGray.6">
-                            This change runs in a sandbox — the diff will be on
-                            the pull request itself.
+                            This change runs in a sandbox, so the diff shows up
+                            on the pull request itself.
                         </Text>
                     )}
                 </Stack>
