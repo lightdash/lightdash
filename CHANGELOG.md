@@ -1,3 +1,10 @@
+# [0.3082.0](https://github.com/lightdash/lightdash/compare/0.3081.2...0.3082.0) (2026-06-03)
+
+
+### Features
+
+* **ai-writeback:** show "View preview" next to "View pull request" in chat (PROD-8055) ([#23745](https://github.com/lightdash/lightdash/issues/23745)) ([4c59b05](https://github.com/lightdash/lightdash/commit/4c59b05275d41b39e2b8649807bbf529e23e635f))
+
 ## [0.3081.2](https://github.com/lightdash/lightdash/compare/0.3081.1...0.3081.2) (2026-06-03)
 
 
