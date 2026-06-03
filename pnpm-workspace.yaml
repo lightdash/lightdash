@@ -45,3 +45,5 @@ minimumReleaseAgeExclude:
   - liquidjs@10.26.0
   # Renovate security update: axios@1.16.0
   - axios@1.16.0
+  # Renovate security update: vitest@4.1.0
+  - vitest@4.1.0
