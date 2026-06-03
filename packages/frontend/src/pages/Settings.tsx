@@ -856,6 +856,7 @@ const Settings: FC = () => {
             withFixedContent={isFixedContent}
             withPaddedContent
             title="Settings"
+            sidebarWidthProps={{ defaultWidth: 300, minWidth: 260 }}
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible
             collapsedSidebarContent={
@@ -915,9 +916,9 @@ const Settings: FC = () => {
                         </Tooltip>
                     </Group>
                     <ScrollArea
-                        variant="primary"
-                        offsetScrollbars
+                        type="scroll"
                         scrollbarSize={8}
+                        scrollHideDelay={800}
                         className={classes.sidebarScroll}
                     >
                         <Stack gap="lg">
@@ -1316,9 +1317,14 @@ const Settings: FC = () => {
                                 }),
                             ) ? (
                                 <Box>
-                                    <Title order={6} fw={600} mb="xs">
-                                        Current project ({project?.name})
-                                    </Title>
+                                    <Box mb="xs">
+                                        <Title order={6} fw={600}>
+                                            Current project
+                                        </Title>
+                                        <Text fz="sm" fw={700} mt={2}>
+                                            {project?.name}
+                                        </Text>
+                                    </Box>
 
                                     <RouterNavLink
                                         label="Connection settings"
