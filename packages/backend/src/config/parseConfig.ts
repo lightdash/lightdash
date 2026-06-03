@@ -987,6 +987,9 @@ export const getAiConfig = () => ({
         getFloatFromEnvironmentVariable(
             'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
         ) ?? 0.6,
+    mcpConnectionTimeoutMs:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_MCP_TIMEOUT_MS') ||
+        20_000,
 });
 
 export type LoggingConfig = {
@@ -1259,7 +1262,6 @@ export type LightdashConfig = {
     mcp: {
         enabled: boolean;
         runSqlMaxLimit: number;
-        timeoutMs: number;
     };
     customRoles: {
         enabled: boolean;
@@ -2333,10 +2335,6 @@ export const parseConfig = (): LightdashConfig => {
             runSqlMaxLimit:
                 getIntegerFromEnvironmentVariable('MCP_RUN_SQL_MAX_LIMIT') ||
                 AI_DEFAULT_MAX_QUERY_LIMIT,
-            timeoutMs:
-                getIntegerFromEnvironmentVariable(
-                    'MCP_CONNECTION_TIMEOUT_MS',
-                ) || 20_000,
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',

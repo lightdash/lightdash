@@ -243,6 +243,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 },
             },
             verifiedAnswerSimilarityThreshold: 0.6,
+            mcpConnectionTimeoutMs: 20_000,
             defaultEmbeddingModelProvider: 'openai',
         },
     },
@@ -315,7 +316,6 @@ export const lightdashConfigMock: LightdashConfig = {
     mcp: {
         enabled: true,
         runSqlMaxLimit: 5000,
-        timeoutMs: 20_000,
     },
     customRoles: {
         enabled: false,

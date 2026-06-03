@@ -377,9 +377,17 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
 }
 
 export class McpTimeoutError extends Error {
-    constructor(operation: string, timeoutMs: number) {
-        super(`MCP ${operation} timed out after ${timeoutMs}ms`);
+    constructor(
+        timeoutMs: number,
+        options?: { operation?: string; cause?: unknown },
+    ) {
+        super(
+            `MCP ${options?.operation ?? 'request'} timed out after ${timeoutMs}ms`,
+        );
         this.name = 'McpTimeoutError';
+        if (options?.cause !== undefined) {
+            this.cause = options.cause;
+        }
     }
 }
 
@@ -506,11 +514,37 @@ const getMcpUserFacingErrorMessage = (error: Error): string => {
     return 'We could not connect to the MCP server. Check that it is available and try again.';
 };
 
+const isTimeoutAbortError = (error: unknown): boolean =>
+    (error instanceof DOMException || error instanceof Error) &&
+    error.name === 'TimeoutError';
+
+// A fetch that aborts each request after `timeoutMs`, so a hanging MCP server
+// tears down the underlying connection instead of leaking it.
+const createMcpTimeoutFetch =
+    (timeoutMs: number): typeof globalThis.fetch =>
+    async (input, init) => {
+        const timeoutSignal = AbortSignal.timeout(timeoutMs);
+        const signal = init?.signal
+            ? AbortSignal.any([init.signal, timeoutSignal])
+            : timeoutSignal;
+
+        try {
+            return await fetch(input, { ...init, signal });
+        } catch (error) {
+            if (isTimeoutAbortError(error)) {
+                throw new McpTimeoutError(timeoutMs, { cause: error });
+            }
+            throw error;
+        }
+    };
+
 export const createHttpMcpClient = async (
     mcpServer: McpServerConnectionArgs,
+    timeoutMs: number,
     onUncaughtError?: (error: unknown) => void,
 ): Promise<MCPClient> => {
     const bearerToken = getBearerToken(mcpServer);
+    const timeoutFetch = createMcpTimeoutFetch(timeoutMs);
 
     try {
         return await createMCPClient({
@@ -523,6 +557,7 @@ export const createHttpMcpClient = async (
                               requestInit: {
                                   redirect: 'error',
                               },
+                              fetch: timeoutFetch,
                           },
                       )
                     : {
@@ -534,6 +569,7 @@ export const createHttpMcpClient = async (
                                 }
                               : undefined,
                           redirect: 'error',
+                          fetch: timeoutFetch,
                       },
             onUncaughtError,
         });
@@ -552,7 +588,7 @@ const withMcpTimeout = <T>(
         let timedOut = false;
         const timer = setTimeout(() => {
             timedOut = true;
-            reject(new McpTimeoutError(operation, timeoutMs));
+            reject(new McpTimeoutError(timeoutMs, { operation }));
         }, timeoutMs);
 
         void promise.then(
@@ -579,7 +615,7 @@ export const createHttpMcpClientWithTimeout = (
     onUncaughtError?: (error: unknown) => void,
 ): Promise<MCPClient> =>
     withMcpTimeout(
-        createHttpMcpClient(mcpServer, onUncaughtError),
+        createHttpMcpClient(mcpServer, timeoutMs, onUncaughtError),
         timeoutMs,
         `connection to "${mcpServer.name}"`,
         (client) => {
@@ -740,7 +776,7 @@ export class AiAgentMcpRuntimeClient {
                     : null,
                 resolvedCredentialScope: args.bearerToken ? 'shared' : null,
             },
-            this.lightdashConfig.mcp.timeoutMs,
+            this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
             args.onUncaughtError,
         );
     }
@@ -896,7 +932,7 @@ export class AiAgentMcpRuntimeClient {
                               })
                             : undefined,
                 },
-                this.lightdashConfig.mcp.timeoutMs,
+                this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
                 (error) => {
                     Logger.error(
                         `[AiAgent][MCP][${args.mcpServer.name}] Uncaught MCP client error during tool discovery`,
@@ -907,7 +943,7 @@ export class AiAgentMcpRuntimeClient {
 
             const tools = await withMcpTimeout(
                 mcpClient.listTools(),
-                this.lightdashConfig.mcp.timeoutMs,
+                this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
                 `tool discovery for "${args.mcpServer.name}"`,
             );
 
@@ -999,7 +1035,7 @@ export class AiAgentMcpRuntimeClient {
                     log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
                     mcpClient = await createHttpMcpClientWithTimeout(
                         mcpServer,
-                        this.lightdashConfig.mcp.timeoutMs,
+                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
                         (error) => {
                             Logger.error(
                                 `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
@@ -1010,7 +1046,7 @@ export class AiAgentMcpRuntimeClient {
 
                     const tools = await withMcpTimeout(
                         mcpClient.tools(),
-                        this.lightdashConfig.mcp.timeoutMs,
+                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
                         `tool discovery for "${mcpServer.name}"`,
                     );
                     await this.persistRuntimeState({

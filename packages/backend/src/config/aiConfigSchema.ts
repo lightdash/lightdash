@@ -119,6 +119,7 @@ export const aiCopilotConfigSchema = z
             .min(0)
             .max(1)
             .default(0.6),
+        mcpConnectionTimeoutMs: z.number().positive().default(20_000),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>
