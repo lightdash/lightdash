@@ -1,5 +1,5 @@
 // Deep import bypasses @lightdash/common's barrel, which transitively pulls
-// in pegjs/postcss and breaks the browser bundle (path.isAbsolute externalized).
+// in postcss and breaks the browser bundle (path.isAbsolute externalized).
 import {
     formatCartesianTooltipRow,
     formatColorIndicator,

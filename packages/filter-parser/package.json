@@ -1,0 +1,34 @@
+{
+  "name": "@lightdash/filter-parser",
+  "version": "0.2965.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lightdash/lightdash.git"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "build:grammar": "peggy --format es -o src/grammar/parser.js src/grammar/filter.pegjs",
+    "build": "pnpm run build:grammar && tsc --build ./tsconfig.build.json",
+    "dev": "pnpm run build:grammar && tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "lint": "pnpm run linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix",
+    "format": "oxfmt ./src '!src/grammar/parser.js' --check",
+    "fix-format": "oxfmt ./src '!src/grammar/parser.js'",
+    "formatter": "oxfmt",
+    "release": "pnpm publish --no-git-checks --access public"
+  },
+  "devDependencies": {
+    "oxlint": "1.57.0",
+    "oxlint-tsgolint": "0.18.1",
+    "peggy": "4.2.0",
+    "typescript": "6.0.3"
+  }
+}

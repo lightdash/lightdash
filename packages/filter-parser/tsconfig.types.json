@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "dist/types",
+        "tsBuildInfoFile": "dist/types/.tsbuildinfo",
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "declarationMap": true
+    }
+}

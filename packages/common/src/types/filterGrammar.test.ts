@@ -1,17 +1,22 @@
-import peg from 'pegjs';
+import { parseFilterExpression } from '@lightdash/filter-parser';
 import { FilterOperator, type MetricFilterRule } from './filter';
-import filterGrammar, {
-    parseFilters,
-    parseModelRequiredFilters,
-} from './filterGrammar';
+import { parseFilters, parseModelRequiredFilters } from './filterGrammar';
 
 describe('Parse grammar', () => {
-    const parser = peg.generate(filterGrammar);
-
-    it('Simple peg grammar test', async () => {
-        const simpleParser = peg.generate("start = ('a' / 'b')+");
-        expect(simpleParser.parse('abba')).toEqual(['a', 'b', 'b', 'a']);
-    });
+    const parser = {
+        parse: (value: string) =>
+            parseFilterExpression(value, {
+                operators: {
+                    equals: FilterOperator.EQUALS,
+                    include: FilterOperator.INCLUDE,
+                    startsWith: FilterOperator.STARTS_WITH,
+                    endsWith: FilterOperator.ENDS_WITH,
+                    inBetween: FilterOperator.IN_BETWEEN,
+                    inThePast: FilterOperator.IN_THE_PAST,
+                    inTheNext: FilterOperator.IN_THE_NEXT,
+                },
+            }),
+    };
 
     it('Empty Filter grammar', async () => {
         expect(parser.parse('')).toEqual({
