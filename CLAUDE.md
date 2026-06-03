@@ -81,8 +81,12 @@ pnpm -F common lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
+pnpm -F common typecheck:fast # common is heavy; use this faster typecheck there
 pnpm -F backend typecheck
+pnpm -F backend typecheck:fast
 pnpm -F frontend typecheck
+pnpm -F frontend typecheck:fast
+pnpm -F warehouses typecheck:fast
 ```
 
 **Testing:**

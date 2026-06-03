@@ -1,0 +1,18 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "moduleResolution": "bundler",
+        "paths": {
+            "better-ajv-errors": [
+                "../common/node_modules/better-ajv-errors/typings.d.ts"
+            ],
+            "@casl/ability/dist/types/*": [
+                "./node_modules/@casl/ability/dist/types/*"
+            ]
+        },
+        "composite": false,
+        "declaration": false,
+        "declarationMap": false,
+        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
+    }
+}
