@@ -1,11 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    applyProjectContextWriteback,
     DbtProjectType,
     ForbiddenError,
     loadProjectContextFile,
-    mergeProjectContextEntry,
     NotFoundError,
-    serializeProjectContextFile,
     type AiAgentJudgeProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
@@ -242,11 +241,11 @@ export class ProjectContextService extends BaseService {
             }
         }
 
-        const { entries, entryId, op } = mergeProjectContextEntry(
-            loadProjectContextFile(existingContent),
-            args.entry,
-        );
-        const serialized = serializeProjectContextFile(entries);
+        const {
+            content: serialized,
+            entryId,
+            op,
+        } = applyProjectContextWriteback(existingContent, args.entry);
 
         const lastCommit = await getLastCommit({
             owner,

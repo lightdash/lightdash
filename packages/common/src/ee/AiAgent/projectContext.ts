@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
+import { isMap, isSeq, parseDocument } from 'yaml';
 import { z } from 'zod';
 import lightdashProjectContextSchema from '../../schemas/json/lightdash-project-context-1.0.json';
 import { ParseError } from '../../types/errors';
@@ -206,4 +207,51 @@ export const loadProjectContextFile = (
         entries.push({ ...entry, id, terms, objects });
     }
     return entries;
+};
+
+/**
+ * Apply a judge-emitted entry and return the new file contents, the entry id,
+ * and whether it created or updated. For a canonical `{ version, entries }`
+ * file this edits the parsed YAML document in place — appending the new entry
+ * (or replacing the one matching `id`) — so the resulting diff is just the
+ * touched entry, with comments, quoting and key order in the rest of the file
+ * preserved. Empty or legacy (bare-array) files fall back to a fresh canonical
+ * serialization.
+ */
+export const applyProjectContextWriteback = (
+    existingContent: string,
+    judgeEntry: ProjectContextWritebackEntry,
+): { content: string; entryId: string; op: 'create' | 'update' } => {
+    const { entries, entryId, op } = mergeProjectContextEntry(
+        loadProjectContextFile(existingContent),
+        judgeEntry,
+    );
+
+    if (existingContent.trim() !== '') {
+        const doc = parseDocument(existingContent);
+        const entriesNode = doc.get('entries');
+        if (doc.errors.length === 0 && isSeq(entriesNode)) {
+            if (doc.get('version') === undefined) {
+                doc.set('version', PROJECT_CONTEXT_FILE_VERSION);
+            }
+            const node = doc.createNode({
+                id: entryId,
+                kind: judgeEntry.kind,
+                content: judgeEntry.content,
+                terms: judgeEntry.terms,
+                objects: judgeEntry.objects,
+            });
+            const index = entriesNode.items.findIndex(
+                (item) => isMap(item) && item.get('id') === entryId,
+            );
+            if (index >= 0) {
+                entriesNode.set(index, node);
+            } else {
+                entriesNode.add(node);
+            }
+            return { content: doc.toString({ lineWidth: 0 }), entryId, op };
+        }
+    }
+
+    return { content: serializeProjectContextFile(entries), entryId, op };
 };

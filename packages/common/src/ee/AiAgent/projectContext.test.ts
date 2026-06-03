@@ -1,5 +1,6 @@
 import { ParseError } from '../../types/errors';
 import {
+    applyProjectContextWriteback,
     loadProjectContextFile,
     mergeProjectContextEntry,
     serializeProjectContextFile,
@@ -293,5 +294,87 @@ entries:
     content: '"HR" = high-risk cohort.'
 `;
         expect(() => loadProjectContextFile(yaml)).toThrow(ParseError);
+    });
+});
+
+describe('applyProjectContextWriteback', () => {
+    test('creates a canonical file from empty content', () => {
+        const { content, entryId, op } = applyProjectContextWriteback('', {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: 'MRR means monthly recurring revenue.',
+            terms: ['MRR'],
+            objects: [],
+        });
+        expect(op).toBe('create');
+        expect(entryId).toBe('mrr');
+        expect(content).toContain('version: 1');
+        expect(loadProjectContextFile(content)).toEqual([
+            {
+                id: 'mrr',
+                kind: 'definition',
+                content: 'MRR means monthly recurring revenue.',
+                terms: ['MRR'],
+                objects: [],
+            },
+        ]);
+    });
+
+    test('appends a new entry, preserving existing comments and entries verbatim', () => {
+        const existing = `version: 1
+entries:
+  # Curated by the data team — do not reorder.
+  - id: hr
+    kind: definition
+    content: '"HR" = high-risk cohort.'
+    terms: [HR]
+    objects: []
+`;
+        const { content, op } = applyProjectContextWriteback(existing, {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: 'MRR means monthly recurring revenue.',
+            terms: ['MRR'],
+            objects: [],
+        });
+        expect(op).toBe('create');
+        // The human comment, the original quoting and the entry content all
+        // survive — this is the whole point: a minimal, reviewable diff rather
+        // than a full-file rewrite. (Flow seqs are re-spaced, e.g. [HR] →
+        // [ HR ], which is the one cosmetic cost vs js-yaml nuking everything.)
+        expect(content).toContain('# Curated by the data team');
+        expect(content).toContain(`content: '"HR" = high-risk cohort.'`);
+        expect(content).toContain('id: hr');
+        expect(content).toContain('id: mrr');
+        expect(loadProjectContextFile(content)).toHaveLength(2);
+    });
+
+    test('updates an existing entry in place by id', () => {
+        const existing = `version: 1
+entries:
+  - id: mrr
+    kind: definition
+    content: old
+    terms: [MRR]
+    objects: []
+`;
+        const { content, entryId, op } = applyProjectContextWriteback(
+            existing,
+            {
+                op: 'update',
+                id: 'mrr',
+                kind: 'definition',
+                content: 'MRR means monthly recurring revenue.',
+                terms: ['MRR'],
+                objects: [],
+            },
+        );
+        expect(op).toBe('update');
+        expect(entryId).toBe('mrr');
+        const entries = loadProjectContextFile(content);
+        expect(entries).toHaveLength(1);
+        expect(entries[0].content).toBe('MRR means monthly recurring revenue.');
     });
 });
