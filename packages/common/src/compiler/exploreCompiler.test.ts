@@ -485,6 +485,103 @@ describe('Compile metrics with filters', () => {
     });
 });
 
+describe('compileMetric spotlight defaults validation', () => {
+    const baseMetric = tablesWithMetricsWithFilters.table1.metrics.metric1;
+
+    test('accepts a valid default_segment and default_filter', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                segmentBy: ['shared'],
+                defaultSegment: 'shared',
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'shared' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['foo'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).not.toThrow();
+    });
+
+    test('does not throw for a metric with no spotlight defaults (no regression)', () => {
+        expect(() =>
+            compiler.compileMetric(
+                baseMetric,
+                tablesWithMetricsWithFilters,
+                [],
+            ),
+        ).not.toThrow();
+    });
+
+    test('throws when default_segment is not in the segment_by allowlist', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                segmentBy: ['shared'],
+                defaultSegment: 'dim1',
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_segment 'dim1' must be one of segment_by/);
+    });
+
+    test('throws when default_segment dimension is not segmentable', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultSegment: 'dim1',
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_segment 'dim1' .* segmentable/);
+    });
+
+    test('throws when default_filter references an unknown dimension', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'does_not_exist' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['foo'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_filter references an unknown dimension/);
+    });
+
+    test('throws when default_filter uses an unsupported operator', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'shared' },
+                    operator: FilterOperator.GREATER_THAN,
+                    values: [4],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_filter uses operator .* not supported/);
+    });
+});
+
 describe('Parse dimension reference', () => {
     test('should parse dimensions', () => {
         expect(parseAllReferences('${dimension} == 1', 'table')).toStrictEqual([

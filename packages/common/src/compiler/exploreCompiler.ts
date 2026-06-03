@@ -10,6 +10,7 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    DimensionType,
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
@@ -25,7 +26,7 @@ import {
     type FieldCompilationError,
     type Metric,
 } from '../types/field';
-import { type ModelRequiredFilterRule } from '../types/filter';
+import { FilterOperator, type ModelRequiredFilterRule } from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { type PreAggregateDef } from '../types/preAggregate';
 import {
@@ -56,6 +57,78 @@ import {
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
     /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
+
+// The Metrics Explorer filter UI can only render "is" / "is not"
+const EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS = new Set<FilterOperator>([
+    FilterOperator.EQUALS,
+    FilterOperator.NOT_EQUALS,
+]);
+
+/**
+ * Validate metric spotlight `default_segment` / `default_filter` at compile time.
+ * Stricter than the segment_by/filter_by allowlists: a wrong default silently
+ * produces a wrong landing view in the Metrics Explorer, so we hard-fail.
+ * Only runs when the optional fields are present — existing configs are untouched.
+ */
+const validateSpotlightDefaults = (
+    metric: Metric,
+    tables: Record<string, Table>,
+): void => {
+    const { spotlight } = metric;
+    if (!spotlight) return;
+
+    const tableDimensions = tables[metric.table]?.dimensions ?? {};
+
+    if (spotlight.defaultSegment !== undefined) {
+        const name = spotlight.defaultSegment;
+        if (spotlight.segmentBy && !spotlight.segmentBy.includes(name)) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${name}' must be one of segment_by: [${spotlight.segmentBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        const dimension = tableDimensions[name];
+        const isSegmentable =
+            dimension !== undefined &&
+            !dimension.timeIntervalBaseDimensionName &&
+            (dimension.type === DimensionType.STRING ||
+                dimension.type === DimensionType.BOOLEAN);
+        if (!isSegmentable) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${name}' must reference an existing dimension that is segmentable (string or boolean)`,
+            );
+        }
+    }
+
+    if (spotlight.defaultFilter !== undefined) {
+        const { fieldRef } = spotlight.defaultFilter.target;
+        const name = fieldRef.includes('.')
+            ? fieldRef.split('.').slice(-1)[0]
+            : fieldRef;
+        if (spotlight.filterBy && !spotlight.filterBy.includes(name)) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter dimension '${name}' must be one of filter_by: [${spotlight.filterBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        if (tableDimensions[name] === undefined) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter references an unknown dimension '${name}'`,
+            );
+        }
+        if (
+            !EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS.has(
+                spotlight.defaultFilter.operator,
+            )
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter uses operator '${spotlight.defaultFilter.operator}' which is not supported in the Metrics Explorer (use 'is' or 'is not')`,
+            );
+        }
+    }
+};
 
 type Reference = {
     refTable: string;
@@ -912,6 +985,8 @@ export class ExploreCompiler {
             parameterReferences,
             availableParameters,
         );
+
+        validateSpotlightDefaults(metric, tables);
 
         return {
             ...metric,
