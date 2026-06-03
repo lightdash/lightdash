@@ -9,26 +9,30 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
-    Badge,
     Box,
     Button,
+    Collapse,
     Divider,
     Group,
     Loader,
+    Menu,
     Paper,
     SegmentedControl,
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconBox,
+    IconChevronDown,
+    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
+    IconDots,
     IconExternalLink,
     IconFilterX,
     IconGitPullRequest,
@@ -41,8 +45,16 @@ import {
     IconTriangle,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import {
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
     useContentTable,
@@ -51,6 +63,7 @@ import {
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
+import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
@@ -82,6 +95,18 @@ const rootCauseLabels: Record<AiAgentRootCause, string> = {
     feedback_quality: 'Feedback',
     not_a_failure: 'Not failure',
     ambiguous: 'Ambiguous',
+};
+
+const rootCauseColors: Record<AiAgentRootCause, string> = {
+    semantic_layer: 'indigo',
+    project_context: 'violet',
+    agent_configuration: 'cyan',
+    data_gap: 'orange',
+    product_capability: 'grape',
+    runtime_reliability: 'red',
+    feedback_quality: 'teal',
+    not_a_failure: 'gray',
+    ambiguous: 'gray',
 };
 
 const signalLabels: Record<AiAgentTurnSignal, string> = {
@@ -278,32 +303,6 @@ const getConfidenceIcon = (
     }
 };
 
-const CategoryToken = ({
-    children,
-    secondary = false,
-}: {
-    children: string;
-    secondary?: boolean;
-}) => (
-    <Box
-        className={`${styles.categoryToken} ${
-            secondary ? styles.categoryTokenSecondary : ''
-        }`}
-    >
-        <Text
-            fz="xs"
-            fw={500}
-            className={
-                secondary
-                    ? styles.categoryTokenSecondaryText
-                    : styles.categoryTokenText
-            }
-        >
-            {children}
-        </Text>
-    </Box>
-);
-
 const ExpandableText = ({
     children,
     lineClamp = 2,
@@ -318,10 +317,27 @@ const ExpandableText = ({
     weight?: number;
 }) => {
     const [expanded, setExpanded] = useState(false);
-    const canExpand = children.length > lineClamp * 72;
+    const [isOverflowing, setIsOverflowing] = useState(false);
+    const textRef = useRef<HTMLParagraphElement>(null);
+
+    // Detect real truncation (which is width-dependent) instead of guessing
+    // from character count, so a narrow column expands the same as a wide one.
+    useEffect(() => {
+        const element = textRef.current;
+        if (!element) return;
+        const measure = () =>
+            setIsOverflowing(element.scrollHeight - element.clientHeight > 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [children]);
+
+    const canExpand = expanded || isOverflowing;
 
     return (
         <Text
+            ref={textRef}
             fz={size}
             c={color}
             fw={weight}
@@ -332,7 +348,13 @@ const ExpandableText = ({
                 event.stopPropagation();
                 setExpanded((isExpanded) => !isExpanded);
             }}
-            title={canExpand ? 'Click to expand' : undefined}
+            title={
+                canExpand
+                    ? expanded
+                        ? 'Click to collapse'
+                        : 'Click to expand'
+                    : undefined
+            }
         >
             {children}
         </Text>
@@ -372,11 +394,96 @@ const ReviewConceptHelp = () => (
 );
 
 const statusColors: Record<AiAgentReviewItemStatus, string> = {
-    open: 'blue',
+    open: 'gray',
     in_progress: 'yellow',
     resolved: 'green',
     dismissed: 'gray',
     duplicate: 'gray',
+};
+
+const FindingCell = ({
+    reviewItem,
+    onPreview,
+}: {
+    reviewItem: AiAgentReviewItemSummary;
+    onPreview: (() => void) | null;
+}) => {
+    const [showReasoning, setShowReasoning] = useState(false);
+    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const reasoning = contextEntry
+        ? `${
+              contextEntry.op === 'update' ? 'Updates' : 'Adds'
+          } project context: ${contextEntry.content}`
+        : getWhyText(reviewItem);
+
+    return (
+        <Stack gap={2} miw={0}>
+            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
+                {getIssueTitle(reviewItem)}
+            </Text>
+            <ExpandableText lineClamp={1}>
+                {getWhatHappened(reviewItem)}
+            </ExpandableText>
+            <Group justify="space-between" wrap="nowrap" gap="xs" mt={2}>
+                <UnstyledButton
+                    className={styles.reasoningToggle}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setShowReasoning((shown) => !shown);
+                    }}
+                >
+                    <MantineIcon
+                        icon={
+                            showReasoning ? IconChevronDown : IconChevronRight
+                        }
+                        size="xs"
+                    />
+                    Agent&rsquo;s reasoning
+                </UnstyledButton>
+                <Group gap={6} wrap="nowrap">
+                    <Box
+                        className={styles.statusDot}
+                        bg={statusColors[reviewItem.status]}
+                    />
+                    <Text fz="xs" c="ldGray.5" tt="capitalize">
+                        {reviewItem.status.replaceAll('_', ' ')} ·{' '}
+                        {formatLastSeenDate(reviewItem.lastSeenAt)}
+                    </Text>
+                </Group>
+            </Group>
+            <Collapse in={showReasoning}>
+                <Box className={styles.reasoning}>
+                    <Text className={styles.reasoningLabel}>
+                        Why this was flagged
+                    </Text>
+                    <Text fz="xs" c="ldGray.7">
+                        {reasoning}
+                    </Text>
+                    <Group justify="flex-end">
+                        {onPreview && (
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="gray"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconMessages}
+                                        size="sm"
+                                    />
+                                }
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onPreview();
+                                }}
+                            >
+                                Open AI thread
+                            </Button>
+                        )}
+                    </Group>
+                </Box>
+            </Collapse>
+        </Stack>
+    );
 };
 
 const ReviewItemActionsCell = ({
@@ -390,8 +497,7 @@ const ReviewItemActionsCell = ({
     const propInFlight =
         reviewItem.prWritebackStatus === 'queued' ||
         reviewItem.prWritebackStatus === 'running';
-    // While a writeback runs on the worker, poll the single item so the live
-    // phase messages ("Starting sandbox", "Discovering models"…) surface here.
+    // Poll the single item while writeback runs so live phase messages surface.
     const { data: polled } = useAiAgentAdminReviewItem(reviewItem.fingerprint, {
         enabled: propInFlight,
         refetchInterval: propInFlight ? 2500 : false,
@@ -410,91 +516,109 @@ const ReviewItemActionsCell = ({
         !isWritebackInFlight;
 
     if (isWritebackInFlight) {
+        const phase = current.prWritebackMessage ?? 'Opening pull request…';
         return (
-            <Group gap="xs" wrap="nowrap" justify="flex-end">
-                <Loader size="xs" color="violet" />
-                <Text fz="xs" c="ldGray.7" lineClamp={1} maw={170}>
-                    {current.prWritebackMessage ?? 'Working…'}
-                </Text>
-            </Group>
+            <Tooltip label={phase} withArrow openDelay={300}>
+                <Group gap={8} wrap="nowrap" maw={180}>
+                    <Loader size={12} color="ldGray.5" />
+                    <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                        {phase}
+                    </Text>
+                </Group>
+            </Tooltip>
         );
     }
 
     return (
-        <Group gap="xs" wrap="nowrap" justify="flex-end">
-            <Badge
-                size="sm"
-                radius="sm"
-                variant="light"
-                color={statusColors[current.status]}
-            >
-                {current.status.replaceAll('_', ' ')}
-            </Badge>
+        <Stack gap={6} align="flex-start">
+            <Group gap="xs" wrap="nowrap">
+                {current.linkedPrUrl && (
+                    <LinkButton
+                        href={current.linkedPrUrl}
+                        target="_blank"
+                        onClick={(event) => event.stopPropagation()}
+                        leftIcon={IconExternalLink}
+                        size="compact-xs"
+                        fz="xs"
+                        loading={createWriteback.isLoading}
+                    >
+                        View PR
+                    </LinkButton>
+                )}
 
-            {current.linkedPrUrl && (
-                <Anchor
-                    href={current.linkedPrUrl}
-                    target="_blank"
-                    onClick={(event) => event.stopPropagation()}
-                >
-                    <Group gap={4} wrap="nowrap">
-                        <MantineIcon icon={IconExternalLink} size="xs" />
-                        <Text fz="xs" fw={500}>
-                            View PR
-                        </Text>
-                    </Group>
-                </Anchor>
-            )}
+                {canCreatePr && (
+                    <Tooltip
+                        label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
+                        withArrow
+                        multiline
+                        maw={260}
+                    >
+                        <Button
+                            size="compact-xs"
+                            radius="md"
+                            variant="default"
+                            loading={createWriteback.isLoading}
+                            leftSection={
+                                <MantineIcon icon={IconGitPullRequest} />
+                            }
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                createWriteback.mutate(current.fingerprint);
+                            }}
+                        >
+                            Create PR
+                        </Button>
+                    </Tooltip>
+                )}
+
+                {!isTerminal && (
+                    <Menu position="bottom-end" withinPortal>
+                        <Menu.Target>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="More actions"
+                                loading={updateStatus.isLoading}
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconX} />}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    updateStatus.mutate({
+                                        fingerprint: current.fingerprint,
+                                        body: {
+                                            status: 'dismissed',
+                                            dismissedReason: 'not_actionable',
+                                        },
+                                    });
+                                }}
+                            >
+                                Dismiss finding
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
+            </Group>
 
             {canCreatePr && (
-                <Tooltip
-                    label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
-                    withArrow
-                    multiline
-                    maw={260}
-                >
-                    <Button
-                        size="compact-xs"
-                        radius="md"
-                        variant="light"
-                        loading={createWriteback.isLoading}
-                        leftSection={
-                            <MantineIcon icon={IconGitPullRequest} size="xs" />
-                        }
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            createWriteback.mutate(current.fingerprint);
-                        }}
-                    >
-                        Create PR
-                    </Button>
-                </Tooltip>
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconArrowRight}
+                        size="xs"
+                        className={styles.suggestedStepArrow}
+                    />
+                    <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
+                        {getSuggestedNextStep(current)}
+                    </Text>
+                </Group>
             )}
-
-            {!isTerminal && (
-                <Tooltip label="Dismiss this finding" withArrow>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label="Dismiss finding"
-                        loading={updateStatus.isLoading}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            updateStatus.mutate({
-                                fingerprint: current.fingerprint,
-                                body: {
-                                    status: 'dismissed',
-                                    dismissedReason: 'not_actionable',
-                                },
-                            });
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </Group>
+        </Stack>
     );
 };
 
@@ -563,6 +687,7 @@ const AiAgentAdminReviewItemsTable = ({
                 agent?.name,
                 project?.name,
                 reviewItem.latestFinding?.recommendation?.title,
+                reviewItem.latestFinding?.projectContextEntry?.content,
             ]
                 .filter(Boolean)
                 .some((value) => value?.toLowerCase().includes(searchLower));
@@ -756,17 +881,14 @@ const AiAgentAdminReviewItemsTable = ({
     }) => {
         const pluralised = visibleCount === 1 ? noun : `${noun}s`;
         const countLabel = toolbarLoading
-            ? 'Loading...'
+            ? 'Loading…'
             : hasActiveFilters && visibleCount !== totalCount
               ? `${visibleCount} of ${totalCount} ${pluralised}`
               : `${visibleCount} ${pluralised}`;
 
         return (
             <Box>
-                <Group
-                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                    justify="space-between"
-                >
+                <Group py="lg" px="xl" justify="space-between">
                     <Group gap="xs" wrap="wrap">
                         <SearchFilter
                             search={search}
@@ -774,14 +896,7 @@ const AiAgentAdminReviewItemsTable = ({
                             placeholder="Search reviews"
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <SegmentedControl
                             size="xs"
                             radius="md"
@@ -850,17 +965,7 @@ const AiAgentAdminReviewItemsTable = ({
                         )}
                     </Group>
 
-                    <Box
-                        bg="ldGray.1"
-                        c="ldGray.9"
-                        style={{
-                            borderRadius: 6,
-                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
+                    <Box className={styles.countPill}>
                         <Text fz="sm" fw={500}>
                             {countLabel}
                         </Text>
@@ -874,10 +979,57 @@ const AiAgentAdminReviewItemsTable = ({
     const columns: MRT_ColumnDef<AiAgentReviewItemSummary>[] = useMemo(
         () => [
             {
-                accessorKey: 'title',
-                header: 'Issue',
+                accessorKey: 'primaryRootCause',
+                header: 'Type',
                 enableSorting: false,
-                size: 330,
+                size: 220,
+                Header: ({ column }) => (
+                    <Group gap="two">
+                        <MantineIcon icon={IconTag} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const reviewItem = row.original;
+                    const subcategory =
+                        reviewItem.latestFinding?.subcategories[0];
+                    const contextEntry =
+                        reviewItem.latestFinding?.projectContextEntry ?? null;
+                    return (
+                        <Stack gap={7} align="flex-start">
+                            <CategoryBadge
+                                variant="dot"
+                                label={
+                                    rootCauseLabels[reviewItem.primaryRootCause]
+                                }
+                                color={
+                                    rootCauseColors[reviewItem.primaryRootCause]
+                                }
+                            />
+                            {contextEntry ? (
+                                <CategoryBadge
+                                    variant="dot"
+                                    label={contextEntry.kind}
+                                    color="gray"
+                                />
+                            ) : (
+                                subcategory && (
+                                    <CategoryBadge
+                                        variant="dot"
+                                        label={subcategory.replaceAll('_', ' ')}
+                                        color="gray"
+                                    />
+                                )
+                            )}
+                        </Stack>
+                    );
+                },
+            },
+            {
+                accessorKey: 'title',
+                header: 'Finding',
+                enableSorting: false,
+                size: 650,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconListCheck} color="ldGray.6" />
@@ -886,56 +1038,25 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
+                    const latestFinding = reviewItem.latestFinding;
                     return (
-                        <Stack gap={2}>
-                            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
-                                {getIssueTitle(reviewItem)}
-                            </Text>
-                            <ExpandableText lineClamp={1}>
-                                {getWhatHappened(reviewItem)}
-                            </ExpandableText>
-                        </Stack>
-                    );
-                },
-            },
-            {
-                accessorKey: 'primaryRootCause',
-                header: 'Review note',
-                enableSorting: false,
-                size: 380,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const reviewItem = row.original;
-                    const subcategory =
-                        reviewItem.latestFinding?.subcategories[0];
-                    return (
-                        <Stack gap={4}>
-                            <Group gap={4} wrap="nowrap">
-                                <CategoryToken>
-                                    {
-                                        rootCauseLabels[
-                                            reviewItem.primaryRootCause
-                                        ]
-                                    }
-                                </CategoryToken>
-                                {subcategory && (
-                                    <CategoryToken secondary>
-                                        {subcategory.replaceAll('_', ' ')}
-                                    </CategoryToken>
-                                )}
-                                <SuggestedStep>
-                                    {getSuggestedNextStep(reviewItem)}
-                                </SuggestedStep>
-                            </Group>
-                            <ExpandableText lineClamp={1}>
-                                {getWhyText(reviewItem)}
-                            </ExpandableText>
-                        </Stack>
+                        <FindingCell
+                            reviewItem={reviewItem}
+                            onPreview={
+                                latestFinding
+                                    ? () =>
+                                          onReviewItemSelect?.({
+                                              projectUuid:
+                                                  latestFinding.projectUuid,
+                                              agentUuid:
+                                                  latestFinding.agentUuid,
+                                              threadUuid:
+                                                  latestFinding.threadUuid,
+                                              reviewItemUuid: reviewItem.uuid,
+                                          })
+                                    : null
+                            }
+                        />
                     );
                 },
             },
@@ -943,7 +1064,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 140,
+                size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -964,31 +1085,25 @@ const AiAgentAdminReviewItemsTable = ({
                     const project = projectUuid
                         ? projectsMap.get(projectUuid)
                         : undefined;
+                    const projectName = project?.name ?? 'Organization';
 
                     if (agent) {
                         return (
                             <Tooltip
-                                label={project?.name ?? 'Organization'}
+                                label={projectName}
                                 withArrow
                                 disabled={!project}
                             >
-                                <Paper px="xs" w="fit-content" maw="100%">
-                                    <Group gap="two" wrap="nowrap">
-                                        <LightdashUserAvatar
-                                            size={16}
-                                            name={agent.name}
-                                            src={agent.imageUrl}
-                                        />
-                                        <Text
-                                            fz="sm"
-                                            fw={600}
-                                            c="ldGray.9"
-                                            truncate
-                                        >
-                                            {agent.name}
-                                        </Text>
-                                    </Group>
-                                </Paper>
+                                <Group gap="xs" wrap="nowrap">
+                                    <LightdashUserAvatar
+                                        size={20}
+                                        name={agent.name}
+                                        src={agent.imageUrl}
+                                    />
+                                    <Text fz="sm" c="ldGray.9" truncate>
+                                        {agent.name}
+                                    </Text>
+                                </Group>
                             </Tooltip>
                         );
                     }
@@ -1001,68 +1116,17 @@ const AiAgentAdminReviewItemsTable = ({
                                 size="sm"
                             />
                             <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                {project?.name ?? 'Organization'}
+                                {projectName}
                             </Text>
-                        </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'lastSeenAt',
-                header: 'Last seen',
-                enableSorting: true,
-                size: 120,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const reviewItem = row.original;
-                    const latestFinding = reviewItem.latestFinding;
-                    return (
-                        <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                {formatLastSeenDate(reviewItem.lastSeenAt)}
-                            </Text>
-                            {latestFinding && (
-                                <Tooltip
-                                    label="Open AI thread preview"
-                                    withArrow
-                                >
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        size="sm"
-                                        aria-label="Open AI thread preview"
-                                        className={styles.threadIcon}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            onReviewItemSelect?.({
-                                                projectUuid:
-                                                    latestFinding.projectUuid,
-                                                agentUuid:
-                                                    latestFinding.agentUuid,
-                                                threadUuid:
-                                                    latestFinding.threadUuid,
-                                                reviewItemUuid: reviewItem.uuid,
-                                            });
-                                        }}
-                                    >
-                                        <MantineIcon icon={IconMessages} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
                         </Group>
                     );
                 },
             },
             {
                 accessorKey: 'status',
-                header: 'Status',
+                header: 'Action',
                 enableSorting: false,
-                size: 220,
+                size: 260,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon
@@ -1098,9 +1162,17 @@ const AiAgentAdminReviewItemsTable = ({
                     const ConfidenceIcon = getConfidenceIcon(signal.confidence);
                     return (
                         <Group gap={4} wrap="nowrap">
-                            <CategoryToken>
-                                {getSignalResultLabel(signal)}
-                            </CategoryToken>
+                            <CategoryBadge
+                                variant="dot"
+                                label={getSignalResultLabel(signal)}
+                                color={
+                                    signal.finding
+                                        ? rootCauseColors[
+                                              signal.finding.primaryRootCause
+                                          ]
+                                        : 'gray'
+                                }
+                            />
                             <Tooltip
                                 label={`${signal.confidence} confidence`}
                                 withArrow
@@ -1121,7 +1193,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'signal',
                 header: 'Signal',
                 enableSorting: false,
-                size: 340,
+                size: 300,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
@@ -1135,13 +1207,17 @@ const AiAgentAdminReviewItemsTable = ({
                     return (
                         <Stack gap={4}>
                             <Group gap={4} wrap="nowrap">
-                                <CategoryToken>
-                                    {signalLabels[signal.signal]}
-                                </CategoryToken>
+                                <CategoryBadge
+                                    variant="dot"
+                                    label={signalLabels[signal.signal]}
+                                    color="gray"
+                                />
                                 {subcategory && (
-                                    <CategoryToken secondary>
-                                        {subcategory.replaceAll('_', ' ')}
-                                    </CategoryToken>
+                                    <CategoryBadge
+                                        variant="dot"
+                                        label={subcategory.replaceAll('_', ' ')}
+                                        color="gray"
+                                    />
                                 )}
                                 <SuggestedStep>
                                     {getSignalActionText(signal)}
@@ -1185,7 +1261,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'agentUuid',
                 header: 'Agent',
                 enableSorting: false,
-                size: 140,
+                size: 100,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -1243,7 +1319,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'createdAt',
                 header: 'Reviewed',
                 enableSorting: true,
-                size: 120,
+                size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconClock} color="ldGray.6" />
@@ -1329,6 +1405,7 @@ const AiAgentAdminReviewItemsTable = ({
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                 borderTop: 'none',
+                verticalAlign: 'top',
             },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
@@ -1363,7 +1440,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
-                color: 'violet',
+                color: 'gray',
             },
         },
     });
@@ -1411,6 +1488,7 @@ const AiAgentAdminReviewItemsTable = ({
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                 borderTop: 'none',
+                verticalAlign: 'top',
             },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
@@ -1446,7 +1524,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
-                color: 'violet',
+                color: 'gray',
             },
         },
     });
