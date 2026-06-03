@@ -29,6 +29,13 @@ type Props = {
     projectUuid: string;
     /** When the write-back PR was opened — anchors the ~10 min preview wait. */
     prCreatedAt: string;
+    /**
+     * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
+     * the preview-deploy workflow) rather than a data-change `proposeWriteback`
+     * PR. A setup PR never produces a preview of itself, so the preview
+     * affordance is suppressed for it.
+     */
+    isPreviewDeploySetup: boolean;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
@@ -63,6 +70,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
     metadata,
     projectUuid,
     prCreatedAt,
+    isPreviewDeploySetup,
 }) => {
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
 
@@ -74,10 +82,13 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
     // Only wait for a preview URL when one is actually expected — poll unless we
     // positively know the repo has no preview workflow (avoids polling forever
     // on repos that never produce a preview). The poll also stops ~10 min after
-    // the PR was opened.
+    // the PR was opened. A preview-deploy *setup* PR never previews itself, so
+    // never poll for one.
     const { data: preview } = usePullRequestPreview(
         projectUuid,
-        previewDeployConfigured === false ? null : prUrl,
+        isPreviewDeploySetup || previewDeployConfigured === false
+            ? null
+            : prUrl,
         prCreatedAt,
     );
     const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
@@ -162,7 +173,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                     </Stack>
                 </Group>
                 <Group gap="xs" wrap="nowrap">
-                    {preview?.previewUrl ? (
+                    {isPreviewDeploySetup ? null : preview?.previewUrl ? (
                         <Button
                             component="a"
                             href={preview.previewUrl}
