@@ -519,112 +519,123 @@ const ReviewItemActionsCell = ({
     // PR is opened; other strategies (sandbox) open the PR directly.
     const previewsDiff = current.primaryRootCause === 'project_context';
 
-    if (isWritebackInFlight) {
-        const phase = current.prWritebackMessage ?? 'Opening pull request…';
-        return (
-            <Tooltip label={phase} withArrow openDelay={300}>
-                <Group gap={8} wrap="nowrap" maw={180}>
-                    <Loader size={12} color="ldGray.5" />
-                    <Text fz="xs" c="ldGray.6" lineClamp={1}>
-                        {phase}
-                    </Text>
-                </Group>
-            </Tooltip>
-        );
-    }
+    const phase = current.prWritebackMessage ?? 'Opening pull request…';
 
     return (
-        <Stack gap={6} align="flex-start">
-            <Group gap="xs" wrap="nowrap">
-                {current.linkedPrUrl && (
-                    <LinkButton
-                        href={current.linkedPrUrl}
-                        target="_blank"
-                        onClick={(event) => event.stopPropagation()}
-                        leftIcon={IconExternalLink}
-                        size="compact-xs"
-                        fz="xs"
-                        loading={createWriteback.isLoading}
-                    >
-                        View PR
-                    </LinkButton>
-                )}
-
-                {canCreatePr && (
-                    <Tooltip
-                        label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
-                        withArrow
-                        multiline
-                        maw={260}
-                    >
-                        <Button
-                            size="compact-xs"
-                            radius="md"
-                            variant="default"
-                            loading={createWriteback.isLoading}
-                            leftSection={
-                                <MantineIcon icon={IconGitPullRequest} />
-                            }
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                if (previewsDiff) {
-                                    setPreviewOpen(true);
-                                } else {
-                                    createWriteback.mutate(current.fingerprint);
-                                }
-                            }}
-                        >
-                            Create PR
-                        </Button>
-                    </Tooltip>
-                )}
-
-                {!isTerminal && (
-                    <Menu position="bottom-end" withinPortal>
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                aria-label="More actions"
-                                loading={updateStatus.isLoading}
+        <>
+            {isWritebackInFlight ? (
+                <Tooltip label={phase} withArrow openDelay={300}>
+                    <Group gap={8} wrap="nowrap" maw={180}>
+                        <Loader size={12} color="ldGray.5" />
+                        <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                            {phase}
+                        </Text>
+                    </Group>
+                </Tooltip>
+            ) : (
+                <Stack gap={6} align="flex-start">
+                    <Group gap="xs" wrap="nowrap">
+                        {current.linkedPrUrl && (
+                            <LinkButton
+                                href={current.linkedPrUrl}
+                                target="_blank"
                                 onClick={(event) => event.stopPropagation()}
+                                leftIcon={IconExternalLink}
+                                size="compact-xs"
+                                fz="xs"
+                                loading={createWriteback.isLoading}
                             >
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconX} />}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    updateStatus.mutate({
-                                        fingerprint: current.fingerprint,
-                                        body: {
-                                            status: 'dismissed',
-                                            dismissedReason: 'not_actionable',
-                                        },
-                                    });
-                                }}
-                            >
-                                Dismiss finding
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
-            </Group>
+                                View PR
+                            </LinkButton>
+                        )}
 
-            {canCreatePr && (
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        size="xs"
-                        className={styles.suggestedStepArrow}
-                    />
-                    <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
-                        {getSuggestedNextStep(current)}
-                    </Text>
-                </Group>
+                        {canCreatePr && (
+                            <Tooltip
+                                label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
+                                withArrow
+                                multiline
+                                maw={260}
+                            >
+                                <Button
+                                    size="compact-xs"
+                                    radius="md"
+                                    variant="default"
+                                    loading={createWriteback.isLoading}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconGitPullRequest}
+                                        />
+                                    }
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (previewsDiff) {
+                                            setPreviewOpen(true);
+                                        } else {
+                                            createWriteback.mutate(
+                                                current.fingerprint,
+                                            );
+                                        }
+                                    }}
+                                >
+                                    Create PR
+                                </Button>
+                            </Tooltip>
+                        )}
+
+                        {!isTerminal && (
+                            <Menu position="bottom-end" withinPortal>
+                                <Menu.Target>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="More actions"
+                                        loading={updateStatus.isLoading}
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    >
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconX} />
+                                        }
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            updateStatus.mutate({
+                                                fingerprint:
+                                                    current.fingerprint,
+                                                body: {
+                                                    status: 'dismissed',
+                                                    dismissedReason:
+                                                        'not_actionable',
+                                                },
+                                            });
+                                        }}
+                                    >
+                                        Dismiss finding
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
+                    </Group>
+
+                    {canCreatePr && (
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconArrowRight}
+                                size="xs"
+                                className={styles.suggestedStepArrow}
+                            />
+                            <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
+                                {getSuggestedNextStep(current)}
+                            </Text>
+                        </Group>
+                    )}
+                </Stack>
             )}
 
             {previewsDiff && (
@@ -634,7 +645,7 @@ const ReviewItemActionsCell = ({
                     onClose={() => setPreviewOpen(false)}
                 />
             )}
-        </Stack>
+        </>
     );
 };
 

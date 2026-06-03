@@ -1,10 +1,5 @@
-import { Anchor, Group, Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
-import {
-    IconCheck,
-    IconExternalLink,
-    IconGitPullRequest,
-    IconX,
-} from '@tabler/icons-react';
+import { Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { IconCheck, IconGitPullRequest, IconX } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -48,17 +43,26 @@ export const ProjectContextWritebackModal: FC<
     const isDone = !!linkedPrUrl || status === 'completed';
     const previewData = preview.data;
 
-    const handleConfirm = () => {
-        createWriteback.mutate(fingerprint);
-        setSubmitted(true);
-    };
-
     const handleClose = () => {
         setSubmitted(false);
         onClose();
     };
 
-    const confirmable = !submitted && previewData?.available === true;
+    // One primary button at a time: "Looks good, open PR" before submit, then
+    // "View PR" once the PR exists — no separate action button.
+    const handlePrimary = () => {
+        if (isDone && linkedPrUrl) {
+            window.open(linkedPrUrl, '_blank', 'noopener,noreferrer');
+            return;
+        }
+        createWriteback.mutate(fingerprint);
+        setSubmitted(true);
+    };
+
+    const showPrimary =
+        (!submitted && previewData?.available === true) ||
+        (isDone && !!linkedPrUrl);
+    const primaryLabel = isDone ? 'View PR' : 'Looks good, open PR';
 
     return (
         <MantineModal
@@ -67,26 +71,10 @@ export const ProjectContextWritebackModal: FC<
             title="Open project context PR"
             icon={IconGitPullRequest}
             size="80vw"
-            onConfirm={confirmable ? handleConfirm : undefined}
-            confirmLabel="Looks good, open PR"
+            onConfirm={showPrimary ? handlePrimary : undefined}
+            confirmLabel={primaryLabel}
             confirmLoading={createWriteback.isLoading}
             cancelLabel={submitted ? 'Close' : 'Cancel'}
-            actions={
-                isDone && linkedPrUrl ? (
-                    <Anchor
-                        href={linkedPrUrl}
-                        target="_blank"
-                        underline="never"
-                    >
-                        <Group gap={6} wrap="nowrap">
-                            <MantineIcon icon={IconExternalLink} size="sm" />
-                            <Text fz="sm" fw={600}>
-                                View PR
-                            </Text>
-                        </Group>
-                    </Anchor>
-                ) : undefined
-            }
             bodyScrollAreaMaxHeight="calc(85vh - 160px)"
         >
             {submitted ? (
