@@ -108,7 +108,7 @@
         "exceljs": "4.4.0",
         "execa": "5.1.1",
         "express": "4.21.2",
-        "express-session": "1.17.2",
+        "express-session": "1.18.1",
         "express-static-gzip": "2.1.8",
         "express-winston": "4.2.0",
         "fast-json-patch": "3.1.1",
