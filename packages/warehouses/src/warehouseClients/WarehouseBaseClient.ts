@@ -51,6 +51,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getNullSafeEqualSql(left, right);
     }
 
+    getNullSafeEqualJoinSql(left: string, right: string): string {
+        return this.sqlBuilder.getNullSafeEqualJoinSql(left, right);
+    }
+
     buildArrayAgg(expression: string, orderBy?: string): string {
         return this.sqlBuilder.buildArrayAgg(expression, orderBy);
     }

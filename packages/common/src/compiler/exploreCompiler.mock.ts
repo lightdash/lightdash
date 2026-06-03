@@ -57,6 +57,7 @@ export const warehouseClientMock: WarehouseClient = {
     getEscapeStringQuoteChar: () => "'",
     getFloatingType: () => 'FLOAT',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {

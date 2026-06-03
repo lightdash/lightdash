@@ -39,6 +39,7 @@ const fakeWarehouseClient: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getMetricSql: () => '',
     concatString: (...args: string[]) => args.join(''),
     getAllTables: async () => [],
