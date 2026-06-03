@@ -16,3 +16,10 @@ describe('getLightdashProjectConfig', () => {
         });
     });
 });
+
+describe('getProjectContext', () => {
+    it('should return an empty project context list', async () => {
+        const context = await mockProjectAdapter.getProjectContext();
+        expect(context).toEqual([]);
+    });
+});

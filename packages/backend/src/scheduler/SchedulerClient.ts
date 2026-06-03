@@ -1613,6 +1613,22 @@ export class SchedulerClient {
         );
     }
 
+    // EE-only handler: re-ingests lightdash.project_context.yml after a compile.
+    // No-op in OSS (see SchedulerWorker), so it's safe to enqueue unconditionally.
+    async ingestProjectContext(payload: TraceTaskBase): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+                jobKey: `ingest-project-context:${payload.projectUuid}`,
+            },
+        );
+    }
+
     async triggerManagedAgentHeartbeat(
         projectUuid: string,
         triggeredBy: 'manual' | 'on_enable',

@@ -125,6 +125,7 @@ import {
     preAggregateUtils,
     Project,
     ProjectCatalog,
+    ProjectContextEntry,
     ProjectDefaults,
     ProjectGroupAccess,
     ProjectMemberProfile,
@@ -321,6 +322,12 @@ export type ProjectServiceArguments = {
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    projectContextModel?: {
+        replaceEntriesForProject(
+            projectUuid: string,
+            entries: ProjectContextEntry[],
+        ): Promise<void>;
+    };
 };
 
 export class ProjectService extends BaseService {
@@ -396,6 +403,15 @@ export class ProjectService extends BaseService {
 
     organizationSettingsModel: OrganizationSettingsModel;
 
+    projectContextModel:
+        | {
+              replaceEntriesForProject(
+                  projectUuid: string,
+                  entries: ProjectContextEntry[],
+              ): Promise<void>;
+          }
+        | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -432,6 +448,7 @@ export class ProjectService extends BaseService {
         spacePermissionService,
         contentVerificationModel,
         organizationSettingsModel,
+        projectContextModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -471,6 +488,7 @@ export class ProjectService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.projectContextModel = projectContextModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -2430,7 +2448,7 @@ export class ProjectService extends BaseService {
                 async () => this.testProjectAdapter(createProject, user),
             );
 
-            const { explores, lightdashProjectConfig } =
+            const { explores, lightdashProjectConfig, projectContext } =
                 await this.jobModel.tryJobStep(
                     jobUuid,
                     JobStepType.COMPILING,
@@ -2439,17 +2457,28 @@ export class ProjectService extends BaseService {
                             // There's no project yet, so we don't track
                             const trackingParams = undefined;
 
-                            return {
-                                explores: await adapter.compileAllExplores(
+                            const compiledExplores =
+                                await adapter.compileAllExplores(
                                     trackingParams,
                                     false, // loadSources
                                     this.lightdashConfig.partialCompilation
                                         .enabled,
-                                ),
-                                lightdashProjectConfig:
-                                    await adapter.getLightdashProjectConfig(
-                                        trackingParams,
-                                    ),
+                                );
+                            const compiledProjectConfig =
+                                await adapter.getLightdashProjectConfig(
+                                    trackingParams,
+                                );
+                            const compiledProjectContext =
+                                await this.getProjectContextFromAdapter({
+                                    adapter,
+                                    user,
+                                    organizationUuid: user.organizationUuid,
+                                });
+
+                            return {
+                                explores: compiledExplores,
+                                lightdashProjectConfig: compiledProjectConfig,
+                                projectContext: compiledProjectContext,
                             };
                         } finally {
                             await adapter.destroy();
@@ -2501,6 +2530,10 @@ export class ProjectService extends BaseService {
                     await this.projectModel.setTableGroups(
                         newProjectUuid,
                         lightdashProjectConfig.table_groups,
+                    );
+                    await this.replaceProjectContext(
+                        newProjectUuid,
+                        projectContext,
                     );
                     await this.saveExploresToCacheAndIndexCatalog({
                         userUuid: user.userUuid,
@@ -2968,6 +3001,12 @@ export class ProjectService extends BaseService {
                                 await adapter.getLightdashProjectConfig(
                                     trackingParams,
                                 );
+                            const projectContext =
+                                await this.getProjectContextFromAdapter({
+                                    adapter,
+                                    user,
+                                    organizationUuid: user.organizationUuid,
+                                });
                             timings.getConfig.end = performance.now();
 
                             timings.yaml.start = performance.now();
@@ -2994,6 +3033,10 @@ export class ProjectService extends BaseService {
                             await this.projectModel.setTableGroups(
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
+                            );
+                            await this.replaceProjectContext(
+                                projectUuid,
+                                projectContext,
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
@@ -5376,6 +5419,44 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async getProjectContextFromAdapter({
+        adapter,
+        user,
+        organizationUuid,
+    }: {
+        adapter: ProjectAdapter;
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }): Promise<ProjectContextEntry[] | undefined> {
+        if (!this.projectContextModel) {
+            return undefined;
+        }
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.AiProjectContext,
+        });
+        return enabled ? adapter.getProjectContext() : undefined;
+    }
+
+    private async replaceProjectContext(
+        projectUuid: string,
+        entries: ProjectContextEntry[] | undefined,
+    ): Promise<void> {
+        if (!this.projectContextModel || entries === undefined) {
+            return;
+        }
+        await this.projectContextModel.replaceEntriesForProject(
+            projectUuid,
+            entries,
+        );
+    }
+
     private async refreshTablesAndProjectConfig(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
@@ -5383,6 +5464,7 @@ export class ProjectService extends BaseService {
     ): Promise<{
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
+        projectContext: ProjectContextEntry[] | undefined;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -5535,8 +5617,13 @@ export class ProjectService extends BaseService {
 
             const lightdashProjectConfig =
                 await adapter.getLightdashProjectConfig(trackingParams);
+            const projectContext = await this.getProjectContextFromAdapter({
+                adapter,
+                user,
+                organizationUuid: project.organizationUuid,
+            });
 
-            return { explores, lightdashProjectConfig };
+            return { explores, lightdashProjectConfig, projectContext };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -5857,12 +5944,15 @@ export class ProjectService extends BaseService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const { explores, lightdashProjectConfig } =
-                            await this.refreshTablesAndProjectConfig(
-                                user,
-                                projectUuid,
-                                requestMethod,
-                            );
+                        const {
+                            explores,
+                            lightdashProjectConfig,
+                            projectContext,
+                        } = await this.refreshTablesAndProjectConfig(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
 
                         timings.yaml.start = performance.now();
                         await this.replaceYamlTags(
@@ -5888,6 +5978,10 @@ export class ProjectService extends BaseService {
                         await this.projectModel.setTableGroups(
                             projectUuid,
                             lightdashProjectConfig.table_groups,
+                        );
+                        await this.replaceProjectContext(
+                            projectUuid,
+                            projectContext,
                         );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();

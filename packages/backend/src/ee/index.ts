@@ -27,6 +27,7 @@ import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
+import { ProjectContextModel } from './models/ProjectContextModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
@@ -50,6 +51,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
+import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -87,6 +89,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            projectContextService: ({ models }) =>
+                new ProjectContextService({
+                    projectModel: models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
+                }),
             aiWritebackService: ({ context, models }) =>
                 new AiWritebackService({
                     lightdashConfig: context.lightdashConfig,
@@ -355,6 +365,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -553,6 +565,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectCiStatusModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
+            projectContextModel: ({ database }) =>
+                new ProjectContextModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
@@ -629,6 +643,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getAiAgentReviewClassifierService(),
                 aiAgentAdminService:
                     context.serviceRepository.getAiAgentAdminService<AiAgentAdminService>(),
+                projectContextService:
+                    context.serviceRepository.getProjectContextService<ProjectContextService>(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

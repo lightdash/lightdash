@@ -1257,6 +1257,9 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker
             },
+            [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
+            },
         };
     }
 }
