@@ -1,3 +1,10 @@
+## [0.3081.2](https://github.com/lightdash/lightdash/compare/0.3081.1...0.3081.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** widen evaluation form modal ([#23819](https://github.com/lightdash/lightdash/issues/23819)) ([701f375](https://github.com/lightdash/lightdash/commit/701f3750dc35d46ccb4a55ef348720e7bd25aa37))
+
 ## [0.3081.1](https://github.com/lightdash/lightdash/compare/0.3081.0...0.3081.1) (2026-06-03)
 
 
