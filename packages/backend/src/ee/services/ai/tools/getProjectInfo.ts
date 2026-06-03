@@ -46,6 +46,21 @@ export const getGetProjectInfo = ({ getProjectInfo }: Dependencies) =>
                     }
                 }
 
+                // Preview-deploy CI status — lets the assistant answer "is
+                // preview-deploy set up?" straight from the git-backed project.
+                // Only meaningful for git projects; null means undeterminable.
+                if (info.previewDeployCi) {
+                    lines.push(
+                        info.previewDeployCi.hasPreviewDeployWorkflow
+                            ? `Preview deploys: configured via GitHub Actions${
+                                  info.previewDeployCi.workflowPath
+                                      ? ` (${info.previewDeployCi.workflowPath})`
+                                      : ''
+                              }`
+                            : 'Preview deploys: NOT set up — no Lightdash preview-deploy GitHub Actions workflow found in the repo. Offer to add one with the `setupPreviewDeploy` tool.',
+                    );
+                }
+
                 return {
                     result: lines.join('\n'),
                     metadata: { status: 'success' as const },

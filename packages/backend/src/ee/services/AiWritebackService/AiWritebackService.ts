@@ -372,6 +372,75 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Return the project's preview-deploy CI status, scanning the connected repo
+     * via the git host API (no sandbox) when it hasn't been determined yet.
+     *
+     * This lets the assistant answer "is preview-deploy CI set up?" by looking
+     * at the git-backed project on demand, rather than only learning the answer
+     * as a side effect of a full writeback run. A project already recorded as
+     * configured is not re-scanned. Best-effort: returns the last known status
+     * (or null) when the host has no preview-deploy support, the GitHub App
+     * isn't installed, or the scan fails.
+     */
+    async getOrScanProjectCiStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectCiStatus | null> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const existing =
+            await this.projectCiStatusModel.findByProjectUuid(projectUuid);
+        if (existing?.hasPreviewDeployWorkflow) {
+            // Already configured — don't re-scan (matches the sandbox path).
+            return existing;
+        }
+
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (!provider.supportsPreviewDeploy) {
+            return existing;
+        }
+
+        try {
+            const connection = provider.resolveConnection(
+                project.dbtConnection,
+            );
+            const installation = await provider.resolveInstallation(
+                project.organizationUuid,
+            );
+            const files = await provider.readPreviewDeployWorkflowFiles(
+                connection,
+                installation,
+            );
+            const detection = detectPreviewDeployWorkflow(files);
+            return await this.projectCiStatusModel.upsert({
+                projectUuid,
+                hasPreviewDeployWorkflow: detection.hasPreviewDeployWorkflow,
+                workflowPath: detection.workflowPath,
+                detectedCommitSha: null,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: on-demand preview-deploy scan failed — returning last known status: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return existing;
+        }
+    }
+
+    /**
      * Secondary task of the writeback agent: while the repo is cloned in the
      * sandbox, detect whether it already deploys Lightdash preview projects via
      * GitHub Actions and persist the result. A project already recorded as set

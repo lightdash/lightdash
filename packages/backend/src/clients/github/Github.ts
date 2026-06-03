@@ -222,6 +222,75 @@ export const getFileContent = async ({
     }
 };
 
+/**
+ * Read every `.github/workflows/*.{yml,yaml}` file from a repo via the GitHub
+ * API — no clone/sandbox. Used to detect a Lightdash preview-deploy workflow on
+ * demand. Reads the repo's default branch when `ref` is omitted. Returns an
+ * empty list when the workflows directory does not exist.
+ */
+export const getRepoWorkflowFiles = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref?: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ path: string; content: string }[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const dirResponse = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: '.github/workflows',
+            ...(ref ? { ref } : {}),
+            headers,
+        });
+        // A directory listing is an array; a single file (unexpected here) is not.
+        if (!Array.isArray(dirResponse.data)) {
+            return [];
+        }
+        const workflowEntries = dirResponse.data.filter(
+            (entry) =>
+                entry.type === 'file' &&
+                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')),
+        );
+        return await Promise.all(
+            workflowEntries.map(async (entry) => {
+                const fileResponse = await octokit.rest.repos.getContent({
+                    owner,
+                    repo,
+                    path: entry.path,
+                    ...(ref ? { ref } : {}),
+                    headers,
+                });
+                const content =
+                    'content' in fileResponse.data
+                        ? Buffer.from(
+                              fileResponse.data.content,
+                              'base64',
+                          ).toString('utf-8')
+                        : '';
+                return { path: entry.path, content };
+            }),
+        );
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            // No `.github/workflows` directory — the repo has no workflows.
+            return [];
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const createBranch = async ({
     owner,
     repo,

@@ -418,4 +418,13 @@ export type GetProjectInfoFn = () => Promise<{
         projectSubPath: string;
         hostDomain: string | null;
     } | null;
+    /**
+     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
+     * Actions. Null when it can't be determined (not a git project, GitHub App
+     * not installed, or the host has no preview-deploy support).
+     */
+    previewDeployCi: {
+        hasPreviewDeployWorkflow: boolean;
+        workflowPath: string | null;
+    } | null;
 }>;

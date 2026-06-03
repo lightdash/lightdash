@@ -6088,6 +6088,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const project = await this.projectModel.get(projectUuid);
                 const { dbtConnection } = project;
 
+                // For a git-backed project, look up (and, if not yet known,
+                // scan the connected repo for) its preview-deploy CI status so
+                // the assistant can answer "is preview-deploy CI set up?" by
+                // inspecting the git-backed project. Best-effort — never block
+                // getProjectInfo on it.
+                let previewDeployCi: {
+                    hasPreviewDeployWorkflow: boolean;
+                    workflowPath: string | null;
+                } | null = null;
+                if (isGitProjectType(dbtConnection)) {
+                    try {
+                        const ciStatus =
+                            await this.aiWritebackService.getOrScanProjectCiStatus(
+                                user,
+                                projectUuid,
+                            );
+                        previewDeployCi = ciStatus
+                            ? {
+                                  hasPreviewDeployWorkflow:
+                                      ciStatus.hasPreviewDeployWorkflow,
+                                  workflowPath: ciStatus.workflowPath,
+                              }
+                            : null;
+                    } catch (err) {
+                        Logger.debug(
+                            'getProjectInfo: preview-deploy CI lookup failed:',
+                            err,
+                        );
+                    }
+                }
+
                 return {
                     projectName: project.name,
                     projectType: project.type,
@@ -6102,6 +6133,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                               hostDomain: dbtConnection.host_domain ?? null,
                           }
                         : null,
+                    previewDeployCi,
                 };
             });
 
