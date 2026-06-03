@@ -1,3 +1,10 @@
+# [0.3084.0](https://github.com/lightdash/lightdash/compare/0.3083.0...0.3084.0) (2026-06-03)
+
+
+### Features
+
+* **ai-writeback:** surface "View preview" in Slack writeback threads (PROD-8083) ([#23820](https://github.com/lightdash/lightdash/issues/23820)) ([a1b86e7](https://github.com/lightdash/lightdash/commit/a1b86e7d2ac0aabecc5b65afdde863cea59c4f0f))
+
 # [0.3083.0](https://github.com/lightdash/lightdash/compare/0.3082.0...0.3083.0) (2026-06-03)
 
 
