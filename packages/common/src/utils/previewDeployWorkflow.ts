@@ -76,6 +76,18 @@ export type PreviewDeploySecret = {
     description: string;
 };
 
+/**
+ * Result of opening the preview-deploy setup pull request. `secrets` are the
+ * GitHub Actions secrets the user must add for the workflow to run, with the
+ * values Lightdash can pre-fill already populated.
+ */
+export type PreviewDeploySetupResult = {
+    prUrl: string;
+    projectName: string;
+    repository: string;
+    secrets: PreviewDeploySecret[];
+};
+
 export const getPreviewDeploySecrets = ({
     projectUuid,
     siteUrl,

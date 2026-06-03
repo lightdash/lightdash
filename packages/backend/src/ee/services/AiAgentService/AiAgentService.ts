@@ -281,6 +281,7 @@ import {
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -335,6 +336,7 @@ type AiAgentServiceDependencies = {
     shareService: ShareService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
+    previewDeploySetupService: PreviewDeploySetupService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -548,6 +550,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiWritebackService: AiWritebackService;
 
+    private readonly previewDeploySetupService: PreviewDeploySetupService;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -608,6 +612,7 @@ export class AiAgentService extends BaseService {
         this.shareService = dependencies.shareService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
@@ -5922,27 +5927,54 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         );
                     });
             }
+            // Resolve the repo's preview-deploy CI status once (best-effort,
+            // gated by the ai-preview-deploy-setup flag). It drives two things:
+            // the deterministic "offer to set it up" instruction the
+            // proposeWriteback tool relays when it's not configured, and the
+            // Slack preview-URL poll below when it is. Owned by the sibling
+            // PreviewDeploySetupService — writeback no longer detects this
+            // itself. Never fails the writeback result.
+            let previewDeployConfigured: boolean | null = null;
+            let hasPreviewWorkflow = false;
+            try {
+                const { enabled: previewDeploySetupEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                    });
+                if (previewDeploySetupEnabled) {
+                    const ciStatus =
+                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
+                            user,
+                            projectUuid,
+                        );
+                    previewDeployConfigured = ciStatus
+                        ? ciStatus.hasPreviewDeployWorkflow
+                        : null;
+                    hasPreviewWorkflow =
+                        ciStatus?.hasPreviewDeployWorkflow ?? false;
+                }
+            } catch (err) {
+                Logger.debug(
+                    'Failed to resolve preview-deploy CI status after writeback:',
+                    err,
+                );
+            }
+
             // If the repo deploys Lightdash previews, kick off a background poll
             // that adds a "View preview" follow-up in the Slack thread once the
             // preview URL is published on the PR. Best-effort — never blocks the
             // writeback result.
-            if (result.prUrl && isSlackPrompt(prompt)) {
+            if (result.prUrl && isSlackPrompt(prompt) && hasPreviewWorkflow) {
                 try {
-                    const ciStatus =
-                        await this.aiWritebackService.getProjectCiStatus(
-                            user,
-                            projectUuid,
-                        );
-                    if (ciStatus?.hasPreviewDeployWorkflow) {
-                        await this.schedulerClient.pollWritebackPreview({
-                            organizationUuid,
-                            projectUuid,
-                            userUuid: user.userUuid,
-                            promptUuid: prompt.promptUuid,
-                            prUrl: result.prUrl,
-                            startedAt: Date.now(),
-                        });
-                    }
+                    await this.schedulerClient.pollWritebackPreview({
+                        organizationUuid,
+                        projectUuid,
+                        userUuid: user.userUuid,
+                        promptUuid: prompt.promptUuid,
+                        prUrl: result.prUrl,
+                        startedAt: Date.now(),
+                    });
                 } catch (err) {
                     Logger.debug(
                         'Failed to schedule writeback preview poll:',
@@ -5950,33 +5982,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
             }
-            return result;
+            return { ...result, previewDeployConfigured };
         };
 
-        const setupPreviewDeploy: SetupPreviewDeployFn = () => {
-            // Surface coarse step progress (Starting sandbox → Cloning project →
-            // … → Committing) under the setupPreviewDeploy header, same as
-            // proposeWriteback. Fire-and-forget — a dropped client must never
-            // take down the run.
-            const setupProgressCallback = (message: string) => {
-                void updateProgress(message, 'setupPreviewDeploy').catch(
-                    (err) => {
-                        Logger.debug(
-                            `Failed to update progress for preview-deploy setup (${message}):`,
-                            err,
-                        );
-                    },
-                );
-            };
-            return wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
-                this.aiWritebackService.setupPreviewDeploy({
+        const setupPreviewDeploy: SetupPreviewDeployFn = () =>
+            // Deterministic: the new service generates the workflow files and
+            // opens the PR straight through the GitHub API — no sandbox, no
+            // sub-agent — so there's no step progress to stream.
+            wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
+                this.previewDeploySetupService.setupPreviewDeploy({
                     user,
                     projectUuid,
-                    aiThreadUuid: prompt.threadUuid,
-                    onProgress: setupProgressCallback,
                 }),
             );
-        };
 
         const listProjects: ListProjectsFn = () =>
             wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
@@ -6052,7 +6070,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (isGitProjectType(dbtConnection) && canViewSourceCode) {
                     try {
                         const ciStatus =
-                            await this.aiWritebackService.getOrScanProjectCiStatus(
+                            await this.previewDeploySetupService.getOrScanProjectCiStatus(
                                 user,
                                 projectUuid,
                             );

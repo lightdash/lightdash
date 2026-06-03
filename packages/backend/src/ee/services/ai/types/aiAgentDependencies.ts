@@ -20,7 +20,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     ParametersValuesMap,
-    PreviewDeploySecret,
+    PreviewDeploySetupResult,
     ProjectType,
     SavedChart,
     SlackPrompt,
@@ -377,11 +377,11 @@ export type LoadAgentSkillFn = (
 export type ProposeWritebackFn = (args: {
     prompt: string;
     prUrl: string | null;
-}) => Promise<AiWritebackRunResult>;
-
-export type SetupPreviewDeployFn = () => Promise<
-    AiWritebackRunResult & { secrets: PreviewDeploySecret[] }
+}) => Promise<
+    AiWritebackRunResult & { previewDeployConfigured: boolean | null }
 >;
+
+export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
 export type ListProjectsFn = () => Promise<
     {

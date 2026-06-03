@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     DbtProjectType,
-    isWorkflowFile,
     ParameterError,
     PullRequestProvider,
     type DbtProjectConfig,
@@ -17,7 +16,6 @@ import type {
     AgentPhase,
     AgentStreamEvent,
     AgentToolCall,
-    AiWritebackSource,
     CloneTarget,
     GitCommitAuthor,
     GitConnection,
@@ -204,13 +202,7 @@ export const parsePullNumber = (prUrl: string): number => {
 /** `null` opts a stage out of progress reporting (its label would be noise). */
 export const progressTextForStage = (
     stage: AiWritebackFailureStage,
-    source?: AiWritebackSource,
 ): string | null => {
-    // A preview-deploy setup run shares the writeback pipeline but isn't editing
-    // the user's models — it generates and commits a workflow file. Relabel the
-    // stages whose generic writeback wording ("sub agent", "changes") would
-    // misdescribe what's happening, so the sub-progress reads correctly.
-    const isPreviewDeploySetup = source === 'preview_deploy_setup';
     switch (stage) {
         case 'install':
             return 'Setting up';
@@ -219,13 +211,9 @@ export const progressTextForStage = (
         case 'clone':
             return 'Cloning project';
         case 'agent':
-            return isPreviewDeploySetup
-                ? 'Generating preview-deploy workflow'
-                : 'Starting sub agent';
+            return 'Starting sub agent';
         case 'commit':
-            return isPreviewDeploySetup
-                ? 'Committing workflow'
-                : 'Committing changes';
+            return 'Committing changes';
         case 'push':
             return 'Pushing changes';
         case 'pull_request':
@@ -316,12 +304,6 @@ export const parseGitNameStatus = (stdout: string): StagedFileChanges => {
     return { addPaths, deletions };
 };
 
-export const parseTrackedWorkflowPaths = (stdout: string): string[] =>
-    stdout
-        .split('\n')
-        .map((path) => path.trim())
-        .filter((path) => path.length > 0 && isWorkflowFile(path));
-
 /** Caller owns the side effects (logging, counting, progress). */
 export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     if (!event || typeof event !== 'object') return { type: 'ignored' };
@@ -407,20 +389,11 @@ export const summarizeToolInput = (input: unknown): string => {
     }
 };
 
-export const getPhaseProgressText = (
-    source: AiWritebackSource,
-): Record<AgentPhase, string> =>
-    source === 'preview_deploy_setup'
-        ? {
-              discovering: 'Inspecting repository',
-              editing: 'Writing workflow files',
-              compiling: 'Validating workflow',
-          }
-        : {
-              discovering: 'Discovering models',
-              editing: 'Editing models',
-              compiling: 'Compiling project',
-          };
+export const getPhaseProgressText = (): Record<AgentPhase, string> => ({
+    discovering: 'Discovering models',
+    editing: 'Editing models',
+    compiling: 'Compiling project',
+});
 
 export const splitStreamBuffer = (
     buffer: string,

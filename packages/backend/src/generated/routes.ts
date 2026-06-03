@@ -18913,14 +18913,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                previewDeployConfigured: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 repository: { dataType: 'string', required: true },
                 projectName: { dataType: 'string', required: true },
                 prUrl: {

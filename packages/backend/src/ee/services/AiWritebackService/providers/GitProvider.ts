@@ -2,7 +2,6 @@ import type {
     DbtProjectConfig,
     PullRequestProvider,
     SessionUser,
-    WorkflowFile,
 } from '@lightdash/common';
 import type { Sandbox } from 'e2b';
 import type {
@@ -44,8 +43,6 @@ export type AdoptPullRequestArgs = {
 export interface GitProvider {
     /** Tag recorded on the `pull_requests` row. */
     readonly provider: PullRequestProvider;
-    /** Whether preview-deploy setup (GitHub Actions) applies to this host. */
-    readonly supportsPreviewDeploy: boolean;
 
     resolveConnection(dbtConnection: DbtProjectConfig): GitConnection;
     resolveInstallation(organizationUuid: string): Promise<GitInstallation>;
@@ -60,16 +57,4 @@ export interface GitProvider {
     updatePullRequest(args: UpdatePullRequestArgs): Promise<void>;
     /** Validate a pasted PR/MR link before editing it on top of its branch. */
     adoptPullRequest(args: AdoptPullRequestArgs): Promise<AdoptedPullRequest>;
-
-    /**
-     * Read `.github/workflows/*` from the host API (no sandbox) so the service
-     * can detect a preview-deploy workflow on demand — e.g. to answer "is
-     * preview-deploy CI set up?" without running a writeback. Returns an empty
-     * list when the host doesn't support preview deploys or the directory is
-     * absent.
-     */
-    readPreviewDeployWorkflowFiles(
-        connection: GitConnection,
-        installation: GitInstallation,
-    ): Promise<WorkflowFile[]>;
 }

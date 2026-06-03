@@ -23,9 +23,6 @@ export type AiWritebackRequestBody = {
  *   `null` when the agent made no file changes (nothing to raise a PR for).
  * - `projectName` is the Lightdash project the run targeted.
  * - `repository` is the GitHub repository (`owner/repo`) the run targeted.
- * - `previewDeployConfigured` is whether the repo already deploys Lightdash
- *   preview projects via GitHub Actions: `true` set up, `false` not set up (the
- *   caller may offer to set it up), `null` when it could not be determined.
  */
 export type AiWritebackRunResult = {
     output: string;
@@ -33,7 +30,6 @@ export type AiWritebackRunResult = {
     prUrl: string | null;
     projectName: string;
     repository: string;
-    previewDeployConfigured: boolean | null;
 };
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;

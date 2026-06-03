@@ -120,8 +120,7 @@ export type AiWritebackSource =
     | 'web'
     | 'mcp'
     | 'api'
-    | 'admin_review'
-    | 'preview_deploy_setup';
+    | 'admin_review';
 
 /** Coarse phase of the agent's work, inferred from the tools it calls. */
 export type AgentPhase = 'discovering' | 'editing' | 'compiling';

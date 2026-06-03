@@ -352,6 +352,31 @@ export const getBranchHeadSha = async ({
     }
 };
 
+/** The repo's default branch — the base for a PR opened without a sandbox clone. */
+export const getRepoDefaultBranch = async ({
+    owner,
+    repo,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.repos.get({
+            owner,
+            repo,
+            headers,
+        });
+        return data.default_branch;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export type GithubFileChanges = {
     /** `contents` is the base64-encoded file content, as required by the API. */
     additions: { path: string; contents: string }[];
