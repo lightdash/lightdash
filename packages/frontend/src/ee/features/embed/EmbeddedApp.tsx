@@ -1,21 +1,20 @@
 import { type SavedChart } from '@lightdash/common';
-import { useMantineColorScheme } from '@mantine/core';
 import { useEffect, useState, type FC } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
 import useEmbed from '../../providers/Embed/useEmbed';
 
 /**
- * Syncs the embed theme URL params with the Mantine color scheme
- * and applies a custom background color if provided.
+ * Applies the embed's custom background color if provided.
+ *
+ * The color scheme itself is forced at the app root (see App.tsx) from the
+ * ?theme= URL param, so the embed never writes to the viewer's shared
+ * (cross-tab) theme preference.
  */
-const EmbedThemeSync: FC<React.PropsWithChildren> = ({ children }) => {
-    const { theme, backgroundColor } = useEmbed();
-    const { toggleColorScheme } = useMantineColorScheme();
-
-    useEffect(() => {
-        toggleColorScheme(theme);
-    }, [theme, toggleColorScheme]);
+const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
+    children,
+}) => {
+    const { backgroundColor } = useEmbed();
 
     useEffect(() => {
         if (backgroundColor) {
@@ -58,9 +57,9 @@ const EmbeddedApp: FC = () => {
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}
         >
-            <EmbedThemeSync>
+            <EmbedBackgroundColorSync>
                 <Outlet />
-            </EmbedThemeSync>
+            </EmbedBackgroundColorSync>
         </EmbedProvider>
     );
 };

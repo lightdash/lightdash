@@ -12,29 +12,8 @@ import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import { LightdashEventType } from '../../features/embed/events/types';
 import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
-import {
-    EMBED_KEY,
-    type EmbedMode,
-    type EmbedTheme,
-    type InMemoryEmbed,
-} from './types';
-
-const HEX_COLOR_REGEX = /^[0-9a-fA-F]{3,8}$/;
-
-function parseEmbedThemeParams(): {
-    theme: EmbedTheme;
-    backgroundColor: string | null;
-} {
-    const params = new URLSearchParams(window.location.search);
-    const themeParam = params.get('theme');
-    const theme: EmbedTheme =
-        themeParam === 'light' || themeParam === 'dark' ? themeParam : 'light';
-    const bgParam = params.get('backgroundColor');
-    // Accept bare hex codes (e.g. "121212") and prepend "#"
-    const backgroundColor =
-        bgParam && HEX_COLOR_REGEX.test(bgParam) ? `#${bgParam}` : null;
-    return { theme, backgroundColor };
-}
+import { parseEmbedThemeParams } from './parseEmbedThemeParams';
+import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
 type Props = {
     embedToken?: string;
