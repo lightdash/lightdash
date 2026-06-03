@@ -1,3 +1,21 @@
+# [0.3083.0](https://github.com/lightdash/lightdash/compare/0.3082.0...0.3083.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **clickhouse:** native <=> for null-safe joins and array literal syntax (PROD-8082) ([#23815](https://github.com/lightdash/lightdash/issues/23815)) ([fbc3e18](https://github.com/lightdash/lightdash/commit/fbc3e18a9b4882cd334293aecd534d8b8d2ea60c))
+* pivot ai artifact queries ([#23827](https://github.com/lightdash/lightdash/issues/23827)) ([639404c](https://github.com/lightdash/lightdash/commit/639404cf3a597bfa0483631a03ae3298387345c2))
+* **pivot:** apply source dateZoom to warehouse-computed column totals ([#23821](https://github.com/lightdash/lightdash/issues/23821)) ([a091e64](https://github.com/lightdash/lightdash/commit/a091e64a338d0b2204f4af3272f4be9824d56512))
+* upgrade echarts 6.0.0→6.1.0 in common (XSS SNYK-JS-ECHARTS-16874133) ([#23489](https://github.com/lightdash/lightdash/issues/23489)) ([4f68e30](https://github.com/lightdash/lightdash/commit/4f68e30468a4f7561dc83c88f97ddfbb876d1493))
+* upgrade inquirer 8.2.4→8.2.7 in cli (tmp dir-traversal CVE-2026-44705) ([#23526](https://github.com/lightdash/lightdash/issues/23526)) ([b2f7202](https://github.com/lightdash/lightdash/commit/b2f720282e2a89a075e9bf4df6a309c1d13d37da))
+
+
+### Features
+
+* add pop hash tool for agents ([#23791](https://github.com/lightdash/lightdash/issues/23791)) ([43fe488](https://github.com/lightdash/lightdash/commit/43fe4883fa9e772bb283261af8bde7e91947d38d))
+* **ai-project-context:** agent loads context before field discovery ([#23800](https://github.com/lightdash/lightdash/issues/23800)) ([ae9803a](https://github.com/lightdash/lightdash/commit/ae9803ac9c204c618b99b1848696cd8e40bc1c7d))
+* **ai-project-context:** writeback — review finding opens a project_context PR ([#23801](https://github.com/lightdash/lightdash/issues/23801)) ([12cb9c3](https://github.com/lightdash/lightdash/commit/12cb9c3aa6fae37deb35f8b82d41dc6eeec0d20d))
+
 # [0.3082.0](https://github.com/lightdash/lightdash/compare/0.3081.2...0.3082.0) (2026-06-03)
 
 
