@@ -15,14 +15,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
-import {
-    createBranch,
-    createPullRequest,
-    createSignedCommitOnBranch,
-    getBranchHeadSha,
-    getRepoDefaultBranch,
-    getRepoWorkflowFiles,
-} from '../../../clients/github/Github';
+// Type-only import: the concrete GitHub client functions are injected (see
+// `githubClient` dep) so they can be faked in tests without module mocking.
+import type * as GithubClient from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -31,12 +26,24 @@ import { BaseService } from '../../../services/BaseService';
 import { VERSION } from '../../../version';
 import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
 
+/** The slice of the GitHub client this service needs, injected for testability. */
+export type PreviewDeployGithubClient = Pick<
+    typeof GithubClient,
+    | 'createBranch'
+    | 'createPullRequest'
+    | 'createSignedCommitOnBranch'
+    | 'getBranchHeadSha'
+    | 'getRepoDefaultBranch'
+    | 'getRepoWorkflowFiles'
+>;
+
 type PreviewDeploySetupServiceDeps = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     pullRequestsModel: PullRequestsModel;
     projectCiStatusModel: ProjectCiStatusModel;
+    githubClient: PreviewDeployGithubClient;
 };
 
 type GithubTarget = {
@@ -112,12 +119,15 @@ export class PreviewDeploySetupService extends BaseService {
 
     private readonly projectCiStatusModel: ProjectCiStatusModel;
 
+    private readonly githubClient: PreviewDeployGithubClient;
+
     constructor({
         lightdashConfig,
         projectModel,
         githubAppInstallationsModel,
         pullRequestsModel,
         projectCiStatusModel,
+        githubClient,
     }: PreviewDeploySetupServiceDeps) {
         super({ serviceName: 'PreviewDeploySetupService' });
         this.lightdashConfig = lightdashConfig;
@@ -125,6 +135,7 @@ export class PreviewDeploySetupService extends BaseService {
         this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.pullRequestsModel = pullRequestsModel;
         this.projectCiStatusModel = projectCiStatusModel;
+        this.githubClient = githubClient;
     }
 
     private assertCanViewSourceCode(
@@ -218,7 +229,7 @@ export class PreviewDeploySetupService extends BaseService {
             const installationId = await this.resolveInstallationId(
                 project.organizationUuid,
             );
-            const files = await getRepoWorkflowFiles({
+            const files = await this.githubClient.getRepoWorkflowFiles({
                 owner,
                 repo,
                 installationId,
@@ -283,19 +294,19 @@ export class PreviewDeploySetupService extends BaseService {
             cliVersion: VERSION,
         });
 
-        const baseBranch = await getRepoDefaultBranch({
+        const baseBranch = await this.githubClient.getRepoDefaultBranch({
             owner,
             repo,
             installationId,
         });
-        const baseOid = await getBranchHeadSha({
+        const baseOid = await this.githubClient.getBranchHeadSha({
             owner,
             repo,
             branch: baseBranch,
             installationId,
         });
         const branch = `lightdash-preview-deploy/${randomUUID()}`;
-        await createBranch({
+        await this.githubClient.createBranch({
             owner,
             repo,
             sha: baseOid,
@@ -306,7 +317,7 @@ export class PreviewDeploySetupService extends BaseService {
         // Commit via the API so the commit is signed/verified and authored by
         // the Lightdash GitHub App; the triggering user is credited as a
         // co-author trailer.
-        await createSignedCommitOnBranch({
+        await this.githubClient.createSignedCommitOnBranch({
             owner,
             repo,
             branch,
@@ -325,7 +336,7 @@ export class PreviewDeploySetupService extends BaseService {
             installationId,
         });
 
-        const pr = await createPullRequest({
+        const pr = await this.githubClient.createPullRequest({
             owner,
             repo,
             title: PR_TITLE,

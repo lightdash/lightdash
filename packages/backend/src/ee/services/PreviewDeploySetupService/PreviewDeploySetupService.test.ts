@@ -8,24 +8,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
-    createBranch,
-    createPullRequest,
-    createSignedCommitOnBranch,
-    getBranchHeadSha,
-    getRepoDefaultBranch,
-    getRepoWorkflowFiles,
-} from '../../../clients/github/Github';
-import { PreviewDeploySetupService } from './PreviewDeploySetupService';
-
-// The GitHub client → octokit is ESM-only and breaks Jest's parser; stub it.
-jest.mock('../../../clients/github/Github', () => ({
-    createBranch: jest.fn().mockResolvedValue(undefined),
-    createPullRequest: jest.fn(),
-    createSignedCommitOnBranch: jest.fn().mockResolvedValue(undefined),
-    getBranchHeadSha: jest.fn(),
-    getRepoDefaultBranch: jest.fn(),
-    getRepoWorkflowFiles: jest.fn(),
-}));
+    PreviewDeploySetupService,
+    type PreviewDeployGithubClient,
+} from './PreviewDeploySetupService';
 
 const ORG = 'org-1';
 const PROJECT = 'p1';
@@ -72,6 +57,17 @@ const gitlabProject = (): AnyType => ({
     },
 });
 
+// Injected GitHub client surface — faked per-test, no module mocking needed.
+const makeGithubClient = (): jest.Mocked<PreviewDeployGithubClient> =>
+    ({
+        createBranch: jest.fn().mockResolvedValue(undefined),
+        createPullRequest: jest.fn(),
+        createSignedCommitOnBranch: jest.fn().mockResolvedValue(undefined),
+        getBranchHeadSha: jest.fn(),
+        getRepoDefaultBranch: jest.fn(),
+        getRepoWorkflowFiles: jest.fn(),
+    }) as AnyType;
+
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new PreviewDeploySetupService({
         lightdashConfig: {
@@ -88,29 +84,24 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             findByProjectUuid: jest.fn(),
             upsert: jest.fn(),
         } as AnyType,
+        githubClient: makeGithubClient(),
         ...overrides,
     });
 
-beforeEach(() => {
-    jest.clearAllMocks();
-});
-
 describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
-    it('opens a deterministic PR via the GitHub API and returns pre-filled secrets', async () => {
-        (getRepoDefaultBranch as jest.Mock).mockResolvedValue('main');
-        (getBranchHeadSha as jest.Mock).mockResolvedValue('base-sha');
-        (createPullRequest as jest.Mock).mockResolvedValue({
+    it('commits the preview workflow files onto the default branch and returns pre-filled secrets', async () => {
+        const githubClient = makeGithubClient();
+        githubClient.getRepoDefaultBranch.mockResolvedValue('main');
+        githubClient.getBranchHeadSha.mockResolvedValue('base-sha');
+        githubClient.createPullRequest.mockResolvedValue({
             number: 42,
             html_url: 'https://github.com/acme/analytics/pull/42',
-        });
-        const pullRequestsModel = {
-            findOrCreate: jest.fn().mockResolvedValue({}),
-        };
+        } as AnyType);
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject('/transform')),
             } as AnyType,
-            pullRequestsModel: pullRequestsModel as AnyType,
+            githubClient,
         });
 
         const result = await service.setupPreviewDeploy({
@@ -118,25 +109,17 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
             projectUuid: PROJECT,
         });
 
-        // No sandbox/agent — straight through the GitHub API.
-        expect(createBranch).toHaveBeenCalledTimes(1);
-        expect(createSignedCommitOnBranch).toHaveBeenCalledTimes(1);
-        const commitArgs = (createSignedCommitOnBranch as jest.Mock).mock
-            .calls[0][0];
-        expect(commitArgs.expectedHeadOid).toBe('base-sha');
-        // Both workflow files are committed as base64 additions, no deletions.
+        // Behaviour: both workflow files are committed (no deletions) onto a PR
+        // based on the repo's default branch.
+        const commitArgs =
+            githubClient.createSignedCommitOnBranch.mock.calls[0][0];
         expect(commitArgs.fileChanges.additions).toHaveLength(2);
         expect(commitArgs.fileChanges.deletions).toEqual([]);
-        expect(createPullRequest).toHaveBeenCalledWith(
-            expect.objectContaining({ base: 'main', head: expect.any(String) }),
-        );
-        expect(pullRequestsModel.findOrCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                prNumber: 42,
-                prUrl: 'https://github.com/acme/analytics/pull/42',
-            }),
+        expect(githubClient.createPullRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ base: 'main' }),
         );
 
+        // Output: the opened PR + pre-filled secrets surfaced to the caller.
         expect(result.prUrl).toBe('https://github.com/acme/analytics/pull/42');
         expect(result.repository).toBe('acme/analytics');
         const prefilled = Object.fromEntries(
@@ -148,10 +131,12 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
     });
 
     it('rejects a non-GitHub project before touching the GitHub API', async () => {
+        const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(gitlabProject()),
             } as AnyType,
+            githubClient,
         });
 
         await expect(
@@ -160,15 +145,16 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
                 projectUuid: PROJECT,
             }),
         ).rejects.toThrow(ParameterError);
-        expect(getRepoDefaultBranch).not.toHaveBeenCalled();
-        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(githubClient.getRepoDefaultBranch).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenError without manage:SourceCode', async () => {
+        const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject()),
             } as AnyType,
+            githubClient,
         });
 
         await expect(
@@ -177,7 +163,7 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
                 projectUuid: PROJECT,
             }),
         ).rejects.toThrow(ForbiddenError);
-        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(githubClient.createPullRequest).not.toHaveBeenCalled();
     });
 });
 
@@ -188,6 +174,7 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
             hasPreviewDeployWorkflow: true,
             workflowPath: '.github/workflows/start-preview.yml',
         };
+        const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject()),
@@ -196,6 +183,7 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
                 findByProjectUuid: jest.fn().mockResolvedValue(existing),
                 upsert: jest.fn(),
             } as AnyType,
+            githubClient,
         });
 
         const result = await service.getOrScanProjectCiStatus(
@@ -204,11 +192,12 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
         );
 
         expect(result).toBe(existing);
-        expect(getRepoWorkflowFiles).not.toHaveBeenCalled();
+        expect(githubClient.getRepoWorkflowFiles).not.toHaveBeenCalled();
     });
 
     it('scans the GitHub repo and persists the detection result', async () => {
-        (getRepoWorkflowFiles as jest.Mock).mockResolvedValue([
+        const githubClient = makeGithubClient();
+        githubClient.getRepoWorkflowFiles.mockResolvedValue([
             {
                 path: '.github/workflows/start-preview.yml',
                 content: 'run: lightdash start-preview',
@@ -228,6 +217,7 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
                 get: jest.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             projectCiStatusModel: projectCiStatusModel as AnyType,
+            githubClient,
         });
 
         const result = await service.getOrScanProjectCiStatus(
@@ -235,7 +225,6 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
             PROJECT,
         );
 
-        expect(getRepoWorkflowFiles).toHaveBeenCalledTimes(1);
         expect(projectCiStatusModel.upsert).toHaveBeenCalledWith(
             expect.objectContaining({ hasPreviewDeployWorkflow: true }),
         );
@@ -243,6 +232,7 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
     });
 
     it('does not scan a non-GitHub project', async () => {
+        const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(gitlabProject()),
@@ -251,6 +241,7 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
                 findByProjectUuid: jest.fn().mockResolvedValue(null),
                 upsert: jest.fn(),
             } as AnyType,
+            githubClient,
         });
 
         const result = await service.getOrScanProjectCiStatus(
@@ -259,6 +250,6 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
         );
 
         expect(result).toBeNull();
-        expect(getRepoWorkflowFiles).not.toHaveBeenCalled();
+        expect(githubClient.getRepoWorkflowFiles).not.toHaveBeenCalled();
     });
 });

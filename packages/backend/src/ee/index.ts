@@ -1,6 +1,14 @@
 import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import {
+    createBranch,
+    createPullRequest,
+    createSignedCommitOnBranch,
+    getBranchHeadSha,
+    getRepoDefaultBranch,
+    getRepoWorkflowFiles,
+} from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
@@ -121,6 +129,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pullRequestsModel: models.getPullRequestsModel(),
                     projectCiStatusModel:
                         models.getProjectCiStatusModel<ProjectCiStatusModel>(),
+                    githubClient: {
+                        createBranch,
+                        createPullRequest,
+                        createSignedCommitOnBranch,
+                        getBranchHeadSha,
+                        getRepoDefaultBranch,
+                        getRepoWorkflowFiles,
+                    },
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
