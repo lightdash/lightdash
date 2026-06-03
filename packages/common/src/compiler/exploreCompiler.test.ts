@@ -508,6 +508,24 @@ describe('compileMetric spotlight defaults validation', () => {
         ).not.toThrow();
     });
 
+    test('accepts a joined (cross-table) default_filter reference', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'table2.dim2' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['v'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).not.toThrow();
+    });
+
     test('does not throw for a metric with no spotlight defaults (no regression)', () => {
         expect(() =>
             compiler.compileMetric(

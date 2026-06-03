@@ -13,6 +13,7 @@ import type {
 } from '../types/catalog';
 import { type CompiledTable } from '../types/explore';
 import {
+    convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
     MetricType,
@@ -645,44 +646,53 @@ export const getSegmentDimensionsForMetric = (
     });
 
 /**
- * Resolve the metric's spotlight `default_segment` to a segment dimension name,
- * but only if it is one of the dimensions currently available to segment by.
+ * Resolve the metric's spotlight `default_segment` (a dimension ref, bare or
+ * joined like "customers.first_name") to the explorer's fieldId, but only if it
+ * is one of the dimensions currently available to segment by.
  * Returns null when there is no default or it is not available.
  */
 export const getInitialDefaultSegment = (
-    metric: Pick<CatalogField, 'spotlightDefaultSegment'> | undefined,
+    metric:
+        | Pick<CatalogField, 'spotlightDefaultSegment' | 'tableName'>
+        | undefined,
     availableSegmentDimensions: CompiledDimension[],
 ): string | null => {
-    const name = metric?.spotlightDefaultSegment;
-    if (!name) return null;
-    const isAvailable = availableSegmentDimensions.some((d) => d.name === name);
-    return isAvailable ? name : null;
+    const ref = metric?.spotlightDefaultSegment;
+    if (!ref) return null;
+    const fieldId = convertFieldRefToFieldId(ref, metric.tableName);
+    const isAvailable = availableSegmentDimensions.some(
+        (d) => getItemId(d) === fieldId,
+    );
+    return isAvailable ? fieldId : null;
 };
 
 /**
- * Build the Metrics Explorer `FilterRule` (targeting a resolved fieldId) from the
- * metric's spotlight `default_filter` (which targets a dimension by fieldRef),
- * but only if that dimension is currently available to filter by.
- * Returns undefined when there is no default or it is not available.
+ * Build the Metrics Explorer `FilterRule` from the metric's spotlight
+ * `default_filter`. The stored rule (a `MetricFilterRule`) targets a dimension
+ * by fieldRef; the explorer needs the resolved fieldId — the same fieldRef→fieldId
+ * conversion model/required filters use (`createFilterRuleFromModelRequiredFilterRule`).
+ * Returns undefined when there is no default or the dimension is not available.
  */
 export const getInitialDefaultFilterRule = (
-    metric: Pick<CatalogField, 'spotlightDefaultFilter'> | undefined,
+    metric:
+        | Pick<CatalogField, 'spotlightDefaultFilter' | 'tableName'>
+        | undefined,
     availableFilterDimensions: CompiledDimension[],
 ): FilterRule | undefined => {
     const defaultFilter = metric?.spotlightDefaultFilter;
     if (!defaultFilter) return undefined;
-    const { fieldRef } = defaultFilter.target;
-    const name = fieldRef.includes('.')
-        ? fieldRef.split('.').slice(-1)[0]
-        : fieldRef;
-    const dimension = availableFilterDimensions.find((d) => d.name === name);
-    if (!dimension) return undefined;
-    // MetricFilterRule is a FilterRule that targets by fieldRef; the explorer
-    // needs the resolved fieldId, so carry the rule over and swap the target.
+    const fieldId = convertFieldRefToFieldId(
+        defaultFilter.target.fieldRef,
+        metric.tableName,
+    );
+    const isAvailable = availableFilterDimensions.some(
+        (d) => getItemId(d) === fieldId,
+    );
+    if (!isAvailable) return undefined;
     const { target, ...rest } = defaultFilter;
     return {
         ...rest,
-        target: { fieldId: getItemId(dimension) },
+        target: { fieldId },
     };
 };
 

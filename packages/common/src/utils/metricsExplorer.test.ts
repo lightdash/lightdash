@@ -69,19 +69,37 @@ describe('getDateCalcUtils', () => {
 });
 
 describe('getInitialDefaultSegment', () => {
-    test('returns the default segment when present in available dimensions', () => {
+    test('resolves the default segment to the available dimension fieldId', () => {
         expect(
             getInitialDefaultSegment(
-                { spotlightDefaultSegment: 'region' } as CatalogField,
+                {
+                    spotlightDefaultSegment: 'region',
+                    tableName: 'orders',
+                } as CatalogField,
                 [dimRegion],
             ),
-        ).toBe('region');
+        ).toBe('orders_region');
+    });
+
+    test('resolves a joined (table-qualified) default segment fieldId', () => {
+        expect(
+            getInitialDefaultSegment(
+                {
+                    spotlightDefaultSegment: 'orders.region',
+                    tableName: 'metrics',
+                } as CatalogField,
+                [dimRegion],
+            ),
+        ).toBe('orders_region');
     });
 
     test('returns null when the default segment is not available', () => {
         expect(
             getInitialDefaultSegment(
-                { spotlightDefaultSegment: 'missing' } as CatalogField,
+                {
+                    spotlightDefaultSegment: 'missing',
+                    tableName: 'orders',
+                } as CatalogField,
                 [dimRegion],
             ),
         ).toBeNull();
@@ -89,7 +107,9 @@ describe('getInitialDefaultSegment', () => {
 
     test('returns null when no default is set', () => {
         expect(
-            getInitialDefaultSegment({} as CatalogField, [dimRegion]),
+            getInitialDefaultSegment({ tableName: 'orders' } as CatalogField, [
+                dimRegion,
+            ]),
         ).toBeNull();
     });
 });
@@ -98,6 +118,7 @@ describe('getInitialDefaultFilterRule', () => {
     test('builds a FilterRule targeting the available dimension fieldId', () => {
         const rule = getInitialDefaultFilterRule(
             {
+                tableName: 'orders',
                 spotlightDefaultFilter: {
                     id: 'x',
                     target: { fieldRef: 'region' },
@@ -112,9 +133,10 @@ describe('getInitialDefaultFilterRule', () => {
         expect(rule?.target.fieldId).toBe('orders_region');
     });
 
-    test('resolves a table-qualified fieldRef to the dimension name', () => {
+    test('resolves a joined (table-qualified) fieldRef to its fieldId', () => {
         const rule = getInitialDefaultFilterRule(
             {
+                tableName: 'metrics',
                 spotlightDefaultFilter: {
                     id: 'x',
                     target: { fieldRef: 'orders.region' },
@@ -132,6 +154,7 @@ describe('getInitialDefaultFilterRule', () => {
         expect(
             getInitialDefaultFilterRule(
                 {
+                    tableName: 'orders',
                     spotlightDefaultFilter: {
                         id: 'x',
                         target: { fieldRef: 'missing' },
@@ -146,7 +169,10 @@ describe('getInitialDefaultFilterRule', () => {
 
     test('returns undefined when no default filter is set', () => {
         expect(
-            getInitialDefaultFilterRule({} as CatalogField, [dimRegion]),
+            getInitialDefaultFilterRule(
+                { tableName: 'orders' } as CatalogField,
+                [dimRegion],
+            ),
         ).toBeUndefined();
     });
 });

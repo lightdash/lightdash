@@ -58,78 +58,6 @@ import {
 export const lightdashVariablePattern =
     /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
 
-// The Metrics Explorer filter UI can only render "is" / "is not"
-const EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS = new Set<FilterOperator>([
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-]);
-
-/**
- * Validate metric spotlight `default_segment` / `default_filter` at compile time.
- * Stricter than the segment_by/filter_by allowlists: a wrong default silently
- * produces a wrong landing view in the Metrics Explorer, so we hard-fail.
- * Only runs when the optional fields are present — existing configs are untouched.
- */
-const validateSpotlightDefaults = (
-    metric: Metric,
-    tables: Record<string, Table>,
-): void => {
-    const { spotlight } = metric;
-    if (!spotlight) return;
-
-    const tableDimensions = tables[metric.table]?.dimensions ?? {};
-
-    if (spotlight.defaultSegment !== undefined) {
-        const name = spotlight.defaultSegment;
-        if (spotlight.segmentBy && !spotlight.segmentBy.includes(name)) {
-            throw new CompileError(
-                `Metric "${metric.name}": default_segment '${name}' must be one of segment_by: [${spotlight.segmentBy.join(
-                    ', ',
-                )}]`,
-            );
-        }
-        const dimension = tableDimensions[name];
-        const isSegmentable =
-            dimension !== undefined &&
-            !dimension.timeIntervalBaseDimensionName &&
-            (dimension.type === DimensionType.STRING ||
-                dimension.type === DimensionType.BOOLEAN);
-        if (!isSegmentable) {
-            throw new CompileError(
-                `Metric "${metric.name}": default_segment '${name}' must reference an existing dimension that is segmentable (string or boolean)`,
-            );
-        }
-    }
-
-    if (spotlight.defaultFilter !== undefined) {
-        const { fieldRef } = spotlight.defaultFilter.target;
-        const name = fieldRef.includes('.')
-            ? fieldRef.split('.').slice(-1)[0]
-            : fieldRef;
-        if (spotlight.filterBy && !spotlight.filterBy.includes(name)) {
-            throw new CompileError(
-                `Metric "${metric.name}": default_filter dimension '${name}' must be one of filter_by: [${spotlight.filterBy.join(
-                    ', ',
-                )}]`,
-            );
-        }
-        if (tableDimensions[name] === undefined) {
-            throw new CompileError(
-                `Metric "${metric.name}": default_filter references an unknown dimension '${name}'`,
-            );
-        }
-        if (
-            !EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS.has(
-                spotlight.defaultFilter.operator,
-            )
-        ) {
-            throw new CompileError(
-                `Metric "${metric.name}": default_filter uses operator '${spotlight.defaultFilter.operator}' which is not supported in the Metrics Explorer (use 'is' or 'is not')`,
-            );
-        }
-    }
-};
-
 type Reference = {
     refTable: string;
     refName: string;
@@ -255,6 +183,90 @@ export const getParsedReference = (
     const refName = split.length === 1 ? split[0] : split[1];
 
     return { refTable, refName };
+};
+
+// The Metrics Explorer filter UI can only render "is" / "is not"
+const EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS = new Set<FilterOperator>([
+    FilterOperator.EQUALS,
+    FilterOperator.NOT_EQUALS,
+]);
+
+/**
+ * Validate metric spotlight `default_segment` / `default_filter` at compile time.
+ * Stricter than the segment_by/filter_by allowlists: a wrong default silently
+ * produces a wrong landing view in the Metrics Explorer, so we hard-fail.
+ * Only runs when the optional fields are present — existing configs are untouched.
+ */
+const validateSpotlightDefaults = (
+    metric: Metric,
+    tables: Record<string, Table>,
+): void => {
+    const { spotlight } = metric;
+    if (!spotlight) return;
+
+    // Resolve a default's reference exactly like metric.filters does, so
+    // bare ("status") and joined ("customers.first_name") refs both work.
+    const resolveDimension = (ref: string): Dimension | undefined => {
+        const { refTable, refName } = getParsedReference(ref, metric.table);
+        return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
+    };
+
+    // Allowlists store bare dimension names (matched against dimension.name in
+    // the explorer), but accept the fully-qualified ref too.
+    const isInAllowlist = (allowlist: string[], ref: string): boolean => {
+        const { refName } = getParsedReference(ref, metric.table);
+        return allowlist.includes(ref) || allowlist.includes(refName);
+    };
+
+    if (spotlight.defaultSegment !== undefined) {
+        const ref = spotlight.defaultSegment;
+        if (spotlight.segmentBy && !isInAllowlist(spotlight.segmentBy, ref)) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must be one of segment_by: [${spotlight.segmentBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        const dimension = resolveDimension(ref);
+        const isSegmentable =
+            dimension !== undefined &&
+            !dimension.timeIntervalBaseDimensionName &&
+            (dimension.type === DimensionType.STRING ||
+                dimension.type === DimensionType.BOOLEAN);
+        if (!isSegmentable) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must reference an existing dimension that is segmentable (string or boolean)`,
+            );
+        }
+    }
+
+    if (spotlight.defaultFilter !== undefined) {
+        const { fieldRef } = spotlight.defaultFilter.target;
+        if (
+            spotlight.filterBy &&
+            !isInAllowlist(spotlight.filterBy, fieldRef)
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter dimension '${fieldRef}' must be one of filter_by: [${spotlight.filterBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        if (resolveDimension(fieldRef) === undefined) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter references an unknown dimension '${fieldRef}'`,
+            );
+        }
+        if (
+            !EXPLORER_SUPPORTED_DEFAULT_FILTER_OPERATORS.has(
+                spotlight.defaultFilter.operator,
+            )
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter uses operator '${spotlight.defaultFilter.operator}' which is not supported in the Metrics Explorer (use 'is' or 'is not')`,
+            );
+        }
+    }
 };
 
 const getDimensionFromRequiredFilter = ({
