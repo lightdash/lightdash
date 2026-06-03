@@ -272,6 +272,10 @@ import {
     getTextBlocks,
     getThinkingBlocks,
     getWritebackPreviewReplyBlocks,
+    PROMPT_HUMAN_SCORE_ACTION_ID,
+    PROMPT_HUMAN_SCORE_BLOCK_ID,
+    PROMPT_HUMAN_SCORE_DOWNVOTE_ACTION_ID,
+    PROMPT_HUMAN_SCORE_UPVOTE_ACTION_ID,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -7375,6 +7379,110 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    private static parsePromptFeedbackActionValue(
+        value: string | undefined,
+    ): { promptUuid: string; humanScore: 1 | -1 } | undefined {
+        if (!value) return undefined;
+
+        try {
+            const parsed = JSON.parse(value) as {
+                promptUuid?: unknown;
+                humanScore?: unknown;
+            };
+            if (
+                typeof parsed.promptUuid !== 'string' ||
+                (parsed.humanScore !== 1 && parsed.humanScore !== -1)
+            ) {
+                return undefined;
+            }
+
+            return {
+                promptUuid: parsed.promptUuid,
+                humanScore: parsed.humanScore,
+            };
+        } catch {
+            return undefined;
+        }
+    }
+
+    private static getPromptFeedbackSubmittedBlock(
+        userId: string,
+        humanScore: 1 | -1,
+    ): Block | KnownBlock {
+        return {
+            type: 'context',
+            elements: [
+                {
+                    type: 'mrkdwn',
+                    text:
+                        humanScore === 1
+                            ? `<@${userId}> upvoted this answer :thumbsup:`
+                            : `<@${userId}> downvoted this answer :thumbsdown:`,
+                },
+            ],
+        };
+    }
+
+    private static async openDownvoteFeedbackModal({
+        client,
+        triggerId,
+        promptUuid,
+    }: {
+        client: WebClient;
+        triggerId: string;
+        promptUuid: string;
+    }) {
+        await client.views.open({
+            trigger_id: triggerId,
+            view: {
+                type: 'modal',
+                callback_id: 'downvote_feedback_modal',
+                private_metadata: JSON.stringify({
+                    promptUuid,
+                }),
+                title: {
+                    type: 'plain_text',
+                    text: 'Feedback',
+                },
+                submit: {
+                    type: 'plain_text',
+                    text: 'Submit',
+                },
+                close: {
+                    type: 'plain_text',
+                    text: 'Skip',
+                },
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: 'Help us improve! What went wrong with this answer?',
+                        },
+                    },
+                    {
+                        type: 'input',
+                        block_id: 'feedback_input',
+                        optional: false,
+                        element: {
+                            type: 'plain_text_input',
+                            action_id: 'feedback_text',
+                            multiline: true,
+                            placeholder: {
+                                type: 'plain_text',
+                                text: 'Your feedback will help improve the AI agent (optional)',
+                            },
+                        },
+                        label: {
+                            type: 'plain_text',
+                            text: 'Feedback',
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
     // TODO: remove this once we have analytics tracking
     // eslint-disable-next-line class-methods-use-this
     public handleClickExploreButton(app: App) {
@@ -7579,9 +7687,78 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    public handlePromptFeedback(app: App) {
+        app.action(
+            PROMPT_HUMAN_SCORE_ACTION_ID,
+            async ({ ack, body, respond, context, client }) => {
+                await ack();
+
+                if (body.type !== 'block_actions') {
+                    return;
+                }
+
+                const action = body.actions[0] as
+                    | { value?: string }
+                    | undefined;
+                const feedback = AiAgentService.parsePromptFeedbackActionValue(
+                    action?.value,
+                );
+                if (!feedback) {
+                    return;
+                }
+
+                const { user } = body;
+                const { teamId } = context;
+                const triggeringMessage = body.message;
+                const organizationUuid =
+                    await this.getSlackVoteOrganizationUuid({
+                        teamId,
+                        userId: user.id,
+                        channelId: body.channel?.id,
+                        messageId: triggeringMessage?.ts,
+                        threadTs: triggeringMessage?.thread_ts,
+                        client,
+                    });
+
+                if (organizationUuid === null) {
+                    return;
+                }
+
+                await this.updateHumanScoreForSlackPrompt(
+                    user.id,
+                    organizationUuid,
+                    feedback.promptUuid,
+                    feedback.humanScore,
+                );
+
+                if (triggeringMessage?.blocks) {
+                    await respond({
+                        replace_original: true,
+                        blocks: AiAgentService.replaceSlackBlockByBlockId(
+                            triggeringMessage.blocks,
+                            PROMPT_HUMAN_SCORE_BLOCK_ID,
+                            AiAgentService.getPromptFeedbackSubmittedBlock(
+                                user.id,
+                                feedback.humanScore,
+                            ),
+                        ),
+                    });
+                }
+
+                if (feedback.humanScore === -1) {
+                    await AiAgentService.openDownvoteFeedbackModal({
+                        client,
+                        triggerId: body.trigger_id,
+                        promptUuid: feedback.promptUuid,
+                    });
+                }
+            },
+        );
+    }
+
     public handlePromptUpvote(app: App) {
         app.action(
-            'prompt_human_score.upvote',
+            PROMPT_HUMAN_SCORE_UPVOTE_ACTION_ID,
             async ({ ack, body, respond, context, client }) => {
                 await ack();
                 const { user } = body;
@@ -7605,15 +7782,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                const newBlock = {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'mrkdwn',
-                            text: `<@${user.id}> upvoted this answer :thumbsup:`,
-                        },
-                    ],
-                };
                 if (body.type === 'block_actions') {
                     const action = body.actions[0];
                     if (action && action.type === 'button') {
@@ -7636,8 +7804,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             replace_original: true,
                             blocks: AiAgentService.replaceSlackBlockByBlockId(
                                 blocks,
-                                'prompt_human_score',
-                                newBlock,
+                                PROMPT_HUMAN_SCORE_BLOCK_ID,
+                                AiAgentService.getPromptFeedbackSubmittedBlock(
+                                    user.id,
+                                    1,
+                                ),
                             ),
                         });
                     }
@@ -7648,7 +7819,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     public handlePromptDownvote(app: App) {
         app.action(
-            'prompt_human_score.downvote',
+            PROMPT_HUMAN_SCORE_DOWNVOTE_ACTION_ID,
             async ({ ack, body, respond, client, context }) => {
                 await ack();
                 const { user } = body;
@@ -7672,15 +7843,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                const newBlock = {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'mrkdwn',
-                            text: `<@${user.id}> downvoted this answer :thumbsdown:`,
-                        },
-                    ],
-                };
                 if (body.type === 'block_actions') {
                     const action = body.actions[0];
                     if (action && action.type === 'button') {
@@ -7703,60 +7865,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 replace_original: true,
                                 blocks: AiAgentService.replaceSlackBlockByBlockId(
                                     blocks,
-                                    'prompt_human_score',
-                                    newBlock,
+                                    PROMPT_HUMAN_SCORE_BLOCK_ID,
+                                    AiAgentService.getPromptFeedbackSubmittedBlock(
+                                        user.id,
+                                        -1,
+                                    ),
                                 ),
                             });
                         }
 
-                        await client.views.open({
-                            trigger_id: body.trigger_id,
-                            view: {
-                                type: 'modal',
-                                callback_id: 'downvote_feedback_modal',
-                                private_metadata: JSON.stringify({
-                                    promptUuid,
-                                }),
-                                title: {
-                                    type: 'plain_text',
-                                    text: 'Feedback',
-                                },
-                                submit: {
-                                    type: 'plain_text',
-                                    text: 'Submit',
-                                },
-                                close: {
-                                    type: 'plain_text',
-                                    text: 'Skip',
-                                },
-                                blocks: [
-                                    {
-                                        type: 'section',
-                                        text: {
-                                            type: 'mrkdwn',
-                                            text: 'Help us improve! What went wrong with this answer?',
-                                        },
-                                    },
-                                    {
-                                        type: 'input',
-                                        block_id: 'feedback_input',
-                                        optional: false,
-                                        element: {
-                                            type: 'plain_text_input',
-                                            action_id: 'feedback_text',
-                                            multiline: true,
-                                            placeholder: {
-                                                type: 'plain_text',
-                                                text: 'Your feedback will help improve the AI agent (optional)',
-                                            },
-                                        },
-                                        label: {
-                                            type: 'plain_text',
-                                            text: 'Feedback',
-                                        },
-                                    },
-                                ],
-                            },
+                        await AiAgentService.openDownvoteFeedbackModal({
+                            client,
+                            triggerId: body.trigger_id,
+                            promptUuid,
                         });
                     }
                 }

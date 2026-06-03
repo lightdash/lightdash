@@ -17,6 +17,18 @@ import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
 
+export const PROMPT_HUMAN_SCORE_BLOCK_ID = 'prompt_human_score';
+export const PROMPT_HUMAN_SCORE_ACTION_ID = 'prompt_human_score.feedback';
+export const PROMPT_HUMAN_SCORE_UPVOTE_ACTION_ID = 'prompt_human_score.upvote';
+export const PROMPT_HUMAN_SCORE_DOWNVOTE_ACTION_ID =
+    'prompt_human_score.downvote';
+
+const getPromptHumanScoreValue = (promptUuid: string, humanScore: 1 | -1) =>
+    JSON.stringify({
+        promptUuid,
+        humanScore,
+    });
+
 /**
  * Splits text into chunks that fit within Slack's section block text limit (3000 chars).
  * Splits at markdown-safe boundaries to avoid breaking links, code blocks, or formatting.
@@ -244,9 +256,8 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'proposeWriteback',
 ]);
 
-// One compact footer: small "How did I do?" header + a single row with
-// thumbs and the chat permalink. Only rendered when at least one
-// answer-producing tool succeeded for this prompt.
+// Native feedback buttons plus the chat permalink. Only rendered when at least
+// one answer-producing tool succeeded for this prompt.
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
     toolResults: AiAgentToolResult[],
@@ -263,21 +274,35 @@ export function getFeedbackBlocks(
     const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
         {
-            block_id: 'prompt_human_score',
-            type: 'actions',
+            block_id: PROMPT_HUMAN_SCORE_BLOCK_ID,
+            type: 'context_actions',
             elements: [
                 {
-                    type: 'button',
-                    text: { type: 'plain_text', text: '👍', emoji: true },
-                    value: slackPrompt.promptUuid,
-                    action_id: 'prompt_human_score.upvote',
+                    type: 'feedback_buttons',
+                    action_id: PROMPT_HUMAN_SCORE_ACTION_ID,
+                    positive_button: {
+                        text: { type: 'plain_text', text: '' },
+                        value: getPromptHumanScoreValue(
+                            slackPrompt.promptUuid,
+                            1,
+                        ),
+                        accessibility_label: 'Upvote this answer',
+                    },
+                    negative_button: {
+                        text: { type: 'plain_text', text: '' },
+                        value: getPromptHumanScoreValue(
+                            slackPrompt.promptUuid,
+                            -1,
+                        ),
+                        accessibility_label: 'Downvote this answer',
+                    },
                 },
-                {
-                    type: 'button',
-                    text: { type: 'plain_text', text: '👎', emoji: true },
-                    value: slackPrompt.promptUuid,
-                    action_id: 'prompt_human_score.downvote',
-                },
+            ],
+        } as unknown as Block,
+        {
+            block_id: 'prompt_human_score_view_chat',
+            type: 'actions',
+            elements: [
                 {
                     type: 'button',
                     text: {
