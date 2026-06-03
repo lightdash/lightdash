@@ -2842,4 +2842,72 @@ describe('AsyncQueryService', () => {
             });
         });
     });
+
+    describe('executeAsyncCalculateTotalFromQueryHistory', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('threads the source dateZoom from request_parameters into the totals query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            const dateZoom = {
+                granularity: 'MONTH',
+                xAxisFieldId: 'orders_order_date_day',
+            };
+
+            (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    dimensions: ['orders_order_date_day'],
+                    metrics: ['payments_total_revenue'],
+                },
+                pivotConfiguration: {
+                    groupByColumns: [{ reference: 'orders_order_date_day' }],
+                    indexColumn: undefined,
+                    valuesColumns: [],
+                },
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid: 'chart-uuid',
+                    tileUuid: 'tile-uuid',
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    dateZoom,
+                },
+            } as unknown as QueryHistory);
+
+            const runSpy = jest
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({} as never);
+
+            await service.executeAsyncCalculateTotalFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                kind: 'columnTotal',
+            });
+
+            expect(runSpy).toHaveBeenCalledTimes(1);
+            expect(runSpy.mock.calls[0][0]).toEqual(
+                expect.objectContaining({ dateZoom }),
+            );
+        });
+    });
 });
