@@ -410,12 +410,10 @@ export const AgentChatInput = ({
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
         const chips = suggestionsQuery.data?.chips ?? [];
-        if (!suggestionsQuery.isLoading && chips.length === 0) return null;
+        if (chips.length === 0) return null;
         return (
             <AgentSuggestionChips
                 chips={chips}
-                isLoading={suggestionsQuery.isLoading}
-                loadingVariant={postResponseMode ? 'follow-up' : 'skeleton'}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
             />
@@ -424,11 +422,22 @@ export const AgentChatInput = ({
         emptyStateMode,
         postResponseMode,
         suggestionsQuery.isError,
-        suggestionsQuery.isLoading,
         suggestionsQuery.data,
         handleChipClick,
         handleImpression,
     ]);
+
+    const renderChipRow = (extraClassName = '') =>
+        chipRow && (
+            <Box
+                className={`${styles.chipReveal} ${extraClassName} ${
+                    chipsNearBottom ? '' : styles.chipHidden
+                }`}
+                aria-hidden={!chipsNearBottom}
+            >
+                {chipRow}
+            </Box>
+        );
 
     if (isMinimalMode) {
         return (
@@ -438,16 +447,7 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {chipRow && (
-                    <Box
-                        className={`${styles.chipReveal} ${
-                            chipsNearBottom ? '' : styles.chipHidden
-                        }`}
-                        aria-hidden={!chipsNearBottom}
-                    >
-                        {chipRow}
-                    </Box>
-                )}
+                {renderChipRow()}
 
                 <Box
                     className={`${styles.minimalInputWrapper} ${
@@ -537,17 +537,6 @@ export const AgentChatInput = ({
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
         >
-            {chipRow && (
-                <Box
-                    className={`${styles.chipReveal} ${
-                        chipsNearBottom ? '' : styles.chipHidden
-                    }`}
-                    aria-hidden={!chipsNearBottom}
-                >
-                    {chipRow}
-                </Box>
-            )}
-
             <Box
                 className={`${styles.inputCard} ${
                     sqlMode ? styles.sqlModeActive : ''
@@ -702,6 +691,8 @@ export const AgentChatInput = ({
                     </Group>
                 </Box>
             </Box>
+
+            {renderChipRow(styles.chipFloat)}
 
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
