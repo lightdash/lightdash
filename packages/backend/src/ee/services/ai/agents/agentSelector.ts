@@ -1,4 +1,4 @@
-import { AiAgentWithContext } from '@lightdash/common';
+import { AiAgentWithContext } from '@lightdash/ai';
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
 

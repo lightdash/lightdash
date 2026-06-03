@@ -1,16 +1,18 @@
 import {
+    CustomMetricBaseTransformed,
+    isPeriodComparisonCustomMetric,
+    type PeriodComparisonCustomMetric,
+    type TransformedCustomMetric,
+} from '@lightdash/ai';
+import {
     AdditionalMetric,
     AiAgentValidatorError,
     buildPopAdditionalMetric,
-    CustomMetricBaseTransformed,
     getFields,
     getItemId,
-    isPeriodComparisonCustomMetric,
     isPeriodOverPeriodAdditionalMetric,
     type Explore,
     type Metric,
-    type PeriodComparisonCustomMetric,
-    type TransformedCustomMetric,
 } from '@lightdash/common';
 
 /**

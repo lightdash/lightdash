@@ -1,4 +1,4 @@
-import { type AiAgentVerifiedArtifact } from '@lightdash/common';
+import { type AiAgentVerifiedArtifact } from '@lightdash/ai';
 import { Box, Stack, Text, useMantineTheme } from '@mantine-8/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';

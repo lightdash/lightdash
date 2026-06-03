@@ -1,7 +1,4 @@
-import {
-    MetadataCompletenessEvaluation,
-    ScorerContext,
-} from '@lightdash/common';
+import { MetadataCompletenessEvaluation, ScorerContext } from '@lightdash/ai';
 import { type LanguageModel } from 'ai';
 
 /**

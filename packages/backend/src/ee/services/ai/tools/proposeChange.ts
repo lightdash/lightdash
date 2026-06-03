@@ -1,13 +1,15 @@
 import {
+    customMetricBaseSchemaTransformed,
+    proposeChangeToolDefinition,
+    ToolProposeChangeArgs,
+} from '@lightdash/ai';
+import {
     AiAgentValidatorError,
     assertUnreachable,
     ChangeBase,
     convertAdditionalMetric,
-    customMetricBaseSchemaTransformed,
     Explore,
     getItemId,
-    proposeChangeToolDefinition,
-    ToolProposeChangeArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetExploreCompilerFn } from '../types/aiAgentDependencies';

@@ -8,10 +8,9 @@ import type {
     ApiAppendEvaluationRequest,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
-    ApiError,
-    ApiSuccessEmpty,
     ApiUpdateEvaluationRequest,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import type { ApiError, ApiSuccessEmpty } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,

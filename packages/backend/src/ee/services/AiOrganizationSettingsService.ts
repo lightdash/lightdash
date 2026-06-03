@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
+import { AiOrganizationSettings } from '@lightdash/ai';
 import {
-    AiOrganizationSettings,
-    CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
+    UpdateAiOrganizationSettings,
+} from '@lightdash/ai';
+import {
+    CommercialFeatureFlags,
     ForbiddenError,
     LightdashUser,
-    UpdateAiOrganizationSettings,
     type SessionUser,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';

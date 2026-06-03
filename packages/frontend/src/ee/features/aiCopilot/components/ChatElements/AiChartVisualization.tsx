@@ -3,7 +3,7 @@ import {
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
     type AiArtifact,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Center,

@@ -1,4 +1,4 @@
-import { type AiAgentAdminThreadSummary } from '@lightdash/common';
+import { type AiAgentAdminThreadSummary } from '@lightdash/ai';
 import { Button, Drawer, Group, Stack } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';

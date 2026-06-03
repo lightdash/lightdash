@@ -1,12 +1,14 @@
 import {
+    type CustomMetricBaseTransformed,
+    type PeriodComparisonCustomMetric,
+} from '@lightdash/ai';
+import {
     DimensionType,
     FieldType,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
-    type CustomMetricBaseTransformed,
     type Explore,
-    type PeriodComparisonCustomMetric,
 } from '@lightdash/common';
 import { validatePeriodComparisons } from './validators';
 

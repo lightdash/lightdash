@@ -1,9 +1,9 @@
 import {
     AiOrganizationSettings,
     CreateAiOrganizationSettings,
-    NotFoundError,
     UpdateAiOrganizationSettings,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AiOrganizationSettingsTable,

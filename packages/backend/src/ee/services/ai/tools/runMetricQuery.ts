@@ -1,15 +1,17 @@
 import {
     convertAiTableCalcsSchemaToTableCalcs,
-    Explore,
     filterAggregationCustomMetrics,
-    getItemLabelWithoutTableName,
-    getTotalFilterRules,
     metricQueryTableViz,
     runMetricQueryToolDefinition,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
     ToolRunMetricQueryArgsTransformed,
     toolRunMetricQueryOutputSchema,
+} from '@lightdash/ai';
+import {
+    Explore,
+    getItemLabelWithoutTableName,
+    getTotalFilterRules,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';

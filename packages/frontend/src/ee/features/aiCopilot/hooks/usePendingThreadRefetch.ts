@@ -1,4 +1,4 @@
-import { type ApiAiAgentThreadResponse } from '@lightdash/common';
+import { type ApiAiAgentThreadResponse } from '@lightdash/ai';
 import { useEffect } from 'react';
 import { useAiAgentThreadStreaming } from '../streaming/useAiAgentThreadStreamQuery';
 

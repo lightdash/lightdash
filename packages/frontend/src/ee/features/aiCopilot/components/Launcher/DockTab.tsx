@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { type AiAgentSummary } from '@lightdash/ai';
 import { ActionIcon, Group, Loader, Text } from '@mantine-8/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';

@@ -1,4 +1,4 @@
-import { type AiAgentToolResult } from '@lightdash/common';
+import { type AiAgentToolResult } from '@lightdash/ai';
 import { Compaction } from './compaction';
 
 describe('AI context compaction helpers', () => {

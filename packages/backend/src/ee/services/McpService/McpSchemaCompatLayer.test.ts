@@ -5,7 +5,7 @@ import {
     ToolRunMetricQueryArgs,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import z, { ZodSchema } from 'zod';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 

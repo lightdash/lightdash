@@ -2,6 +2,8 @@ import {
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAiAgentDocument,
+} from '@lightdash/ai';
+import {
     ApiErrorPayload,
     ApiSuccessEmpty,
     assertRegisteredAccount,

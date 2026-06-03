@@ -1,5 +1,5 @@
+import { AiResultType } from '@lightdash/ai';
 import {
-    AiResultType,
     countTotalFilterRules,
     type Filters,
     type MetricQuery,

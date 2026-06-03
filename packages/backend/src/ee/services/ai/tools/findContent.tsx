@@ -1,8 +1,8 @@
+import { findContentToolDefinition } from '@lightdash/ai';
 import {
     AllChartsSearchResult,
     ContentVerificationInfo,
     DashboardSearchResult,
-    findContentToolDefinition,
     isDashboardSearchResult,
     isSavedChartSearchResult,
     isSqlChartSearchResult,

@@ -3,8 +3,8 @@ import {
     createToolRunSqlArgsSchema,
     isSlackPrompt,
     runSqlToolDefinition,
-    type AnyType,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type AnyType } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {

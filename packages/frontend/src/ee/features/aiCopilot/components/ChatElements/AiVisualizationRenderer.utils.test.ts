@@ -1,4 +1,5 @@
-import { AiResultType, FilterOperator, type Filters } from '@lightdash/common';
+import { AiResultType } from '@lightdash/ai';
+import { FilterOperator, type Filters } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getVisualizationFieldsCount,

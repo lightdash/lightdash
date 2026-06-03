@@ -1,8 +1,5 @@
-import {
-    CartesianSeriesType,
-    ChartType,
-    toolRunQueryArgsSchemaTransformed,
-} from '@lightdash/common';
+import { toolRunQueryArgsSchemaTransformed } from '@lightdash/ai';
+import { CartesianSeriesType, ChartType } from '@lightdash/common';
 import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
 
 describe('buildMcpExploreConfigState', () => {

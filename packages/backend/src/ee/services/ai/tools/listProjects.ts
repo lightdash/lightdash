@@ -1,4 +1,4 @@
-import { listProjectsToolDefinition } from '@lightdash/common';
+import { listProjectsToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { ListProjectsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

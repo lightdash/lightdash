@@ -1,7 +1,5 @@
-import {
-    DbtProjectTypeLabels,
-    getProjectInfoToolDefinition,
-} from '@lightdash/common';
+import { getProjectInfoToolDefinition } from '@lightdash/ai';
+import { DbtProjectTypeLabels } from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetProjectInfoFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

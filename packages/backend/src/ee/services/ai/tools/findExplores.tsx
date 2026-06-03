@@ -1,4 +1,4 @@
-import { findExploresToolDefinition } from '@lightdash/common';
+import { findExploresToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type {
     FindExploresFn,

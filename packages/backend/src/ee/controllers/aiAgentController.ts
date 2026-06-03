@@ -42,17 +42,19 @@ import {
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
-    ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
     ApiStartAiMcpOAuthResponse,
-    ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
+} from '@lightdash/ai';
+import {
+    ApiErrorPayload,
+    ApiSuccessEmpty,
     assertRegisteredAccount,
     KnexPaginateArgs,
 } from '@lightdash/common';

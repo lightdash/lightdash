@@ -1,7 +1,7 @@
 import type {
     AiAgentEvaluationRunResult,
     AiAgentEvaluationRunSummary,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { type DefaultMantineColor } from '@mantine-8/core';
 
 type StatusUnion =

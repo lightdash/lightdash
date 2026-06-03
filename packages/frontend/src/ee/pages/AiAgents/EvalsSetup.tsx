@@ -1,4 +1,4 @@
-import type { ApiCreateEvaluationRequest } from '@lightdash/common';
+import type { ApiCreateEvaluationRequest } from '@lightdash/ai';
 import {
     Button,
     Card,

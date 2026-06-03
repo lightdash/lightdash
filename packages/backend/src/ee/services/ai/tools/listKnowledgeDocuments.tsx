@@ -1,7 +1,7 @@
 import {
     AiAgentDocumentSummary,
     listKnowledgeDocumentsToolDefinition,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

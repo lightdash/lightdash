@@ -1,8 +1,5 @@
-import {
-    AiResultType,
-    SupportedDbtAdapter,
-    type Explore,
-} from '@lightdash/common';
+import { AiResultType } from '@lightdash/ai';
+import { SupportedDbtAdapter, type Explore } from '@lightdash/common';
 import { translateToolProposeChangeArgs } from './proposeChange';
 
 const mockExplore: Explore = {

@@ -9,8 +9,8 @@ import {
     isToolProposeWritebackResult,
     parseVizConfig,
     SlackPrompt,
-    type Explore,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type Explore } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';

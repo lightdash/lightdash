@@ -1,9 +1,8 @@
 import {
-    Explore,
     filterAggregationCustomMetrics,
-    getTotalFilterRules,
     ToolVerticalBarArgsTransformed,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { Explore, getTotalFilterRules } from '@lightdash/common';
 import {
     validateCustomMetricsDefinition,
     validateFieldEntityType,

@@ -2,8 +2,8 @@ import {
     getValidAiQueryLimit,
     runSavedChartToolDefinition,
     type AiMetricQueryWithFilters,
-    type MetricQuery,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type MetricQuery } from '@lightdash/common';
 import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {

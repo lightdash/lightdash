@@ -1,9 +1,9 @@
 import {
     type ApiAiOrganizationSettingsResponse,
-    type ApiError,
     type ApiUpdateAiOrganizationSettingsResponse,
     type UpdateAiOrganizationSettings,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type ApiError } from '@lightdash/common';
 import {
     useMutation,
     useQuery,

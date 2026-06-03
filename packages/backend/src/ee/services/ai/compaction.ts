@@ -1,9 +1,9 @@
 import {
-    assertUnreachable,
     type AiAgentMessage,
     type AiPromptContext,
     type AiPromptContextItem,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { assertUnreachable } from '@lightdash/common';
 import { type ModelMessage } from 'ai';
 
 const TOOL_RESULT_CHAR_LIMIT = 2000;

@@ -1,8 +1,5 @@
-import {
-    type AiAgentMessageAssistant,
-    type AiArtifact,
-    type SavedChart,
-} from '@lightdash/common';
+import { type AiAgentMessageAssistant, type AiArtifact } from '@lightdash/ai';
+import { type SavedChart } from '@lightdash/common';
 import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { Prism } from '@mantine/prism';

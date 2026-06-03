@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
+import { AiAgentAdminConversationsSummary } from '@lightdash/ai';
 import {
-    AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
@@ -8,6 +8,9 @@ import {
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
+    UpdateAiAgentReviewItemStatus,
+} from '@lightdash/ai';
+import {
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
@@ -17,7 +20,6 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
-    UpdateAiAgentReviewItemStatus,
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';

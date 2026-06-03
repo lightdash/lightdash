@@ -1,4 +1,4 @@
-import type { AiModelOption } from '@lightdash/common';
+import type { AiModelOption } from '@lightdash/ai';
 import {
     Button,
     Menu,

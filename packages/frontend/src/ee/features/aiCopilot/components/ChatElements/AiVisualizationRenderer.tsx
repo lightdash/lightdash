@@ -1,17 +1,19 @@
 import {
     AiResultType,
-    ChartType,
-    ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
-    type ChartConfig,
-    type EChartsSeries,
     type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
+} from '@lightdash/ai';
+import {
+    ChartType,
+    ECHARTS_DEFAULT_COLORS,
+    type ChartConfig,
+    type EChartsSeries,
 } from '@lightdash/common';
 import {
     Box,

@@ -1,7 +1,7 @@
 import {
     type ApiAppendEvaluationRequest,
     type ApiCreateEvaluationRequest,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     Button,
     Loader,

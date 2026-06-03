@@ -1,4 +1,4 @@
-import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
+import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/ai';
 import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';

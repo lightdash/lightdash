@@ -1,4 +1,5 @@
-import { discoverFieldsToolDefinition, Explore } from '@lightdash/common';
+import { discoverFieldsToolDefinition } from '@lightdash/ai';
+import { Explore } from '@lightdash/common';
 import {
     readUIMessageStream,
     tool,

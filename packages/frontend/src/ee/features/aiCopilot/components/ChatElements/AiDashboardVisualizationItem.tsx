@@ -2,11 +2,11 @@ import {
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
-    type ChartConfig,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type ChartConfig } from '@lightdash/common';
 import {
     Center,
     Flex,

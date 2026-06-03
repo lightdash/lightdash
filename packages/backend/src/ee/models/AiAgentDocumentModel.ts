@@ -3,9 +3,8 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentStructuredSummary,
     AiAgentDocumentSummary,
-    AlreadyExistsError,
-    NotFoundError,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { AlreadyExistsError, NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { omit } from 'lodash';
 import {

@@ -6,7 +6,7 @@ import {
     type AiMcpServer,
     isToolName,
     type ToolName,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     Box,
     Collapse,

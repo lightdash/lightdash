@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
+import { AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES } from '@lightdash/ai';
 import {
-    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgentDocument,
     AiAgentDocumentSummary,
     ApiCreateAiAgentDocument,
+} from '@lightdash/ai';
+import {
     CommercialFeatureFlags,
     Explore,
     ForbiddenError,

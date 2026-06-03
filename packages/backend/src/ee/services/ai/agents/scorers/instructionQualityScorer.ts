@@ -1,4 +1,4 @@
-import { InstructionQualityEvaluation, ScorerContext } from '@lightdash/common';
+import { InstructionQualityEvaluation, ScorerContext } from '@lightdash/ai';
 import { type LanguageModel } from 'ai';
 
 /**

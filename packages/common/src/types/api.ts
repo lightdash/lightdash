@@ -2,39 +2,18 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
-    ApiAgentSuggestionsResponse,
-    ApiAiAgentAdminConversationsResponse,
-    ApiAiAgentArtifactResponse,
-    ApiAiAgentEvaluationResponse,
-    ApiAiAgentEvaluationRunResponse,
-    ApiAiAgentEvaluationRunResultsResponse,
-    ApiAiAgentEvaluationRunSummaryListResponse,
-    ApiAiAgentEvaluationSummaryListResponse,
-    ApiAiAgentProjectThreadSummaryListResponse,
-    ApiAiAgentThreadCreateResponse,
-    ApiAiAgentThreadGenerateTitleResponse,
-    ApiAiAgentThreadMessageCreateResponse,
-    ApiAiAgentThreadMessageVizQueryResponse,
-    ApiAiAgentThreadMessageVizResponse,
-    ApiAiAgentThreadResponse,
-    ApiAiAgentThreadSummaryListResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
-    ApiAiOrganizationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
-    ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
-    ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
     ApiGetAppResponse,
-    ApiGetUserAgentPreferencesResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -43,8 +22,6 @@ import type {
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiPreviewTokenResponse,
-    ApiUpdateAiOrganizationSettingsResponse,
-    ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
 } from '../ee';
@@ -1040,33 +1017,10 @@ type ApiResults =
     | ApiRenameResponse['results']
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
-    | ApiAiAgentThreadResponse['results']
-    | ApiAiAgentThreadMessageVizResponse['results']
-    | ApiAiAgentThreadMessageVizQueryResponse['results']
-    | ApiUpdateUserAgentPreferencesResponse['results']
-    | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
     | ApiGetProjectParametersListResults
-    | ApiAiAgentThreadCreateResponse['results']
-    | ApiAiAgentThreadMessageCreateResponse['results']
-    | ApiAiAgentArtifactResponse['results']
-    | ApiAiAgentThreadGenerateTitleResponse['results']
-    | ApiAiAgentThreadSummaryListResponse['results']
-    | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
-    | ApiAiAgentAdminConversationsResponse['results']
-    | ApiAiAgentEvaluationSummaryListResponse['results']
-    | ApiAiAgentEvaluationResponse['results']
-    | ApiAiAgentEvaluationRunResponse['results']
-    | ApiAiAgentEvaluationRunSummaryListResponse['results']
-    | ApiAiAgentEvaluationRunResultsResponse['results']
-    | ApiAiAgentVerifiedArtifactsResponse['results']
-    | ApiCreateEvaluationResponse['results']
-    | ApiAgentSuggestionsResponse['results']
-    | ApiAppendInstructionResponse['results']
     | ApiGetChangeResponse['results']
-    | ApiAiOrganizationSettingsResponse['results']
-    | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']

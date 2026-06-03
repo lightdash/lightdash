@@ -1,0 +1,115 @@
+import { type ItemsMap } from '@lightdash/common';
+import { type MetricQuery } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    type CartesianChartConfig,
+} from '@lightdash/common';
+import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { formatFieldLabel } from '../../../shared/formatFieldLabel';
+
+export const getBarChartConfig = ({
+    queryTool,
+    metricQuery,
+    fieldsMap,
+    chartConfig,
+    metadata,
+}: {
+    queryTool: ToolRunQueryArgsTransformed;
+    metricQuery: MetricQuery;
+    fieldsMap: ItemsMap;
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
+    metadata: { title: string; description: string };
+}): CartesianChartConfig => {
+    const { dimensions, metrics } = queryTool.queryConfig;
+    const xDimension = chartConfig?.xAxisDimension || dimensions[0];
+    const yMetrics = chartConfig?.yAxisMetrics || metrics;
+    const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
+
+    // Build yAxis array based on whether secondary axis is specified
+    const yAxisConfig = secondaryYAxisMetric
+        ? [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+              {
+                  ...(chartConfig?.secondaryYAxisLabel
+                      ? { name: chartConfig.secondaryYAxisLabel }
+                      : {}),
+              },
+          ]
+        : [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+          ];
+
+    return {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: xDimension,
+                yField: secondaryYAxisMetric
+                    ? [
+                          ...(chartConfig?.yAxisMetrics || metricQuery.metrics),
+                          secondaryYAxisMetric,
+                      ]
+                    : chartConfig?.yAxisMetrics || metricQuery.metrics,
+                stack: !!chartConfig?.stackBars,
+            },
+            eChartsConfig: {
+                ...(metadata.title ? { title: { text: metadata.title } } : {}),
+                legend: {
+                    show: true,
+                    type: 'scroll',
+                },
+                grid: { containLabel: true },
+                xAxis: [
+                    {
+                        ...(chartConfig?.xAxisLabel
+                            ? { name: chartConfig.xAxisLabel }
+                            : {}),
+                    },
+                ],
+                yAxis: yAxisConfig,
+                series: [
+                    ...yMetrics.map((metric) => ({
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        ...(chartConfig?.stackBars && {
+                            stack: metric,
+                        }),
+                        encode: {
+                            xRef: { field: xDimension },
+                            yRef: { field: metric },
+                        },
+                        name: formatFieldLabel(metric, fieldsMap),
+                    })),
+                    ...(secondaryYAxisMetric
+                        ? [
+                              {
+                                  type: CartesianSeriesType.BAR,
+                                  yAxisIndex: 1,
+                                  ...(chartConfig?.stackBars && {
+                                      stack: secondaryYAxisMetric,
+                                  }),
+                                  encode: {
+                                      xRef: { field: xDimension },
+                                      yRef: { field: secondaryYAxisMetric },
+                                  },
+                                  name: formatFieldLabel(
+                                      secondaryYAxisMetric,
+                                      fieldsMap,
+                                  ),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+        },
+    };
+};

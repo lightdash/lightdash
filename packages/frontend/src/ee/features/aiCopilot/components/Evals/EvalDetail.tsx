@@ -1,4 +1,4 @@
-import type { ApiUpdateEvaluationRequest } from '@lightdash/common';
+import type { ApiUpdateEvaluationRequest } from '@lightdash/ai';
 import {
     Box,
     Button,

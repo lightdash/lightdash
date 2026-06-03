@@ -1,4 +1,4 @@
-import { type ApiAiAgentSqlApprovalRequest } from '@lightdash/common';
+import { type ApiAiAgentSqlApprovalRequest } from '@lightdash/ai';
 import { Button, Code, Group, Paper, Stack, Text } from '@mantine-8/core';
 import {
     IconCheck,

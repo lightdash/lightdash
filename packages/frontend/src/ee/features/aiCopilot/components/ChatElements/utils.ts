@@ -1,4 +1,4 @@
-import { type AiAgentMessage } from '@lightdash/common';
+import { type AiAgentMessage } from '@lightdash/ai';
 import { type BoxProps } from '@mantine-8/core';
 import { format, isSameDay, isToday, isYesterday, parseISO } from 'date-fns';
 

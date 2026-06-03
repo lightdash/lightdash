@@ -1,9 +1,5 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import {
     aiAgentReviewClassifierJudgeOutputSchema,
-    CatalogType,
-    FeatureFlags,
-    ForbiddenError,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     type AiAgentAvailableCapability,
@@ -19,6 +15,12 @@ import {
     type AiAgentRootCause,
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
+} from '@lightdash/ai';
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import {
+    CatalogType,
+    FeatureFlags,
+    ForbiddenError,
     type CatalogItemSummary,
     type QueryHistoryStatus,
 } from '@lightdash/common';

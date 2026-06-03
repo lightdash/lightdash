@@ -1,7 +1,5 @@
-import {
-    type AiAgentSummary,
-    type AiRouterRouteResponseResult,
-} from '@lightdash/common';
+import { type AiAgentSummary } from '@lightdash/ai';
+import { type AiRouterRouteResponseResult } from '@lightdash/common';
 import {
     ActionIcon,
     Avatar,

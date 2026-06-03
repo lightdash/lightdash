@@ -3,8 +3,8 @@ import {
     AiAgentDocumentSummary,
     AiMcpServer,
     AiMcpServerConnectionStatus,
-    WarehouseTypes,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { WarehouseTypes } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';

@@ -1,4 +1,4 @@
-import { type AiWebAppPrompt } from '@lightdash/common';
+import { type AiWebAppPrompt } from '@lightdash/ai';
 import { getRunSql } from './runSql';
 
 type RunSqlTool = ReturnType<typeof getRunSql>;

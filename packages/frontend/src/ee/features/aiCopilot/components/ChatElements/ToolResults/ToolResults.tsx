@@ -1,4 +1,4 @@
-import type { AiAgentToolCall, AiAgentToolResult } from '@lightdash/common';
+import type { AiAgentToolCall, AiAgentToolResult } from '@lightdash/ai';
 import { Divider, Stack } from '@mantine-8/core';
 import { RankingDisplay } from './RankingDisplay';
 import { parseToolResultMetadata } from './utils';

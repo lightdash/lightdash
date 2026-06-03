@@ -1,4 +1,4 @@
-import { type AiAgentExploreAccessSummary } from '@lightdash/common';
+import { type AiAgentExploreAccessSummary } from '@lightdash/ai';
 import { Group, Stack, Text, Tree, type TreeNodeData } from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';

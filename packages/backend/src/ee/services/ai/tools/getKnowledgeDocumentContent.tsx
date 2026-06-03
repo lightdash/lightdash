@@ -1,4 +1,4 @@
-import { getKnowledgeDocumentContentToolDefinition } from '@lightdash/common';
+import { getKnowledgeDocumentContentToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { GetKnowledgeDocumentContentFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

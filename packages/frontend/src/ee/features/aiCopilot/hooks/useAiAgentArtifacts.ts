@@ -1,4 +1,5 @@
-import type { AiArtifact, ApiError, ApiSuccessEmpty } from '@lightdash/common';
+import type { AiArtifact } from '@lightdash/ai';
+import type { ApiError, ApiSuccessEmpty } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,

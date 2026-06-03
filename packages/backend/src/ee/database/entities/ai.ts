@@ -1,4 +1,4 @@
-import { type AiChartRuntimeOverrides } from '@lightdash/common';
+import { type AiChartRuntimeOverrides } from '@lightdash/ai';
 import { Knex } from 'knex';
 
 export const AiThreadTableName = 'ai_thread';

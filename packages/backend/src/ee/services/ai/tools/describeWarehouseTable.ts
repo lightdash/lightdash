@@ -1,4 +1,4 @@
-import { describeWarehouseTableToolDefinition } from '@lightdash/common';
+import { describeWarehouseTableToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

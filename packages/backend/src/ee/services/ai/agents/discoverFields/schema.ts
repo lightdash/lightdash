@@ -3,4 +3,4 @@ export {
     discoverFieldsResultSchema,
     type DiscoverFieldsInput,
     type DiscoverFieldsResult,
-} from '@lightdash/common';
+} from '@lightdash/ai';

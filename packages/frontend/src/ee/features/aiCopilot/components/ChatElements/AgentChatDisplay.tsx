@@ -1,4 +1,4 @@
-import { type AiAgentThread } from '@lightdash/common';
+import { type AiAgentThread } from '@lightdash/ai';
 import {
     Box,
     Divider,

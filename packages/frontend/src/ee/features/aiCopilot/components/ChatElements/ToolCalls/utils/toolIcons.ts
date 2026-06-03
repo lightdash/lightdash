@@ -1,8 +1,4 @@
-import {
-    isToolName,
-    type AiAgentToolName,
-    type ToolName,
-} from '@lightdash/common';
+import { isToolName, type AiAgentToolName, type ToolName } from '@lightdash/ai';
 import {
     IconChartDots3,
     IconChartHistogram,

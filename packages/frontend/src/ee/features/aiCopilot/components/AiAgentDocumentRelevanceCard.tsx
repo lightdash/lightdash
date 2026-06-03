@@ -1,4 +1,4 @@
-import type { AiAgentDocumentStructuredSummary } from '@lightdash/common';
+import type { AiAgentDocumentStructuredSummary } from '@lightdash/ai';
 import { Group, Paper, Text } from '@mantine-8/core';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import MantineIcon from '../../../../components/common/MantineIcon';

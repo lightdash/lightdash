@@ -1,7 +1,7 @@
 import type {
     ToolProposeChangeArgs,
     ToolProposeChangeReplaceStringOp,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 
 export type TableChange = Extract<
     ToolProposeChangeArgs['change'],

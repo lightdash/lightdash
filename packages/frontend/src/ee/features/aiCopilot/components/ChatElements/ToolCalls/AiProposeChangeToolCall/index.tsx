@@ -1,7 +1,4 @@
-import type {
-    AiAgentToolResult,
-    ToolProposeChangeArgs,
-} from '@lightdash/common';
+import type { AiAgentToolResult, ToolProposeChangeArgs } from '@lightdash/ai';
 import {
     Badge,
     Button,

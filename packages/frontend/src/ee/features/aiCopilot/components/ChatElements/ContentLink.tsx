@@ -1,4 +1,5 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
+import { type AiAgentMessageAssistant } from '@lightdash/ai';
+import { ChartKind } from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine-8/core';
 import {
     IconArrowRight,

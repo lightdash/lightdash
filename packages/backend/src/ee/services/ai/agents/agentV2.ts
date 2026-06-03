@@ -1,4 +1,5 @@
-import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
+import { AgentToolOutput } from '@lightdash/ai';
+import { assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateText,

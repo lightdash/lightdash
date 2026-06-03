@@ -1,10 +1,6 @@
-import type {
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
-} from '@lightdash/common';
+import type { ToolVerticalBarArgs } from '@lightdash/ai';
+import type { ToolTableVizArgs, ToolTimeSeriesArgs } from '@lightdash/ai';
 import {
-    assertUnreachable,
     type AiAgentToolResult,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
@@ -23,7 +19,8 @@ import {
     type ToolRunQueryArgs,
     type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { assertUnreachable } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';

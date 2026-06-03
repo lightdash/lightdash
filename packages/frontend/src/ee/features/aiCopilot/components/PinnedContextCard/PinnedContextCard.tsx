@@ -1,4 +1,5 @@
-import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
+import { type AiPromptContextItem } from '@lightdash/ai';
+import { assertUnreachable } from '@lightdash/common';
 import { Anchor, Text } from '@mantine-8/core';
 import {
     IconArrowRight,

@@ -19,13 +19,12 @@ import type {
     AiPromptContextItemInput,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
-    ApiError,
     ApiAiMcpServerListResponse,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
-    ApiSuccessEmpty,
     ApiUpdateAiAgent,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import type { ApiError, ApiSuccessEmpty } from '@lightdash/common';
 import { nanoid } from '@reduxjs/toolkit';
 import {
     useInfiniteQuery,

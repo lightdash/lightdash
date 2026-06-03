@@ -1,4 +1,4 @@
-import { AiAgent } from '@lightdash/common';
+import { AiAgent } from '@lightdash/ai';
 import type { IntegrationTestContext } from '../../../../../../vitest.setup.integration';
 import { getServices } from '../../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../../database/entities/ai';

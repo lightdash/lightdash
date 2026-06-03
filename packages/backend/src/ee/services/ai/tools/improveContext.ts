@@ -1,4 +1,4 @@
-import { improveContextToolDefinition } from '@lightdash/common';
+import { improveContextToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
 import { toModelOutput } from '../utils/toModelOutput';

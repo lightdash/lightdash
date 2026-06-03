@@ -2,9 +2,8 @@ import type {
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAiAgentDocument,
-    ApiError,
-    ApiSuccessEmpty,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import type { ApiError, ApiSuccessEmpty } from '@lightdash/common';
 import {
     useMutation,
     useQuery,

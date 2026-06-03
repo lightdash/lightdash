@@ -1,8 +1,5 @@
-import {
-    friendlyName,
-    type AiAgentToolCallMcpServer,
-    type AiMcpServer,
-} from '@lightdash/common';
+import { type AiAgentToolCallMcpServer, type AiMcpServer } from '@lightdash/ai';
+import { friendlyName } from '@lightdash/common';
 
 export type McpProviderKind = 'generic';
 

@@ -1,4 +1,4 @@
-import { mcpToolDefinitions } from '@lightdash/common';
+import { mcpToolDefinitions } from '@lightdash/ai';
 import type { ZodRawShape, ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';

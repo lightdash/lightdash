@@ -2,7 +2,7 @@ import type {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentAdminSortField,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../../../hooks/useSearchParams';

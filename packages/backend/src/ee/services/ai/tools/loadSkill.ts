@@ -1,4 +1,4 @@
-import { loadSkillToolDefinition } from '@lightdash/common';
+import { loadSkillToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';

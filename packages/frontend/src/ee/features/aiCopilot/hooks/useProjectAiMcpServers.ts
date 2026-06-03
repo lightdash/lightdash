@@ -5,9 +5,9 @@ import type {
     ApiAiMcpServerResponse,
     ApiAiMcpServerToolListResponse,
     ApiCreateAiMcpServer,
-    ApiError,
     ApiUpdateAiAgentMcpServerToolsRequest,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import type { ApiError } from '@lightdash/common';
 import {
     useMutation,
     useQuery,

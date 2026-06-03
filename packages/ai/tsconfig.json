@@ -1,0 +1,27 @@
+{
+    "extends": "./../../tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "es2020",
+        "lib": ["ESNext"],
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "outDir": "dist/types",
+        "rootDir": "src",
+        "composite": true,
+        "tsBuildInfoFile": "dist/types/.tsbuildinfo",
+        "importHelpers": true,
+        "ignoreDeprecations": "6.0",
+        "moduleResolution": "node10",
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "types": ["node", "jest"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.json"],
+    "references": [
+        {
+            "path": "../common"
+        }
+    ]
+}

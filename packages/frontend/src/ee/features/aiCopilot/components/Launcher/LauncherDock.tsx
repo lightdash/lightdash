@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { type AiAgentSummary } from '@lightdash/ai';
 import { useMemo, type FC } from 'react';
 import {
     openPanel,

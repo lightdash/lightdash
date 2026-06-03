@@ -1,10 +1,10 @@
+import { type PeriodComparisonCustomMetric } from '@lightdash/ai';
 import {
     getItemId,
     isPeriodOverPeriodAdditionalMetric,
     MetricType,
     TimeFrames,
     type AdditionalMetric,
-    type PeriodComparisonCustomMetric,
 } from '@lightdash/common';
 import {
     expandMetricsWithPopAdditionalMetrics,

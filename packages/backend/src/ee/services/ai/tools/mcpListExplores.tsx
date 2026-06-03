@@ -1,8 +1,8 @@
 import {
-    Explore,
     listExploresToolDefinition,
     mcpToolListExploresOutputSchema,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { Explore } from '@lightdash/common';
 import { tool } from 'ai';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

@@ -5,12 +5,12 @@ import {
     type MCPClient,
 } from '@ai-sdk/mcp';
 import {
-    assertUnreachable,
     type AiMcpCredentialScope,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
     type AiMcpServerToolInput,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { assertUnreachable } from '@lightdash/common';
 /* eslint-disable import/extensions */
 import {
     auth,

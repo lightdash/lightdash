@@ -1,4 +1,5 @@
-import type { ApiAgentSuggestionsResponse, ApiError } from '@lightdash/common';
+import type { ApiAgentSuggestionsResponse } from '@lightdash/ai';
+import type { ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 

@@ -1,9 +1,7 @@
 import { subject } from '@casl/ability';
-import {
-    type AiArtifact,
-    type Dashboard,
-    type ToolDashboardArgs,
-} from '@lightdash/common';
+import { type AiArtifact } from '@lightdash/ai';
+import { type ToolDashboardArgs } from '@lightdash/ai';
+import { type Dashboard } from '@lightdash/common';
 import {
     Button,
     LoadingOverlay,

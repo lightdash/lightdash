@@ -1,8 +1,8 @@
 import {
-    getChartKind,
     type AiPromptContextInput,
     type AiPromptContextItem,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { getChartKind } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../../../../hooks/useSavedQuery';

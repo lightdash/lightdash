@@ -26,6 +26,9 @@
     "include": ["./src", "./sdk/index.tsx", "./vite-env.d.ts"],
     "references": [
         {
+            "path": "../ai"
+        },
+        {
             "path": "../common"
         },
         {

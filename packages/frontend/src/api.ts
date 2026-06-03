@@ -1,3 +1,4 @@
+import type { AiApiResults } from '@lightdash/ai';
 import {
     JWT_HEADER_NAME,
     LightdashRequestMethodHeader,
@@ -129,7 +130,9 @@ type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
 const MAX_NETWORK_HISTORY = 10;
 export let networkHistory: AnyType[] = [];
 
-export const lightdashApi = async <T extends ApiResponse['results']>({
+export const lightdashApi = async <
+    T extends ApiResponse['results'] | AiApiResults,
+>({
     method,
     url,
     body,

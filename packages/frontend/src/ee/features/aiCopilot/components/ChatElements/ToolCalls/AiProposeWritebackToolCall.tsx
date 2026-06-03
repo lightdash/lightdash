@@ -1,4 +1,4 @@
-import { type ToolProposeWritebackOutput } from '@lightdash/common';
+import { type ToolProposeWritebackOutput } from '@lightdash/ai';
 import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
 import {
     IconAlertTriangle,

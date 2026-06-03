@@ -2,10 +2,12 @@ import {
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
-    type ChartConfig,
-    type CreateSavedChartVersion,
     type DashboardV2Visualization,
     type DashboardVisualization,
+} from '@lightdash/ai';
+import {
+    type ChartConfig,
+    type CreateSavedChartVersion,
 } from '@lightdash/common';
 
 export type VizQueryWithOverrides = ApiAiAgentThreadMessageVizQuery & {

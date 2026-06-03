@@ -1,4 +1,4 @@
-import type { AiAgentMessageAssistant } from '@lightdash/common';
+import type { AiAgentMessageAssistant } from '@lightdash/ai';
 import { Box, Paper } from '@mantine-8/core';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';

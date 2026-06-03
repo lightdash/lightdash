@@ -2,7 +2,7 @@ import {
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ToolDashboardArgs,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

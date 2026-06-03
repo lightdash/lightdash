@@ -6,7 +6,7 @@ import {
     type AiAgentRootCause,
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Anchor,

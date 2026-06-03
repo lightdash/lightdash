@@ -1,4 +1,4 @@
-import { AiAgent } from '@lightdash/common';
+import { AiAgent } from '@lightdash/ai';
 import {
     getServices,
     IntegrationTestContext,

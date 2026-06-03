@@ -1,9 +1,8 @@
 import {
     AiAgentDocumentStructuredSummary,
     AiAgentDocumentSummary,
-    Explore,
-    WarehouseTypes,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { Explore, WarehouseTypes } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';

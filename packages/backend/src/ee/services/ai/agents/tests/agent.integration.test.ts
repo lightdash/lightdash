@@ -1,4 +1,5 @@
-import { AiAgent, SEED_PROJECT } from '@lightdash/common';
+import { AiAgent } from '@lightdash/ai';
+import { SEED_PROJECT } from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../../config/parseConfig';

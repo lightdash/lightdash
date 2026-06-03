@@ -8,12 +8,14 @@ import {
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
-    ApiErrorPayload,
     ApiUpdateAiOrganizationSettingsResponse,
-    assertRegisteredAccount,
-    KnexPaginateArgs,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
+} from '@lightdash/ai';
+import {
+    ApiErrorPayload,
+    assertRegisteredAccount,
+    KnexPaginateArgs,
 } from '@lightdash/common';
 import {
     Body,

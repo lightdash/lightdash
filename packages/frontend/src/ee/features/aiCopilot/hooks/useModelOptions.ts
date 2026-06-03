@@ -1,8 +1,8 @@
 import type {
     AiModelOption,
     ApiAiAgentModelOptionsResponse,
-    ApiError,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import type { ApiError } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 

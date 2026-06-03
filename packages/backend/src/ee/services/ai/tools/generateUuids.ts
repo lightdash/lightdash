@@ -1,4 +1,4 @@
-import { generateUuidsToolDefinition } from '@lightdash/common';
+import { generateUuidsToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';

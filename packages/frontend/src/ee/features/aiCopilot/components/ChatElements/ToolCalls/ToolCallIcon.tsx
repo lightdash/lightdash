@@ -1,4 +1,4 @@
-import { isToolName, type AiAgentToolName } from '@lightdash/common';
+import { isToolName, type AiAgentToolName } from '@lightdash/ai';
 import { Box } from '@mantine-8/core';
 import { useState, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';

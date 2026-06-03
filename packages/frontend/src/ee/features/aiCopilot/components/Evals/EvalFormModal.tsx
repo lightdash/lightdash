@@ -3,8 +3,8 @@ import type {
     ApiCreateEvaluationRequest,
     ApiUpdateEvaluationRequest,
     CreateEvaluationPrompt,
-} from '@lightdash/common';
-import { isStringPrompt } from '@lightdash/common';
+} from '@lightdash/ai';
+import { isStringPrompt } from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

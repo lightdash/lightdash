@@ -7,7 +7,7 @@ import {
     isToolProposeWritebackResult,
     type ToolProposeChangeArgs,
     type ToolProposeWritebackOutput,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Alert,

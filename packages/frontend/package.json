@@ -31,6 +31,7 @@
         "@dnd-kit/utilities": "3.2.2",
         "@emotion/react": "11.10.6",
         "@hello-pangea/dnd": "16.5.0",
+        "@lightdash/ai": "workspace:*",
         "@lightdash/common": "workspace:*",
         "@lightdash/formula": "workspace:*",
         "@mantine-8/core": "npm:@mantine/core@8.0.0",

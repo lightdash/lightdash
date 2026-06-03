@@ -1,4 +1,4 @@
-import { type AiAgentReviewItemSummary } from '@lightdash/common';
+import { type AiAgentReviewItemSummary } from '@lightdash/ai';
 import { planReviewWriteback } from './buildReviewWritebackPrompt';
 
 const baseItem = (

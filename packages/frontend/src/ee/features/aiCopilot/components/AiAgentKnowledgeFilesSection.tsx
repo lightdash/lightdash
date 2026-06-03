@@ -1,7 +1,7 @@
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     type AiAgentDocumentSummary,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

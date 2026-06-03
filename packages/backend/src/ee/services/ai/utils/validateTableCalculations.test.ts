@@ -1,9 +1,8 @@
 import {
-    MetricType,
-    WindowFunctionType,
     type CustomMetricBaseTransformed,
     type TableCalcsSchema,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { MetricType, WindowFunctionType } from '@lightdash/common';
 import { mockOrdersExplore } from './validationExplore.mock';
 import { validateTableCalculations } from './validators';
 

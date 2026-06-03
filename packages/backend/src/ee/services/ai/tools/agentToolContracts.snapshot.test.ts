@@ -1,4 +1,4 @@
-import { agentToolDefinitions } from '@lightdash/common';
+import { agentToolDefinitions } from '@lightdash/ai';
 import type { ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getDiscoverFields } from '../agents/discoverFields/tool';

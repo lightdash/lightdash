@@ -1,14 +1,8 @@
 import includes from 'lodash/includes';
 import {
-    type AiAgentEvalRunJobPayload,
-    type AiAgentReviewClassifierJobPayload,
-    type AiAgentReviewWritebackJobPayload,
     type ChartReference,
     type DataAppClaudeModel,
     type DataAppTemplate,
-    type EmbedArtifactVersionJobPayload,
-    type GenerateArtifactQuestionJobPayload,
-    type SlackPromptJobPayload,
 } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
@@ -39,6 +33,46 @@ import {
     type SqlRunnerPayload,
     type SqlRunnerPivotQueryPayload,
 } from './sqlRunner';
+
+type SlackPromptJobPayload = TraceTaskBase & {
+    slackPromptUuid: string;
+};
+
+type AiAgentEvalRunJobPayload = TraceTaskBase & {
+    evalRunResultUuid: string;
+    evalRunUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+};
+
+type AiAgentReviewClassifierEventType = 'response_saved' | 'feedback_changed';
+
+type AiAgentReviewClassifierJobPayload = TraceTaskBase & {
+    eventType: AiAgentReviewClassifierEventType;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+};
+
+type AiAgentReviewWritebackJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
+type EmbedArtifactVersionJobPayload = TraceTaskBase & {
+    artifactVersionUuid: string;
+    title: string | null;
+    description: string | null;
+};
+
+type GenerateArtifactQuestionJobPayload = TraceTaskBase & {
+    artifactVersionUuid: string;
+    title: string | null;
+    description: string | null;
+};
 
 export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     appUuid: string;

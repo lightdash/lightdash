@@ -1,11 +1,19 @@
 import {
-    AdditionalMetric,
     AgentToolOutput,
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
+    SlackPrompt,
+    ToolFindContentArgs,
+    ToolFindFieldsArgs,
+    ToolListContentArgs,
+    UpdateSlackResponse,
+    UpdateWebAppResponse,
+} from '@lightdash/ai';
+import {
+    AdditionalMetric,
     AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
@@ -23,12 +31,6 @@ import {
     KnexPaginateArgs,
     ProjectType,
     SavedChart,
-    SlackPrompt,
-    ToolFindContentArgs,
-    ToolFindFieldsArgs,
-    ToolListContentArgs,
-    UpdateSlackResponse,
-    UpdateWebAppResponse,
     WarehouseTablesCatalog,
     WarehouseTypes,
 } from '@lightdash/common';

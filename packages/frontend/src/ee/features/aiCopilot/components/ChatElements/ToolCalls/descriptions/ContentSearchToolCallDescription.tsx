@@ -1,4 +1,4 @@
-import { type ToolFindContentArgsTransformed } from '@lightdash/common';
+import { type ToolFindContentArgsTransformed } from '@lightdash/ai';
 import { rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';

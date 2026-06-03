@@ -1,4 +1,4 @@
-import { type AiAgent } from '@lightdash/common';
+import { type AiAgent } from '@lightdash/ai';
 import { Box, Loader } from '@mantine-8/core';
 import { useState } from 'react';
 import {

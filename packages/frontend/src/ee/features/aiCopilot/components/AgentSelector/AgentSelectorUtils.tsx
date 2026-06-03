@@ -1,4 +1,4 @@
-import { type AiAgent } from '@lightdash/common';
+import { type AiAgent } from '@lightdash/ai';
 import { Group, Text, type ComboboxItem } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';

@@ -1,7 +1,5 @@
-import {
-    DashboardSearchResult,
-    getDashboardChartsToolDefinition,
-} from '@lightdash/common';
+import { getDashboardChartsToolDefinition } from '@lightdash/ai';
+import { DashboardSearchResult } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
 import type { GetDashboardChartsFn } from '../types/aiAgentDependencies';

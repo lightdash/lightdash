@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { type AiAgentSummary } from '@lightdash/ai';
 import { ActionIcon, Group, Menu, Text, UnstyledButton } from '@mantine-8/core';
 import {
     IconCheck,

@@ -5,7 +5,7 @@ import {
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

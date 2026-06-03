@@ -1,8 +1,8 @@
+import { ApiRevertChangeResponse } from '@lightdash/ai';
 import {
     ApiChangesetsResponseTSOACompat,
     ApiErrorPayload,
     ApiGetChangeResponseTSOACompat,
-    ApiRevertChangeResponse,
 } from '@lightdash/common';
 import {
     Get,

@@ -1,4 +1,4 @@
-import { readContentToolDefinition } from '@lightdash/common';
+import { readContentToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';

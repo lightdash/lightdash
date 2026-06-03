@@ -1,8 +1,5 @@
-import {
-    type AiArtifact,
-    type Dashboard,
-    type ToolDashboardArgs,
-} from '@lightdash/common';
+import { type AiArtifact, type ToolDashboardArgs } from '@lightdash/ai';
+import { type Dashboard } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine-8/core';
 import {
     IconDeviceFloppy,

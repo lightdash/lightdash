@@ -8,9 +8,9 @@ import {
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
-    type ApiError,
     type UpdateAiAgentReviewItemStatus,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type ApiError } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useInfiniteQuery,

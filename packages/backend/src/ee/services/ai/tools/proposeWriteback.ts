@@ -1,4 +1,4 @@
-import { proposeWritebackToolDefinition } from '@lightdash/common';
+import { proposeWritebackToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';

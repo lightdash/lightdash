@@ -27,6 +27,9 @@
     "exclude": ["dist", "node_modules", "src/ee/services/McpService/mcp-chart-app"],
     "references": [
         {
+            "path": "../ai"
+        },
+        {
             "path": "../common"
         },
         {

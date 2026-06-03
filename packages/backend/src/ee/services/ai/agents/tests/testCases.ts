@@ -1,4 +1,5 @@
-import { AiAgent, CatalogType } from '@lightdash/common';
+import { AiAgent } from '@lightdash/ai';
+import { CatalogType } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
     getServices,

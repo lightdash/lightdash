@@ -2,7 +2,7 @@ import {
     type AiMcpServer,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     ActionIcon,
     Alert,

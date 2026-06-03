@@ -19,7 +19,7 @@ import type {
     AiAgentTargetRef,
     AiAgentTurnSignal,
     AiAgentTurnSignalSourceRef,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { Knex } from 'knex';
 
 export const AiAgentReviewClassifierRunTableName = 'ai_agent_review_run';

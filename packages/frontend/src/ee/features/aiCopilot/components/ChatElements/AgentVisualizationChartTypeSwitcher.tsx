@@ -1,8 +1,8 @@
 import {
     getAvailableChartTypes,
     type AiAgentChartTypeOption,
-    type MetricQuery,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type MetricQuery } from '@lightdash/common';
 import { SegmentedControl } from '@mantine-8/core';
 import {
     IconChartBar,

@@ -1,4 +1,4 @@
-import type { AiMcpServer } from '@lightdash/common';
+import type { AiMcpServer } from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

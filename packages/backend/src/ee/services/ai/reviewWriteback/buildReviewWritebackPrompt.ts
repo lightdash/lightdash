@@ -1,9 +1,11 @@
 import {
-    assertUnreachable,
-    isExploreError,
     type AiAgentReviewItemSummary,
     type AiAgentSemanticTargetRef,
     type AiAgentTargetRef,
+} from '@lightdash/ai';
+import {
+    assertUnreachable,
+    isExploreError,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';

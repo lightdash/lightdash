@@ -1,7 +1,5 @@
-import {
-    assertUnreachable,
-    type AiAgentMessageAssistant,
-} from '@lightdash/common';
+import { type AiAgentMessageAssistant } from '@lightdash/ai';
+import { assertUnreachable } from '@lightdash/common';
 import { Box, Loader, Text, UnstyledButton } from '@mantine-8/core';
 import {
     IconArtboard,

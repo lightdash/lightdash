@@ -1,7 +1,7 @@
 import {
     type AiAgentAdminSortField,
     type AiAgentAdminThreadSummary,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     Anchor,
     Badge,

@@ -1,4 +1,4 @@
-import type { AiAgentEvaluationRunSummary } from '@lightdash/common';
+import type { AiAgentEvaluationRunSummary } from '@lightdash/ai';
 import {
     Badge,
     Box,

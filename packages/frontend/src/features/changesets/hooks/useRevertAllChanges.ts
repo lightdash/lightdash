@@ -1,4 +1,5 @@
-import { type ApiError, type ApiRevertChangeResponse } from '@lightdash/common';
+import { type ApiRevertChangeResponse } from '@lightdash/ai';
+import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 

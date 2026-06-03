@@ -2,7 +2,7 @@ import {
     isAiAgentToolName,
     toolImproveContextArgsSchema,
     toolRunQueryOutputSchema,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { captureException } from '@sentry/react';
 import {
     DefaultChatTransport,

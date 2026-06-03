@@ -1,4 +1,4 @@
-import { type AiAgentVerifiedArtifact } from '@lightdash/common';
+import { type AiAgentVerifiedArtifact } from '@lightdash/ai';
 import {
     ActionIcon,
     Box,

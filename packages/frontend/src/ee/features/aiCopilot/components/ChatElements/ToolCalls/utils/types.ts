@@ -1,7 +1,7 @@
 import {
     type AiAgentToolCallMcpServer,
     type AiAgentToolName,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 
 export type ToolCallSummary = {
     toolCallId: string;

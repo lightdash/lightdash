@@ -1,9 +1,8 @@
 import {
-    FeatureFlags,
-    ForbiddenError,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierTurnCandidate,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { FeatureFlags, ForbiddenError } from '@lightdash/common';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';

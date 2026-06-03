@@ -1,9 +1,11 @@
 import {
+    type ToolFindContentOutput,
+    type ToolGetDashboardChartsOutput,
+} from '@lightdash/ai';
+import {
     ChartKind,
     type ContentVerificationInfo,
     type DashboardSearchResult,
-    type ToolFindContentOutput,
-    type ToolGetDashboardChartsOutput,
 } from '@lightdash/common';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
 import { getFindContent } from './findContent';

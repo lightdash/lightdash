@@ -6,7 +6,7 @@ import {
     type AiAgentToolResult,
     type AiMcpServer,
     isToolName,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     Box,
     Collapse,

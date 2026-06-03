@@ -16,7 +16,7 @@ import type {
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { type ToolCallSummary } from './types';
 
 type ToolReadContentArgs = {

@@ -1,7 +1,7 @@
 import {
     searchFieldValuesToolDefinition,
     toolSearchFieldValuesArgsSchemaTransformed,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { tool } from 'ai';
 import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';

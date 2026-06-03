@@ -2,11 +2,11 @@ import type {
     AiAgentToolResult,
     ToolFindExploresOutput,
     ToolFindFieldsOutput,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     toolFindExploresOutputSchema,
     toolFindFieldsOutputSchema,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 
 export const parseToolResultMetadata = (
     toolResult: AiAgentToolResult | undefined,

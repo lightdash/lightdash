@@ -1,4 +1,4 @@
-import { createContentToolDefinition } from '@lightdash/common';
+import { createContentToolDefinition } from '@lightdash/ai';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';

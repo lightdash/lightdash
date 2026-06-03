@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { type AiAgentSummary } from '@lightdash/ai';
 import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { useState, type CSSProperties, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';

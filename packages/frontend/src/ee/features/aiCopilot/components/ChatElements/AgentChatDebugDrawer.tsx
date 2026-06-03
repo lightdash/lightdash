@@ -2,7 +2,7 @@ import type {
     AiAgentMessageAssistantArtifact,
     AiAgentToolCall,
     AiAgentToolResult,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     Box,
     Collapse,

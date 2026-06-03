@@ -1,8 +1,5 @@
-import {
-    FeatureFlags,
-    type AgentSuggestion,
-    type AiModelOption,
-} from '@lightdash/common';
+import { type AgentSuggestion, type AiModelOption } from '@lightdash/ai';
+import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Box,

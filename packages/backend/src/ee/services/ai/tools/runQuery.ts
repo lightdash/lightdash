@@ -1,16 +1,18 @@
 import {
-    AiAgentValidatorError,
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
     getSlackAiEchartsConfig,
-    getTotalFilterRules,
     getValidAiQueryLimit,
     isSlackPrompt,
     runQueryToolDefinition,
     toolRunQueryArgsSchemaTransformed,
-    type Explore,
     type ToolRunQueryArgsTransformed,
+} from '@lightdash/ai';
+import {
+    AiAgentValidatorError,
+    getTotalFilterRules,
+    type Explore,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';

@@ -1,4 +1,4 @@
-import type { AgentSuggestion } from '@lightdash/common';
+import type { AgentSuggestion } from '@lightdash/ai';
 import { Box, Button, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';

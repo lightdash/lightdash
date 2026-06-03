@@ -1,7 +1,4 @@
-import {
-    type AiAgent,
-    type AiAgentProjectThreadSummary,
-} from '@lightdash/common';
+import { type AiAgent, type AiAgentProjectThreadSummary } from '@lightdash/ai';
 import {
     Alert,
     Box,

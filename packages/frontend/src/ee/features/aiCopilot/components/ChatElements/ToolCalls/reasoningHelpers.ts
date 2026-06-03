@@ -1,4 +1,4 @@
-import { type AiAgentReasoning } from '@lightdash/common';
+import { type AiAgentReasoning } from '@lightdash/ai';
 
 export type StreamingReasoning = { reasoningId: string; parts: string[] };
 

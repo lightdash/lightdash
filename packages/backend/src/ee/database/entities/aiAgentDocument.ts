@@ -1,4 +1,4 @@
-import { AiAgentDocumentStructuredSummary } from '@lightdash/common';
+import { AiAgentDocumentStructuredSummary } from '@lightdash/ai';
 import { Knex } from 'knex';
 
 export const AiAgentDocumentTableName = 'ai_agent_document';

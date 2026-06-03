@@ -1,4 +1,4 @@
-import type { AiAgentEvaluationRunResult } from '@lightdash/common';
+import type { AiAgentEvaluationRunResult } from '@lightdash/ai';
 import {
     Badge,
     Box,

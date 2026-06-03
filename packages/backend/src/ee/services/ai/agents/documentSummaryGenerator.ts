@@ -1,7 +1,5 @@
-import {
-    Explore,
-    type AiAgentDocumentStructuredSummary,
-} from '@lightdash/common';
+import { type AiAgentDocumentStructuredSummary } from '@lightdash/ai';
+import { Explore } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';

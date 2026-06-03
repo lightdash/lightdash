@@ -1,8 +1,10 @@
 import {
-    MetricType,
-    type AdditionalMetric,
     type CustomMetricBaseTransformed,
     type TableCalcsSchema,
+} from '@lightdash/ai';
+import {
+    MetricType,
+    type AdditionalMetric,
     type TableCalculation,
 } from '@lightdash/common';
 import { mockUsersOrdersExplore } from './validationExplore.mock';

@@ -1,4 +1,4 @@
-import type { ToolGetKnowledgeDocumentContentOutput } from '@lightdash/common';
+import type { ToolGetKnowledgeDocumentContentOutput } from '@lightdash/ai';
 import { rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { formatFileSize } from '../../../../../../../utils/formatters';

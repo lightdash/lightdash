@@ -1,4 +1,5 @@
-import { AgentToolOutput, Explore } from '@lightdash/common';
+import { AgentToolOutput } from '@lightdash/ai';
+import { Explore } from '@lightdash/common';
 import {
     smoothStream,
     stepCountIs,

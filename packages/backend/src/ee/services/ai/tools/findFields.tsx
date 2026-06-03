@@ -1,8 +1,8 @@
+import { findFieldsToolDefinition } from '@lightdash/ai';
 import {
     CatalogField,
     convertToAiHints,
     Explore,
-    findFieldsToolDefinition,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,

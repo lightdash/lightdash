@@ -1,4 +1,4 @@
-import { type ToolRunQueryArgs } from '@lightdash/common';
+import { type ToolRunQueryArgs } from '@lightdash/ai';
 import { Group, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';

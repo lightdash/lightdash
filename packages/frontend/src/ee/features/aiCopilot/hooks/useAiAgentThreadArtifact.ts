@@ -1,4 +1,4 @@
-import { type AiAgentThread } from '@lightdash/common';
+import { type AiAgentThread } from '@lightdash/ai';
 import { useEffect, useMemo, useRef } from 'react';
 import { clearArtifact, setArtifact } from '../store/aiArtifactSlice';
 import {

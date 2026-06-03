@@ -1,9 +1,11 @@
 import {
     getRunQueryChartConfig,
+    type ToolRunQueryArgsTransformed,
+} from '@lightdash/ai';
+import {
     type CreateSavedChartVersion,
     type ItemsMap,
     type MetricQuery,
-    type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
 
 type McpExploreConfigState = Pick<

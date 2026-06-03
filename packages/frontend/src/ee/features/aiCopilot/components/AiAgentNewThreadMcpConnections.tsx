@@ -1,4 +1,4 @@
-import type { AiMcpServer } from '@lightdash/common';
+import type { AiMcpServer } from '@lightdash/ai';
 import { Button, Group, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useId, useMemo, type FC } from 'react';

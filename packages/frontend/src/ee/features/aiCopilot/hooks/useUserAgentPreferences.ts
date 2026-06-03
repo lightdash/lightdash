@@ -1,11 +1,10 @@
 import {
     type ApiAiAgentExploreAccessSummaryResponse,
-    type ApiError,
     type ApiGetUserAgentPreferencesResponse,
-    type ApiSuccessEmpty,
     type ApiUpdateUserAgentPreferences,
     type ApiUpdateUserAgentPreferencesResponse,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
 import {
     useMutation,
     useQuery,

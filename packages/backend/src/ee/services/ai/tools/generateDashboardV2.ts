@@ -2,7 +2,7 @@ import {
     generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
     type ToolDashboardV2ArgsTransformed,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { tool } from 'ai';
 import type {
     CreateOrUpdateArtifactFn,

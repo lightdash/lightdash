@@ -2,11 +2,13 @@ import {
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewWritebackJobPayload,
-    AppGeneratePipelineJobPayload,
-    EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
     SlackPromptJobPayload,
+} from '@lightdash/ai';
+import {
+    AppGeneratePipelineJobPayload,
+    EE_SCHEDULER_TASKS,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 

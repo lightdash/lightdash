@@ -2,7 +2,7 @@ import {
     agentToolDefinitionsByName,
     isToolName,
     type ToolName,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';

@@ -1,7 +1,7 @@
 import {
     type AiAgentToolName,
     type AiMcpServerConnectionStatus,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import {
     createSlice,
     prepareAutoBatched,

@@ -1,5 +1,5 @@
+import { AI_DEFAULT_MAX_QUERY_LIMIT } from '@lightdash/ai';
 import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
     AllowedEmailDomainsRoles,

@@ -3,7 +3,7 @@ import {
     agentSuggestionsModelSchema,
     type AgentSuggestion,
     type AgentSuggestionsModelObject,
-} from '@lightdash/common';
+} from '@lightdash/ai';
 import { generateObject } from 'ai';
 import { GeneratorModelOptions } from '../models/types';
 

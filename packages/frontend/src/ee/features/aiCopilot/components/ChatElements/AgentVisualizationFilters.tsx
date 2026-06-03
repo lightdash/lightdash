@@ -1,3 +1,4 @@
+import { type AiFilterRule } from '@lightdash/ai';
 import {
     friendlyName,
     getFilterGroupItemsPropertyName,
@@ -7,7 +8,6 @@ import {
     isAndFilterGroup,
     isField,
     isOrFilterGroup,
-    type AiFilterRule,
     type FilterGroup,
     type Filters,
     type ItemsMap,

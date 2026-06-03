@@ -1,4 +1,3 @@
-import { QueryExecutionContext } from '@lightdash/common';
 import type {
     AiAgentConfigSnapshot,
     AiAgentEvidenceExcerpt,
@@ -24,7 +23,8 @@ import type {
     AiAgentRootCause,
     AiAgentTargetRef,
     AiAgentTurnSignal,
-} from '@lightdash/common';
+} from '@lightdash/ai';
+import { QueryExecutionContext } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import {
