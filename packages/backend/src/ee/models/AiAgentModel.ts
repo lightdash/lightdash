@@ -4203,6 +4203,19 @@ export class AiAgentModel {
             });
     }
 
+    async updateArtifactVersionSavedQuery(
+        artifactVersionUuid: string,
+        savedQueryUuid: string | null,
+    ): Promise<void> {
+        await this.database(AiArtifactVersionsTableName)
+            .update({
+                saved_query_uuid: savedQueryUuid,
+            } satisfies Partial<DbAiArtifactVersion>)
+            .where({
+                ai_artifact_version_uuid: artifactVersionUuid,
+            });
+    }
+
     async setArtifactVersionVerified(
         artifactVersionUuid: string,
         verified: boolean,

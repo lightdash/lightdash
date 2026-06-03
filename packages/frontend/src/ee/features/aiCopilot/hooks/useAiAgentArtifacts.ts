@@ -102,6 +102,85 @@ export const useAiAgentArtifact = ({
     });
 };
 
+const updateArtifactVersionSavedChart = async ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+    savedQueryUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    savedQueryUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedChart`,
+        method: `PATCH`,
+        body: JSON.stringify({ savedQueryUuid }),
+    });
+
+export const useUpdateArtifactVersionSavedChart = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        {
+            artifactUuid: string;
+            versionUuid: string;
+            savedQueryUuid: string | null;
+        }
+    >({
+        mutationFn: ({ artifactUuid, versionUuid, savedQueryUuid }) =>
+            updateArtifactVersionSavedChart({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedQueryUuid,
+            }),
+        onSuccess: (_, { artifactUuid, versionUuid }) => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                ],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    'version',
+                    versionUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            if (error?.statusCode === 403) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
+            } else {
+                showToastApiError({
+                    title: 'Failed to save chart',
+                    apiError: error,
+                });
+            }
+        },
+    });
+};
+
 const setArtifactVersionVerified = async ({
     projectUuid,
     agentUuid,

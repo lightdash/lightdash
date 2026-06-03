@@ -28,9 +28,11 @@ import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
-import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
+import {
+    useSetArtifactVersionVerified,
+    useUpdateArtifactVersionSavedChart,
+} from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
-import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 
 type Props = {
     projectUuid: string;
@@ -68,12 +70,8 @@ export const AiChartQuickOptions = ({
         chartConfig,
         pivotDimensions,
     } = useVisualizationContext();
-    const { mutate: savePromptQuery } = useSavePromptQuery(
-        projectUuid,
-        agentUuid!,
-        message.threadUuid,
-        message.uuid,
-    );
+    const { mutate: updateArtifactSavedChart } =
+        useUpdateArtifactVersionSavedChart(projectUuid, agentUuid!);
     const { mutate: setVerified } = useSetArtifactVersionVerified(
         projectUuid,
         agentUuid!,
@@ -87,13 +85,22 @@ export const AiChartQuickOptions = ({
 
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
+    // Saved-chart links are now stored per artifact; fall back to the legacy
+    // per-message link so charts saved before this change still resolve.
+    const savedQueryUuid =
+        artifactData?.savedQueryUuid ?? message.savedQueryUuid;
+
     const isDisabled = !metricQuery || !type || !visualizationConfig;
     const onSaveChart = (savedData: SavedChart) => {
-        if (!saveChartOptions.linkToMessage) {
+        if (!saveChartOptions.linkToMessage || !artifactData) {
             close();
             return;
         }
-        savePromptQuery({ savedQueryUuid: savedData.uuid });
+        updateArtifactSavedChart({
+            artifactUuid: artifactData.artifactUuid,
+            versionUuid: artifactData.versionUuid,
+            savedQueryUuid: savedData.uuid,
+        });
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -241,10 +248,10 @@ export const AiChartQuickOptions = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
-                    {message.savedQueryUuid ? (
+                    {savedQueryUuid ? (
                         <Menu.Item
                             component={Link}
-                            to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                            to={`/projects/${projectUuid}/saved/${savedQueryUuid}`}
                             target="_blank"
                             leftSection={
                                 <MantineIcon icon={IconTableShortcut} />

@@ -3851,18 +3851,16 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async updateArtifactVersion(
+    private async assertCanUpdateArtifactVersion(
         user: SessionUser,
         {
             agentUuid,
             artifactUuid,
             versionUuid,
-            savedDashboardUuid,
         }: {
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
-            savedDashboardUuid: string | null;
         },
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -3914,10 +3912,57 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to update this artifact',
             );
         }
+    }
+
+    async updateArtifactVersion(
+        user: SessionUser,
+        {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            savedDashboardUuid,
+        }: {
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            savedDashboardUuid: string | null;
+        },
+    ): Promise<void> {
+        await this.assertCanUpdateArtifactVersion(user, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        });
 
         await this.aiAgentModel.updateArtifactVersion(versionUuid, {
             savedDashboardUuid,
         });
+    }
+
+    async updateArtifactVersionSavedChart(
+        user: SessionUser,
+        {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            savedQueryUuid,
+        }: {
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            savedQueryUuid: string | null;
+        },
+    ): Promise<void> {
+        await this.assertCanUpdateArtifactVersion(user, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        });
+
+        await this.aiAgentModel.updateArtifactVersionSavedQuery(
+            versionUuid,
+            savedQueryUuid,
+        );
     }
 
     async setArtifactVersionVerified(
