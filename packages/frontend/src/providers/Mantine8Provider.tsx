@@ -4,6 +4,7 @@ import {
 } from '@mantine-8/core';
 import { useMantineColorScheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 
 type Props = {
@@ -37,6 +38,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
         <MantineProviderBase
             theme={mergedTheme}
             forceColorScheme={resolvedColorScheme}
+            cssVariablesResolver={cssVariablesResolver}
             cssVariablesSelector={cssVariablesSelector}
             getRootElement={getRootElement}
             classNamesPrefix="mantine-8"

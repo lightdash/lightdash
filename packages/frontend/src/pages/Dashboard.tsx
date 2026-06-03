@@ -11,7 +11,6 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
-import { dashboardCSSVars } from '../components/common/Dashboard/dashboard.constants';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -816,7 +815,7 @@ const Dashboard: FC = () => {
                 withFullHeight
                 fullPageScroll
             >
-                <div style={dashboardCSSVars as React.CSSProperties}>
+                <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
                     <DashboardTabs
