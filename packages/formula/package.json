@@ -23,6 +23,6 @@
     "oxlint-tsgolint": "0.18.1",
     "peggy": "4.2.0",
     "typescript": "6.0.3",
-    "vitest": "3.1.1"
+    "vitest": "4.1.6"
   }
 }
