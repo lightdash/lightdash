@@ -1,4 +1,4 @@
-import { useComputedColorScheme } from '@mantine-8/core';
+import { Paper, Text, useComputedColorScheme } from '@mantine-8/core';
 import {
     MultiFileDiff,
     Virtualizer,
@@ -31,12 +31,14 @@ type ProjectContextDiffPreviewProps = {
     fileName: string;
     before: string;
     after: string;
+    op: 'create' | 'update';
 };
 
 export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
     fileName,
     before,
     after,
+    op,
 }) => {
     const colorScheme = useComputedColorScheme('light');
 
@@ -58,19 +60,39 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
             poolOptions={POOL_OPTIONS}
             highlighterOptions={HIGHLIGHTER_OPTIONS}
         >
-            <Virtualizer style={viewportStyle}>
-                <MultiFileDiff
-                    oldFile={{ name: fileName, contents: before }}
-                    newFile={{ name: fileName, contents: after }}
-                    options={{
-                        diffStyle: 'split',
-                        theme:
-                            colorScheme === 'dark'
-                                ? 'pierre-dark'
-                                : 'pierre-light',
-                    }}
-                />
-            </Virtualizer>
+            <Paper
+                withBorder
+                shadow="sm"
+                radius="md"
+                style={{ overflow: 'hidden' }}
+            >
+                <Virtualizer style={viewportStyle}>
+                    <MultiFileDiff
+                        oldFile={{ name: fileName, contents: before }}
+                        newFile={{ name: fileName, contents: after }}
+                        // color-scheme must sit on the diff host itself to override
+                        // its `:host { color-scheme: light dark }` — otherwise the
+                        // backgrounds follow the OS, not the app theme.
+                        style={{ colorScheme }}
+                        // Surface the create/update intent in Pierre's own file
+                        // header so the modal doesn't need a separate description.
+                        renderHeaderMetadata={() => (
+                            <Text fz="xs" c="ldGray.6">
+                                {op === 'update'
+                                    ? 'Updates entry'
+                                    : 'Adds entry'}
+                            </Text>
+                        )}
+                        options={{
+                            diffStyle: 'split',
+                            theme:
+                                colorScheme === 'dark'
+                                    ? 'pierre-dark'
+                                    : 'pierre-light',
+                        }}
+                    />
+                </Virtualizer>
+            </Paper>
         </WorkerPoolContextProvider>
     );
 };

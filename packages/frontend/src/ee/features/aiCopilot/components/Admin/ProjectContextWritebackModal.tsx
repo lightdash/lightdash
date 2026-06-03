@@ -131,20 +131,6 @@ export const ProjectContextWritebackModal: FC<
                 </Stack>
             ) : (
                 <Stack gap="sm" mih={BODY_MIN_HEIGHT}>
-                    {previewData?.available === true && (
-                        <Text fz="sm" c="ldGray.6">
-                            This opens a pull request{' '}
-                            {previewData.op === 'update'
-                                ? 'updating'
-                                : 'adding'}{' '}
-                            an entry in{' '}
-                            <Text span fw={600} fz="inherit" c="ldGray.8">
-                                {previewData.fileName}
-                            </Text>
-                            .
-                        </Text>
-                    )}
-
                     {preview.isLoading && (
                         <Stack
                             flex={1}
@@ -172,6 +158,7 @@ export const ProjectContextWritebackModal: FC<
                             fileName={previewData.fileName}
                             before={previewData.before}
                             after={previewData.after}
+                            op={previewData.op}
                         />
                     )}
 
