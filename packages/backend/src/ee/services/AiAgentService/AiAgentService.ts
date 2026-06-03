@@ -16,6 +16,7 @@ import {
     AiAgentThreadSummary,
     AiAgentUser,
     AiAgentUserPreferences,
+    AiAgentVizConfig,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
@@ -46,6 +47,7 @@ import {
     CatalogType,
     CommercialFeatureFlags,
     ContentType,
+    derivePivotConfigurationFromChart,
     Explore,
     ExploreCompiler,
     FeatureFlags,
@@ -53,9 +55,12 @@ import {
     followUpToolsText,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getGroupByDimensions,
     getItemId,
+    getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
+    getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     isDashboardChartTileType,
@@ -1290,6 +1295,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
+        vizConfig: AiAgentVizConfig['config'],
         customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
@@ -1314,20 +1320,40 @@ export class AiAgentService extends BaseService {
             customMetrics ?? metricQuery.additionalMetrics,
             explore,
         );
+        const metricQueryWithCustomMetrics = {
+            ...metricQuery,
+            metrics: expandMetricsWithPopAdditionalMetrics(
+                metricQuery.metrics,
+                populatedCustomMetrics,
+            ),
+            additionalMetrics: populatedCustomMetrics,
+        };
+        const fields = getItemMap(explore);
+        const webAiChartConfig = getWebAiChartConfig({
+            vizConfig,
+            metricQuery: metricQueryWithCustomMetrics,
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            fieldsMap: fields,
+        });
+        const groupByDimensions = getGroupByDimensions(webAiChartConfig);
+        const pivotConfiguration = groupByDimensions?.length
+            ? derivePivotConfigurationFromChart(
+                  {
+                      chartConfig: webAiChartConfig.echartsConfig,
+                      pivotConfig: { columns: groupByDimensions },
+                  },
+                  metricQueryWithCustomMetrics,
+                  fields,
+              )
+            : undefined;
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
                 account: fromSession(user),
                 projectUuid,
-                metricQuery: {
-                    ...metricQuery,
-                    metrics: expandMetricsWithPopAdditionalMetrics(
-                        metricQuery.metrics,
-                        populatedCustomMetrics,
-                    ),
-                    additionalMetrics: populatedCustomMetrics,
-                },
+                metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
+                pivotConfiguration,
             },
         );
 
@@ -3494,6 +3520,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            artifact.chartConfig,
             parsedVizConfig.vizTool.customMetrics,
         );
 
@@ -3629,6 +3656,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
+            chartConfig,
             parsedVizConfig.vizTool.customMetrics,
         );
 
