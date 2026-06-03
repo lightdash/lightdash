@@ -34,6 +34,7 @@ export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
 export * from './filterExploreByTags';
 export * from './followUpTools';
+export * from './projectContext';
 export * from './requestTypes';
 export * from './schemas';
 export * from './schemas/agentReadiness';

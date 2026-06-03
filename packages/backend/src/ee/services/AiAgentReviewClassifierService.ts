@@ -351,6 +351,14 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? await this.captureAgentConfigSnapshot(args.candidates[0])
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
+        const projectContextFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiProjectContext,
+            user: {
+                userUuid: args.requestedByUserUuid ?? 'system',
+                organizationUuid: args.organizationUuid,
+                organizationName: args.organizationName ?? '',
+            },
+        });
 
         const run = await this.aiAgentReviewClassifierModel.createRun({
             organizationUuid: args.organizationUuid,
@@ -395,6 +403,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     classifiedTurn: await this.classifyTurnWithJudge(
                         candidate,
                         runAgentConfig,
+                        { projectContextEnabled: projectContextFlag.enabled },
                     ),
                 })),
             );
@@ -489,6 +498,7 @@ export class AiAgentReviewClassifierService extends BaseService {
     private async classifyTurnWithJudge(
         candidate: AiAgentReviewClassifierTurnCandidate,
         agentConfig: AiAgentReviewAgentConfigEvidence,
+        args: { projectContextEnabled: boolean },
     ): Promise<AiAgentReviewClassifierClassifiedTurn> {
         const reviewEvidence = await this.buildReviewEvidence(
             candidate,
@@ -604,6 +614,12 @@ export class AiAgentReviewClassifierService extends BaseService {
                 )?.capabilityKey ?? null,
         });
 
+        const projectContextEntry =
+            args.projectContextEnabled &&
+            judgeOutput.primaryRootCause === 'project_context'
+                ? judgeOutput.projectContextEntry
+                : null;
+
         return {
             signal,
             finding: {
@@ -614,6 +630,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 targetRefs,
                 evidenceExcerpts: judgeOutput.evidenceExcerpts,
                 recommendation,
+                projectContextEntry,
                 reviewItem: {
                     fingerprint,
                     title: judgeOutput.reviewItem.title,
@@ -955,7 +972,15 @@ For targetRefs, return compact refs:
 - setting: agent config setting for agent_config targets, otherwise null.
 - key: runtime/product capability key when useful, otherwise null.
 reviewItem.title should be concise and admin-facing.
-reviewItem.description should summarize why this grouping exists.`,
+reviewItem.description should summarize why this grouping exists.
+
+Set projectContextEntry ONLY when primaryRootCause=project_context and a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
+- op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".
+- id: the existing entry id when op="update", otherwise null.
+- kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
+- content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
+- terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
+- objects: the semantic objects this fact concerns, from targetRefs — explore names and/or field ids in the \`table_field\` form shown as fieldId in field results (e.g. "payments_total_amount"); [] when purely prompt-driven.`,
                 },
                 {
                     role: 'user',

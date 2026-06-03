@@ -58,6 +58,7 @@ const baseItem = (
             targetRefs: [],
         },
         createdAt: new Date('2026-05-26T00:00:00.000Z'),
+        projectContextEntry: null,
     },
     ...overrides,
 });

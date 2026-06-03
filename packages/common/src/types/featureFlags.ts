@@ -253,6 +253,14 @@ export enum FeatureFlags {
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
+
+    /**
+     * Enable the (in-progress) project_context living document: ingest
+     * lightdash.project_context.yml on compile and inject the selected
+     * entries into the AI agent system prompt. Shared across the
+     * project_context slices so the whole feature ships atomically.
+     */
+    AiProjectContext = 'ai-project-context',
 }
 
 export type FeatureFlag = {

@@ -1,4 +1,5 @@
 import {
+    aiAgentJudgeProjectContextEntrySchema,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
@@ -83,6 +84,56 @@ describe('getAiAgentReviewItemFingerprint', () => {
                 primaryRootCause: 'semantic_layer',
             }),
         ).toThrow('projectUuid is required for semantic_layer fingerprints');
+    });
+});
+
+describe('aiAgentJudgeProjectContextEntrySchema', () => {
+    test('accepts a create entry', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: '"HR" = the high-risk diabetes cohort.',
+            terms: ['HR'],
+            objects: [],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    test('accepts an update entry referencing an existing id', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'update',
+            id: 'hr-abbreviation',
+            kind: 'definition',
+            content: 'updated definition',
+            terms: ['HR'],
+            objects: ['patient_health_scores'],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    test('rejects an update entry without an id', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'update',
+            id: null,
+            kind: 'definition',
+            content: 'updated definition',
+            terms: ['HR'],
+            objects: [],
+        });
+        expect(result.success).toBe(false);
+    });
+
+    test('rejects an unknown kind', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'create',
+            id: null,
+            kind: 'nonsense',
+            content: 'x',
+            terms: [],
+            objects: [],
+        });
+        expect(result.success).toBe(false);
     });
 });
 
