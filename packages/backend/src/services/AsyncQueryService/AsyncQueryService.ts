@@ -39,6 +39,7 @@ import {
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
+    getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
@@ -3968,6 +3969,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             query: metricQuery,
             parameters: combinedParameters,
+            dateZoom,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4093,6 +4095,13 @@ export class AsyncQueryService extends ProjectService {
         const sourceParameters: ParametersValuesMap | undefined =
             source.requestParameters?.parameters;
 
+        // The totals re-query must reproduce the source's grain. Date Zoom is a
+        // runtime override not baked into the stored metricQuery, so recover it
+        // from the persisted request echo.
+        const sourceDateZoom = getDateZoomFromRequestParameters(
+            source.requestParameters,
+        );
+
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             {
                 account,
@@ -4101,6 +4110,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 pivotConfiguration,
                 parameters: sourceParameters,
+                dateZoom: sourceDateZoom,
                 invalidateCache,
             },
             organizationUuid,
