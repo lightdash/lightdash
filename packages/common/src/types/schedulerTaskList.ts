@@ -8,6 +8,7 @@ import {
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
+    type PollWritebackPreviewJobPayload,
     type SlackPromptJobPayload,
 } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
@@ -68,6 +69,7 @@ export const EE_SCHEDULER_TASKS = {
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
+    POLL_WRITEBACK_PREVIEW: 'pollWritebackPreview',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -155,6 +157,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW]: PollWritebackPreviewJobPayload;
 }
 
 export interface EETaskPayloadMap {
@@ -166,6 +169,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW]: PollWritebackPreviewJobPayload;
 }
 
 export type SchedulerTaskName =
