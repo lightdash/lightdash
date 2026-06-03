@@ -1833,7 +1833,7 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         mcpServerId: string;
         // Distinguishes the one-click flow (auto-config from the org's GitHub
         // integration) from manually creating a GitHub MCP server.
-        method: 'one_click';
+        method: 'one_click' | 'one_click_reconnect';
     };
 };
 

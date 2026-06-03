@@ -189,6 +189,7 @@ import {
     type AiAgentMcpServerToolPermissionSetting,
     type AiAgentMcpServerToolPermissionSettingUpdate,
     type AiMcpCredential,
+    type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
@@ -2667,18 +2668,6 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // Idempotency: if a GitHub MCP server already exists, return it.
-        const existing = await this.aiAgentModel.listMcpServers(
-            projectUuid,
-            user.userUuid,
-        );
-        const alreadyConnected = existing.find(
-            (server) => server.url === GITHUB_MCP_SERVER_URL,
-        );
-        if (alreadyConnected) {
-            return alreadyConnected;
-        }
-
         const installationId =
             await this.githubAppInstallationsModel.findInstallationId(
                 organizationUuid,
@@ -2690,6 +2679,73 @@ export class AiAgentService extends BaseService {
         }
 
         const bearerToken = await getInstallationToken(installationId);
+
+        // Reconnect path: if a GitHub MCP server already exists, re-mint and
+        // upsert a fresh token rather than early-returning. The previous
+        // early-return left stuck (expired-token) servers unrecoverable.
+        const existing = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            user.userUuid,
+        );
+        const alreadyConnected = existing.find(
+            (server) => server.url === GITHUB_MCP_SERVER_URL,
+        );
+        if (alreadyConnected) {
+            try {
+                await this.aiAgentMcpRuntimeClient.testConnection({
+                    name: GITHUB_MCP_SERVER_NAME,
+                    url: GITHUB_MCP_SERVER_URL,
+                    authType: 'bearer',
+                    bearerToken,
+                    onUncaughtError: (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Uncaught MCP client error while reconnecting`,
+                            error,
+                        );
+                    },
+                });
+            } catch (error) {
+                throw new ParameterError(
+                    `We couldn't reconnect to the GitHub MCP server. Details: ${
+                        error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+            }
+
+            await this.aiAgentModel.upsertCredential({
+                serverUuid: alreadyConnected.uuid,
+                scope: 'shared',
+                credentials: { type: 'bearer', bearerToken },
+                actorUserUuid: user.userUuid,
+            });
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: alreadyConnected.uuid,
+                connectionStatus: 'connected',
+                error: null,
+                actorUserUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'ai_agent.github_mcp_connected',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    mcpServerId: alreadyConnected.uuid,
+                    method: 'one_click_reconnect',
+                },
+            });
+
+            const refreshed = await this.aiAgentModel.listMcpServers(
+                projectUuid,
+                user.userUuid,
+            );
+            return (
+                refreshed.find(
+                    (server) => server.url === GITHUB_MCP_SERVER_URL,
+                ) ?? alreadyConnected
+            );
+        }
 
         // Delegates to createMcpServer, which additionally asserts the caller
         // can manage MCP servers, validates the URL, tests the connection and
@@ -2714,6 +2770,45 @@ export class AiAgentService extends BaseService {
         });
 
         return server;
+    }
+
+    /**
+     * The GitHub MCP server is authed with a GitHub App installation token,
+     * which expires after ~1h. Rather than rely on the (stale) stored token,
+     * mint a fresh one per run — mirroring how writeback mints per run — so the
+     * connection can never expire mid-session.
+     */
+    private async refreshGithubMcpCredentials(
+        organizationUuid: string | undefined,
+        servers: AiMcpServerWithSensitiveData[],
+    ): Promise<AiMcpServerWithSensitiveData[]> {
+        const hasGithubMcp = servers.some(
+            (server) =>
+                server.url === GITHUB_MCP_SERVER_URL &&
+                server.authType === 'bearer',
+        );
+        if (!hasGithubMcp || !organizationUuid) {
+            return servers;
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            return servers;
+        }
+
+        const bearerToken = await getInstallationToken(installationId);
+
+        return servers.map((server) =>
+            server.url === GITHUB_MCP_SERVER_URL && server.authType === 'bearer'
+                ? {
+                      ...server,
+                      resolvedCredential: { type: 'bearer', bearerToken },
+                  }
+                : server,
+        );
     }
 
     public async startMcpOAuthConnection(
@@ -6346,9 +6441,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid: prompt.projectUuid,
             });
         const agentMcpServersWithSensitiveData =
-            await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
-                agentSettings.uuid,
-                user.userUuid,
+            await this.refreshGithubMcpCredentials(
+                user.organizationUuid,
+                await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                    agentSettings.uuid,
+                    user.userUuid,
+                ),
             );
         const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
             projectUuid: prompt.projectUuid,
