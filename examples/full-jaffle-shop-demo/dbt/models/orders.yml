@@ -145,6 +145,15 @@ models:
                 type: count_distinct
                 spotlight:
                   categories: ["revenue_growth"]
+                  # Curate the default Metrics Explorer view: open already
+                  # segmented by status and filtered to completed orders.
+                  segment_by:
+                    - status
+                  filter_by:
+                    - status
+                  default_segment: status
+                  default_filter:
+                    status: completed
               completed_order_count:
                 label: Completed order count
                 description: Total number of completed orders
