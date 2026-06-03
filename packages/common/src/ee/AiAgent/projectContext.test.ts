@@ -340,13 +340,12 @@ entries:
             objects: [],
         });
         expect(op).toBe('create');
-        // The human comment, the original quoting and the entry content all
-        // survive — this is the whole point: a minimal, reviewable diff rather
-        // than a full-file rewrite. (Flow seqs are re-spaced, e.g. [HR] →
-        // [ HR ], which is the one cosmetic cost vs js-yaml nuking everything.)
+        // The human comment, the original quoting, the flow style and the entry
+        // content all survive byte-for-byte — this is the whole point: a minimal,
+        // reviewable diff (just the added entry) rather than a full-file rewrite.
         expect(content).toContain('# Curated by the data team');
         expect(content).toContain(`content: '"HR" = high-risk cohort.'`);
-        expect(content).toContain('id: hr');
+        expect(content).toContain('terms: [HR]');
         expect(content).toContain('id: mrr');
         expect(loadProjectContextFile(content)).toHaveLength(2);
     });

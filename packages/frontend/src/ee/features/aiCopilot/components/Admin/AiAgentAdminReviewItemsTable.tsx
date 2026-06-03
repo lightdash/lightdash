@@ -74,6 +74,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
+import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import { SearchFilter } from './SearchFilter';
 
 const ALL_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
@@ -492,6 +493,7 @@ const ReviewItemActionsCell = ({
 }) => {
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const propInFlight =
         reviewItem.prWritebackStatus === 'queued' ||
@@ -513,6 +515,9 @@ const ReviewItemActionsCell = ({
         !current.linkedPrUrl &&
         !isTerminal &&
         !isWritebackInFlight;
+    // project_context findings get a deterministic diff preview modal before the
+    // PR is opened; other strategies (sandbox) open the PR directly.
+    const previewsDiff = current.primaryRootCause === 'project_context';
 
     if (isWritebackInFlight) {
         const phase = current.prWritebackMessage ?? 'Opening pull request…';
@@ -562,7 +567,11 @@ const ReviewItemActionsCell = ({
                             }
                             onClick={(event) => {
                                 event.stopPropagation();
-                                createWriteback.mutate(current.fingerprint);
+                                if (previewsDiff) {
+                                    setPreviewOpen(true);
+                                } else {
+                                    createWriteback.mutate(current.fingerprint);
+                                }
                             }}
                         >
                             Create PR
@@ -616,6 +625,14 @@ const ReviewItemActionsCell = ({
                         {getSuggestedNextStep(current)}
                     </Text>
                 </Group>
+            )}
+
+            {previewsDiff && (
+                <ProjectContextWritebackModal
+                    fingerprint={current.fingerprint}
+                    opened={previewOpen}
+                    onClose={() => setPreviewOpen(false)}
+                />
             )}
         </Stack>
     );
