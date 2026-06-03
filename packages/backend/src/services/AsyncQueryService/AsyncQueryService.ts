@@ -3334,7 +3334,9 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         cacheKey,
                         account,
-                        args.invalidateCache,
+                        requestParameters.invalidateCache ??
+                            args.invalidateCache ??
+                            false,
                     );
                     const cacheCheckMs = Date.now() - cacheCheckStart;
 
