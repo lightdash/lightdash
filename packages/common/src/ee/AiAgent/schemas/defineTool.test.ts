@@ -99,6 +99,44 @@ describe('defineTool', () => {
         expect(tool.for('mcp').description).toBe('Call sample_tool');
     });
 
+    it('resolves descriptions with validated runtime vars', () => {
+        const descriptionVarsSchema = z.object({ maxLimit: z.number() });
+        const tool = defineTool({
+            name: 'sampleTool',
+            title: 'Sample tool',
+            descriptionVarsSchema,
+            description: (name, { runtime, vars }) =>
+                `${runtime}:${name}:${(vars as { maxLimit: number }).maxLimit}`,
+            availability: ['agent', 'mcp'],
+            inputSchema: z.object({}),
+            mcp: {
+                name: 'sample_tool',
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
+            },
+        });
+
+        expect(
+            tool.for('agent', { descriptionVars: { maxLimit: 500 } })
+                .description,
+        ).toBe('agent:sampleTool:500');
+        expect(
+            tool.for('mcp', { descriptionVars: { maxLimit: 1000 } })
+                .description,
+        ).toBe('mcp:sample_tool:1000');
+        expect(() => tool.for('agent')).toThrow(
+            'Tool "sampleTool" description requires descriptionVars',
+        );
+        expect(() =>
+            tool.for('agent', {
+                descriptionVars: { maxLimit: 'nope' },
+            }),
+        ).toThrow();
+    });
+
     it('rejects inconsistent availability config', () => {
         expect(() =>
             defineTool({
@@ -123,7 +161,16 @@ describe('defineTool', () => {
 
     it('keeps MCP structured output schemas limited to current structured tools', () => {
         const structuredMcpToolNames = mcpToolDefinitions
-            .map((tool) => tool.for('mcp'))
+            .map((tool) =>
+                tool.name === 'runSql'
+                    ? tool.for('mcp', {
+                          descriptionVars: {
+                              defaultLimit: 500,
+                              maxLimit: 5000,
+                          },
+                      })
+                    : tool.for('mcp'),
+            )
             .filter((tool) => 'outputSchema' in tool)
             .map((tool) => tool.name)
             .sort();

@@ -180,10 +180,10 @@ import {
 } from './toolRunSavedChartArgs';
 import {
     buildRunSqlDescription,
-    DEFAULT_RUN_SQL_LIMIT,
-    DEFAULT_RUN_SQL_MAX_LIMIT,
+    runSqlDescriptionVarsSchema,
     toolRunSqlArgsSchema,
     toolRunSqlOutputSchema,
+    type RunSqlDescriptionVars,
 } from './toolRunSqlArgs';
 import {
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
@@ -312,10 +312,12 @@ export const runQueryToolDefinition = defineTool({
 export const runSqlToolDefinition = defineTool({
     name: 'runSql',
     title: 'Run SQL',
-    description: buildRunSqlDescription(
-        DEFAULT_RUN_SQL_LIMIT,
-        DEFAULT_RUN_SQL_MAX_LIMIT,
-    ),
+    description: (name, { vars }) =>
+        buildRunSqlDescription({
+            toolName: name,
+            ...(vars as RunSqlDescriptionVars),
+        }),
+    descriptionVarsSchema: runSqlDescriptionVarsSchema,
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     agent: { outputSchema: toolRunSqlOutputSchema },
@@ -901,10 +903,10 @@ export const agentToolNames = agentToolDefinitions.map((tool) => tool.name) as [
     ...string[],
 ];
 
-export const mcpToolNames = mcpToolDefinitions.map(
-    (tool) => tool.for('mcp').name,
+export const mcpToolNames = mcpToolDefinitions.map((tool) =>
+    tool.runtimeName('mcp'),
 ) as [string, ...string[]];
 
 export const mcpToolDefinitionsByName = Object.fromEntries(
-    mcpToolDefinitions.map((tool) => [tool.for('mcp').name, tool]),
+    mcpToolDefinitions.map((tool) => [tool.runtimeName('mcp'), tool]),
 ) as Record<string, McpToolDefinition>;

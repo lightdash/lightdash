@@ -6,7 +6,19 @@ import {
 
 export type ToolRuntime = 'agent' | 'mcp';
 
-export type ToolDescription = string | ((runtimeName: string) => string);
+export type ToolDescriptionContext = {
+    runtime: ToolRuntime;
+    canonicalName: string;
+    vars: unknown;
+};
+
+export type ToolDescription =
+    | string
+    | ((runtimeName: string, context: ToolDescriptionContext) => string);
+
+export type ToolRuntimeOptions = {
+    descriptionVars?: unknown;
+};
 
 export type McpToolAnnotations = {
     readOnlyHint: boolean;
@@ -141,8 +153,15 @@ export type ToolDefinitionWithoutMcpOutput<
     readonly inputSchema: TInput;
     readonly inputSchemaTransformed: TInputTransformed;
     readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
-    for(runtime: 'mcp'): McpToolViewWithoutOutput<TName, TInput>;
+    runtimeName(runtime: ToolRuntime): string;
+    for(
+        runtime: 'agent',
+        options?: ToolRuntimeOptions,
+    ): AgentToolView<TName, TInput, TAgentOutputSchema>;
+    for(
+        runtime: 'mcp',
+        options?: ToolRuntimeOptions,
+    ): McpToolViewWithoutOutput<TName, TInput>;
 };
 
 export type ToolDefinitionWithMcpOutput<
@@ -158,8 +177,15 @@ export type ToolDefinitionWithMcpOutput<
     readonly inputSchema: TInput;
     readonly inputSchemaTransformed: TInputTransformed;
     readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
-    for(runtime: 'mcp'): McpToolViewWithOutput<TName, TInput, TOutputSchema>;
+    runtimeName(runtime: ToolRuntime): string;
+    for(
+        runtime: 'agent',
+        options?: ToolRuntimeOptions,
+    ): AgentToolView<TName, TInput, TAgentOutputSchema>;
+    for(
+        runtime: 'mcp',
+        options?: ToolRuntimeOptions,
+    ): McpToolViewWithOutput<TName, TInput, TOutputSchema>;
 };
 
 export type ToolDefinition<
@@ -206,6 +232,7 @@ type ToolDefinitionArgsBase<
     name: TName;
     title: string;
     description: ToolDescription;
+    descriptionVarsSchema?: z.ZodType<unknown>;
     availability: readonly ToolRuntime[];
     inputSchema: TInput;
     inputSchemaTransformed?: TInputTransformed;
@@ -347,6 +374,7 @@ export function defineTool<
             name: def.name,
             title: def.title,
             description: def.description,
+            descriptionVarsSchema: def.descriptionVarsSchema ?? null,
             availability: def.availability,
             inputSchema: def.inputSchema,
             inputSchemaTransformed,
@@ -359,6 +387,7 @@ export function defineTool<
         name: def.name,
         title: def.title,
         description: def.description,
+        descriptionVarsSchema: def.descriptionVarsSchema ?? null,
         availability: def.availability,
         inputSchema: def.inputSchema,
         inputSchemaTransformed,

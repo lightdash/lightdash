@@ -55,7 +55,7 @@ const agentToolSnapshot = (name: string, toolDefinition: SnapshotTool) => ({
 });
 
 const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
-    (toolDefinition) => toolDefinition.for('agent').name,
+    (toolDefinition) => toolDefinition.runtimeName('agent'),
 );
 
 const makeAgentTools = () => {

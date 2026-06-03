@@ -1,3 +1,4 @@
+import { type z } from 'zod';
 import {
     type AgentToModelOutput,
     type McpErrorResult,
@@ -7,13 +8,40 @@ import {
     type StandardAgentToolOutput,
     type ToolDescription,
     type ToolRuntime,
+    type ToolRuntimeOptions,
 } from './defineTool';
 
-export const resolveDescription = (
-    description: ToolDescription,
-    runtimeName: string,
-): string =>
-    typeof description === 'function' ? description(runtimeName) : description;
+export const resolveDescription = ({
+    canonicalName,
+    description,
+    descriptionVarsSchema,
+    options,
+    runtime,
+    runtimeName,
+}: {
+    canonicalName: string;
+    description: ToolDescription;
+    descriptionVarsSchema: z.ZodType<unknown> | null;
+    options: ToolRuntimeOptions | undefined;
+    runtime: ToolRuntime;
+    runtimeName: string;
+}): string => {
+    const vars = (() => {
+        if (descriptionVarsSchema === null) {
+            return undefined;
+        }
+        if (options?.descriptionVars === undefined) {
+            throw new Error(
+                `Tool "${canonicalName}" description requires descriptionVars`,
+            );
+        }
+        return descriptionVarsSchema.parse(options.descriptionVars);
+    })();
+
+    return typeof description === 'function'
+        ? description(runtimeName, { runtime, canonicalName, vars })
+        : description;
+};
 
 export const assertAvailable = (
     name: string,
