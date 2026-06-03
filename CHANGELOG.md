@@ -1,3 +1,10 @@
+# [0.3087.0](https://github.com/lightdash/lightdash/compare/0.3086.0...0.3087.0) (2026-06-03)
+
+
+### Features
+
+* **pull-requests:** read preview link from GitLab merge requests [PROD-8113] ([#23859](https://github.com/lightdash/lightdash/issues/23859)) ([72a6f95](https://github.com/lightdash/lightdash/commit/72a6f95f11f9206d12214d59730a7d60bce66984))
+
 # [0.3086.0](https://github.com/lightdash/lightdash/compare/0.3085.1...0.3086.0) (2026-06-03)
 
 
