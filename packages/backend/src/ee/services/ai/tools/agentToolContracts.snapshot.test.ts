@@ -21,7 +21,6 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
-import { getProposeChange } from './proposeChange';
 import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
 import { getRunContentQuery } from './runContentQuery';
@@ -139,10 +138,6 @@ const makeAgentTools = () => {
             listWarehouseTables: noop,
         }),
         loadSkill: getLoadSkill({ loadSkill: noop }),
-        proposeChange: getProposeChange({
-            createChange: noop,
-            getExploreCompiler: noop,
-        }),
         proposeWriteback: getProposeWriteback({
             proposeWriteback: noop,
         }),
@@ -162,7 +157,6 @@ const makeAgentTools = () => {
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
-            enableSelfImprovement: true,
             getPrompt: noop,
             maxLimit: 500,
             runAsyncQuery: noop,

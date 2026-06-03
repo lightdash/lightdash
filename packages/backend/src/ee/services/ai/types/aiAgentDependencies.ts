@@ -12,12 +12,10 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
-    CreateChangeParams,
     DashboardAsCode,
     DashboardSearchResult,
     DbtProjectType,
     Explore,
-    ExploreCompiler,
     Filters,
     ItemsMap,
     KnexPaginateArgs,
@@ -338,15 +336,6 @@ export type CheckUserPermissionFn = (args: {
     organizationId: string;
     permission: string;
 }) => Promise<boolean>;
-
-export type CreateChangeFn = (
-    params: Pick<
-        CreateChangeParams,
-        'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
-    >,
-) => Promise<string>;
-
-export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
 
 export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
     rows: Record<string, AnyType>[];

@@ -35,7 +35,6 @@ Tool guide (PROMPT chips):
 - \`runSql\`: rare; only when present in <enabledTools> and the question can't be expressed in the semantic layer.
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
-- \`proposeChange\`: implicit metric/dimension definition change.
 
 If the project has zero explores AND no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
 
@@ -66,8 +65,7 @@ Tool guide:
 - \`generateVisualization\`: drill-ins, breakdowns, refinements of the data
 - \`runSql\`: rare; only when present in <enabledTools> and semantic layer can't express what's being asked
 - \`generateDashboard\`: "build me an overview" or multi-chart
-- \`findContent\`: "is there already a saved chart for this", or to surface a verified chart
-- \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change`;
+- \`findContent\`: "is there already a saved chart for this", or to surface a verified chart`;
 
 export const SUGGESTION_FALLBACK_CHIPS: AgentSuggestion[] = [
     {

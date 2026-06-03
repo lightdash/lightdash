@@ -30,7 +30,6 @@ import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
-import { getProposeChange } from '../tools/proposeChange';
 import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
 import { getRunContentQuery } from '../tools/runContentQuery';
@@ -212,7 +211,6 @@ const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
-        enableSelfImprovement: args.enableSelfImprovement,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -269,11 +267,6 @@ const getAgentTools = (
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
-    });
-
-    const proposeChange = getProposeChange({
-        createChange: dependencies.createChange,
-        getExploreCompiler: dependencies.getExploreCompiler,
     });
 
     const proposeWriteback = args.enableAiWriteback
@@ -354,9 +347,6 @@ const getAgentTools = (
         generateHashes,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(args.enableSelfImprovement && args.canManageAgent
-            ? { proposeChange }
-            : {}),
         ...(proposeWriteback ? { proposeWriteback } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
@@ -396,7 +386,6 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             knowledgeDocuments: args.knowledgeDocuments,
             hasProjectContext,
             enableDataAccess: args.enableDataAccess,
-            enableSelfImprovement: args.enableSelfImprovement,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             enableContentTools:

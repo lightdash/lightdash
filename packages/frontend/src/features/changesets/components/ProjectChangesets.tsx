@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Alert,
+    Anchor,
     Badge,
     Box,
     Button,
@@ -26,6 +27,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMemo, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
     useContentTable,
@@ -456,74 +458,99 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         },
     });
 
-    // Handle loading state
-    if (isLoading) {
-        return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Loader size="lg" />
-                <Text mt="md" c="ldGray.6">
-                    Loading changesets...
-                </Text>
-            </Box>
-        );
-    }
-
-    // Handle error state
-    if (error) {
-        return (
-            <Alert
-                icon={<MantineIcon icon={IconAlertCircle} />}
-                title="Error loading changesets"
-                color="red"
-                variant="light"
+    const deprecationNotice = (
+        <Callout variant="warning" title="Changesets are deprecated">
+            Self-improvement changesets are no longer created by AI agents. Use{' '}
+            <Anchor
+                href="https://docs.lightdash.com/guides/ai-agents/ai-writeback"
+                target="_blank"
             >
-                {'Failed to load changesets. Please try again.'}
-            </Alert>
-        );
-    }
+                AI writeback
+            </Anchor>{' '}
+            instead to propose changes to your semantic layer as pull requests.
+            Existing changesets below remain available to review and revert.
+        </Callout>
+    );
 
-    // Handle empty state
-    if (!changesets || changesets.changes.length === 0) {
-        return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="ldGray.6">No active changesets found.</Text>
-            </Box>
-        );
-    }
+    const renderContent = () => {
+        // Handle loading state
+        if (isLoading) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Loader size="lg" />
+                    <Text mt="md" c="ldGray.6">
+                        Loading changesets...
+                    </Text>
+                </Box>
+            );
+        }
 
-    // Handle no changes in changesets
-    if (allChanges.length === 0) {
+        // Handle error state
+        if (error) {
+            return (
+                <Alert
+                    icon={<MantineIcon icon={IconAlertCircle} />}
+                    title="Error loading changesets"
+                    color="red"
+                    variant="light"
+                >
+                    {'Failed to load changesets. Please try again.'}
+                </Alert>
+            );
+        }
+
+        // Handle empty state
+        if (!changesets || changesets.changes.length === 0) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Text c="ldGray.6">No active changesets found.</Text>
+                </Box>
+            );
+        }
+
+        // Handle no changes in changesets
+        if (allChanges.length === 0) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Text c="ldGray.6">
+                        No changes found in active changesets.
+                    </Text>
+                </Box>
+            );
+        }
+
         return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="ldGray.6">No changes found in active changesets.</Text>
-            </Box>
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start">
+                    <Stack gap="xs">
+                        <Title order={5}>Changesets</Title>
+                        <Text c="ldGray.6" fz="sm">
+                            Track changes to your project over time. Changesets
+                            are updates to your Lightdash Semantic Layer.
+                        </Text>
+                    </Stack>
+                    {allChanges.length > 0 && (
+                        <Button
+                            variant="default"
+                            radius="md"
+                            size="compact-sm"
+                            onClick={handleRevertAllChanges}
+                            loading={revertAllChangesMutation.isLoading}
+                            leftSection={<MantineIcon icon={IconArrowBackUp} />}
+                        >
+                            Revert All
+                        </Button>
+                    )}
+                </Group>
+                <ContentTable table={table} />
+            </Stack>
         );
-    }
+    };
 
     return (
-        <Stack gap="sm">
-            <Group justify="space-between" align="flex-start">
-                <Stack gap="xs">
-                    <Title order={5}>Changesets</Title>
-                    <Text c="ldGray.6" fz="sm">
-                        Track changes to your project over time. Changesets are
-                        updates to your Lightdash Semantic Layer.
-                    </Text>
-                </Stack>
-                {allChanges.length > 0 && (
-                    <Button
-                        variant="default"
-                        radius="md"
-                        size="compact-sm"
-                        onClick={handleRevertAllChanges}
-                        loading={revertAllChangesMutation.isLoading}
-                        leftSection={<MantineIcon icon={IconArrowBackUp} />}
-                    >
-                        Revert All
-                    </Button>
-                )}
-            </Group>
-            <ContentTable table={table} />
+        <Stack gap="md">
+            {deprecationNotice}
+            {renderContent()}
         </Stack>
     );
 };

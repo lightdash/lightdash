@@ -424,63 +424,6 @@ export const AiAgentFormSetup = ({
                                     )}
                                 />
                             )}
-                            <Switch
-                                variant="subtle"
-                                label={
-                                    <Group gap="xs">
-                                        <Text fz="sm" fw={500}>
-                                            Enable Self-Improvement
-                                        </Text>
-                                        <Tooltip
-                                            label="When enabled, the AI agent can make improvements to your semantic layer by updating field descriptions, creating new metrics, and refining dimensions based on user interactions."
-                                            withArrow
-                                            withinPortal
-                                            multiline
-                                            position="right"
-                                            maw="300px"
-                                        >
-                                            <MantineIcon
-                                                icon={IconInfoCircle}
-                                            />
-                                        </Tooltip>
-                                        <Badge
-                                            color="indigo"
-                                            radius="sm"
-                                            variant="light"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconSparkles}
-                                                />
-                                            }
-                                        >
-                                            Beta
-                                        </Badge>
-                                    </Group>
-                                }
-                                description={
-                                    <>
-                                        Allows the agent to improve the
-                                        project's explores by updating
-                                        descriptions, creating metrics and
-                                        dimensions based on conversations.
-                                        Changes are tracked in changesets for
-                                        review.{' '}
-                                        <Anchor
-                                            href="https://docs.lightdash.com/guides/ai-agents#self-improvement"
-                                            target="_blank"
-                                            size="xs"
-                                        >
-                                            Learn more
-                                        </Anchor>
-                                    </>
-                                }
-                                {...form.getInputProps(
-                                    'enableSelfImprovement',
-                                    {
-                                        type: 'checkbox',
-                                    },
-                                )}
-                            />
                         </Stack>
                     </Paper>
 
