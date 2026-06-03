@@ -70,6 +70,11 @@ import {
     toolFindFieldsOutputSchema,
 } from './toolFindFieldsArgs';
 import {
+    TOOL_GENERATE_HASHES_DESCRIPTION,
+    toolGenerateHashesArgsSchema,
+    toolGenerateHashesOutputSchema,
+} from './toolGenerateHashesArgs';
+import {
     TOOL_GENERATE_UUIDS_DESCRIPTION,
     toolGenerateUuidsArgsSchema,
     toolGenerateUuidsOutputSchema,
@@ -390,6 +395,15 @@ export const generateUuidsToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolGenerateUuidsArgsSchema,
     agent: { outputSchema: toolGenerateUuidsOutputSchema },
+});
+
+export const generateHashesToolDefinition = defineTool({
+    name: 'generateHashes',
+    title: 'Generate hashes',
+    description: TOOL_GENERATE_HASHES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGenerateHashesArgsSchema,
+    agent: { outputSchema: toolGenerateHashesOutputSchema },
 });
 
 export const getDashboardChartsToolDefinition = defineTool({
@@ -735,6 +749,7 @@ type AgentToolDefinitionsByName = {
     runSql: typeof runSqlToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     generateDashboard: typeof generateDashboardToolDefinition;
+    generateHashes: typeof generateHashesToolDefinition;
     generateUuids: typeof generateUuidsToolDefinition;
     getDashboardCharts: typeof getDashboardChartsToolDefinition;
     readContent: typeof readContentToolDefinition;
@@ -772,6 +787,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runSql: runSqlToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     generateDashboard: generateDashboardToolDefinition,
+    generateHashes: generateHashesToolDefinition,
     generateUuids: generateUuidsToolDefinition,
     getDashboardCharts: getDashboardChartsToolDefinition,
     readContent: readContentToolDefinition,
@@ -811,6 +827,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
     generateDashboardToolDefinition,
+    generateHashesToolDefinition,
     generateUuidsToolDefinition,
     getDashboardChartsToolDefinition,
     readContentToolDefinition,

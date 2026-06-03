@@ -37,6 +37,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             generateDashboard: IconLayoutDashboard,
+            generateHashes: IconSelector,
             generateUuids: IconSelector,
             findContent: IconSearch,
             listContent: IconFolder,

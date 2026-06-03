@@ -17,6 +17,7 @@ import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getEditContent } from '../tools/editContent';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
@@ -310,6 +311,7 @@ const getAgentTools = (
                   loadSkill: dependencies.loadSkill,
               })
             : null;
+    const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
 
     const listProjects = getListProjects({
@@ -342,6 +344,7 @@ const getAgentTools = (
               }),
         generateVisualization,
         runSavedChart,
+        generateHashes,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(args.enableSelfImprovement && args.canManageAgent

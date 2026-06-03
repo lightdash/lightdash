@@ -8,6 +8,7 @@ import {
     type ToolFindDashboardsOutput,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
+    type ToolGenerateHashesOutput,
     type ToolGenerateUuidsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
     type ToolImproveContextOutput,
@@ -43,6 +44,7 @@ export type AgentToolOutput =
     | ToolFindDashboardsOutput
     | ToolFindExploresOutput
     | ToolFindFieldsOutput
+    | ToolGenerateHashesOutput
     | ToolGenerateUuidsOutput
     | ToolGetKnowledgeDocumentContentOutput
     | ToolDescribeWarehouseTableOutput

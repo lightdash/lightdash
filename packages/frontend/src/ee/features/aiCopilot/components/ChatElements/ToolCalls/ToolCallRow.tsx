@@ -39,6 +39,7 @@ import { type ToolCallSummary } from './utils/types';
 // is supplied wherever the trace is meaningful.
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'discoverFields',
+    'generateHashes',
     'generateUuids',
     'getProjectInfo',
     'improveContext',

@@ -9,6 +9,7 @@ import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
+import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
@@ -117,6 +118,7 @@ const makeAgentTools = () => {
             createOrUpdateArtifact: noop,
             getPrompt: noop,
         }),
+        generateHashes: getGenerateHashes(),
         generateUuids: getGenerateUuids(),
         getDashboardCharts: getGetDashboardCharts({
             getDashboardCharts: noop,
