@@ -96,6 +96,12 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     payload.slackPromptUuid,
                 );
             },
+            [EE_SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentService.pollSlackWritebackPreview(payload);
+            },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
                 payload,
                 _helpers,

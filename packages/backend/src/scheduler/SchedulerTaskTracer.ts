@@ -171,6 +171,12 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
     }),
 
+    [SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

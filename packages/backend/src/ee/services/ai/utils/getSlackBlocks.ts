@@ -508,6 +508,33 @@ export function getProposeWritebackBlocks(
     ];
 }
 
+/**
+ * Block for the threaded "preview ready" follow-up posted once a write-back
+ * PR's preview environment has been published (the URL is discovered async from
+ * the PR comments by a background poll).
+ */
+export function getWritebackPreviewReplyBlocks(
+    previewUrl: string,
+): (Block | KnownBlock)[] {
+    return [
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    url: previewUrl,
+                    style: 'primary',
+                    action_id: 'actions.view_preview_button_click',
+                    text: {
+                        type: 'plain_text',
+                        text: 'View preview',
+                    },
+                },
+            ],
+        },
+    ];
+}
+
 export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
