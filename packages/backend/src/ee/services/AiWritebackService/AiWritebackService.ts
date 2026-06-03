@@ -343,6 +343,35 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     /**
+     * Read the recorded CI status for a project (whether its repo has a
+     * Lightdash preview-deploy workflow). Returns null when the project has
+     * never been scanned. Used by the chat UI to decide whether a write-back
+     * PR will get a preview deployment, so it only waits for a preview URL when
+     * one is actually expected.
+     */
+    async getProjectCiStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectCiStatus | null> {
+        // Authorize against the project's own organization (resource-derived),
+        // not the caller's org.
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectCiStatusModel.findByProjectUuid(projectUuid);
+    }
+
+    /**
      * Secondary task of the writeback agent: while the repo is cloned in the
      * sandbox, detect whether it already deploys Lightdash preview projects via
      * GitHub Actions and persist the result. A project already recorded as set

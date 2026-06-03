@@ -572,6 +572,46 @@ export const getPullRequest = async ({
     }
 };
 
+/**
+ * Return the bodies of every issue comment on a pull request (PRs are issues in
+ * the GitHub API). Used to discover the Lightdash preview-environment URL that
+ * the dbt repo's CI posts after publishing a preview. Empty bodies are dropped.
+ */
+export const getPullRequestComments = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<string[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const comments = await octokit.paginate(
+            octokit.rest.issues.listComments,
+            {
+                owner,
+                repo,
+                issue_number: pullNumber,
+                per_page: 100,
+                headers,
+            },
+        );
+
+        return comments
+            .map((comment) => comment.body ?? '')
+            .filter((body) => body.length > 0);
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export type PullRequestMetadata = {
     title: string;
     state: PullRequestState;

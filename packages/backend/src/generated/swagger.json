@@ -13852,6 +13852,7 @@
                     "listContent",
                     "findExplores",
                     "findFields",
+                    "searchSemanticLayer",
                     "discoverFields",
                     "searchFieldValues",
                     "findDashboards",
@@ -13892,8 +13893,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13951,8 +13952,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13996,6 +13997,19 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -14016,24 +14030,24 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "fieldType": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "tableName",
-                                                                        "name",
                                                                         "fieldType",
-                                                                        "label"
+                                                                        "tableName",
+                                                                        "label",
+                                                                        "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -14042,6 +14056,11 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
@@ -14049,21 +14068,16 @@
                                                                             "type": "array",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "name": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "name",
-                                                                        "label"
+                                                                        "label",
+                                                                        "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -14081,8 +14095,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -14141,24 +14155,24 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "name": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "name": {
+                                                                                        "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "tableName",
-                                                                                    "name",
                                                                                     "fieldType",
-                                                                                    "label"
+                                                                                    "tableName",
+                                                                                    "label",
+                                                                                    "name"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -14185,8 +14199,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -14199,19 +14213,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14220,8 +14234,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -14287,28 +14301,28 @@
                                                                                 "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
+                                                                                "description": {
                                                                                     "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "label": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "description": {
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
                                                                                     "type": "string",
-                                                                                    "nullable": true
+                                                                                    "enum": [
+                                                                                        "metric",
+                                                                                        "dimension"
+                                                                                    ]
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "name": {
                                                                                     "type": "string"
@@ -14317,12 +14331,12 @@
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "fieldValueType",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "table",
-                                                                                "label",
-                                                                                "fieldId",
                                                                                 "description",
+                                                                                "fieldFilterType",
+                                                                                "fieldId",
+                                                                                "table",
+                                                                                "fieldType",
+                                                                                "label",
                                                                                 "name"
                                                                             ],
                                                                             "type": "object"
@@ -14476,19 +14490,6 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -14507,9 +14508,6 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "slug": {
                                                         "type": "string"
                                                     },
@@ -14517,13 +14515,16 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "name",
                                                     "slug",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14532,10 +14533,82 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
+                                                            "error",
                                                             "rejected",
                                                             "timeout"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "ranking": {
+                                                        "properties": {
+                                                            "fields": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "tableName": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "fieldType",
+                                                                        "tableName",
+                                                                        "label",
+                                                                        "name"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "metric",
+                                                                    "dimension",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "fields",
+                                                            "searchQuery",
+                                                            "type"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -19514,6 +19587,59 @@
                 "type": "object",
                 "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection — identified\nby the `projectUuid` path parameter — so the caller only supplies the prompt."
             },
+            "ProjectCiStatus": {
+                "properties": {
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "detectedCommitSha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Repo HEAD commit the scan ran against, for debugging staleness."
+                    },
+                    "workflowPath": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Path of the detected workflow file, or null when none was found."
+                    },
+                    "hasPreviewDeployWorkflow": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "checkedAt",
+                    "detectedCommitSha",
+                    "workflowPath",
+                    "hasPreviewDeployWorkflow",
+                    "projectUuid"
+                ],
+                "type": "object",
+                "description": "Per-project record of whether a project's git repo has Lightdash CI/CD set\nup. Populated as a secondary task of the AI writeback sandbox agent: while it\nhas the repo cloned it scans `.github/workflows/` for a Lightdash\npreview-deploy workflow and persists the result so we don't re-scan a project\nthat already has it set up."
+            },
+            "ApiProjectCiStatusResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectCiStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "CI status for a project, or null when the project has never been scanned\n(e.g. no AI writeback has run yet). A null result means \"unknown\", which is\ndistinct from a record with `hasPreviewDeployWorkflow: false` (\"scanned, no\npreview workflow\")."
+            },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
                     "createdAt": {
@@ -20221,6 +20347,39 @@
                 "required": ["targetRefs", "rationale", "title", "actionType"],
                 "type": "object"
             },
+            "AiAgentJudgeProjectContextEntry": {
+                "properties": {
+                    "objects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "terms": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["definition", "context"]
+                    },
+                    "id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "op": {
+                        "type": "string",
+                        "enum": ["create", "update"]
+                    }
+                },
+                "required": ["objects", "terms", "content", "kind", "id", "op"],
+                "type": "object"
+            },
             "AiAgentReviewItemSummary": {
                 "allOf": [
                     {
@@ -20233,6 +20392,14 @@
                                     "createdAt": {
                                         "type": "string",
                                         "format": "date-time"
+                                    },
+                                    "projectContextEntry": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/AiAgentJudgeProjectContextEntry"
+                                            }
+                                        ],
+                                        "nullable": true
                                     },
                                     "recommendation": {
                                         "allOf": [
@@ -20284,6 +20451,7 @@
                                 },
                                 "required": [
                                     "createdAt",
+                                    "projectContextEntry",
                                     "recommendation",
                                     "evidenceExcerpts",
                                     "targetRefs",
@@ -26151,6 +26319,31 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/KnexPaginatedData_PullRequestWithStatus-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PullRequestPreview": {
+                "properties": {
+                    "previewUrl": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["previewUrl"],
+                "type": "object",
+                "description": "The Lightdash preview environment for a pull request. `previewUrl` is null\nuntil a preview has been published: the dbt repo's CI creates the preview\nproject asynchronously and comments its URL on the PR, so the URL can only be\ndiscovered after the fact (it is not predictable from the PR itself)."
+            },
+            "ApiPullRequestPreviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PullRequestPreview"
                     },
                     "status": {
                         "type": "string",
@@ -37494,7 +37687,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3078.0",
+        "version": "0.3081.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -50214,6 +50407,55 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/pull-requests/preview": {
+            "get": {
+                "operationId": "getPullRequestPreview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPullRequestPreviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Resolve the Lightdash preview environment URL for a write-back pull\nrequest. Returns `{ previewUrl: null }` until the preview is published,\nso the client can poll.",
+                "summary": "Get pull request preview",
+                "tags": ["Pull Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "prUrl",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

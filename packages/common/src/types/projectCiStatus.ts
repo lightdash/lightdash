@@ -14,3 +14,14 @@ export type ProjectCiStatus = {
     detectedCommitSha: string | null;
     checkedAt: Date;
 };
+
+/**
+ * CI status for a project, or null when the project has never been scanned
+ * (e.g. no AI writeback has run yet). A null result means "unknown", which is
+ * distinct from a record with `hasPreviewDeployWorkflow: false` ("scanned, no
+ * preview workflow").
+ */
+export type ApiProjectCiStatusResponse = {
+    status: 'ok';
+    results: ProjectCiStatus | null;
+};

@@ -1,15 +1,34 @@
 import { type ToolProposeWritebackOutput } from '@lightdash/common';
-import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import {
+    Button,
+    Group,
+    Loader,
+    Paper,
+    Stack,
+    Text,
+    ThemeIcon,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconExternalLink,
+    IconEye,
     IconGitPullRequest,
+    IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
+import {
+    isPreviewWaitTimedOut,
+    usePullRequestPreview,
+} from '../../../hooks/usePullRequestPreview';
 
 type Props = {
     metadata: ToolProposeWritebackOutput['metadata'];
+    projectUuid: string;
+    /** When the write-back PR was opened — anchors the ~10 min preview wait. */
+    prCreatedAt: string;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
@@ -40,7 +59,29 @@ const summarisePrUrl = (prUrl: string): string | null => {
  * it instead — matching the Slack experience where the user's mention gets
  * a green-tick reaction plus the PR link in the agent message body.
  */
-export const AiProposeWritebackToolCall: FC<Props> = ({ metadata }) => {
+export const AiProposeWritebackToolCall: FC<Props> = ({
+    metadata,
+    projectUuid,
+    prCreatedAt,
+}) => {
+    const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
+
+    // Does this project's repo deploy Lightdash previews? `false` means it was
+    // scanned and has no preview workflow; `undefined`/null means unknown.
+    const { data: ciStatus } = useProjectCiStatus(projectUuid);
+    const previewDeployConfigured = ciStatus?.hasPreviewDeployWorkflow;
+
+    // Only wait for a preview URL when one is actually expected — poll unless we
+    // positively know the repo has no preview workflow (avoids polling forever
+    // on repos that never produce a preview). The poll also stops ~10 min after
+    // the PR was opened.
+    const { data: preview } = usePullRequestPreview(
+        projectUuid,
+        previewDeployConfigured === false ? null : prUrl,
+        prCreatedAt,
+    );
+    const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
+
     if (metadata.status === 'error') {
         return (
             <Paper withBorder p="sm" radius="md" bg="red.0">
@@ -120,19 +161,65 @@ export const AiProposeWritebackToolCall: FC<Props> = ({ metadata }) => {
                         )}
                     </Stack>
                 </Group>
-                <Button
-                    component="a"
-                    href={metadata.prUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="filled"
-                    size="compact-sm"
-                    rightSection={
-                        <MantineIcon icon={IconExternalLink} size={14} />
-                    }
-                >
-                    View pull request
-                </Button>
+                <Group gap="xs" wrap="nowrap">
+                    {preview?.previewUrl ? (
+                        <Button
+                            component="a"
+                            href={preview.previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="default"
+                            size="compact-sm"
+                            leftSection={
+                                <MantineIcon icon={IconEye} size={14} />
+                            }
+                        >
+                            View preview
+                        </Button>
+                    ) : previewDeployConfigured && !previewTimedOut ? (
+                        // A preview deploy is configured but its URL hasn't been
+                        // posted yet — surface that it's on the way rather than
+                        // showing nothing.
+                        <Button
+                            variant="default"
+                            size="compact-sm"
+                            disabled
+                            leftSection={<Loader size={14} />}
+                        >
+                            Preparing preview…
+                        </Button>
+                    ) : previewDeployConfigured && previewTimedOut ? (
+                        // Configured but no preview URL after ~10 min — the
+                        // deploy likely failed or was skipped. Tell the user
+                        // rather than spinning forever.
+                        <Tooltip
+                            withinPortal
+                            multiline
+                            w={220}
+                            label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
+                        >
+                            <Group gap={4} wrap="nowrap" c="ldGray.6">
+                                <MantineIcon icon={IconInfoCircle} size={14} />
+                                <Text size="xs" c="ldGray.6">
+                                    Preview didn't appear
+                                </Text>
+                            </Group>
+                        </Tooltip>
+                    ) : null}
+                    <Button
+                        component="a"
+                        href={metadata.prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="filled"
+                        size="compact-sm"
+                        rightSection={
+                            <MantineIcon icon={IconExternalLink} size={14} />
+                        }
+                    >
+                        View pull request
+                    </Button>
+                </Group>
             </Group>
         </Paper>
     );

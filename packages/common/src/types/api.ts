@@ -128,6 +128,7 @@ import {
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
+    type PullRequestPreview,
 } from './gitIntegration';
 import type { ApiGroupListResponse } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
@@ -184,6 +185,7 @@ import type {
     PreAggregateMatchMiss,
 } from './preAggregate';
 import { type ApiPreviewExpirationProjectSettingsResponse } from './previewExpirationProjectSettings';
+import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -986,6 +988,8 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
+    | PullRequestPreview
+    | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GitBranch
