@@ -1,5 +1,13 @@
 import { type ToolProposeWritebackOutput } from '@lightdash/common';
-import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import {
+    Button,
+    Group,
+    Loader,
+    Paper,
+    Stack,
+    Text,
+    ThemeIcon,
+} from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconExternalLink,
@@ -8,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
 import { usePullRequestPreview } from '../../../hooks/usePullRequestPreview';
 
 type Props = {
@@ -47,10 +56,20 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
     metadata,
     projectUuid,
 }) => {
-    // Poll for the preview environment once a PR exists. The hook is disabled
-    // until there's a PR URL, so it's a no-op for the error / no-PR branches.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
-    const { data: preview } = usePullRequestPreview(projectUuid, prUrl);
+
+    // Does this project's repo deploy Lightdash previews? `false` means it was
+    // scanned and has no preview workflow; `undefined`/null means unknown.
+    const { data: ciStatus } = useProjectCiStatus(projectUuid);
+    const previewDeployConfigured = ciStatus?.hasPreviewDeployWorkflow;
+
+    // Only wait for a preview URL when one is actually expected — poll unless we
+    // positively know the repo has no preview workflow (avoids polling forever
+    // on repos that never produce a preview).
+    const { data: preview } = usePullRequestPreview(
+        projectUuid,
+        previewDeployConfigured === false ? null : prUrl,
+    );
 
     if (metadata.status === 'error') {
         return (
@@ -132,7 +151,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                     </Stack>
                 </Group>
                 <Group gap="xs" wrap="nowrap">
-                    {preview?.previewUrl && (
+                    {preview?.previewUrl ? (
                         <Button
                             component="a"
                             href={preview.previewUrl}
@@ -146,7 +165,19 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                         >
                             View preview
                         </Button>
-                    )}
+                    ) : previewDeployConfigured ? (
+                        // A preview deploy is configured but its URL hasn't been
+                        // posted yet — surface that it's on the way rather than
+                        // showing nothing.
+                        <Button
+                            variant="default"
+                            size="compact-sm"
+                            disabled
+                            leftSection={<Loader size={14} />}
+                        >
+                            Preparing preview…
+                        </Button>
+                    ) : null}
                     <Button
                         component="a"
                         href={metadata.prUrl}

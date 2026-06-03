@@ -4,9 +4,11 @@ import {
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
     type ApiErrorPayload,
+    type ApiProjectCiStatusResponse,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Hidden,
     Middlewares,
     OperationId,
@@ -78,6 +80,32 @@ export class AiWritebackController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Get the project's CI status — whether its repo has a Lightdash
+     * preview-deploy workflow. Lets the chat UI decide whether a write-back PR
+     * will produce a preview deployment. Returns null when never scanned.
+     * @summary Get project CI status
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/ci-status')
+    @OperationId('getProjectCiStatus')
+    async getProjectCiStatus(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiProjectCiStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiWritebackService().getProjectCiStatus(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

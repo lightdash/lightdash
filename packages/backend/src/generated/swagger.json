@@ -13893,8 +13893,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13952,8 +13952,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -13977,19 +13977,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -14486,6 +14473,19 @@
                                                     "name",
                                                     "status"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -19586,6 +19586,59 @@
                 "required": ["prompt"],
                 "type": "object",
                 "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection — identified\nby the `projectUuid` path parameter — so the caller only supplies the prompt."
+            },
+            "ProjectCiStatus": {
+                "properties": {
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "detectedCommitSha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Repo HEAD commit the scan ran against, for debugging staleness."
+                    },
+                    "workflowPath": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Path of the detected workflow file, or null when none was found."
+                    },
+                    "hasPreviewDeployWorkflow": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "checkedAt",
+                    "detectedCommitSha",
+                    "workflowPath",
+                    "hasPreviewDeployWorkflow",
+                    "projectUuid"
+                ],
+                "type": "object",
+                "description": "Per-project record of whether a project's git repo has Lightdash CI/CD set\nup. Populated as a secondary task of the AI writeback sandbox agent: while it\nhas the repo cloned it scans `.github/workflows/` for a Lightdash\npreview-deploy workflow and persists the result so we don't re-scan a project\nthat already has it set up."
+            },
+            "ApiProjectCiStatusResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectCiStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "CI status for a project, or null when the project has never been scanned\n(e.g. no AI writeback has run yet). A null result means \"unknown\", which is\ndistinct from a record with `hasPreviewDeployWorkflow: false` (\"scanned, no\npreview workflow\")."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
