@@ -548,6 +548,20 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // This tool auto-generates a Lightdash preview-deploy *GitHub Actions*
+        // workflow, which today only supports GitHub-backed projects
+        // (provider.supportsPreviewDeploy). Preview deploys themselves can be
+        // wired up on any CI by hand — we just can't generate that for
+        // non-GitHub hosts yet. The agent isn't prompted to offer setup for
+        // other hosts (detection is gated on supportsPreviewDeploy), but the
+        // tool can still be reached by a direct ask — guard it explicitly.
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (!provider.supportsPreviewDeploy) {
+            throw new ParameterError(
+                `Automated preview-deploy setup currently supports GitHub Actions only, so it can't run for this project's "${project.dbtConnection.type}" connection. Preview deploys can still be set up manually via your own CI.`,
+            );
+        }
+
         const result = await this.run({
             user,
             projectUuid,
