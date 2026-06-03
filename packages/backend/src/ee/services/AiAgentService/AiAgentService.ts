@@ -6869,7 +6869,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     ): Promise<void> {
         const PREVIEW_POLL_INTERVAL_MS = 25_000;
         const PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
-        const { promptUuid, prUrl, startedAt, organizationUuid } = payload;
+        const { promptUuid, prUrl, startedAt, organizationUuid, projectUuid } =
+            payload;
 
         // Past the wait window — give up (the PR link stays in the message).
         if (Date.now() - startedAt > PREVIEW_WAIT_TIMEOUT_MS) {
@@ -6877,6 +6878,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 `AiAgent: writeback preview poll timed out for prompt ${promptUuid}`,
             );
             return;
+        }
+
+        // Re-verify the triggering user can still view the project's source code
+        // before delivering — they may have lost access during the wait window.
+        // (Authorize against the project's organization, taken from the payload.)
+        const user = await this.userModel.findSessionUserByUUID(
+            payload.userUuid,
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SourceCode', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
