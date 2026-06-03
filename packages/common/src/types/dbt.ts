@@ -629,6 +629,11 @@ export const convertModelMetric = ({
 
     // Metric owner takes precedence over model owner
     const owner = metric.spotlight?.owner ?? modelOwner;
+    const [defaultFilter] = parseFilters(
+        metric.spotlight?.default_filter
+            ? [metric.spotlight.default_filter]
+            : undefined,
+    );
 
     return {
         fieldType: FieldType.METRIC,
@@ -680,6 +685,8 @@ export const convertModelMetric = ({
             categories: spotlightCategories,
             filterBy: metric.spotlight?.filter_by,
             segmentBy: metric.spotlight?.segment_by,
+            defaultSegment: metric.spotlight?.default_segment,
+            defaultFilter,
             owner,
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
