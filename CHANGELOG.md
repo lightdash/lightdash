@@ -1,3 +1,25 @@
+# [0.3085.0](https://github.com/lightdash/lightdash/compare/0.3084.2...0.3085.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-project-context:** format-preserving writeback for minimal PR diffs ([#23841](https://github.com/lightdash/lightdash/issues/23841)) ([2682037](https://github.com/lightdash/lightdash/commit/26820371ae5087a1a612215131b307f4b369bfc3))
+* **embed:** apply embed theme without overriding the viewer's theme ([#23840](https://github.com/lightdash/lightdash/issues/23840)) ([239875a](https://github.com/lightdash/lightdash/commit/239875ac6f9d388ef3f70e20409d565bba5f3b11))
+* **embed:** match current app theme in preview and copied URL ([#23839](https://github.com/lightdash/lightdash/issues/23839)) ([3585bb6](https://github.com/lightdash/lightdash/commit/3585bb6c9af5a06244d81362a108ed473c4bfd56))
+* enforce promote permission checks in `getPromoteChartDiff`, `getPromoteSqlChartDiff`, and `getPromoteDashboardDiff` ([#23834](https://github.com/lightdash/lightdash/issues/23834)) ([f350cd8](https://github.com/lightdash/lightdash/commit/f350cd88384933f08da26cfebdd832122a1eeac5))
+* **frontend:** retry transient network failures before surfacing errors (SPK-464) ([#23831](https://github.com/lightdash/lightdash/issues/23831)) ([a841ad2](https://github.com/lightdash/lightdash/commit/a841ad2200ed30639d729df9f9b2e4b51cf8330b))
+* **metrics-explorer:** render segmented chart by requesting SQL pivot ([#23836](https://github.com/lightdash/lightdash/issues/23836)) ([5efe2ec](https://github.com/lightdash/lightdash/commit/5efe2ec0b8e97b7b9f9b4ab0151069bf2127361c)), closes [#23785](https://github.com/lightdash/lightdash/issues/23785)
+* page sidebar shows on top of modals ([#23826](https://github.com/lightdash/lightdash/issues/23826)) ([c6801ea](https://github.com/lightdash/lightdash/commit/c6801ea852d539295137c596d70f02844d46e458))
+* upgrade react-router 7.12.0→7.14.2 (security) ([#23830](https://github.com/lightdash/lightdash/issues/23830)) ([664eced](https://github.com/lightdash/lightdash/commit/664eced899f27726680ff0312e9770f5ae5750d7))
+* **warehouses:** enforce statement_timeout on Postgres/Redshift cursor queries ([#23835](https://github.com/lightdash/lightdash/issues/23835)) ([6eb7598](https://github.com/lightdash/lightdash/commit/6eb7598fb84c6eb1ca7589a4d1a93536cbcac9ed))
+
+
+### Features
+
+* **ai-agents:** deprecate changesets in favor of AI writeback ([#23828](https://github.com/lightdash/lightdash/issues/23828)) ([d55f922](https://github.com/lightdash/lightdash/commit/d55f922b3e98c7ba09ee768d300a0e188d2a1c39))
+* **ai-project-context:** surface project_context items in the review queue ([#23802](https://github.com/lightdash/lightdash/issues/23802)) ([3e82bac](https://github.com/lightdash/lightdash/commit/3e82bac85e43921501ae541e29ad87f46f73246a))
+* **writeback:** preview-deploy refinements — answer CI status from the repo + hide non-applicable preview button [PROD-8093] ([#23842](https://github.com/lightdash/lightdash/issues/23842)) ([e07df24](https://github.com/lightdash/lightdash/commit/e07df24f825ba66825caaf52d819aeb3312a9275))
+
 ## [0.3084.2](https://github.com/lightdash/lightdash/compare/0.3084.1...0.3084.2) (2026-06-03)
 
 
