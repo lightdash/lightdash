@@ -1,3 +1,11 @@
+## [0.3087.2](https://github.com/lightdash/lightdash/compare/0.3087.1...0.3087.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai:** mint GitHub MCP installation token per run + recover on reconnect [PROD-8112] ([#23858](https://github.com/lightdash/lightdash/issues/23858)) ([#23863](https://github.com/lightdash/lightdash/issues/23863)) ([2d1055b](https://github.com/lightdash/lightdash/commit/2d1055b1b8b3e60ea5408dc9775b2cf7b142d250))
+* always skip cache in sql runner edit mode ([#23789](https://github.com/lightdash/lightdash/issues/23789)) ([b17a86b](https://github.com/lightdash/lightdash/commit/b17a86be3c6d28a4b1df78d1f62c0bf54c923276))
+
 ## [0.3087.1](https://github.com/lightdash/lightdash/compare/0.3087.0...0.3087.1) (2026-06-03)
 
 
