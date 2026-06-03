@@ -1,3 +1,10 @@
+## [0.3087.1](https://github.com/lightdash/lightdash/compare/0.3087.0...0.3087.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** enforce project access on open agents & searchSemanticLayer [PROD-8115] ([#23860](https://github.com/lightdash/lightdash/issues/23860)) ([7dd4ebf](https://github.com/lightdash/lightdash/commit/7dd4ebfd13890304a2f95e8931f8a5c5a3f342cd))
+
 # [0.3087.0](https://github.com/lightdash/lightdash/compare/0.3086.0...0.3087.0) (2026-06-03)
 
 
