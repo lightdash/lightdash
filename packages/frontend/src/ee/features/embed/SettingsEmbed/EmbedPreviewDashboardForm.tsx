@@ -26,6 +26,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
@@ -94,6 +95,7 @@ const EmbedPreviewDashboardForm: FC<{
 }> = ({ projectUuid, siteUrl, dashboards }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
+    const { colorScheme } = useMantineColorScheme();
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -191,16 +193,32 @@ const EmbedPreviewDashboardForm: FC<{
         const data = await createEmbedUrl(
             convertFormValuesToCreateEmbedJwt(formValues, true),
         );
-        //Open data.url on new tab
-        window.open(data.url, '_blank');
-    }, [formValues, form, convertFormValuesToCreateEmbedJwt, createEmbedUrl]);
+        // Open data.url in a new tab, matching the current app color scheme
+        const previewUrl = new URL(data.url);
+        previewUrl.searchParams.set('theme', colorScheme);
+        window.open(previewUrl.toString(), '_blank');
+    }, [
+        formValues,
+        form,
+        convertFormValuesToCreateEmbedJwt,
+        createEmbedUrl,
+        colorScheme,
+    ]);
 
     const generateUrl = useCallback(async () => {
         const data = await createEmbedUrl(
             convertFormValuesToCreateEmbedJwt(form.values),
         );
-        return data.url;
-    }, [convertFormValuesToCreateEmbedJwt, createEmbedUrl, form.values]);
+        // Match the current app color scheme
+        const url = new URL(data.url);
+        url.searchParams.set('theme', colorScheme);
+        return url.toString();
+    }, [
+        convertFormValuesToCreateEmbedJwt,
+        createEmbedUrl,
+        form.values,
+        colorScheme,
+    ]);
 
     const { handleCopy } = useAsyncClipboard(generateUrl);
     const handleCopySubmit = onSubmit(handleCopy);
