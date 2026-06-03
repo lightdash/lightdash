@@ -11,7 +11,6 @@ The writeback tool spawns a separate agent that edits the repo, runs \`lightdash
 **When NOT to use \`proposeWriteback\`:**
 - The user is asking a question about data (use the query/discovery tools instead).
 - The user wants to edit an existing chart or dashboard inside Lightdash.
-- The user wants to propose an in-app change to a metric/dimension as a reviewable changeset rather than a pull request — use \`proposeChange\` for that.
 - The request is ambiguous about whether it should land in the repo. Ask one short clarifying question first.
 
 **Proactively suggesting semantic-layer improvements:**

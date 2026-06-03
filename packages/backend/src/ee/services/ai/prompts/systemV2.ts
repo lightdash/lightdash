@@ -15,7 +15,6 @@ import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
-import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
@@ -28,7 +27,6 @@ export const getSystemPromptV2 = (args: {
     agentName?: string;
     date?: string;
     enableDataAccess?: boolean;
-    enableSelfImprovement?: boolean;
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     enableContentTools?: boolean;
@@ -41,7 +39,6 @@ export const getSystemPromptV2 = (args: {
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
-        enableSelfImprovement = false,
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         enableContentTools = false,
@@ -121,7 +118,7 @@ export const getSystemPromptV2 = (args: {
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
-        enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
+        '',
     )
         .replace(
             '{{ai_writeback_section}}',

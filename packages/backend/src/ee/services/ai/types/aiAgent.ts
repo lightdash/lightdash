@@ -13,7 +13,6 @@ import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
-    CreateChangeFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
@@ -22,7 +21,6 @@ import {
     FindExploresFn,
     FindFieldFn,
     GetDashboardChartsFn,
-    GetExploreCompilerFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
@@ -136,7 +134,6 @@ export type AiAgentDependencies = {
     findFields: FindFieldFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     getExplore: GetExploreFn;
-    getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
@@ -157,7 +154,6 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    createChange: CreateChangeFn;
     proposeWriteback: ProposeWritebackFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;

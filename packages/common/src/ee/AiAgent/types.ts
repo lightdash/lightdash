@@ -56,7 +56,6 @@ export const AGENT_SUGGESTION_TOOLS = [
     'generateDashboard',
     'generateVisualization',
     'runSql',
-    'proposeChange',
     'findContent',
 ] as const;
 

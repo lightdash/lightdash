@@ -49,7 +49,6 @@ import {
     ContentType,
     derivePivotConfigurationFromChart,
     Explore,
-    ExploreCompiler,
     extractPreviewUrlFromComments,
     FeatureFlags,
     filterExploreByTags,
@@ -101,7 +100,6 @@ import {
     type SuggestionValidationCatalog,
     type TransformedCustomMetric,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
@@ -225,7 +223,6 @@ import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
-    CreateChangeFn,
     CreateContentFn,
     DescribeWarehouseTableFn,
     EditContentFn,
@@ -969,22 +966,8 @@ export class AiAgentService extends BaseService {
                     },
                 }),
             );
-        const canManageAgent = auditedAbility.can(
-            'manage',
-            subject('AiAgent', {
-                organizationUuid,
-                projectUuid,
-                metadata: {
-                    agentUuid,
-                    agentName: agent.name,
-                },
-            }),
-        );
         const enabledTools = AGENT_SUGGESTION_TOOLS.filter((tool) => {
             if (tool === 'runSql') return canRunSql;
-            if (tool === 'proposeChange') {
-                return agent.enableSelfImprovement && canManageAgent;
-            }
             return true;
         });
 
@@ -5882,47 +5865,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
-        const getExploreCompiler = async () => {
-            const warehouseCredentials =
-                await this.projectModel.getWarehouseCredentialsForProject(
-                    projectUuid,
-                );
-
-            return new ExploreCompiler(
-                warehouseSqlBuilderFromType(
-                    warehouseCredentials.type,
-                    warehouseCredentials.startOfWeek,
-                ),
-            );
-        };
-
-        const createChange: CreateChangeFn = (params) =>
-            wrapSentryTransaction(
-                'AiAgent.createChange',
-                {
-                    type: params.type,
-                    entityName: params.entityName,
-                    entityType: params.entityType,
-                    entityTableName: params.entityTableName,
-                },
-                async () => {
-                    const change = await this.changesetModel.createChange(
-                        projectUuid,
-                        {
-                            createdByUserUuid: user.userUuid,
-                            sourcePromptUuid: prompt.promptUuid,
-                            ...params,
-                        },
-                    );
-
-                    await this.catalogService.indexCatalogUpdates(projectUuid, [
-                        params.entityTableName,
-                    ]);
-
-                    return change.changeUuid;
-                },
-            );
-
         const proposeWriteback: ProposeWritebackFn = async (args) => {
             // Stream coarse progress back to the user so they can see what
             // the writeback is doing (Starting sandbox → Cloning project →
@@ -6136,12 +6078,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            createChange,
             proposeWriteback,
             setupPreviewDeploy,
             listProjects,
             getProjectInfo,
-            getExploreCompiler,
         };
     }
 
@@ -6257,8 +6197,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            getExploreCompiler,
-            createChange,
             proposeWriteback,
             setupPreviewDeploy,
             listProjects,
@@ -6516,8 +6454,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            getExploreCompiler,
-            createChange,
             proposeWriteback,
             setupPreviewDeploy,
             listProjects,

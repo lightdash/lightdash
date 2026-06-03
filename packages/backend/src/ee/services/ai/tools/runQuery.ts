@@ -54,7 +54,6 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
-    enableSelfImprovement: boolean;
 };
 
 const toolDefinition = runQueryToolDefinition.for('agent');
@@ -173,7 +172,6 @@ export const getRunQuery = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
-    enableSelfImprovement,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -191,10 +189,6 @@ export const getRunQuery = ({
                 validateRunQueryTool(queryTool, explore);
 
                 const prompt = await getPrompt();
-
-                const aggregationCustomMetrics = filterAggregationCustomMetrics(
-                    queryTool.customMetrics,
-                );
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
                     queryTool.customMetrics,
@@ -237,11 +231,6 @@ export const getRunQuery = ({
                         description: toolArgs.description,
                         vizConfig: expandedToolArgs,
                     });
-
-                const selfImprovementResultFollowUp =
-                    enableSelfImprovement && aggregationCustomMetrics.length > 0
-                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
-                        : '';
 
                 // Early artifact creation for non-data-access mode
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
@@ -328,17 +317,14 @@ export const getRunQuery = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success. ${selfImprovementResultFollowUp}`,
+                        result: `Success.`,
                         metadata: { status: 'success' },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
-                    result: `${serializeData(
-                        csv,
-                        'csv',
-                    )} ${selfImprovementResultFollowUp}`,
+                    result: serializeData(csv, 'csv'),
                     metadata: { status: 'success' },
                 };
             } catch (e) {
