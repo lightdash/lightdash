@@ -1,3 +1,11 @@
+## [0.3085.1](https://github.com/lightdash/lightdash/compare/0.3085.0...0.3085.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **export:** fall back to flat export when pivot details are missing (PROD-8090) ([#23844](https://github.com/lightdash/lightdash/issues/23844)) ([f2d2031](https://github.com/lightdash/lightdash/commit/f2d203144d8734177f5441cf7731b1477c98f8d9))
+* **rename:** make model rename idempotent when new name extends old ([#23845](https://github.com/lightdash/lightdash/issues/23845)) ([1e49d27](https://github.com/lightdash/lightdash/commit/1e49d2774beb8cb4c2f69c4c6557055905a82883)), closes [#16961](https://github.com/lightdash/lightdash/issues/16961)
+
 # [0.3085.0](https://github.com/lightdash/lightdash/compare/0.3084.2...0.3085.0) (2026-06-03)
 
 
