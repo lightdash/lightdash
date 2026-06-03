@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     isWorkflowFile,
     ParameterError,
+    PullRequestProvider,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
@@ -17,14 +18,44 @@ import type {
     AgentStreamEvent,
     AgentToolCall,
     AiWritebackSource,
+    CloneTarget,
+    GitCommitAuthor,
+    GitConnection,
     GithubConnection,
     GithubIdentity,
+    GitlabConnection,
     PrMetadata,
     ResolvedPrMetadata,
     StagedFileChanges,
 } from './types';
 
-export const resolveGithubConnection = (
+const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
+
+const splitOwnerRepo = (
+    repository: string,
+): { owner: string; repo: string } => {
+    const [owner, repo] = repository.split('/');
+    if (!owner || !repo) {
+        throw new ParameterError(
+            `Project's dbt connection has an invalid repository "${repository}" (expected "owner/repo")`,
+        );
+    }
+    return { owner, repo };
+};
+
+/**
+ * Normalise the stored sub-path (leading slash, `/` for root) to a path
+ * relative to the repo root so it can be passed to `--project-dir`.
+ */
+const normalizeProjectSubPath = (projectSubPath: string): string => {
+    const relative = projectSubPath
+        .trim()
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+    return relative === '' ? '.' : relative;
+};
+
+export const parseGithubConnection = (
     connection: DbtProjectConfig,
 ): GithubConnection => {
     if (connection.type !== DbtProjectType.GITHUB) {
@@ -32,23 +63,131 @@ export const resolveGithubConnection = (
             `AI writeback requires a GitHub dbt connection, but this project uses "${connection.type}"`,
         );
     }
-    const [owner, repo] = connection.repository.split('/');
-    if (!owner || !repo) {
-        throw new ParameterError(
-            `Project's dbt connection has an invalid repository "${connection.repository}" (expected "owner/repo")`,
-        );
-    }
-    // Normalise the stored sub-path (leading slash, `/` for root) to a path
-    // relative to the repo root so it can be passed to `--project-dir`.
-    const relativeSubPath = connection.project_sub_path
-        .trim()
-        .replace(/^\/+/, '')
-        .replace(/\/+$/, '');
+    const { owner, repo } = splitOwnerRepo(connection.repository);
     return {
+        provider: PullRequestProvider.GITHUB,
         owner,
         repo,
-        projectSubPath: relativeSubPath === '' ? '.' : relativeSubPath,
+        projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
     };
+};
+
+export const parseGitlabConnection = (
+    connection: DbtProjectConfig,
+): GitlabConnection => {
+    if (connection.type !== DbtProjectType.GITLAB) {
+        throw new ParameterError(
+            `AI writeback requires a GitLab dbt connection, but this project uses "${connection.type}"`,
+        );
+    }
+    const { owner, repo } = splitOwnerRepo(connection.repository);
+    return {
+        provider: PullRequestProvider.GITLAB,
+        owner,
+        repo,
+        projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
+        hostDomain: connection.host_domain || DEFAULT_GITLAB_HOST_DOMAIN,
+    };
+};
+
+/**
+ * HTTPS clone/push target for a connection. The token rides as the password so
+ * it never appears in the URL string (and therefore never in logs). GitHub uses
+ * the `x-access-token` username convention; GitLab OAuth uses `oauth2`.
+ */
+export const buildCloneTarget = (
+    connection: GitConnection,
+    token: string,
+): CloneTarget => {
+    switch (connection.provider) {
+        case PullRequestProvider.GITHUB:
+            return {
+                url: `https://github.com/${connection.owner}/${connection.repo}.git`,
+                username: 'x-access-token',
+                password: token,
+            };
+        case PullRequestProvider.GITLAB:
+            return {
+                url: `https://${connection.hostDomain}/${connection.owner}/${connection.repo}.git`,
+                username: 'oauth2',
+                password: token,
+            };
+        default:
+            return assertUnreachable(
+                connection,
+                'Unknown git provider for clone target',
+            );
+    }
+};
+
+/**
+ * Parse a github.com pull request link (`.../owner/repo/pull/<n>`). Rejects
+ * other hosts so a pasted link can't point the run at an unrelated repo.
+ */
+export const parsePullRequestUrl = (
+    raw: string,
+): { owner: string; repo: string; pullNumber: number } => {
+    let url: URL;
+    try {
+        url = new URL(raw.trim());
+    } catch {
+        throw new ParameterError(`"${raw}" is not a valid pull request URL.`);
+    }
+    if (url.hostname !== 'github.com' && url.hostname !== 'www.github.com') {
+        throw new ParameterError(
+            `Only github.com pull request links are supported (got "${url.hostname}").`,
+        );
+    }
+    const match = url.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+    if (!match) {
+        throw new ParameterError(
+            `Could not parse a pull request from "${raw}". Expected a link like https://github.com/owner/repo/pull/123.`,
+        );
+    }
+    const [, owner, repo, pullNumberStr] = match;
+    const pullNumber = Number(pullNumberStr);
+    if (!Number.isInteger(pullNumber) || pullNumber <= 0) {
+        throw new ParameterError(
+            `Could not parse a valid pull request number from "${raw}".`,
+        );
+    }
+    return { owner, repo, pullNumber };
+};
+
+/**
+ * Parse a GitLab merge request link (`.../<group>/<project>/-/merge_requests/<n>`)
+ * on the connection's host. Returns the project path verbatim so the caller can
+ * compare it against the connection's `owner/repo`.
+ */
+export const parseMergeRequestUrl = (
+    raw: string,
+    hostDomain: string,
+): { projectPath: string; mergeRequestIid: number } => {
+    let url: URL;
+    try {
+        url = new URL(raw.trim());
+    } catch {
+        throw new ParameterError(`"${raw}" is not a valid merge request URL.`);
+    }
+    if (url.hostname !== hostDomain) {
+        throw new ParameterError(
+            `Only ${hostDomain} merge request links are supported (got "${url.hostname}").`,
+        );
+    }
+    const match = url.pathname.match(/^\/(.+?)\/-\/merge_requests\/(\d+)/);
+    if (!match) {
+        throw new ParameterError(
+            `Could not parse a merge request from "${raw}". Expected a link like https://${hostDomain}/group/project/-/merge_requests/123.`,
+        );
+    }
+    const [, projectPath, iidStr] = match;
+    const mergeRequestIid = Number(iidStr);
+    if (!Number.isInteger(mergeRequestIid) || mergeRequestIid <= 0) {
+        throw new ParameterError(
+            `Could not parse a valid merge request number from "${raw}".`,
+        );
+    }
+    return { projectPath, mergeRequestIid };
 };
 
 export const parsePullNumber = (prUrl: string): number => {
@@ -78,7 +217,7 @@ export const progressTextForStage = (
         case 'commit':
             return 'Committing changes';
         case 'push':
-            return 'Pushing to GitHub';
+            return 'Pushing changes';
         case 'pull_request':
             return null;
         default:
@@ -284,6 +423,27 @@ export const splitStreamBuffer = (
 /** GitHub noreply email — links the commit to the profile without the real address. */
 export const buildNoreplyEmail = ({ id, login }: GithubIdentity): string =>
     `${id}+${login}@users.noreply.github.com`;
+
+export type GitlabUserIdentity = {
+    id: number;
+    username: string;
+    name: string | null;
+    email: string | null;
+};
+
+/**
+ * Commit author for a GitLab writeback. Falls back to a host-scoped noreply
+ * address when the user's email is private (GitLab commits are unsigned, so
+ * any valid author is accepted).
+ */
+export const buildGitlabCommitAuthor = (
+    user: GitlabUserIdentity,
+    hostDomain: string,
+): GitCommitAuthor => ({
+    name: user.name || user.username,
+    email:
+        user.email || `${user.id}-${user.username}@users.noreply.${hostDomain}`,
+});
 
 export const buildCoAuthorTrailer = (bot: GithubIdentity): string =>
     `Co-authored-by: ${bot.login} <${buildNoreplyEmail(bot)}>`;

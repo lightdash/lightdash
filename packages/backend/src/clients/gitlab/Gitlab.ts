@@ -66,7 +66,10 @@ const makeGitlabRequest = async (
     const response = await fetch(url, {
         ...options,
         headers: {
-            'PRIVATE-TOKEN': token,
+            // `Authorization: Bearer` accepts OAuth tokens, personal access
+            // tokens, and project access tokens; `PRIVATE-TOKEN` rejects OAuth
+            // tokens (writeback uses the org's GitLab app-install OAuth token).
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             ...options.headers,
         },
@@ -358,6 +361,67 @@ export const getMergeRequests = async ({
     });
 
     return result;
+};
+
+/**
+ * Resolve a single merge request's state and source/target projects. Used by
+ * the writeback adopt path to reject closed/merged MRs and fork-sourced MRs
+ * (where `source_project_id` differs from `target_project_id`).
+ */
+export const getMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iid: number }): Promise<{
+    state: 'open' | 'closed';
+    merged: boolean;
+    sourceBranch: string;
+    /** `null` when absent from the response — the caller treats that as "unknown". */
+    sourceProjectId: number | null;
+    targetProjectId: number | null;
+    webUrl: string;
+}> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    const mr = await makeGitlabRequest(url, token);
+    return {
+        state: mr.state === 'opened' ? 'open' : 'closed',
+        merged: mr.state === 'merged',
+        sourceBranch: mr.source_branch,
+        sourceProjectId: mr.source_project_id ?? null,
+        targetProjectId: mr.target_project_id ?? null,
+        webUrl: mr.web_url,
+    };
+};
+
+/** Patch a merge request's title/description (writeback resume turns). */
+export const updateMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    title,
+    description,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    iid: number;
+    title: string;
+    description: string;
+}) => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    return makeGitlabRequest(url, token, {
+        method: 'PUT',
+        body: JSON.stringify({ title, description }),
+    });
 };
 
 export const getBranches = async ({

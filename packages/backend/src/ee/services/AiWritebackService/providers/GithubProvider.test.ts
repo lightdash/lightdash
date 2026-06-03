@@ -1,9 +1,9 @@
-import { ParameterError } from '@lightdash/common';
-import { getPullRequest } from '../../../clients/github/Github';
-import { resolveAdoptedPullRequest } from './pullRequest';
-import type { GithubConnection, GithubInstallation } from './types';
+import { ParameterError, PullRequestProvider } from '@lightdash/common';
+import { getPullRequest } from '../../../../clients/github/Github';
+import type { GithubConnection, GithubInstallation } from '../types';
+import { GithubProvider } from './GithubProvider';
 
-jest.mock('../../../clients/github/Github', () => ({
+jest.mock('../../../../clients/github/Github', () => ({
     getPullRequest: jest.fn(),
 }));
 
@@ -11,13 +11,20 @@ const mockGetPullRequest = getPullRequest as jest.MockedFunction<
     typeof getPullRequest
 >;
 
-const githubConnection: GithubConnection = {
+const provider = new GithubProvider({
+    githubAppInstallationsModel: {} as never,
+    logger: { info: jest.fn(), warn: jest.fn() } as never,
+});
+
+const connection: GithubConnection = {
+    provider: PullRequestProvider.GITHUB,
     owner: 'acme',
     repo: 'analytics',
     projectSubPath: '.',
 };
 
-const github: GithubInstallation = {
+const installation: GithubInstallation = {
+    provider: PullRequestProvider.GITHUB,
     installationId: 'inst-1',
     token: 'tok',
     commitAuthor: { name: 'a', email: 'a@b.c' },
@@ -28,14 +35,13 @@ const openPr = {
     state: 'open' as const,
     merged: false,
     headRef: 'feature/x',
-    baseRef: 'main',
     headRepoFullName: 'acme/analytics',
 };
 
 const adopt = (prUrl: string) =>
-    resolveAdoptedPullRequest({ prUrl, githubConnection, github });
+    provider.adoptPullRequest({ prUrl, connection, installation });
 
-describe('AiWritebackService.resolveAdoptedPullRequest', () => {
+describe('GithubProvider.adoptPullRequest', () => {
     beforeEach(() => jest.clearAllMocks());
 
     it('adopts an open PR in the project repo', async () => {

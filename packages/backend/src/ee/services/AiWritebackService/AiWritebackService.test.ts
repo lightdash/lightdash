@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     FeatureFlags,
     ForbiddenError,
+    PullRequestProvider,
     WarehouseTypes,
     type MemberAbility,
     type SessionUser,
@@ -52,21 +53,42 @@ const PR_9 = 'https://github.com/acme/analytics/pull/9';
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new AiWritebackService({
-        lightdashConfig: {} as AnyType,
+        lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: jest.fn() } as AnyType,
         projectModel: { get: jest.fn() } as AnyType,
         featureFlagModel: { get: jest.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
+        gitlabAppInstallationsModel: {} as AnyType,
         aiWritebackThreadModel: { findByAiThreadUuid: jest.fn() } as AnyType,
         pullRequestsModel: {} as AnyType,
         projectCiStatusModel: {} as AnyType,
         ...overrides,
     });
 
+// A stand-in GitProvider so applyAgentChanges/run stay provider-agnostic in
+// tests — the host-specific behaviour is covered by the provider unit tests.
+const fakeProvider = (overrides: AnyType = {}): AnyType => ({
+    provider: PullRequestProvider.GITHUB,
+    supportsPreviewDeploy: true,
+    resolveConnection: jest.fn(),
+    resolveInstallation: jest.fn(),
+    getCloneTarget: jest.fn(),
+    openPullRequest: jest.fn().mockResolvedValue(PR_7),
+    updatePullRequest: jest.fn().mockResolvedValue(undefined),
+    adoptPullRequest: jest.fn(),
+    ...overrides,
+});
+
 const turnContext = (overrides: AnyType = {}): AnyType => ({
     organizationUuid: ORG,
     projectName: 'Analytics',
-    githubConnection: { owner: 'acme', repo: 'analytics', projectSubPath: '.' },
+    provider: fakeProvider(),
+    gitConnection: {
+        provider: PullRequestProvider.GITHUB,
+        owner: 'acme',
+        repo: 'analytics',
+        projectSubPath: '.',
+    },
     existingRow: null,
     isResume: false,
     warehouseType: null,
@@ -93,27 +115,32 @@ const adoptedPullRequest = (prUrl: string): AnyType => ({
 describe('AiWritebackService.applyAgentChanges', () => {
     const setup = () => {
         const service = buildService();
-        const open = jest
-            .spyOn(service as AnyType, 'openInitialPullRequest')
-            .mockResolvedValue(PR_7);
-        const update = jest
-            .spyOn(service as AnyType, 'updateExistingPullRequest')
-            .mockResolvedValue(undefined);
+        const provider = fakeProvider();
         const record = jest
             .spyOn(service as AnyType, 'recordWritebackPullRequest')
             .mockResolvedValue(undefined);
-        return { service, open, update, record };
+        return {
+            service,
+            provider,
+            open: provider.openPullRequest,
+            update: provider.updatePullRequest,
+            record,
+        };
     };
 
     const applyAgentChanges = (
         service: AiWritebackService,
+        provider: AnyType,
         args: AnyType,
     ): AnyType =>
         (service as AnyType).applyAgentChanges({
             sandbox: { sandboxId: 'sbx-1' },
-            github: { installationId: 'inst-1' },
+            installation: {
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+            },
             adoptedPr: null,
-            turn: turnContext(),
+            turn: turnContext({ provider, ...(args.turnOverrides ?? {}) }),
             user: { userUuid: 'u1' },
             projectUuid: 'p1',
             aiThreadUuid: undefined,
@@ -124,8 +151,10 @@ describe('AiWritebackService.applyAgentChanges', () => {
         });
 
     it('does nothing when the agent made no changes (one-shot)', async () => {
-        const { service, open, update } = setup();
-        const result = await applyAgentChanges(service, { hasChanges: false });
+        const { service, provider, open, update } = setup();
+        const result = await applyAgentChanges(service, provider, {
+            hasChanges: false,
+        });
         expect(result).toEqual({
             prUrl: null,
             prCreated: false,
@@ -136,10 +165,10 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('keeps a resumed PR and sandbox warm when there are no changes', async () => {
-        const { service } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: false,
-            turn: turnContext({ existingRow: threadRow(PR_3), isResume: true }),
+            turnOverrides: { existingRow: threadRow(PR_3), isResume: true },
         });
         expect(result).toEqual({
             prUrl: PR_3,
@@ -149,10 +178,10 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('updates the existing PR and pauses on a resume turn with changes', async () => {
-        const { service, update, record } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider, update, record } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: true,
-            turn: turnContext({ existingRow: threadRow(PR_3), isResume: true }),
+            turnOverrides: { existingRow: threadRow(PR_3), isResume: true },
         });
         expect(result).toEqual({
             prUrl: PR_3,
@@ -164,8 +193,8 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('updates and records a pasted (adopted) PR when given a thread uuid', async () => {
-        const { service, update, record } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider, update, record } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: true,
             adoptedPr: adoptedPullRequest(PR_9),
             aiThreadUuid: 'thread-1',
@@ -180,8 +209,8 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('does not keep an adopted PR warm without a thread uuid', async () => {
-        const { service } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: true,
             adoptedPr: adoptedPullRequest(PR_9),
             aiThreadUuid: undefined,
@@ -190,8 +219,8 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('opens and records a new PR for fresh changes in a thread', async () => {
-        const { service, open, update, record } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider, open, update, record } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: true,
             aiThreadUuid: 'thread-1',
         });
@@ -206,8 +235,8 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 
     it('kills the sandbox after a one-shot run opens a PR', async () => {
-        const { service } = setup();
-        const result = await applyAgentChanges(service, {
+        const { service, provider } = setup();
+        const result = await applyAgentChanges(service, provider, {
             hasChanges: true,
             aiThreadUuid: undefined,
         });
@@ -238,6 +267,20 @@ describe('AiWritebackService.prepareTurn', () => {
             repository: 'acme/analytics',
             branch: 'main',
             project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    const gitlabProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITLAB,
+            personal_access_token: 'pat',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'gitlab.acme.com',
         },
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
     });
@@ -291,7 +334,8 @@ describe('AiWritebackService.prepareTurn', () => {
         ).resolves.toMatchObject({
             organizationUuid: ORG,
             projectName: 'Analytics',
-            githubConnection: {
+            gitConnection: {
+                provider: PullRequestProvider.GITHUB,
                 owner: 'acme',
                 repo: 'analytics',
                 projectSubPath: '.',
@@ -299,6 +343,31 @@ describe('AiWritebackService.prepareTurn', () => {
             existingRow: null,
             isResume: false,
             warehouseType: WarehouseTypes.POSTGRES,
+        });
+    });
+
+    it('resolves a GitLab connection with its host for a GitLab project', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: jest.fn().mockResolvedValue(gitlabProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        await expect(
+            prepareTurn(service, userWithOrg(true)),
+        ).resolves.toMatchObject({
+            gitConnection: {
+                provider: PullRequestProvider.GITLAB,
+                owner: 'acme',
+                repo: 'analytics',
+                projectSubPath: '.',
+                hostDomain: 'gitlab.acme.com',
+            },
         });
     });
 });
@@ -368,6 +437,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         const service = buildService({
             lightdashConfig: {
                 siteUrl: 'https://app.example',
+                gitlab: {},
                 appRuntime: {
                     e2bApiKey: 'e2b-key',
                     e2bAiWritebackTemplateName: 'tpl',
