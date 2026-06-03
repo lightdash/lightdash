@@ -1,3 +1,10 @@
+## [0.3081.1](https://github.com/lightdash/lightdash/compare/0.3081.0...0.3081.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ai:** add timeout to MCP client connect and tool-discovery calls ([#23788](https://github.com/lightdash/lightdash/issues/23788)) ([c547a5a](https://github.com/lightdash/lightdash/commit/c547a5aecd9c880aa97add9a55b39a885a012bc8))
+
 # [0.3081.0](https://github.com/lightdash/lightdash/compare/0.3080.2...0.3081.0) (2026-06-03)
 
 
