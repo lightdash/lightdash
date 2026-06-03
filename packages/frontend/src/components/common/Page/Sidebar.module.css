@@ -8,15 +8,15 @@
     height: calc(100% - 1px);
     max-height: 100%;
     flex-shrink: 0;
-    z-index: var(--mantine-z-index-popover);
+    z-index: var(--mantine-z-index-app);
     transition: width var(--sidebar-reveal-duration) var(--sidebar-ease-reveal);
     top: 1px;
     width: var(--sidebar-width);
 }
 
-/* Collapsed: drop out of the page flow so content reclaims the space. */
 .floatContainer:has(.floatingPanel[data-collapsed='true']) {
     width: 0;
+    z-index: calc(var(--mantine-z-index-popover) + 1);
 }
 
 .floatingPanel {
@@ -24,7 +24,7 @@
     top: 0;
     bottom: 0;
     left: 0;
-    z-index: var(--mantine-z-index-popover);
+    z-index: 2;
     display: flex;
     flex-direction: column;
     overflow: hidden;
