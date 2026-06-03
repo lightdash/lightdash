@@ -19528,10 +19528,6 @@
             },
             "AiWritebackRunResult": {
                 "properties": {
-                    "previewDeployConfigured": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
                     "repository": {
                         "type": "string"
                     },
@@ -19551,7 +19547,6 @@
                     }
                 },
                 "required": [
-                    "previewDeployConfigured",
                     "repository",
                     "projectName",
                     "prUrl",
@@ -19559,7 +19554,7 @@
                     "output"
                 ],
                 "type": "object",
-                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted.\n- `previewDeployConfigured` is whether the repo already deploys Lightdash\n  preview projects via GitHub Actions: `true` set up, `false` not set up (the\n  caller may offer to set it up), `null` when it could not be determined."
+                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted."
             },
             "ApiSuccess_AiWritebackRunResult_": {
                 "properties": {

@@ -29,6 +29,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
+import { PreviewDeploySetupService } from '../services/PreviewDeploySetupService/PreviewDeploySetupService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
 // the project's dbt connection, so the body only carries the prompt.
@@ -99,10 +100,11 @@ export class AiWritebackController extends BaseController {
     ): Promise<ApiProjectCiStatusResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
-        const results = await this.getAiWritebackService().getProjectCiStatus(
-            toSessionUser(req.account),
-            projectUuid,
-        );
+        const results =
+            await this.getPreviewDeploySetupService().getProjectCiStatus(
+                toSessionUser(req.account),
+                projectUuid,
+            );
         return {
             status: 'ok',
             results,
@@ -111,5 +113,9 @@ export class AiWritebackController extends BaseController {
 
     protected getAiWritebackService() {
         return this.services.getAiWritebackService<AiWritebackService>();
+    }
+
+    protected getPreviewDeploySetupService() {
+        return this.services.getPreviewDeploySetupService<PreviewDeploySetupService>();
     }
 }

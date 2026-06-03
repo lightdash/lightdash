@@ -8,7 +8,6 @@ const BASE_CONTEXT = {
     projectName: 'Jaffle shop',
     repository: 'acme/jaffle',
     repoContext: null,
-    previewDeploy: null,
 };
 
 const buildFor = (warehouseType: WarehouseTypes | null) =>
@@ -52,51 +51,5 @@ describe('buildSystemPrompt — warehouse skill guidance', () => {
 
     it('matches the snapshot for a no-skill warehouse (duckdb)', () => {
         expect(buildFor(WarehouseTypes.DUCKDB)).toMatchSnapshot();
-    });
-});
-
-describe('buildSystemPrompt — preview deploy guidance', () => {
-    const withGuidance = buildSystemPrompt(DBT_PROJECT_DIR, {
-        ...BASE_CONTEXT,
-        warehouseType: WarehouseTypes.POSTGRES,
-        hasWarehouseSkill: true,
-        previewDeploy: {
-            workflowFiles: [
-                {
-                    path: '.github/workflows/start-preview.yml',
-                    content: 'run: lightdash start-preview\n',
-                },
-            ],
-            secrets: [
-                {
-                    name: 'LIGHTDASH_PROJECT',
-                    value: 'proj-1',
-                    description: 'project uuid',
-                },
-                {
-                    name: 'LIGHTDASH_API_KEY',
-                    value: null,
-                    description: 'a personal access token',
-                },
-            ],
-        },
-    });
-
-    it('includes the secondary task and the workflow file path', () => {
-        expect(withGuidance).toContain(
-            'Secondary task: offer to set up Lightdash preview deploys',
-        );
-        expect(withGuidance).toContain('.github/workflows/start-preview.yml');
-    });
-
-    it('shows pre-filled secret values and flags user-supplied ones', () => {
-        expect(withGuidance).toContain('`LIGHTDASH_PROJECT` = `proj-1`');
-        expect(withGuidance).toContain('only the user can provide this');
-    });
-
-    it('omits the section entirely when previewDeploy is null', () => {
-        expect(buildFor(WarehouseTypes.POSTGRES)).not.toContain(
-            'Secondary task: offer to set up',
-        );
     });
 });

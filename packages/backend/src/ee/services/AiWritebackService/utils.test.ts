@@ -28,7 +28,6 @@ import {
     parseMergeRequestUrl,
     parsePullNumber,
     parsePullRequestUrl,
-    parseTrackedWorkflowPaths,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxTemplateRef,
@@ -225,28 +224,6 @@ describe('progressTextForStage', () => {
     it('opts pull_request out of progress reporting', () => {
         expect(progressTextForStage('pull_request')).toBeNull();
     });
-
-    it('relabels the model-editing stages for a preview-deploy setup', () => {
-        // The setup run generates a workflow file, it does not edit models.
-        expect(progressTextForStage('agent', 'preview_deploy_setup')).toBe(
-            'Generating preview-deploy workflow',
-        );
-        expect(progressTextForStage('commit', 'preview_deploy_setup')).toBe(
-            'Committing workflow',
-        );
-        // Shared stages keep their generic labels.
-        expect(progressTextForStage('clone', 'preview_deploy_setup')).toBe(
-            'Cloning project',
-        );
-        expect(progressTextForStage('push', 'preview_deploy_setup')).toBe(
-            'Pushing changes',
-        );
-        // Non-setup sources are unaffected.
-        expect(progressTextForStage('agent', 'web')).toBe('Starting sub agent');
-        expect(progressTextForStage('commit', 'slack')).toBe(
-            'Committing changes',
-        );
-    });
 });
 
 describe('extractPrMetadata', () => {
@@ -323,22 +300,6 @@ describe('parseGitNameStatus', () => {
             addPaths: [],
             deletions: [],
         });
-    });
-});
-
-describe('parseTrackedWorkflowPaths', () => {
-    it('keeps only workflow yml/yaml files, trimmed', () => {
-        const stdout = [
-            '.github/workflows/deploy.yml',
-            '  .github/workflows/ci.yaml  ',
-            '.github/workflows/README.md',
-            'dbt/model.sql',
-            '',
-        ].join('\n');
-        expect(parseTrackedWorkflowPaths(stdout)).toEqual([
-            '.github/workflows/deploy.yml',
-            '.github/workflows/ci.yaml',
-        ]);
     });
 });
 
@@ -457,16 +418,8 @@ describe('summarizeToolInput', () => {
 });
 
 describe('getPhaseProgressText', () => {
-    it('uses workflow wording for preview-deploy setup', () => {
-        expect(getPhaseProgressText('preview_deploy_setup')).toEqual({
-            discovering: 'Inspecting repository',
-            editing: 'Writing workflow files',
-            compiling: 'Validating workflow',
-        });
-    });
-
-    it('uses model wording for a normal writeback', () => {
-        expect(getPhaseProgressText('slack')).toEqual({
+    it('uses model wording for the writeback agent phases', () => {
+        expect(getPhaseProgressText()).toEqual({
             discovering: 'Discovering models',
             editing: 'Editing models',
             compiling: 'Compiling project',

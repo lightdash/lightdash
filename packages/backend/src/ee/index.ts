@@ -1,6 +1,14 @@
 import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import {
+    createBranch,
+    createPullRequest,
+    createSignedCommitOnBranch,
+    getBranchHeadSha,
+    getRepoDefaultBranch,
+    getRepoWorkflowFiles,
+} from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
@@ -51,6 +59,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
+import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -110,8 +119,24 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
+                }),
+            previewDeploySetupService: ({ context, models }) =>
+                new PreviewDeploySetupService({
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    pullRequestsModel: models.getPullRequestsModel(),
                     projectCiStatusModel:
                         models.getProjectCiStatusModel<ProjectCiStatusModel>(),
+                    githubClient: {
+                        createBranch,
+                        createPullRequest,
+                        createSignedCommitOnBranch,
+                        getBranchHeadSha,
+                        getRepoDefaultBranch,
+                        getRepoWorkflowFiles,
+                    },
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
@@ -212,6 +237,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    previewDeploySetupService:
+                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     prometheusMetrics,

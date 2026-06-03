@@ -134,6 +134,7 @@ interface ServiceManifest {
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
+    previewDeploySetupService: unknown;
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
@@ -1262,6 +1263,12 @@ export class ServiceRepository
         AiWritebackServiceImplT,
     >(): AiWritebackServiceImplT {
         return this.getService('aiWritebackService');
+    }
+
+    public getPreviewDeploySetupService<
+        PreviewDeploySetupServiceImplT,
+    >(): PreviewDeploySetupServiceImplT {
+        return this.getService('previewDeploySetupService');
     }
 
     public getAppGenerateService<
