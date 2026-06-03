@@ -24,7 +24,6 @@ const BANNED_PATHS: Record<
 > = {
     chart: [
         { path: '/slug', reason: 'slug is read-only' },
-        { path: '/spaceSlug', reason: 'spaceSlug is read-only' },
         { path: '/updatedAt', reason: 'updatedAt is read-only' },
         { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
         {
@@ -35,7 +34,6 @@ const BANNED_PATHS: Record<
     ],
     dashboard: [
         { path: '/slug', reason: 'slug is read-only' },
-        { path: '/spaceSlug', reason: 'spaceSlug is read-only' },
         { path: '/updatedAt', reason: 'updatedAt is read-only' },
         { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
         {

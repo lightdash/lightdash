@@ -92,6 +92,22 @@ Dashboard tiles have their own titles. A `saved_chart` tile's `title` and `chart
 }
 ```
 
+## Slug Fields
+
+`slug` is a read-only stable identifier.
+
+### Dashboards
+
+- `spaceSlug` is the dashboard's space path. Changing it moves the dashboard to another space.
+- Dashboard tile `properties.chartSlug` references an existing reusable or dashboard-owned chart.
+
+### Charts
+
+Charts are either reusable space charts or dashboard-owned charts.
+
+- Reusable chart: no `dashboardSlug`; `spaceSlug` is its space path and changing it moves the chart.
+- Dashboard-owned chart: has `dashboardSlug`; both `dashboardSlug` and `spaceSlug` are read-only, and `spaceSlug` is the owning dashboard's space.
+
 ## Chart Types
 
 All charts share a common base structure:
@@ -122,8 +138,6 @@ All charts share a common base structure:
     "version": 1
 }
 ```
-
-Use `spaceSlug` for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard.
 
 Spaces can be nested. Use `parent/child` syntax in `spaceSlug` for sub-spaces, for example `"sales/forecasts"`. A bare slug like `"sales-forecasts"` is a flat top-level space; the slash defines the hierarchy.
 
