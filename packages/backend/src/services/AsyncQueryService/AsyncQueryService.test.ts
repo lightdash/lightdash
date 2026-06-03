@@ -96,6 +96,7 @@ import {
     type PreAggregateStrategy,
 } from './PreAggregateStrategy';
 import type {
+    DownloadAsyncQueryResultsArgs,
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
 } from './types';
@@ -1694,6 +1695,18 @@ describe('AsyncQueryService', () => {
     });
 
     describe('download pivot routing', () => {
+        // Typed view onto the private download methods exercised by these tests.
+        type DownloadInternals = {
+            downloadAsyncQueryResults: (
+                args: DownloadAsyncQueryResultsArgs,
+            ) => Promise<{ fileUrl: string; truncated: boolean }>;
+            downloadAsyncQueryResultsAsFormattedFile: (
+                ...args: unknown[]
+            ) => Promise<{ fileUrl: string; truncated: boolean }>;
+        };
+        const asInternals = (service: AsyncQueryService) =>
+            service as unknown as DownloadInternals;
+
         const pivotConfig = {
             pivotDimensions: ['order_date'],
             metricsAsRows: false,
@@ -1741,6 +1754,7 @@ describe('AsyncQueryService', () => {
 
         it('falls back to a flat CSV export when a pivotConfig is requested but the query stored no pivot details', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
             service.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(baseReadyQueryHistory({}));
@@ -1752,16 +1766,11 @@ describe('AsyncQueryService', () => {
                     truncated: false,
                 });
             const flatSpy = jest
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .spyOn(
-                    service as any,
-                    'downloadAsyncQueryResultsAsFormattedFile',
-                )
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
                 .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
 
             await expect(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (service as any).downloadAsyncQueryResults({
+                internals.downloadAsyncQueryResults({
                     account: sessionAccount,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
@@ -1777,6 +1786,7 @@ describe('AsyncQueryService', () => {
 
         it('uses the pivot CSV export when the query stored pivot details', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
             service.queryHistoryModel.get = jest.fn().mockResolvedValue(
                 baseReadyQueryHistory({
                     pivotConfiguration: {
@@ -1811,16 +1821,11 @@ describe('AsyncQueryService', () => {
                 .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
                 .mockResolvedValue({ fileUrl: 'pivot-url', truncated: false });
             const flatSpy = jest
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .spyOn(
-                    service as any,
-                    'downloadAsyncQueryResultsAsFormattedFile',
-                )
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
                 .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
 
             await expect(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (service as any).downloadAsyncQueryResults({
+                internals.downloadAsyncQueryResults({
                     account: sessionAccount,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
