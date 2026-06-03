@@ -733,7 +733,13 @@ export class AiAgentService extends BaseService {
         const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
 
         if (!hasGroupAccess && !hasUserAccess) {
-            return true;
+            return auditedAbility.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: agent.organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            );
         }
 
         // Check user access first (direct access)
@@ -4991,6 +4997,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 'AiAgent.searchSemanticLayer',
                 args,
                 async () => {
+                    const auditedAbility = this.createAuditedAbility(user);
+                    if (
+                        auditedAbility.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to view this project',
+                        );
+                    }
+
                     const agentSettings = await this.getAgentSettings(
                         user,
                         prompt,
