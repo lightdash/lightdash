@@ -1,3 +1,10 @@
+## [0.3080.2](https://github.com/lightdash/lightdash/compare/0.3080.1...0.3080.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* use `SLACK_QA_WEBHOOK_URL` secret for release QA failure notifications ([#23809](https://github.com/lightdash/lightdash/issues/23809)) ([3810c36](https://github.com/lightdash/lightdash/commit/3810c36896c3bfcd3daf890903ba1ee4942cb1cd))
+
 ## [0.3080.1](https://github.com/lightdash/lightdash/compare/0.3080.0...0.3080.1) (2026-06-02)
 
 
