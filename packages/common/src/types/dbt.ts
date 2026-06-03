@@ -285,6 +285,8 @@ export type DbtColumnLightdashMetric = {
         categories?: string[]; // yaml_reference
         filter_by?: string[]; // dimension IDs allowlist
         segment_by?: string[]; // dimension IDs allowlist
+        default_segment?: string; // dimension name pre-selected in Segment by
+        default_filter?: Record<string, AnyType>; // { dimension: value | value[] }, metric filter DSL
         owner?: string; // metric owner email
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
