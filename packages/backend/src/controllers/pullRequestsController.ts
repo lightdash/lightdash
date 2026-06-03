@@ -4,6 +4,7 @@ import {
     ApiPullRequestsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    ParameterError,
 } from '@lightdash/common';
 import {
     Get,
@@ -18,6 +19,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { z } from 'zod';
 import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
@@ -76,6 +78,12 @@ export class PullRequestsController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiPullRequestPreviewResponse> {
         assertRegisteredAccount(req.account);
+
+        const parsedPrUrl = z.string().url().safeParse(prUrl);
+        if (!parsedPrUrl.success) {
+            throw new ParameterError('prUrl must be a valid URL');
+        }
+
         this.setStatus(200);
 
         return {
@@ -85,7 +93,7 @@ export class PullRequestsController extends BaseController {
                 .getPullRequestPreview(
                     toSessionUser(req.account),
                     projectUuid,
-                    prUrl,
+                    parsedPrUrl.data,
                 ),
         };
     }

@@ -353,12 +353,15 @@ export class AiWritebackService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCiStatus | null> {
+        // Authorize against the project's own organization (resource-derived),
+        // not the caller's org.
+        const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                 }),
             )

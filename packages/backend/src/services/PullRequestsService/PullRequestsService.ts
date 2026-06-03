@@ -206,12 +206,24 @@ export class PullRequestsService extends BaseService {
         projectUuid: string,
         prUrl: string,
     ): Promise<PullRequestPreview> {
+        const pullRequest = await this.pullRequestsModel.findByProjectAndUrl(
+            projectUuid,
+            prUrl,
+        );
+        // Nothing recorded for this project + URL — no preview to surface.
+        if (!pullRequest) {
+            return { previewUrl: null };
+        }
+
+        // Authorize against the project's own organization (taken from the
+        // recorded PR), not the caller's org — so an org admin cannot probe a
+        // project that belongs to a different organization.
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: pullRequest.organizationUuid,
                     projectUuid,
                 }),
             )
@@ -219,16 +231,8 @@ export class PullRequestsService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const pullRequest = await this.pullRequestsModel.findByProjectAndUrl(
-            projectUuid,
-            prUrl,
-        );
-        // Only surface previews for PRs we recorded for this project, and only
-        // for GitHub (the single provider we read comments from today).
-        if (
-            !pullRequest ||
-            pullRequest.provider !== PullRequestProvider.GITHUB
-        ) {
+        // Only GitHub is supported for reading preview comments today.
+        if (pullRequest.provider !== PullRequestProvider.GITHUB) {
             return { previewUrl: null };
         }
 
