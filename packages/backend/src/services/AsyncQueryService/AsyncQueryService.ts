@@ -1348,21 +1348,27 @@ export class AsyncQueryService extends ProjectService {
                   )
                 : fields;
         const downloadPivotConfig = exportPivotedData ? pivotConfig : undefined;
+        // The export only pivots when the underlying query stored pivot details.
+        // A chart's UI pivot config can be more permissive than the backend's
+        // query-side derivation, so fall back to a flat export when they diverge.
+        const pivotDetails =
+            AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory);
 
         switch (type) {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
-                if (downloadPivotConfig && queryHistory.metricQuery) {
+                if (
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
+                ) {
                     return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
                         storageClient: resultsStorageClient,
-                        pivotDetails:
-                            AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                queryHistory,
-                            ),
+                        pivotDetails,
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1411,7 +1417,9 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const xlsxResult =
-                    downloadPivotConfig && queryHistory.metricQuery
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
                         ? await ExcelService.downloadAsyncPivotTableXlsx({
                               resultsFileName,
                               fields,
@@ -1425,10 +1433,7 @@ export class AsyncQueryService extends ProjectService {
                                       organizationUuid,
                                   )
                               ).csvCellsLimit,
-                              pivotDetails:
-                                  AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                      queryHistory,
-                                  ),
+                              pivotDetails,
                               options: {
                                   onlyRaw,
                                   showTableNames,
