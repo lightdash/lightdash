@@ -562,7 +562,7 @@ export class AiWritebackService extends BaseService {
             // Stages can opt out of progress reporting by returning null
             // from progressTextForStage when their label would duplicate
             // the parent tool's heading or otherwise add no signal.
-            const progressText = progressTextForStage(stage);
+            const progressText = progressTextForStage(stage, source);
             if (progressText !== null) {
                 reportProgress(progressText);
             }

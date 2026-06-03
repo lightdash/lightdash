@@ -204,7 +204,13 @@ export const parsePullNumber = (prUrl: string): number => {
 /** `null` opts a stage out of progress reporting (its label would be noise). */
 export const progressTextForStage = (
     stage: AiWritebackFailureStage,
+    source?: AiWritebackSource,
 ): string | null => {
+    // A preview-deploy setup run shares the writeback pipeline but isn't editing
+    // the user's models — it generates and commits a workflow file. Relabel the
+    // stages whose generic writeback wording ("sub agent", "changes") would
+    // misdescribe what's happening, so the sub-progress reads correctly.
+    const isPreviewDeploySetup = source === 'preview_deploy_setup';
     switch (stage) {
         case 'install':
             return 'Setting up';
@@ -213,9 +219,13 @@ export const progressTextForStage = (
         case 'clone':
             return 'Cloning project';
         case 'agent':
-            return 'Starting sub agent';
+            return isPreviewDeploySetup
+                ? 'Generating preview-deploy workflow'
+                : 'Starting sub agent';
         case 'commit':
-            return 'Committing changes';
+            return isPreviewDeploySetup
+                ? 'Committing workflow'
+                : 'Committing changes';
         case 'push':
             return 'Pushing changes';
         case 'pull_request':

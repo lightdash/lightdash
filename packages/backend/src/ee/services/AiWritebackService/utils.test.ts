@@ -225,6 +225,28 @@ describe('progressTextForStage', () => {
     it('opts pull_request out of progress reporting', () => {
         expect(progressTextForStage('pull_request')).toBeNull();
     });
+
+    it('relabels the model-editing stages for a preview-deploy setup', () => {
+        // The setup run generates a workflow file, it does not edit models.
+        expect(progressTextForStage('agent', 'preview_deploy_setup')).toBe(
+            'Generating preview-deploy workflow',
+        );
+        expect(progressTextForStage('commit', 'preview_deploy_setup')).toBe(
+            'Committing workflow',
+        );
+        // Shared stages keep their generic labels.
+        expect(progressTextForStage('clone', 'preview_deploy_setup')).toBe(
+            'Cloning project',
+        );
+        expect(progressTextForStage('push', 'preview_deploy_setup')).toBe(
+            'Pushing changes',
+        );
+        // Non-setup sources are unaffected.
+        expect(progressTextForStage('agent', 'web')).toBe('Starting sub agent');
+        expect(progressTextForStage('commit', 'slack')).toBe(
+            'Committing changes',
+        );
+    });
 });
 
 describe('extractPrMetadata', () => {
