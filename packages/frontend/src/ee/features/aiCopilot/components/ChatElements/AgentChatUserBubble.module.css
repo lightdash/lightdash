@@ -24,3 +24,17 @@
     font-size: 0.8125rem;
     font-weight: 500;
 }
+
+.messageText {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.inlineMarkdown {
+    display: inline;
+}
+
+.inlineMarkdown :global(p) {
+    display: inline;
+    margin: 0;
+}
