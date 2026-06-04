@@ -19541,6 +19541,11 @@
             "ApiRemoveScopeFromRoleResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
+            "PullRequestWritebackAction": {
+                "type": "string",
+                "enum": ["opened", "updated"],
+                "description": "Whether a writeback run opened a brand-new pull request or updated an\nexisting one (a resumed thread or a pasted PR link). `null` when no pull\nrequest was touched (the agent made no file changes)."
+            },
             "AiWritebackRunResult": {
                 "properties": {
                     "repository": {
@@ -19548,6 +19553,14 @@
                     },
                     "projectName": {
                         "type": "string"
+                    },
+                    "prAction": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PullRequestWritebackAction"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "prUrl": {
                         "type": "string",
@@ -19564,6 +19577,7 @@
                 "required": [
                     "repository",
                     "projectName",
+                    "prAction",
                     "prUrl",
                     "exitCode",
                     "output"

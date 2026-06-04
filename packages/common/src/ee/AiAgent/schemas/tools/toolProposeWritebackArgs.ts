@@ -34,6 +34,10 @@ export const toolProposeWritebackOutputSchema = z.object({
         z.object({
             status: z.literal('success'),
             prUrl: z.string().nullable(),
+            // Nullish, not required: tool-call metadata is persisted, so cards
+            // rendered from rows written before this field existed must still
+            // parse. Absent/null is treated as 'opened' by the renderer.
+            prAction: z.enum(['opened', 'updated']).nullish(),
         }),
         z.object({
             status: z.literal('error'),

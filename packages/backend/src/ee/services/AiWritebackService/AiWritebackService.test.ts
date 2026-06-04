@@ -521,6 +521,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             output: 'Done.',
             exitCode: 0,
             prUrl: PR_7,
+            prAction: 'opened',
             repository: 'acme/analytics',
         });
         expect(createPullRequest).toHaveBeenCalledTimes(1);
@@ -534,7 +535,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         const result = await runService(sandbox);
 
-        expect(result).toMatchObject({ exitCode: 1, prUrl: null });
+        expect(result).toMatchObject({
+            exitCode: 1,
+            prUrl: null,
+            prAction: null,
+        });
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
     });
@@ -545,7 +550,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         const result = await runService(sandbox);
 
-        expect(result).toMatchObject({ exitCode: 0, prUrl: null });
+        expect(result).toMatchObject({
+            exitCode: 0,
+            prUrl: null,
+            prAction: null,
+        });
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
     });

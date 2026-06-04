@@ -21,6 +21,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
             try {
                 const {
                     prUrl,
+                    prAction,
                     output,
                     projectName,
                     repository,
@@ -37,8 +38,9 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                 // only via the "View pull request" button (built from the
                 // metadata below) — see the instruction in the success branch.
                 const target = `Lightdash project "${projectName}" (repository ${repository})`;
+                const prVerb = prAction === 'updated' ? 'Updated' : 'Opened';
                 const base = prUrl
-                    ? `Opened a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${output}`
+                    ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${output}`
                     : `The writeback agent ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 // Deterministic offer: when the repo has no Lightdash
@@ -55,6 +57,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                     metadata: {
                         status: 'success' as const,
                         prUrl: prUrl ?? null,
+                        prAction: prAction ?? null,
                     },
                 };
             } catch (error) {
