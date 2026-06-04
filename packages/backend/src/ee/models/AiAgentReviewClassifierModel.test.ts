@@ -421,6 +421,8 @@ describe('AiAgentReviewClassifierModel', () => {
 
     describe('createTurnSignal', () => {
         it('persists a classified signal with inline finding fields', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
             tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
             tracker.on.insert(AiAgentTurnSignalTableName).responseOnce([
                 {
@@ -473,9 +475,19 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(tracker.history.insert[1].sql).toContain(
                 AiAgentReviewItemTableName,
             );
+            // The supersede + item write are serialized behind a per-turn
+            // advisory lock so concurrent re-reviews cannot clobber each other.
+            expect(
+                [
+                    ...tracker.history.select,
+                    ...(tracker.history.any ?? []),
+                ].some((q) => q.sql.includes('pg_advisory_xact_lock')),
+            ).toBe(true);
         });
 
         it('does not upsert a review item when the turn is not promoted', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
             tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
             tracker.on.insert(AiAgentTurnSignalTableName).responseOnce([
                 {
@@ -493,6 +505,88 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(tracker.history.insert[0].sql).toContain(
                 AiAgentTurnSignalTableName,
             );
+        });
+
+        it('removes a now-orphaned pristine review item when a re-review drops the finding', async () => {
+            const ORPHAN_FINGERPRINT = 'ai_agent_review_item:orphan';
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            const supersededSelect = tracker.on.select(
+                AiAgentTurnSignalTableName,
+            );
+            // 1st select: fingerprints being superseded. 2nd: which remain backed.
+            supersededSelect.responseOnce([
+                { fingerprint: ORPHAN_FINGERPRINT },
+            ]);
+            supersededSelect.responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(1);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            tracker.on.delete(AiAgentReviewItemTableName).responseOnce(1);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal: { ...turnSignal, promotedToFinding: false },
+                finding: null,
+            });
+
+            // No new item is written (the re-review is not a finding) ...
+            expect(tracker.history.insert).toHaveLength(1);
+            // ... and the orphaned item is deleted, guarded to pristine rows.
+            const itemDeletes = tracker.history.delete.filter((q) =>
+                q.sql.includes(AiAgentReviewItemTableName),
+            );
+            expect(itemDeletes).toHaveLength(1);
+            expect(itemDeletes[0].sql).toContain('status');
+            expect(itemDeletes[0].sql).toContain('assigned_to_user_uuid');
+            expect(itemDeletes[0].sql).toContain('linked_pr_url');
+            expect(itemDeletes[0].bindings).toContain(ORPHAN_FINGERPRINT);
+        });
+
+        it('keeps the review item when the finding is unchanged across a re-review', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            // Superseded fingerprint equals the new one → not an orphan.
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([{ fingerprint: FINGERPRINT }]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(1);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: {
+                    primaryRootCause: 'semantic_layer',
+                    secondaryRootCauses: [],
+                    subcategories: [],
+                    fixTargets: [],
+                    targetRefs: [],
+                    evidenceExcerpts: [],
+                    recommendation: null,
+                    projectContextEntry: null,
+                    reviewItem: {
+                        fingerprint: FINGERPRINT,
+                        title: 'Review airports.country',
+                        description: 'Country needs semantic clarification.',
+                        ownerType: 'semantic_layer_owner',
+                    },
+                },
+            });
+
+            // The item is re-touched (upsert), never deleted, since the
+            // fingerprint is stable across the re-review.
+            expect(
+                tracker.history.delete.filter((q) =>
+                    q.sql.includes(AiAgentReviewItemTableName),
+                ),
+            ).toHaveLength(0);
         });
     });
 
