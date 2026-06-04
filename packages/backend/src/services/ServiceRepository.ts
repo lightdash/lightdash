@@ -380,6 +380,7 @@ export class ServiceRepository
                     analyticsModel: this.models.getAnalyticsModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
+                    searchModel: this.models.getSearchModel(),
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedChartService: this.getSavedChartService(),

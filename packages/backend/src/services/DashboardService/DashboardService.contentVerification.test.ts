@@ -17,6 +17,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -94,6 +95,7 @@ describe('DashboardService - Content Verification', () => {
         analyticsModel: {} as unknown as AnalyticsModel,
         pinnedListModel: {} as unknown as PinnedListModel,
         schedulerModel: {} as unknown as SchedulerModel,
+        searchModel: {} as unknown as SearchModel,
         schedulerService: {} as unknown as SchedulerService,
         savedChartModel: {
             getInfoForAvailableFilters: jest.fn(async () => []),

@@ -173,6 +173,7 @@ import { DashboardService } from '../../../services/DashboardService/DashboardSe
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -316,6 +317,7 @@ type AiAgentServiceDependencies = {
     changesetModel: ChangesetModel;
     contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
+    searchService: SearchService;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
     lightdashConfig: LightdashConfig;
@@ -525,6 +527,8 @@ export class AiAgentService extends BaseService {
 
     private readonly searchModel: SearchModel;
 
+    private readonly searchService: SearchService;
+
     private readonly userModel: UserModel;
 
     private readonly spaceService: SpaceService;
@@ -590,6 +594,7 @@ export class AiAgentService extends BaseService {
         this.changesetModel = dependencies.changesetModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
+        this.searchService = dependencies.searchService;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -5838,35 +5843,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const findContent: FindContentFn = async (args) =>
             wrapSentryTransaction('AiAgent.findContent', args, async () => {
-                const dashboardSearchResults =
-                    await this.searchModel.searchDashboards(
-                        projectUuid,
-                        args.searchQuery.label,
-                        undefined,
-                        'OR',
-                    );
-
-                const chartSearchResults =
-                    await this.searchModel.searchAllCharts(
-                        projectUuid,
-                        args.searchQuery.label,
-                        'OR',
-                    );
-
-                const allContent = [
-                    ...dashboardSearchResults,
-                    ...chartSearchResults,
-                ];
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        allContent,
-                    );
-
+                const { content } = await this.searchService.findContent(
+                    user,
+                    projectUuid,
+                    args.searchQuery.label,
+                );
                 const agentSettings = await this.getAgentSettings(user, prompt);
                 return {
-                    content: filteredResults.filter(({ spaceUuid }) =>
+                    content: content.filter(({ spaceUuid }) =>
                         AiAgentService.hasAgentSpaceAccess(
                             agentSettings.spaceAccess,
                             spaceUuid,
@@ -5914,7 +5898,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const getDashboardCharts: GetDashboardChartsFn = async (args) =>
             wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
-                this.searchModel.getDashboardCharts(
+                this.dashboardService.getDashboardCharts(
+                    user,
+                    projectUuid,
                     args.dashboardUuid,
                     args.page,
                     args.pageSize,
