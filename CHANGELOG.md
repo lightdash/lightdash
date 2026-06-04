@@ -1,3 +1,10 @@
+# [0.3092.0](https://github.com/lightdash/lightdash/compare/0.3091.0...0.3092.0) (2026-06-04)
+
+
+### Features
+
+* **ai-agent:** let agent write back the active changeset ([#23886](https://github.com/lightdash/lightdash/issues/23886)) ([b59e28e](https://github.com/lightdash/lightdash/commit/b59e28e4aa80ad700672e7627335eb23d8cd18ec))
+
 # [0.3091.0](https://github.com/lightdash/lightdash/compare/0.3090.0...0.3091.0) (2026-06-04)
 
 
