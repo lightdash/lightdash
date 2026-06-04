@@ -1,3 +1,11 @@
+# [0.3090.0](https://github.com/lightdash/lightdash/compare/0.3089.2...0.3090.0) (2026-06-04)
+
+
+### Features
+
+* **changesets:** write back all changeset changes to dbt ([#23880](https://github.com/lightdash/lightdash/issues/23880)) ([9955178](https://github.com/lightdash/lightdash/commit/99551783d907ac69d370709936dd523e46394775))
+* **pull-requests:** redesign settings table with ContentTable, state filter and AI thread preview ([#23883](https://github.com/lightdash/lightdash/issues/23883)) ([5ca451c](https://github.com/lightdash/lightdash/commit/5ca451c734989fc35ece86e021093ed3ecf11afc))
+
 ## [0.3089.2](https://github.com/lightdash/lightdash/compare/0.3089.1...0.3089.2) (2026-06-04)
 
 
