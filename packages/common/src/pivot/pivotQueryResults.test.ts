@@ -54,6 +54,52 @@ const buildWarehouseRowTotalsFromExpected = (
     return map;
 };
 
+// Column totals are warehouse-only too. Reconstruct the warehouse map (keyed by
+// pivot SQL column name, `<metric>_any_<pivotValue...>`) from an expected
+// fixture's columnTotals + headerValues so fixtures stay the source of truth.
+const buildWarehouseColumnTotalsFromExpected = (
+    expected: PivotData,
+): Record<string, number> => {
+    const map: Record<string, number> = {};
+    const { columnTotals, columnTotalFields, headerValues, pivotConfig } =
+        expected;
+    if (!columnTotals || !columnTotalFields) return map;
+
+    const pivotValuesForColumn = (
+        dimRows: PivotData['headerValues'],
+        colIndex: number,
+    ): string[] | undefined => {
+        const values = dimRows.map((dimRow) => {
+            const cell = dimRow[colIndex];
+            return cell && cell.type === 'value'
+                ? String(cell.value?.raw)
+                : undefined;
+        });
+        return values.some((v) => v === undefined)
+            ? undefined
+            : (values as string[]);
+    };
+
+    const metricRow = headerValues[headerValues.length - 1] ?? [];
+    const pivotDimRows = pivotConfig.metricsAsRows
+        ? headerValues
+        : headerValues.slice(0, -1);
+
+    columnTotals.forEach((row, rowIndex) => {
+        row.forEach((value, colIndex) => {
+            if (typeof value !== 'number') return;
+            const metricFieldId = pivotConfig.metricsAsRows
+                ? columnTotalFields[rowIndex]?.find((f) => f?.fieldId)?.fieldId
+                : metricRow[colIndex]?.fieldId;
+            if (!metricFieldId) return;
+            const pivotValues = pivotValuesForColumn(pivotDimRows, colIndex);
+            if (!pivotValues) return;
+            map[[metricFieldId, 'any', ...pivotValues].join('_')] = value;
+        });
+    });
+    return map;
+};
+
 describe('convertSqlPivotedRowsToPivotData', () => {
     it('should convert SQL-pivoted rows to PivotData format', () => {
         // Convert SQL Pivoted rows to PivotData
@@ -96,6 +142,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             getFieldLabel: (fieldId) => fieldId,
             groupedSubtotals: undefined,
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_WITH_TOTALS,
+            ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
                 EXPECTED_PIVOT_DATA_WITH_TOTALS,
             ),
         });
@@ -258,6 +307,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
                 EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
             ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(EXPECTED_PIVOT_DATA_METRICS_AS_ROWS);
@@ -297,6 +349,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             },
             groupedSubtotals: undefined,
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA,
+            ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
                 EXPECTED_COMPLEX_PIVOT_DATA,
             ),
         });
@@ -340,11 +395,77 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
                 EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
             ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(
             EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
         );
+
+        // metricsAsRows column totals must include a footer row for every
+        // visible metric — including the non-summable avg — so warehouse
+        // totals can be overlaid for all metric types.
+        const totalMetricIds = result.columnTotalFields?.map(
+            (row) => row.find((cell) => cell?.fieldId)?.fieldId,
+        );
+        expect(totalMetricIds).toEqual([
+            'payments_total_revenue',
+            'orders_average_order_size',
+            'orders_total_order_amount',
+        ]);
+    });
+
+    it('leaves column totals null (no client-side fallback) without warehouse values', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // The total row is allocated but every cell is blank until warehouse
+        // column totals are provided — there is no in-memory summation.
+        expect(result.columnTotals).toStrictEqual([[null, null, null, null]]);
+    });
+
+    it('fills only the column totals present in the warehouse map', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            // Only two of the four pivot columns have a warehouse total.
+            warehouseColumnTotals: {
+                payments_total_revenue_any_bank_transfer: 111,
+                payments_total_revenue_any_credit_card: 333,
+            },
+        });
+
+        expect(result.columnTotals).toStrictEqual([[111, null, 333, null]]);
     });
 
     it('should limit pivot columns when columnLimit is provided', () => {
