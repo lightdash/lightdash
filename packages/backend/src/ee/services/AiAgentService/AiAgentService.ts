@@ -2121,7 +2121,8 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableContentTools: body.enableContentTools,
+            enableContentTools:
+                body.enableDataAccess && (body.enableContentTools ?? false),
             version: body.version,
         });
 
@@ -3015,6 +3016,9 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nextEnableDataAccess =
+            body.enableDataAccess ?? agent.enableDataAccess;
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -3031,7 +3035,9 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableContentTools: body.enableContentTools,
+            enableContentTools: nextEnableDataAccess
+                ? body.enableContentTools
+                : false,
             version: body.version,
         });
 

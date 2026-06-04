@@ -322,6 +322,11 @@ const getAgentTools = (
           })
         : null;
 
+    const enableContentTools =
+        args.enableAgentRevamp &&
+        args.enableDataAccess &&
+        args.enableContentTools;
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
@@ -330,7 +335,7 @@ const getAgentTools = (
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
-        ...(args.enableAgentRevamp && args.enableContentTools
+        ...(enableContentTools
             ? {
                   readContent,
                   editContent,
@@ -389,7 +394,9 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             enableContentTools:
-                args.enableAgentRevamp && args.enableContentTools,
+                args.enableAgentRevamp &&
+                args.enableDataAccess &&
+                args.enableContentTools,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,

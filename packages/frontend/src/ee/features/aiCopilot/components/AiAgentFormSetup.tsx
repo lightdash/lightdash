@@ -377,6 +377,21 @@ export const AiAgentFormSetup = ({
                                 {...form.getInputProps('enableDataAccess', {
                                     type: 'checkbox',
                                 })}
+                                onChange={(event) => {
+                                    const enabled = event.currentTarget.checked;
+
+                                    form.setFieldValue(
+                                        'enableDataAccess',
+                                        enabled,
+                                    );
+
+                                    if (!enabled) {
+                                        form.setFieldValue(
+                                            'enableContentTools',
+                                            false,
+                                        );
+                                    }
+                                }}
                             />
                             {isAgentRevampEnabled && (
                                 <Switch
@@ -388,7 +403,7 @@ export const AiAgentFormSetup = ({
                                                 content
                                             </Text>
                                             <Tooltip
-                                                label="Only works for users with content-as-code access (admins and developers)."
+                                                label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
                                                 withArrow
                                                 withinPortal
                                                 multiline
@@ -422,6 +437,7 @@ export const AiAgentFormSetup = ({
                                             type: 'checkbox',
                                         },
                                     )}
+                                    disabled={!form.values.enableDataAccess}
                                 />
                             )}
                         </Stack>
