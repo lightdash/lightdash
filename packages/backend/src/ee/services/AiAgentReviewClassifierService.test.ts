@@ -6,7 +6,10 @@ import {
 } from '@lightdash/common';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
-import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
+import {
+    AiAgentReviewClassifierService,
+    resolveReviewJudgeProvider,
+} from './AiAgentReviewClassifierService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
@@ -593,6 +596,27 @@ describe('AiAgentReviewClassifierService', () => {
                     primaryRootCause: 'product_capability',
                 }),
             }),
+        );
+    });
+});
+
+describe('resolveReviewJudgeProvider', () => {
+    const copilotWith = (
+        providers: Record<string, unknown>,
+    ): Parameters<typeof resolveReviewJudgeProvider>[0] =>
+        ({ defaultProvider: 'openai', providers }) as never;
+
+    it('prefers anthropic for the judge when it is configured', () => {
+        expect(
+            resolveReviewJudgeProvider(
+                copilotWith({ openai: {}, anthropic: { apiKey: 'x' } }),
+            ),
+        ).toBe('anthropic');
+    });
+
+    it('falls back to the default provider when anthropic is absent', () => {
+        expect(resolveReviewJudgeProvider(copilotWith({ openai: {} }))).toBe(
+            undefined,
         );
     });
 });
