@@ -20,9 +20,20 @@ const emptyFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
+const isDashboardChartReadyQueryForCharts = (
+    queryKey: readonly unknown[],
+    savedChartUuids: string[],
+    dashboardUuid: string,
+) =>
+    queryKey[0] === 'dashboard_chart_ready_query' &&
+    typeof queryKey[2] === 'string' &&
+    savedChartUuids.includes(queryKey[2]) &&
+    queryKey[3] === dashboardUuid;
+
 const DashboardAiAgentContextBridge = () => {
     const queryClient = useQueryClient();
-    const { projectUuid, dashboardUuid } = useParams<{
+    // useDashboardQuery/saved_dashboard_query use UUID-or-slug; useDashboardChartReadyQuery/dashboard_chart_ready_query uses dashboard.uuid.
+    const { projectUuid, dashboardUuid: dashboardUuidOrSlug } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
@@ -54,9 +65,10 @@ const DashboardAiAgentContextBridge = () => {
     const focusRequestIdRef = useRef(0);
 
     const currentDashboardSlug = dashboard?.slug;
+    const currentDashboardUuid = dashboard?.uuid;
     const dashboardQueryKey = useMemo(
-        () => ['saved_dashboard_query', dashboardUuid, projectUuid],
-        [dashboardUuid, projectUuid],
+        () => ['saved_dashboard_query', dashboardUuidOrSlug, projectUuid],
+        [dashboardUuidOrSlug, projectUuid],
     );
 
     const scrollToChartTile = useCallback((tile: DashboardChartTile) => {
@@ -76,7 +88,7 @@ const DashboardAiAgentContextBridge = () => {
             tiles: DashboardTile[] | undefined,
             options?: { focusTile?: boolean },
         ) => {
-            if (!projectUuid || !dashboardUuid) return;
+            if (!projectUuid || !currentDashboardUuid) return;
 
             const matchingTiles = (tiles ?? []).filter(
                 (tile): tile is DashboardChartTile =>
@@ -122,22 +134,23 @@ const DashboardAiAgentContextBridge = () => {
 
             await queryClient.resetQueries({
                 predicate: (query) =>
-                    query.queryKey[0] === 'dashboard_chart_ready_query' &&
-                    query.queryKey[2] !== null &&
-                    savedChartUuids.includes(query.queryKey[2] as string) &&
-                    query.queryKey[3] === dashboardUuid,
+                    isDashboardChartReadyQueryForCharts(
+                        query.queryKey,
+                        savedChartUuids,
+                        currentDashboardUuid,
+                    ),
             });
 
             if (options?.focusTile) {
                 scrollToChartTile(matchingTiles[0]);
             }
         },
-        [dashboardUuid, projectUuid, queryClient, scrollToChartTile],
+        [currentDashboardUuid, projectUuid, queryClient, scrollToChartTile],
     );
 
     const refreshDashboard = useCallback(
         async (chartSlugToFocus?: string) => {
-            if (!projectUuid || !dashboardUuid) return false;
+            if (!projectUuid || !dashboardUuidOrSlug) return false;
 
             await queryClient.invalidateQueries({
                 queryKey: dashboardQueryKey,
@@ -146,7 +159,7 @@ const DashboardAiAgentContextBridge = () => {
 
             const freshDashboard = await queryClient.fetchQuery({
                 queryKey: dashboardQueryKey,
-                queryFn: () => getDashboard(dashboardUuid, projectUuid),
+                queryFn: () => getDashboard(dashboardUuidOrSlug, projectUuid),
             });
 
             const chartTiles = freshDashboard.tiles.filter(
@@ -185,7 +198,7 @@ const DashboardAiAgentContextBridge = () => {
         },
         [
             dashboardQueryKey,
-            dashboardUuid,
+            dashboardUuidOrSlug,
             projectUuid,
             queryClient,
             refreshChartTilesFromTiles,
@@ -205,7 +218,8 @@ const DashboardAiAgentContextBridge = () => {
     );
 
     useEffect(() => {
-        if (!currentDashboardSlug || !projectUuid || !dashboardUuid) return;
+        if (!currentDashboardSlug || !projectUuid || !dashboardUuidOrSlug)
+            return;
 
         const plan = planDashboardAiAgentChanges({
             parts: activeThreadParts,
@@ -244,7 +258,7 @@ const DashboardAiAgentContextBridge = () => {
     }, [
         activeThreadParts,
         currentDashboardSlug,
-        dashboardUuid,
+        dashboardUuidOrSlug,
         projectUuid,
         refreshChartTiles,
         refreshDashboard,
