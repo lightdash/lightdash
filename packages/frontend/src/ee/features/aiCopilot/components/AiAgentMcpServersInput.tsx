@@ -1383,6 +1383,7 @@ export const AiAgentMcpServersInput = ({
                 opened={isGithubConfirmModalOpen}
                 onClose={githubConfirmModalHandlers.close}
                 isLoading={isConnectingGithubMcp || isPersistingSelection}
+                canChooseScope
                 onConnect={handleConnectGithubMcp}
             />
         </>

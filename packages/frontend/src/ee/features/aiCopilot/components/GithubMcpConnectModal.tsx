@@ -31,7 +31,7 @@ type Props = {
 export const GithubMcpConnectModal: FC<Props> = ({
     opened,
     isLoading,
-    canChooseScope = true,
+    canChooseScope = false,
     onClose,
     onConnect,
 }) => {
@@ -40,6 +40,7 @@ export const GithubMcpConnectModal: FC<Props> = ({
 
     const handleClose = useCallback(() => {
         setToken('');
+        setScope('user');
         onClose();
     }, [onClose]);
 

@@ -2765,10 +2765,12 @@ export class AiAgentService extends BaseService {
                     },
                 });
             } catch (error) {
+                Logger.error(
+                    `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Failed to reconnect with provided token`,
+                    error,
+                );
                 throw new ParameterError(
-                    `We couldn't connect to GitHub with that token. Check the token and its repository access, then try again. Details: ${
-                        error instanceof Error ? error.message : String(error)
-                    }`,
+                    "We couldn't connect to GitHub with that token. Check the token and its repository access, then try again.",
                 );
             }
 
