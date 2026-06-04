@@ -855,12 +855,24 @@ export class SavedSqlService
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkCreateScheduledDeliveryAccess(
-            user,
-            projectUuid,
-            savedSqlUuid,
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
         );
-        return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
+        return this.schedulerModel.getSqlChartSchedulers(
+            savedSqlUuid,
+            canManageAll ? undefined : user.userUuid,
+        );
     }
 
     async createScheduler(

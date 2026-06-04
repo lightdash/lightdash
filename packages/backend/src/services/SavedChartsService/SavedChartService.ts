@@ -1665,6 +1665,14 @@ export class SavedChartService
             user,
             chartUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+            }),
+        );
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
@@ -1674,6 +1682,9 @@ export class SavedChartService
                 resourceType: 'chart',
                 resourceUuids: [chartUuid],
                 formats: filters?.formats,
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
             },
         });
 
