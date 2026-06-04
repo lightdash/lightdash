@@ -1,3 +1,11 @@
+## [0.3095.2](https://github.com/lightdash/lightdash/compare/0.3095.1...0.3095.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ai:** improve content mention search ([#23909](https://github.com/lightdash/lightdash/issues/23909)) ([3218324](https://github.com/lightdash/lightdash/commit/321832480b743729d58b58979739e2bd85250688))
+* show streamed MCP tool calls ([#23913](https://github.com/lightdash/lightdash/issues/23913)) ([cf464c7](https://github.com/lightdash/lightdash/commit/cf464c7c1cb48b6b5375f6276ad52dc8d99093e3)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3095.1](https://github.com/lightdash/lightdash/compare/0.3095.0...0.3095.1) (2026-06-04)
 
 
