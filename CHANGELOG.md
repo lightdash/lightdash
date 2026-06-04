@@ -1,3 +1,16 @@
+# [0.3095.0](https://github.com/lightdash/lightdash/compare/0.3094.0...0.3095.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **pivot:** drop dangling sort refs from row totals query ([#23903](https://github.com/lightdash/lightdash/issues/23903)) ([778c637](https://github.com/lightdash/lightdash/commit/778c63713c1bb8fa97e5c2e88bc59c4399beb672))
+
+
+### Features
+
+* **ai-agents:** render content mentions as reference links ([#23895](https://github.com/lightdash/lightdash/issues/23895)) ([5f92440](https://github.com/lightdash/lightdash/commit/5f9244068f18dfe13733117d8de0f736a4cf5b21))
+* **ai-review:** prefer an Anthropic judge model when configured ([#23906](https://github.com/lightdash/lightdash/issues/23906)) ([519efe9](https://github.com/lightdash/lightdash/commit/519efe9ce9f00f2ed33712f516e975e0d24e2527))
+
 # [0.3094.0](https://github.com/lightdash/lightdash/compare/0.3093.0...0.3094.0) (2026-06-04)
 
 
