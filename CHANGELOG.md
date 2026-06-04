@@ -1,3 +1,10 @@
+## [0.3092.1](https://github.com/lightdash/lightdash/compare/0.3092.0...0.3092.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* restrict per-resource scheduled deliveries to their owner ([#23888](https://github.com/lightdash/lightdash/issues/23888)) ([f6e90da](https://github.com/lightdash/lightdash/commit/f6e90daa1a15de3b5f92b6501331f476cf34fdaf))
+
 # [0.3092.0](https://github.com/lightdash/lightdash/compare/0.3091.0...0.3092.0) (2026-06-04)
 
 
