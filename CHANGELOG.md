@@ -1,3 +1,10 @@
+# [0.3096.0](https://github.com/lightdash/lightdash/compare/0.3095.2...0.3096.0) (2026-06-04)
+
+
+### Features
+
+* **changesets:** add button to download changeset as JSON ([#23912](https://github.com/lightdash/lightdash/issues/23912)) ([9ed2219](https://github.com/lightdash/lightdash/commit/9ed221997086a2cdec5252e494089e6c5d4bd5c6))
+
 ## [0.3095.2](https://github.com/lightdash/lightdash/compare/0.3095.1...0.3095.2) (2026-06-04)
 
 
