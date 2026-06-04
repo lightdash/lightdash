@@ -24,6 +24,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
@@ -51,6 +55,7 @@ const AiAgentNewThreadPage: FC = () => {
     const {
         contextInput,
         previewItems,
+        contentMentionItems,
         isReady: isPinnedContextReady,
     } = usePinnedContext({
         projectUuid,
@@ -149,16 +154,33 @@ const AiAgentNewThreadPage: FC = () => {
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
     const onSubmit = useCallback(
-        ({ message, toolHints }: { message: string; toolHints: string[] }) => {
+        ({
+            message,
+            toolHints,
+            context,
+            optimisticContext,
+        }: {
+            message: string;
+            toolHints: string[];
+            context?: typeof contextInput;
+            optimisticContext?: typeof previewItems;
+        }) => {
             if (!agentUuid) return;
             if (!isPinnedContextReady) return;
             setPendingPrompt('');
+            const mergedContext = mergeAiPromptContextInput(
+                contextInput,
+                context,
+            );
+            const mergedOptimisticContext = mergeAiPromptContextItems(
+                previewItems,
+                optimisticContext,
+            );
             void createAgentThread({
                 agentUuid,
                 prompt: message,
-                context: contextInput.length > 0 ? contextInput : undefined,
-                optimisticContext:
-                    previewItems.length > 0 ? previewItems : undefined,
+                context: mergedContext,
+                optimisticContext: mergedOptimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
                 modelConfig: selectedModel
@@ -329,6 +351,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         defaultValue={pendingPrompt}
                         onValueChange={setPendingPrompt}
+                        contentMentionPriorityItems={contentMentionItems}
                     />
                 </Stack>
             </Stack>

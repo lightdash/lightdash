@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
     type AgentSuggestion,
+    type AiPromptContextInput,
+    type AiPromptContextItem,
     type AiModelOption,
 } from '@lightdash/common';
 import {
@@ -36,6 +38,12 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import {
+    createContentMentionExtension,
+    extractContentMentionContext,
+    isContentMentionSuggestionActive,
+    type ContentMentionSuggestionItem,
+} from './contentMentions';
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
@@ -63,6 +71,8 @@ const SuggestionChipMention = Mention.extend({
 type SubmitArgs = {
     message: string;
     toolHints: string[];
+    context?: AiPromptContextInput;
+    optimisticContext?: AiPromptContextItem[];
 };
 
 interface AgentChatInputProps {
@@ -90,6 +100,7 @@ interface AgentChatInputProps {
     fullWidth?: boolean;
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
+    contentMentionPriorityItems?: ContentMentionSuggestionItem[];
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -131,6 +142,7 @@ export const AgentChatInput = ({
     fullWidth = false,
     clearOnSubmit = true,
     showSuggestions = true,
+    contentMentionPriorityItems = [],
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -147,6 +159,10 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
     const clearOnSubmitRef = useRef(clearOnSubmit);
     clearOnSubmitRef.current = clearOnSubmit;
+    const projectUuidRef = useRef(projectUuid);
+    projectUuidRef.current = projectUuid;
+    const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
+    contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -256,6 +272,10 @@ export const AgentChatInput = ({
                         : '',
                 ],
             }),
+            createContentMentionExtension({
+                getProjectUuid: () => projectUuidRef.current,
+                getPriorityItems: () => contentMentionPriorityItemsRef.current,
+            }),
         ],
         editable: !disabled,
         autofocus: true,
@@ -272,17 +292,23 @@ export const AgentChatInput = ({
                     !event.shiftKey &&
                     !event.isComposing
                 ) {
+                    const ed = editorRef.current;
+                    if (isContentMentionSuggestionActive(ed)) {
+                        return false;
+                    }
                     if (loadingRef.current || disabledRef.current) {
                         return true;
                     }
-                    const ed = editorRef.current;
                     if (!ed) return false;
                     const text = ed.getText().trim();
                     if (!text) return true;
                     event.preventDefault();
+                    const mentionedContext = extractContentMentionContext(ed);
                     onSubmitRef.current({
                         message: text,
                         toolHints: extractToolHints(ed),
+                        context: mentionedContext.context,
+                        optimisticContext: mentionedContext.optimisticContext,
                     });
                     if (clearOnSubmitRef.current) {
                         ed.commands.clearContent();
@@ -399,6 +425,7 @@ export const AgentChatInput = ({
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
+            ...extractContentMentionContext(ed),
         });
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();

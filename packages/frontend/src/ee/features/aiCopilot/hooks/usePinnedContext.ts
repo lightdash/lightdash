@@ -1,11 +1,17 @@
 import {
+    ContentType,
     getChartKind,
+    isDashboardChartTileType,
     type AiPromptContextInput,
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../../../../hooks/useSavedQuery';
+import {
+    contextItemsToContentMentionSuggestions,
+    type ContentMentionSuggestionItem,
+} from '../components/ChatElements/contentMentions';
 
 type Args = {
     projectUuid: string | undefined;
@@ -110,5 +116,34 @@ export const usePinnedContext = ({
         dashboard?.slug,
     ]);
 
-    return { contextInput, previewItems, isReady };
+    const contentMentionItems = useMemo<ContentMentionSuggestionItem[]>(() => {
+        const dashboardTileItems: ContentMentionSuggestionItem[] =
+            dashboard?.tiles
+                .filter(isDashboardChartTileType)
+                .filter((tile) => !!tile.properties.savedChartUuid)
+                .map((tile) => ({
+                    id: `dashboardTile:chart:${tile.properties.savedChartUuid}`,
+                    label:
+                        (!tile.properties.hideTitle && tile.properties.title) ||
+                        tile.properties.chartName ||
+                        'Chart',
+                    contentType: ContentType.CHART,
+                    uuid: tile.properties.savedChartUuid!,
+                    slug: tile.properties.chartSlug ?? null,
+                    chartKind: tile.properties.lastVersionChartKind ?? null,
+                    group: 'dashboardTile',
+                    dashboardUuid: dashboard.uuid,
+                    dashboardSlug: dashboard.slug,
+                    dashboardName: dashboard.name,
+                    spaceName: dashboard.spaceName,
+                    verified: false,
+                })) ?? [];
+
+        return [
+            ...dashboardTileItems,
+            ...contextItemsToContentMentionSuggestions(previewItems, 'current'),
+        ];
+    }, [dashboard, previewItems]);
+
+    return { contextInput, previewItems, contentMentionItems, isReady };
 };
