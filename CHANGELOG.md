@@ -1,3 +1,16 @@
+# [0.3097.0](https://github.com/lightdash/lightdash/compare/0.3096.0...0.3097.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **pivot:** prompt to re-run query when table pivot config is stale ([#23911](https://github.com/lightdash/lightdash/issues/23911)) ([2113760](https://github.com/lightdash/lightdash/commit/211376076de21ca1503f926a43f02e8867f16336))
+
+
+### Features
+
+* **ai:** group related tool call activity ([#23915](https://github.com/lightdash/lightdash/issues/23915)) ([f55f836](https://github.com/lightdash/lightdash/commit/f55f8365b4200563677e06489f55e7fa906931da))
+* **preview-deploy:** comment preview link on the PR ([#23919](https://github.com/lightdash/lightdash/issues/23919)) ([e175352](https://github.com/lightdash/lightdash/commit/e175352117af03383d13390657b1c84ddff30deb))
+
 # [0.3096.0](https://github.com/lightdash/lightdash/compare/0.3095.2...0.3096.0) (2026-06-04)
 
 
