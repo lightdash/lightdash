@@ -242,6 +242,9 @@ const AgentsRouterPage = () => {
               : null;
 
     const placeholder = 'Ask anything about your data...';
+    const settingsHref = projectUuid
+        ? `/generalSettings/ai/agents?projects=${projectUuid}`
+        : '/generalSettings/ai/agents';
 
     return (
         <AiAgentPageLayout
@@ -255,11 +258,7 @@ const AgentsRouterPage = () => {
             }
             Header={
                 <AgentPageHeader
-                    settingsHref={
-                        canManageAgents
-                            ? '/generalSettings/ai/agents'
-                            : undefined
-                    }
+                    settingsHref={canManageAgents ? settingsHref : undefined}
                 />
             }
         >
