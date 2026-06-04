@@ -82,14 +82,18 @@ import {
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
+import {
+    appendToolCallToActivityGroup,
+    canAppendToolCallToActivityGroup,
+    createToolCallActivityGroup,
+    groupToolCallSummaries,
+    type ToolCallActivityGroup,
+} from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
 
-type ToolGroup = {
+type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
-    toolName: AiAgentToolName;
-    calls: ToolCallSummary[];
-    keyId: string;
 };
 type TextSegment = { kind: 'text'; text: string; idx: number };
 type SqlApprovalSegment = {
@@ -144,43 +148,23 @@ const segmentStreamParts = (
         if (
             last &&
             last.kind === 'toolGroup' &&
-            last.toolName === part.toolName
+            canAppendToolCallToActivityGroup(last, call)
         ) {
-            last.calls.push(call);
-        } else {
-            segments.push({
-                kind: 'toolGroup',
-                toolName: part.toolName,
-                calls: [call],
-                keyId: part.toolCallId,
-            });
+            appendToolCallToActivityGroup(last, call);
+            return;
         }
+
+        segments.push({
+            ...createToolCallActivityGroup(call),
+            kind: 'toolGroup',
+        });
     });
     return segments;
 };
 
 const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
-): { toolName: AiAgentToolName; calls: ToolCallSummary[]; keyId: string }[] => {
-    const groups: {
-        toolName: AiAgentToolName;
-        calls: ToolCallSummary[];
-        keyId: string;
-    }[] = [];
-    for (const tc of calls) {
-        const last = groups[groups.length - 1];
-        if (last && last.toolName === tc.toolName) {
-            last.calls.push(tc);
-        } else {
-            groups.push({
-                toolName: tc.toolName,
-                calls: [tc],
-                keyId: tc.toolCallId,
-            });
-        }
-    }
-    return groups;
-};
+): ToolCallActivityGroup[] => groupToolCallSummaries(calls);
 
 const getPendingPersistedSqlApprovals = (
     message: AiAgentMessageAssistant,
@@ -636,6 +620,7 @@ const AssistantBubbleContent: FC<{
                             toolName: s.toolName,
                             calls: s.calls,
                             keyId: s.keyId,
+                            display: s.display,
                         }));
                     const sqlApprovals = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>

@@ -17,6 +17,7 @@ const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
     'discoverFields',
+    'searchSemanticLayer',
     'searchFieldValues',
     'findContent',
     'listContent',
@@ -25,6 +26,8 @@ const SEARCH_TOOLS = new Set([
     'getDashboardCharts',
     'listWarehouseTables',
     'describeWarehouseTable',
+    'listKnowledgeDocuments',
+    'getKnowledgeDocumentContent',
 ]);
 
 const VIZ_TOOLS = new Set([
@@ -44,7 +47,9 @@ export const getActivityTitle = (
     if (toolGroups.length === 0) {
         return { title: 'Steps taken', icon: IconRoute };
     }
-    const toolNames = toolGroups.map((g) => g.toolName);
+    const toolNames = toolGroups.flatMap((g) =>
+        g.calls.map((call) => call.toolName),
+    );
     const hasDashboard = toolNames.includes('generateDashboard');
     const hasCreateContent = toolNames.includes('createContent');
     const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
