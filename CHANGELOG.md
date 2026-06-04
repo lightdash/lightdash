@@ -1,3 +1,16 @@
+# [0.3089.0](https://github.com/lightdash/lightdash/compare/0.3088.0...0.3089.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* gate agent content access by data access ([#23869](https://github.com/lightdash/lightdash/issues/23869)) ([c649cf5](https://github.com/lightdash/lightdash/commit/c649cf5eb217c6630b266b87ae2552e99a7d7854))
+* timeout release job ([#23833](https://github.com/lightdash/lightdash/issues/23833)) ([0e58774](https://github.com/lightdash/lightdash/commit/0e58774756e0be235789b62502d7bb4abb887a05))
+
+
+### Features
+
+* **data-apps:** allow cards to navigate to URLs and dashboards from the sandboxed iframe ([#23873](https://github.com/lightdash/lightdash/issues/23873)) ([93e1ea7](https://github.com/lightdash/lightdash/commit/93e1ea73911f9b3c4d5b6e09677411bc1d8a90e3)), closes [#23868](https://github.com/lightdash/lightdash/issues/23868)
+
 # [0.3088.0](https://github.com/lightdash/lightdash/compare/0.3087.2...0.3088.0) (2026-06-03)
 
 
