@@ -5269,12 +5269,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid,
             });
 
-        const getContentUrl = (type: 'dashboard' | 'chart', slug: string) => {
+        const getContentUrl = (type: 'dashboard' | 'chart', uuid: string) => {
             switch (type) {
                 case 'dashboard':
-                    return `/projects/${projectUuid}/dashboards/${slug}/view#dashboard-link`;
+                    return `/projects/${projectUuid}/dashboards/${uuid}/view#dashboard-link`;
                 case 'chart':
-                    return `/projects/${projectUuid}/saved/${slug}/view#chart-link`;
+                    return `/projects/${projectUuid}/saved/${uuid}/view#chart-link`;
                 default:
                     return assertUnreachable(type, 'Invalid content type');
             }
@@ -5300,13 +5300,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     `Dashboard "${slug}" was not found`,
                                 );
                             }
+                            const savedDashboard =
+                                await this.dashboardService.getByIdOrSlug(
+                                    user,
+                                    dashboard.slug,
+                                    { projectUuid },
+                                );
 
                             return {
                                 type: 'dashboard',
                                 content: dashboard,
                                 href: getContentUrl(
                                     'dashboard',
-                                    dashboard.slug,
+                                    savedDashboard.uuid,
                                 ),
                             };
                         }
@@ -5324,11 +5330,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     `Chart "${slug}" was not found`,
                                 );
                             }
+                            const savedChart = await this.savedChartService.get(
+                                chart.slug,
+                                fromSession(user),
+                                { projectUuid },
+                            );
 
                             return {
                                 type: 'chart',
                                 content: chart,
-                                href: getContentUrl('chart', chart.slug),
+                                href: getContentUrl('chart', savedChart.uuid),
                             };
                         }
                         default:
@@ -5435,10 +5446,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...editedContent,
                                 uuid,
-                                href: getContentUrl(
-                                    'dashboard',
-                                    editedContent.content.slug,
-                                ),
+                                href: getContentUrl('dashboard', uuid),
                                 versionUuids: {
                                     before: versionBefore?.versionUuid ?? null,
                                     after: versionAfter?.versionUuid ?? null,
@@ -5448,10 +5456,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...editedContent,
                                 uuid,
-                                href: getContentUrl(
-                                    'chart',
-                                    editedContent.content.slug,
-                                ),
+                                href: getContentUrl('chart', uuid),
                                 versionUuids: {
                                     before: versionBefore?.versionUuid ?? null,
                                     after: versionAfter?.versionUuid ?? null,
@@ -5504,7 +5509,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...createdContent,
                                 uuid,
-                                href: getContentUrl('dashboard', finalSlug),
+                                href: getContentUrl('dashboard', uuid),
                             };
                         }
                         case 'chart': {
@@ -5536,7 +5541,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             return {
                                 ...createdContent,
                                 uuid,
-                                href: getContentUrl('chart', finalSlug),
+                                href: getContentUrl('chart', uuid),
                             };
                         }
                         default:
