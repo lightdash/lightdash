@@ -1,3 +1,10 @@
+## [0.3095.1](https://github.com/lightdash/lightdash/compare/0.3095.0...0.3095.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* block dbt environment variable keys ([#23904](https://github.com/lightdash/lightdash/issues/23904)) ([cc157c1](https://github.com/lightdash/lightdash/commit/cc157c11ca8219878b2067d9bab9c4e172c2690c))
+
 # [0.3095.0](https://github.com/lightdash/lightdash/compare/0.3094.0...0.3095.0) (2026-06-04)
 
 
