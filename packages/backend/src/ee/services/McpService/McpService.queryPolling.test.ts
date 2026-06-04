@@ -67,6 +67,7 @@ const makeExplore = () => ({
             metrics: {
                 orders_count: {
                     name: 'orders_count',
+                    table: 'orders',
                     tablesReferences: ['orders'],
                 },
             },
@@ -103,7 +104,7 @@ const makeQueryHistory = (
     metricQuery: {
         exploreName: 'orders',
         dimensions: [],
-        metrics: ['orders_count'],
+        metrics: ['orders_orders_count'],
         sorts: [],
         filters: {},
         limit: 10,
