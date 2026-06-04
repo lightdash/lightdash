@@ -1,9 +1,10 @@
 import { Center, Loader } from '@mantine-8/core';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import { contextItemsToContentMentionSuggestions } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
@@ -155,17 +156,35 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const activeDisabledReason = disabledReasons.find((r) => r.when);
     const inputDisabled = !!activeDisabledReason;
     const inputDisabledReason = activeDisabledReason?.message;
+    const contentMentionItems = useMemo(
+        () =>
+            contextItemsToContentMentionSuggestions(
+                thread?.messages.flatMap((message) =>
+                    message.role === 'user' ? message.context : [],
+                ) ?? [],
+                'thread',
+            ),
+        [thread?.messages],
+    );
 
     const handleSubmit = ({
         message,
         toolHints,
+        context,
+        optimisticContext,
     }: {
         message: string;
         toolHints: string[];
+        context?: Parameters<typeof createAgentThreadMessage>[0]['context'];
+        optimisticContext?: Parameters<
+            typeof createAgentThreadMessage
+        >[0]['optimisticContext'];
     }) => {
         void createAgentThreadMessage({
             prompt: message,
             modelConfig: threadModelConfig ?? undefined,
+            context,
+            optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });
@@ -201,6 +220,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
                 threadUuid={threadUuid}
+                contentMentionPriorityItems={contentMentionItems}
                 latestAssistantMessageUuid={
                     [...(thread.messages ?? [])]
                         .reverse()

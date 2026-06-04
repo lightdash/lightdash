@@ -1,5 +1,7 @@
 import {
     type AiAgentSummary,
+    type AiPromptContext,
+    type AiPromptContextInput,
     type AiRouterRouteResponseResult,
 } from '@lightdash/common';
 import {
@@ -49,7 +51,9 @@ type Phase =
     | { kind: 'routing' }
     | {
           kind: 'picker';
+          context?: AiPromptContextInput;
           decision: AiRouterRouteResponseResult;
+          optimisticContext?: AiPromptContext;
           prompt: string;
           toolHints: string[];
       }
@@ -130,12 +134,16 @@ const AgentsRouterPage = () => {
     const startThreadForDecision = useCallback(
         async (args: {
             agentUuid: string;
+            context?: AiPromptContextInput;
             decisionUuid: string;
+            optimisticContext?: AiPromptContext;
             prompt: string;
             toolHints: string[];
         }) => {
             const thread = await createThread({
                 agentUuid: args.agentUuid,
+                context: args.context,
+                optimisticContext: args.optimisticContext,
                 prompt: args.prompt,
                 toolHints: args.toolHints,
             });
@@ -151,10 +159,14 @@ const AgentsRouterPage = () => {
 
     const handleSubmit = useCallback(
         async ({
+            context,
             message,
+            optimisticContext,
             toolHints,
         }: {
+            context?: AiPromptContextInput;
             message: string;
+            optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
             if (!projectUuid) return;
@@ -171,14 +183,18 @@ const AgentsRouterPage = () => {
                     setPhase({ kind: 'creating' });
                     await startThreadForDecision({
                         agentUuid: result.decision.suggestedAgentUuid,
+                        context,
                         decisionUuid: result.decision.decisionUuid,
+                        optimisticContext,
                         prompt: message,
                         toolHints,
                     });
                 } else {
                     setPhase({
                         kind: 'picker',
+                        context,
                         decision: result,
+                        optimisticContext,
                         prompt: message,
                         toolHints,
                     });
@@ -210,11 +226,14 @@ const AgentsRouterPage = () => {
     const confirmPick = useCallback(
         async (agentUuid: string) => {
             if (phase.kind !== 'picker') return;
-            const { decision, prompt, toolHints } = phase;
+            const { context, decision, optimisticContext, prompt, toolHints } =
+                phase;
             setPhase({ kind: 'creating' });
             await startThreadForDecision({
                 agentUuid,
+                context,
                 decisionUuid: decision.decision.decisionUuid,
+                optimisticContext,
                 prompt,
                 toolHints,
             });
