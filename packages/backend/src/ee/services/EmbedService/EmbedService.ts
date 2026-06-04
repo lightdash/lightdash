@@ -514,8 +514,10 @@ export class EmbedService extends BaseService {
                 dashboardUuid,
             );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         await this.isFeatureEnabled({
             userUuid: user?.userUuid ?? account.user.id,
@@ -1088,8 +1090,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1215,8 +1219,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
             dashboard,
@@ -1283,8 +1289,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
             dashboard,
@@ -1353,8 +1361,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1548,8 +1558,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -1631,7 +1643,9 @@ export class EmbedService extends BaseService {
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1717,7 +1731,9 @@ export class EmbedService extends BaseService {
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1990,8 +2006,10 @@ export class EmbedService extends BaseService {
             },
             dashboardUuid,
         );
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
 

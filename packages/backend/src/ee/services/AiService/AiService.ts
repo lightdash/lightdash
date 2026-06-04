@@ -313,8 +313,10 @@ export class AiService {
     ) {
         await this.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardCharts = await this.getDashboardChartsResults(
             user,
             dashboard,
@@ -422,8 +424,10 @@ export class AiService {
     ) {
         await this.throwOnFeatureDisabled(user);
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid },
+        );
         const dashboardSummary =
             await this.dashboardSummaryModel.getByDashboardUuid(dashboard.uuid);
 

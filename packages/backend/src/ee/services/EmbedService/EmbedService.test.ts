@@ -1,10 +1,16 @@
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    ParameterError,
+    type AnonymousAccount,
+} from '@lightdash/common';
 import { EmbedService } from './EmbedService';
 import {
     EmbedServiceArgumentsMock,
     mockAccountWithoutPermission,
     mockAccountWithPermission,
+    mockOrganizationUuid,
     mockProjectUuid,
+    mockUserUuid,
 } from './EmbedService.mock';
 
 describe('EmbedService', () => {
@@ -230,6 +236,69 @@ describe('EmbedService', () => {
                     updateWithUndefinedAllowAllCharts,
                 );
             });
+        });
+    });
+
+    describe('searchFilterValues', () => {
+        test('scopes dashboard lookup to the requested project', async () => {
+            const dashboardUuid = 'dashboard-1';
+            const dashboardModel = {
+                getByIdOrSlug: jest.fn().mockRejectedValue(new Error('stop')),
+            };
+            const embedModel = {
+                get: jest.fn().mockResolvedValue({
+                    dashboardUuids: [dashboardUuid],
+                    allowAllDashboards: false,
+                    user: {
+                        userUuid: mockUserUuid,
+                    },
+                }),
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                dashboardModel,
+                embedModel,
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                authentication: {
+                    type: 'jwt',
+                    source: 'embed-token',
+                    data: {
+                        content: {
+                            type: 'dashboard',
+                        },
+                    },
+                },
+                access: {
+                    content: {
+                        dashboardUuid,
+                    },
+                },
+                user: {
+                    id: mockUserUuid,
+                },
+                organization: {
+                    organizationUuid: mockOrganizationUuid,
+                },
+                isAnonymousUser: jest.fn().mockReturnValue(true),
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: 'search',
+                    limit: 10,
+                    filters: undefined,
+                    forceRefresh: false,
+                }),
+            ).rejects.toThrow('stop');
+
+            expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+                dashboardUuid,
+                { projectUuid: mockProjectUuid },
+            );
         });
     });
 });
