@@ -135,7 +135,6 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
     previewDeploySetupService: unknown;
-    changesetWritebackService: unknown;
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
@@ -1271,12 +1270,6 @@ export class ServiceRepository
         PreviewDeploySetupServiceImplT,
     >(): PreviewDeploySetupServiceImplT {
         return this.getService('previewDeploySetupService');
-    }
-
-    public getChangesetWritebackService<
-        ChangesetWritebackServiceImplT,
-    >(): ChangesetWritebackServiceImplT {
-        return this.getService('changesetWritebackService');
     }
 
     public getAppGenerateService<
