@@ -962,8 +962,7 @@ export const AiAgentMcpServersInput = ({
                                       })}
                             </Menu.Item>
                         )}
-                        {mcpServer.authType === 'oauth' &&
-                            mcpServer.hasCredentials &&
+                        {mcpServer.hasCredentials &&
                             mcpServer.credentialScope === 'user' && (
                                 <Menu.Item
                                     type="button"
@@ -984,7 +983,9 @@ export const AiAgentMcpServersInput = ({
                                 >
                                     {isDisconnecting
                                         ? 'Disconnecting...'
-                                        : 'Disconnect your account'}
+                                        : mcpServer.authType === 'bearer'
+                                          ? 'Disconnect your token'
+                                          : 'Disconnect your account'}
                                 </Menu.Item>
                             )}
                         <Menu.Item

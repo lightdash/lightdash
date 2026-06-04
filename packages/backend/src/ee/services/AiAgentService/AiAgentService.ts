@@ -3035,6 +3035,9 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Disconnects a stored MCP credential at the given scope. Handles both
+    // OAuth (runtime client tears down the connection) and bearer (the stored
+    // token is deleted) — e.g. a user clearing their own per-user GitHub PAT.
     public async disconnectMcpOAuthConnection(
         user: SessionUser,
         projectUuid: string,
@@ -3046,15 +3049,20 @@ export class AiAgentService extends BaseService {
             mcpServerUuid,
         );
 
-        if (server.authType !== 'oauth') {
-            throw new ParameterError('MCP server is not configured for OAuth');
+        if (server.authType === 'none') {
+            throw new ParameterError(
+                'This MCP server has no credentials to disconnect',
+            );
         }
 
         const credentialScope: AiMcpCredentialScope =
             body?.credentialScope ?? 'user';
 
         if (credentialScope === 'shared') {
-            if (!server.allowOAuthCredentialSharing) {
+            if (
+                server.authType === 'oauth' &&
+                !server.allowOAuthCredentialSharing
+            ) {
                 throw new ParameterError(
                     'This MCP server does not allow shared OAuth credentials',
                 );
@@ -3064,11 +3072,22 @@ export class AiAgentService extends BaseService {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
 
-        await this.aiAgentMcpRuntimeClient.disconnectOAuthConnection({
-            mcpServerUuid,
-            credentialScope,
+        if (server.authType === 'oauth') {
+            await this.aiAgentMcpRuntimeClient.disconnectOAuthConnection({
+                mcpServerUuid,
+                credentialScope,
+                userUuid:
+                    credentialScope === 'user' ? user.userUuid : undefined,
+                actorUserUuid: user.userUuid,
+            });
+            return;
+        }
+
+        // Bearer: just delete the stored token at the requested scope.
+        await this.aiAgentModel.deleteCredential({
+            serverUuid: mcpServerUuid,
+            scope: credentialScope,
             userUuid: credentialScope === 'user' ? user.userUuid : undefined,
-            actorUserUuid: user.userUuid,
         });
     }
 
