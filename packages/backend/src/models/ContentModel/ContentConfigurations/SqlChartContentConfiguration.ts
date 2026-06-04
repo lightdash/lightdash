@@ -18,6 +18,7 @@ import {
     ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
+import { applyContentNameSearch } from '../ContentSearchUtils';
 
 type SelectSavedSql = SummaryContentRow<{
     source: ChartSourceType.SQL;
@@ -192,9 +193,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                         );
                     }
                     if (filters.search) {
-                        void builder.whereRaw(
-                            `LOWER(${SavedSqlTableName}.name) LIKE ?`,
-                            [`%${filters.search.toLowerCase()}%`],
+                        applyContentNameSearch(
+                            builder,
+                            `${SavedSqlTableName}.name`,
+                            filters.search,
                         );
                     }
 

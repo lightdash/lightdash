@@ -19,6 +19,7 @@ import {
     ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
+import { applyContentNameSearch } from '../ContentSearchUtils';
 
 export const dashboardContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
@@ -210,9 +211,10 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                                             limit 1)`),
                     );
                     if (filters.search) {
-                        void builder.whereRaw(
-                            `LOWER(${DashboardsTableName}.name) LIKE ?`,
-                            [`%${filters.search.toLowerCase()}%`],
+                        applyContentNameSearch(
+                            builder,
+                            `${DashboardsTableName}.name`,
+                            filters.search,
                         );
                     }
 
