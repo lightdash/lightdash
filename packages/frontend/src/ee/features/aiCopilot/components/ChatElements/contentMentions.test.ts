@@ -1,12 +1,25 @@
 import { ChartKind, ContentType } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashApi } from '../../../../../api';
 import {
     buildContentMentionSuggestionItems,
     contextItemsToContentMentionSuggestions,
+    fuzzyContentMentionLabelMatch,
+    getContentMentionEmptyMessage,
     mergeAiPromptContextInput,
 } from './contentMentions';
 
+vi.mock('../../../../../api', () => ({
+    lightdashApi: vi.fn(),
+}));
+
+const mockedLightdashApi = vi.mocked(lightdashApi);
+
 describe('contentMentions', () => {
+    beforeEach(() => {
+        mockedLightdashApi.mockReset();
+    });
+
     it('dedupes prompt context preserving first occurrence', () => {
         expect(
             mergeAiPromptContextInput(
@@ -107,5 +120,36 @@ describe('contentMentions', () => {
                 group: 'dashboardTile',
             },
         ]);
+    });
+
+    it('matches priority suggestions ignoring punctuation', () => {
+        expect(fuzzyContentMentionLabelMatch("What's revenue", 'Whats')).toBe(
+            true,
+        );
+        expect(
+            fuzzyContentMentionLabelMatch('Revenue by month', 'rev mon'),
+        ).toBe(true);
+    });
+
+    it('does not search content API until the query has at least two characters', async () => {
+        await expect(
+            buildContentMentionSuggestionItems({
+                projectUuid: 'project-uuid',
+                query: 'r',
+                priorityItems: [],
+            }),
+        ).resolves.toEqual([]);
+
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
+    });
+
+    it('prompts for more characters before content API search starts', () => {
+        expect(getContentMentionEmptyMessage('')).toBe(
+            'Type 2 more characters to search content',
+        );
+        expect(getContentMentionEmptyMessage('r')).toBe(
+            'Type 1 more character to search content',
+        );
+        expect(getContentMentionEmptyMessage('re')).toBe('No content found');
     });
 });

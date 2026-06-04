@@ -12,7 +12,11 @@ import { IconCircleCheck, IconLayoutDashboard } from '@tabler/icons-react';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
 import { type DOMOutputSpec } from '@tiptap/pm/model';
 import { PluginKey } from '@tiptap/pm/state';
-import { ReactRenderer, type Editor } from '@tiptap/react';
+import {
+    ReactNodeViewRenderer,
+    ReactRenderer,
+    type Editor,
+} from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import { lightdashApi } from '../../../../../api';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -24,9 +28,12 @@ import {
     type SuggestionListRef,
 } from '../../../../../components/common/SuggestionList/SuggestionList';
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';
+import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
+import { ContentMentionNodeView } from './ContentMentionNodeView';
 
 const CONTENT_MENTION_NAME = 'contentMention';
+const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
 
 const contentMentionPluginKey = new PluginKey('contentMention');
 
@@ -92,6 +99,36 @@ const getContextKey = (item: AiPromptContextInput[number]) =>
     item.type === 'chart'
         ? `chart:${item.chartUuid}`
         : `dashboard:${item.dashboardUuid}`;
+
+const normalizeSearchText = (value: string) =>
+    value
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+const compactSearchText = (value: string) =>
+    normalizeSearchText(value).replace(/[^a-z0-9]+/g, '');
+
+// Priority suggestions come from local chat/page context, so they need the
+// same punctuation-insensitive matching that remote content search applies.
+export const fuzzyContentMentionLabelMatch = (label: string, query: string) => {
+    const normalizedQuery = normalizeSearchText(query).trim();
+    if (!normalizedQuery) return true;
+
+    const normalizedLabel = normalizeSearchText(label);
+    const compactLabel = compactSearchText(label);
+    const queryTokens = normalizedQuery
+        .split(/[^a-z0-9]+/)
+        .map((token) => token.trim())
+        .filter(Boolean);
+
+    if (queryTokens.length === 0) return true;
+
+    return queryTokens.every(
+        (token) =>
+            normalizedLabel.includes(token) || compactLabel.includes(token),
+    );
+};
 
 export const mergeAiPromptContextInput = (
     ...contextGroups: Array<AiPromptContextInput | undefined>
@@ -189,13 +226,16 @@ const getSearchSuggestions = async (
     projectUuid: string,
     query: string,
 ): Promise<ContentMentionSuggestionItem[]> => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < MIN_CONTENT_SEARCH_QUERY_LENGTH) return [];
+
     const params = new URLSearchParams();
     params.append('projectUuids', projectUuid);
     params.append('contentTypes', ContentType.CHART);
     params.append('contentTypes', ContentType.DASHBOARD);
     params.set('pageSize', '20');
     params.set('page', '1');
-    if (query.trim()) params.set('search', query.trim());
+    params.set('search', trimmedQuery);
 
     const results = await lightdashApi<ApiContentResponse['results']>({
         version: 'v2',
@@ -218,9 +258,8 @@ export const buildContentMentionSuggestionItems = async ({
     query: string;
     priorityItems: ContentMentionSuggestionItem[];
 }) => {
-    const normalizedQuery = query.trim().toLowerCase();
     const matchingPriorityItems = priorityItems.filter((item) =>
-        item.label.toLowerCase().includes(normalizedQuery),
+        fuzzyContentMentionLabelMatch(item.label, query),
     );
     const searchItems = projectUuid
         ? await getSearchSuggestions(projectUuid, query)
@@ -233,6 +272,15 @@ export const buildContentMentionSuggestionItems = async ({
         seen.add(key);
         return true;
     });
+};
+
+export const getContentMentionEmptyMessage = (query: string) => {
+    const remainingChars =
+        MIN_CONTENT_SEARCH_QUERY_LENGTH - query.trim().length;
+
+    if (remainingChars <= 0) return 'No content found';
+    if (remainingChars === 1) return 'Type 1 more character to search content';
+    return `Type ${remainingChars} more characters to search content`;
 };
 
 const renderContentMentionItem = (
@@ -257,10 +305,20 @@ const renderContentMentionItem = (
             <Group wrap="nowrap" gap="xs" w="100%">
                 <MantineIcon icon={Icon} size="sm" color={iconColor} />
                 <div className={styles.contentMentionSuggestionText}>
-                    <Group gap={4} wrap="nowrap">
-                        <Text size="xs" truncate fw={500}>
+                    <Group
+                        gap={4}
+                        wrap="nowrap"
+                        className={styles.contentMentionSuggestionLabel}
+                    >
+                        <TruncatedText
+                            maxWidth="100%"
+                            fz="xs"
+                            fw={500}
+                            inline
+                            style={{ flex: 1, minWidth: 0 }}
+                        >
                             {item.label}
-                        </Text>
+                        </TruncatedText>
                         {item.verified && (
                             <MantineIcon
                                 icon={IconCircleCheck}
@@ -330,7 +388,9 @@ const generateContentMentionSuggestion = ({
                         getGroupKey: (item: ContentMentionSuggestionItem) =>
                             item.group,
                         groupLabels,
-                        emptyMessage: 'No content found',
+                        emptyMessage: getContentMentionEmptyMessage(
+                            props.query,
+                        ),
                     },
                     editor: props.editor,
                 });
@@ -354,7 +414,7 @@ const generateContentMentionSuggestion = ({
                     getGroupKey: (item: ContentMentionSuggestionItem) =>
                         item.group,
                     groupLabels,
-                    emptyMessage: 'No content found',
+                    emptyMessage: getContentMentionEmptyMessage(props.query),
                 });
                 popup?.setProps({
                     getReferenceClientRect: () =>
@@ -422,6 +482,9 @@ export const createContentMentionExtension = ({
                         return deleted;
                     }),
             };
+        },
+        addNodeView() {
+            return ReactNodeViewRenderer(ContentMentionNodeView);
         },
     }).configure({
         suggestion: generateContentMentionSuggestion({
