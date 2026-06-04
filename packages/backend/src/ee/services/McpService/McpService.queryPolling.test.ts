@@ -44,6 +44,8 @@ const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
 const userUuid = 'user-uuid';
 const queryUuid = '11111111-1111-4111-8111-111111111111';
+const allowedSpaceUuid = 'allowed-space-uuid';
+const blockedSpaceUuid = 'blocked-space-uuid';
 
 const account = {
     isRegisteredUser: () => true,
@@ -114,6 +116,30 @@ const extra = {
     },
 };
 
+const makeChartSearchResult = ({
+    name,
+    spaceUuid,
+}: {
+    name: string;
+    spaceUuid: string;
+}) => ({
+    uuid: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-uuid`,
+    name,
+    description: null,
+    spaceUuid,
+    projectUuid,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    chartType: 'vertical_bar',
+    chartSource: 'saved',
+    viewsCount: 0,
+    firstViewedAt: null,
+    lastModified: null,
+    createdBy: null,
+    lastUpdatedBy: null,
+    verification: null,
+    search_rank: 1,
+});
+
 const makeQueryHistory = (
     status: QueryHistoryStatus,
     context: QueryExecutionContext = QueryExecutionContext.MCP_RUN_SQL,
@@ -151,6 +177,9 @@ const makeMcpService = ({
     },
     agent = null,
     explores = { orders: makeExplore() },
+    dashboardSearchResults = [],
+    chartSearchResults = [],
+    verifiedContent = [],
 }: {
     context?: {
         projectUuid: string;
@@ -166,6 +195,9 @@ const makeMcpService = ({
         spaceAccess: string[];
     } | null;
     explores?: Record<string, ReturnType<typeof makeExplore>>;
+    dashboardSearchResults?: Record<string, unknown>[];
+    chartSearchResults?: Record<string, unknown>[];
+    verifiedContent?: Record<string, unknown>[];
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: jest.fn(),
@@ -252,6 +284,19 @@ const makeMcpService = ({
         }),
     };
 
+    const contentVerificationService = {
+        listVerifiedContent: jest.fn().mockResolvedValue(verifiedContent),
+    };
+
+    const searchModel = {
+        searchDashboards: jest.fn().mockResolvedValue(dashboardSearchResults),
+        searchAllCharts: jest.fn().mockResolvedValue(chartSearchResults),
+    };
+
+    const spaceService = {
+        filterBySpaceAccess: jest.fn(async (_user, content) => content),
+    };
+
     const userAttributesModel = {
         getAttributeValuesForOrgMember: jest.fn().mockResolvedValue({}),
     };
@@ -265,7 +310,7 @@ const makeMcpService = ({
         analytics: { track: jest.fn() },
         asyncQueryService,
         catalogService,
-        contentVerificationService: {},
+        contentVerificationService,
         featureFlagService: {},
         lightdashConfig: {
             ai: {
@@ -282,9 +327,9 @@ const makeMcpService = ({
         mcpContextModel,
         projectModel,
         projectService,
-        searchModel: {},
+        searchModel,
         shareService,
-        spaceService: {},
+        spaceService,
         userAttributesModel,
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
@@ -292,11 +337,14 @@ const makeMcpService = ({
         aiAgentService,
         asyncQueryService,
         catalogService,
+        contentVerificationService,
         mcpContextModel,
         projectModel,
         projectService,
+        searchModel,
         service,
         shareService,
+        spaceService,
     };
 };
 
@@ -308,13 +356,13 @@ const getToolCallback = (toolName: McpToolName) => {
     return callback;
 };
 
-const parseTextResult = (result: unknown) => {
+const getTextResult = (result: unknown) => {
     const response = result as { content?: Array<{ text?: string }> };
-    return JSON.parse(response.content?.[0]?.text ?? '{}') as Record<
-        string,
-        unknown
-    >;
+    return response.content?.[0]?.text ?? '';
 };
+
+const parseTextResult = (result: unknown) =>
+    JSON.parse(getTextResult(result) || '{}') as Record<string, unknown>;
 
 describe('MCP async query polling', () => {
     beforeEach(() => {
@@ -453,6 +501,86 @@ describe('MCP async query polling', () => {
             agentTags: ['ai'],
             agentSpaceAccess: ['space-uuid'],
         });
+    });
+
+    it('memoizes active agent scope within a tool request', async () => {
+        const { aiAgentService } = makeMcpService({
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'agent-uuid',
+                agentName: 'Agent',
+                tags: null,
+            },
+            agent: {
+                uuid: 'agent-uuid',
+                name: 'Agent',
+                tags: ['ai'],
+                spaceAccess: [],
+            },
+            explores: { orders: makeExplore({ tags: ['ai'] }) },
+        });
+
+        await getToolCallback(McpToolName.LIST_EXPLORES)({}, extra);
+
+        expect(aiAgentService.getAgent).toHaveBeenCalledTimes(1);
+    });
+
+    it('filters content by active agent space access', async () => {
+        const allowedChart = makeChartSearchResult({
+            name: 'Allowed Chart',
+            spaceUuid: allowedSpaceUuid,
+        });
+        const blockedChart = makeChartSearchResult({
+            name: 'Blocked Chart',
+            spaceUuid: blockedSpaceUuid,
+        });
+        const allowedVerifiedContent = {
+            contentType: 'chart',
+            contentUuid: 'allowed-chart-uuid',
+            name: 'Allowed Verified Chart',
+            spaceUuid: allowedSpaceUuid,
+        };
+        const blockedVerifiedContent = {
+            contentType: 'chart',
+            contentUuid: 'blocked-chart-uuid',
+            name: 'Blocked Verified Chart',
+            spaceUuid: blockedSpaceUuid,
+        };
+
+        makeMcpService({
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'agent-uuid',
+                agentName: 'Agent',
+                tags: null,
+            },
+            agent: {
+                uuid: 'agent-uuid',
+                name: 'Agent',
+                tags: [],
+                spaceAccess: [allowedSpaceUuid],
+            },
+            chartSearchResults: [allowedChart, blockedChart],
+            verifiedContent: [allowedVerifiedContent, blockedVerifiedContent],
+        });
+
+        const contentResult = await getToolCallback(McpToolName.FIND_CONTENT)(
+            { searchQueries: [{ label: 'chart' }] },
+            extra,
+        );
+        const contentText = getTextResult(contentResult);
+
+        expect(contentText).toContain('Allowed Chart');
+        expect(contentText).not.toContain('Blocked Chart');
+
+        const verifiedResult = await getToolCallback(
+            McpToolName.LIST_VERIFIED_CONTENT,
+        )({}, extra);
+        const verifiedContentResult = JSON.parse(getTextResult(verifiedResult));
+
+        expect(verifiedContentResult).toEqual([allowedVerifiedContent]);
     });
 
     it('uses active agent tags for run_metric_query', async () => {
