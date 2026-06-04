@@ -235,12 +235,16 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         // scoped to allowed spaceUuids from access control
                         void builder.whereNull(`${SpaceTableName}.deleted_at`);
                         if (filters.space?.rootSpaces) {
-                            void builder
-                                .whereIn(
-                                    `${SpaceTableName}.space_uuid`,
-                                    filters.spaceUuids ?? [],
-                                )
-                                .andWhereRaw('nlevel(path) = 1');
+                            void builder.whereIn(
+                                `${SpaceTableName}.space_uuid`,
+                                filters.spaceUuids ?? [],
+                            );
+                            // When searching, match spaces at any nesting level
+                            // to stay consistent with global search. The
+                            // space_uuid filter above already enforces access.
+                            if (!filters.search) {
+                                void builder.andWhereRaw('nlevel(path) = 1');
+                            }
                         } else {
                             void builder.whereIn(
                                 `${SpaceTableName}.parent_space_uuid`,
