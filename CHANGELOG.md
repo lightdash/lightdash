@@ -1,3 +1,15 @@
+# [0.3098.0](https://github.com/lightdash/lightdash/compare/0.3097.0...0.3098.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ai-agent:** label writeback card "updated" when iterating a PR ([#23921](https://github.com/lightdash/lightdash/issues/23921)) ([0ee90ce](https://github.com/lightdash/lightdash/commit/0ee90ce41c26658d7397ace3c9623f80d83abcc2))
+
+
+### Features
+
+* **ai-agents:** value-forward GitHub MCP connect with per-user PAT ([#23917](https://github.com/lightdash/lightdash/issues/23917)) ([aa3898d](https://github.com/lightdash/lightdash/commit/aa3898d23ad07de7e678d502bc2c85f85b581c4d))
+
 # [0.3097.0](https://github.com/lightdash/lightdash/compare/0.3096.0...0.3097.0) (2026-06-04)
 
 
