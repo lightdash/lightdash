@@ -436,7 +436,11 @@ const AiAgentAdminAgentsTable = () => {
                         >
                             {' '}
                             <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray">
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -445,7 +449,8 @@ const AiAgentAdminAgentsTable = () => {
                                     leftSection={
                                         <MantineIcon icon={IconSettings} />
                                     }
-                                    onClick={() => {
+                                    onClick={(event) => {
+                                        event.stopPropagation();
                                         void navigate(
                                             `/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`,
                                         );
@@ -457,7 +462,8 @@ const AiAgentAdminAgentsTable = () => {
                                     leftSection={
                                         <MantineIcon icon={IconMessageCircle} />
                                     }
-                                    onClick={() => {
+                                    onClick={(event) => {
+                                        event.stopPropagation();
                                         void navigate(
                                             `/projects/${agent.projectUuid}/ai-agents/${agent.uuid}`,
                                         );
@@ -505,11 +511,29 @@ const AiAgentAdminAgentsTable = () => {
                 maxHeight: 'calc(100dvh - 350px)',
             },
         },
+        mantineTableProps: {
+            highlightOnHover: true,
+        },
 
         mantineTableHeadRowProps: {
             style: {
                 boxShadow: 'none',
             },
+        },
+        mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
+            if (mantineTable.getState().showSkeletons) {
+                return {};
+            }
+
+            const agent = row.original;
+
+            return {
+                onClick: () => {
+                    void navigate(
+                        `/projects/${agent.projectUuid}/ai-agents/${agent.uuid}`,
+                    );
+                },
+            };
         },
         mantineTableBodyCellProps: {
             h: 72,
