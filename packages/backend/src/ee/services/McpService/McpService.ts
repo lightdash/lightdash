@@ -282,6 +282,11 @@ export class McpService extends BaseService {
 
     private mcpCompatLayer: McpSchemaCompatLayer;
 
+    private effectiveScopeCache = new WeakMap<
+        McpProtocolContext,
+        Map<string, Promise<McpEffectiveScope>>
+    >();
+
     constructor({
         lightdashConfig,
         analytics,
@@ -2408,6 +2413,34 @@ export class McpService extends BaseService {
     }
 
     private async getEffectiveScopeFromContext(
+        context: McpProtocolContext,
+        projectUuid?: string,
+    ): Promise<McpEffectiveScope> {
+        const cacheKey = projectUuid ?? '';
+        let contextCache = this.effectiveScopeCache.get(context);
+        if (!contextCache) {
+            contextCache = new Map<string, Promise<McpEffectiveScope>>();
+            this.effectiveScopeCache.set(context, contextCache);
+        }
+
+        const cachedScope = contextCache.get(cacheKey);
+        if (cachedScope) {
+            return cachedScope;
+        }
+
+        const scopePromise = this.resolveEffectiveScopeFromContext(
+            context,
+            projectUuid,
+        ).catch((error) => {
+            contextCache.delete(cacheKey);
+            throw error;
+        });
+        contextCache.set(cacheKey, scopePromise);
+
+        return scopePromise;
+    }
+
+    private async resolveEffectiveScopeFromContext(
         context: McpProtocolContext,
         projectUuid?: string,
     ): Promise<McpEffectiveScope> {
