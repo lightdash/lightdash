@@ -1,4 +1,7 @@
-import { type DashboardDataAppTile } from '@lightdash/common';
+import {
+    hashStringToBase36,
+    type DashboardDataAppTile,
+} from '@lightdash/common';
 import { Box, Loader, Stack } from '@mantine-8/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -48,15 +51,14 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
 
     // Bumping the URL whenever filters change forces the iframe to remount so
     // its mount-time metric queries re-fire — matching DashboardDataAppTile.
+    // Hash instead of serialize so the URL doesn't 502 on large dashboards.
     const filtersKey = useMemo(
-        () => JSON.stringify(dashboardFiltersForApp),
+        () => hashStringToBase36(JSON.stringify(dashboardFiltersForApp)),
         [dashboardFiltersForApp],
     );
 
     const previewUrl = tokenQuery.data
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${encodeURIComponent(
-              filtersKey,
-          )}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${filtersKey}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     const statusCode = tokenQuery.error?.error?.statusCode;
