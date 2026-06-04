@@ -1884,7 +1884,7 @@ export class DashboardService
         };
     }
 
-    private async hasAccess(
+    async hasAccess(
         action: AbilityAction,
         actor: {
             user: SessionUser;
@@ -1898,6 +1898,9 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
+        if (dashboard.projectUuid !== actor.projectUuid) {
+            throw new NotFoundError('Dashboard not found');
+        }
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 actor.user.userUuid,
