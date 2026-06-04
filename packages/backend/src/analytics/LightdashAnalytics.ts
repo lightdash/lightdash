@@ -1831,10 +1831,11 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        // Distinguishes the one-click flow from manually creating a GitHub MCP
-        // server. `one_click_oauth` is the current per-user OAuth flow;
-        // `one_click`/`one_click_reconnect` are the retired shared-token flow.
-        method: 'one_click' | 'one_click_reconnect' | 'one_click_oauth';
+        // Distinguishes the one-click GitHub connect (using a personal access
+        // token) from manually creating a GitHub MCP server. `one_click` is the
+        // first-time connect; `one_click_reconnect` updates the token on an
+        // existing server.
+        method: 'one_click' | 'one_click_reconnect';
     };
 };
 
