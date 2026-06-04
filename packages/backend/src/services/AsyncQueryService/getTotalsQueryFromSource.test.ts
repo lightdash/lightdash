@@ -6,6 +6,7 @@ import {
     type PivotConfiguration,
 } from '@lightdash/common';
 import {
+    getColumnSubtotalQueryFromSource,
     getColumnTotalQueryFromSource,
     getGrandTotalMetricQuery,
     getRowTotalQueryFromSource,
@@ -474,6 +475,144 @@ describe('getRowTotalQueryFromSource', () => {
                     },
                 }),
             ).toThrow(NotSupportedError);
+        });
+    });
+});
+
+describe('getColumnSubtotalQueryFromSource', () => {
+    const singleGroupByPivotConfiguration: PivotConfiguration = {
+        ...pivotConfiguration,
+        groupByColumns: [{ reference: 'orders_payment_method' }],
+        indexColumn: {
+            reference: 'orders_created_at',
+            type: VizIndexType.TIME,
+        },
+    };
+
+    describe('pivoted source', () => {
+        it('groups by the subtotal dimensions plus the pivot groupBy columns, flat output', () => {
+            const result = getColumnSubtotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: singleGroupByPivotConfiguration,
+                subtotalDimensions: ['orders_status'],
+            });
+
+            expect(result.metricQuery.dimensions).toEqual([
+                'orders_status',
+                'orders_payment_method',
+            ]);
+            expect(result.metricQuery.sorts).toEqual([]);
+            expect(result.metricQuery.tableCalculations).toEqual([]);
+            expect(result.pivotConfiguration).toBeUndefined();
+        });
+
+        it('dedupes when a subtotal dimension is also a pivot groupBy column', () => {
+            const result = getColumnSubtotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: singleGroupByPivotConfiguration,
+                subtotalDimensions: ['orders_payment_method'],
+            });
+
+            expect(result.metricQuery.dimensions).toEqual([
+                'orders_payment_method',
+            ]);
+        });
+
+        it('throws when a subtotal dimension is not in the source query', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: baseMetricQuery,
+                    pivotConfiguration: singleGroupByPivotConfiguration,
+                    subtotalDimensions: ['orders_unknown_dimension'],
+                }),
+            ).toThrow(NotSupportedError);
+        });
+
+        it('throws when no subtotal dimensions are provided', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: baseMetricQuery,
+                    pivotConfiguration: singleGroupByPivotConfiguration,
+                    subtotalDimensions: [],
+                }),
+            ).toThrow(NotSupportedError);
+        });
+
+        it('strips period-over-period additional metrics', () => {
+            const popMetricQuery: MetricQuery = {
+                ...baseMetricQuery,
+                metrics: [
+                    'orders_total_revenue',
+                    'orders_total_revenue_pop_12m',
+                ],
+                additionalMetrics: [
+                    {
+                        name: 'total_revenue_pop_12m',
+                        table: 'orders',
+                        sql: '${TABLE}.revenue',
+                        type: 'sum' as never,
+                        generationType: 'periodOverPeriod',
+                        baseMetricId: 'orders_total_revenue',
+                        timeDimensionId: 'orders_created_at',
+                        granularity: 'MONTH' as never,
+                        periodOffset: 12,
+                    } as never,
+                ],
+            };
+
+            const result = getColumnSubtotalQueryFromSource({
+                metricQuery: popMetricQuery,
+                pivotConfiguration: singleGroupByPivotConfiguration,
+                subtotalDimensions: ['orders_status'],
+            });
+
+            expect(result.metricQuery.metrics).toEqual([
+                'orders_total_revenue',
+            ]);
+            expect(result.metricQuery.additionalMetrics).toEqual([]);
+        });
+
+        it('rejects sources that use metric filters', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: {
+                        ...baseMetricQuery,
+                        filters: {
+                            metrics: {
+                                id: 'metric-filter-group',
+                                and: [
+                                    {
+                                        id: 'rule-1',
+                                        target: {
+                                            fieldId: 'orders_total_revenue',
+                                        },
+                                        operator: 'greaterThan' as never,
+                                        values: [0],
+                                    },
+                                ],
+                            } as never,
+                        },
+                    },
+                    pivotConfiguration: singleGroupByPivotConfiguration,
+                    subtotalDimensions: ['orders_status'],
+                }),
+            ).toThrow(NotSupportedError);
+        });
+    });
+
+    describe('non-pivoted source (treemap)', () => {
+        it('groups by only the subtotal dimensions', () => {
+            const result = getColumnSubtotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: null,
+                subtotalDimensions: ['orders_payment_method', 'orders_status'],
+            });
+
+            expect(result.metricQuery.dimensions).toEqual([
+                'orders_payment_method',
+                'orders_status',
+            ]);
+            expect(result.pivotConfiguration).toBeUndefined();
         });
     });
 });

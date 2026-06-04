@@ -174,6 +174,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { getPivotedColumns } from './getPivotedColumns';
 import {
+    getColumnSubtotalQueryFromSource,
     getColumnTotalQueryFromSource,
     getGrandTotalMetricQuery,
     getRowTotalQueryFromSource,
@@ -4052,12 +4053,14 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         kind,
+        subtotalDimensions,
         invalidateCache,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
         kind: CalculateTotalKind;
+        subtotalDimensions?: string[];
         invalidateCache?: boolean;
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -4088,6 +4091,13 @@ export class AsyncQueryService extends ProjectService {
             case 'rowTotal':
                 ({ metricQuery, pivotConfiguration } =
                     getRowTotalQueryFromSource(sourceInputs));
+                break;
+            case 'columnSubtotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getColumnSubtotalQueryFromSource({
+                        ...sourceInputs,
+                        subtotalDimensions: subtotalDimensions ?? [],
+                    }));
                 break;
             default:
                 return assertUnreachable(
@@ -6327,6 +6337,7 @@ export class AsyncQueryService extends ProjectService {
         return rows[0];
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateMetricQuerySubtotals({
         account,
         projectUuid,
@@ -6594,6 +6605,7 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromQuery(
         account: Account,
         projectUuid: string,

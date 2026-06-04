@@ -151,6 +151,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 queryUuid,
                 kind: body.kind,
+                subtotalDimensions: body.subtotalDimensions,
                 invalidateCache: body.invalidateCache,
             });
 

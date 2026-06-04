@@ -11,8 +11,6 @@ import {
     type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
-    type DashboardFilters,
-    type DateZoom,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -24,12 +22,11 @@ import {
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     useAsyncCalculateRowTotal,
+    useAsyncCalculateSubtotals,
     useAsyncCalculateTotal,
 } from '../useAsyncCalculateTotal';
-import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useIsHidePivotDimsEnabled } from '../useIsHidePivotDimsEnabled';
 import { useIsPivotRowGroupingEnabled } from '../useIsPivotRowGroupingEnabled';
 import { useProjectUuid } from '../useProjectUuid';
@@ -52,14 +49,9 @@ const useTableConfig = (
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
-    savedChartUuid?: string,
-    dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
-    dateZoom?: DateZoom,
 ) => {
-    const { embedToken } = useEmbed();
-
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
     );
@@ -270,30 +262,15 @@ const useTableConfig = (
         invalidateCache,
     });
 
-    const { data: groupedSubtotals } = useCalculateSubtotals(
-        embedToken && savedChartUuid
-            ? {
-                  savedChartUuid,
-                  dashboardFilters,
-                  invalidateCache,
-                  showSubtotals,
-                  columnOrder,
-                  pivotDimensions,
-                  embedToken,
-                  dateZoom,
-              }
-            : {
-                  metricQuery: resultsData?.metricQuery,
-                  explore: resultsData?.metricQuery?.exploreName,
-                  showSubtotals,
-                  columnOrder,
-                  pivotDimensions,
-                  embedToken,
-                  parameters,
-                  dateZoom,
-                  invalidateCache,
-              },
-    );
+    const { data: groupedSubtotals } = useAsyncCalculateSubtotals({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        dimensions: resultsData?.metricQuery?.dimensions,
+        columnOrder,
+        pivotDimensions,
+        enabled: showSubtotals && canUseSubtotals,
+        invalidateCache,
+    });
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
