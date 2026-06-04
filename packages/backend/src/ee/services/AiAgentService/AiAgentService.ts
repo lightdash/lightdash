@@ -2754,6 +2754,16 @@ export class AiAgentService extends BaseService {
                 'A GitHub personal access token is required',
             );
         }
+        // Reject obviously malformed input before storing/forwarding it.
+        // Accept any GitHub token shape — fine-grained PAT (github_pat_),
+        // classic PAT (ghp_) or OAuth/app token (gho_/ghu_/ghs_/ghr_) — since
+        // the hosted GitHub MCP accepts all of them. testConnection below does
+        // the real validation against GitHub.
+        if (!/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]+$/.test(bearerToken)) {
+            throw new ParameterError(
+                'That doesn\'t look like a GitHub personal access token. Expected a fine-grained token starting with "github_pat_".',
+            );
+        }
 
         const existing = await this.aiAgentModel.listMcpServers(
             projectUuid,
