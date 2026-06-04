@@ -32,11 +32,11 @@
     @mixin dark {
         background-color: color-mix(
             in srgb,
-            var(--mantine-color-ldDark-5) 70%,
+            var(--mantine-color-ldDark-2) 70%,
             transparent
         );
         border-color: transparent;
-        color: var(--mantine-color-ldDark-7);
+        color: var(--mantine-color-ldDark-8);
     }
 
     &:hover {
