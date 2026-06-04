@@ -1426,14 +1426,13 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
         if (!userUuid) {
-            if (!row.allow_oauth_credential_sharing) {
+            // No user context: only a shared credential is resolvable. OAuth
+            // additionally requires sharing to be allowed.
+            if (
+                row.auth_type === 'oauth' &&
+                !row.allow_oauth_credential_sharing
+            ) {
                 return undefined;
             }
 
@@ -1442,6 +1441,9 @@ export class AiAgentModel {
             });
         }
 
+        // With user context, resolve per-user first then the shared fallback —
+        // this is what makes a per-user bearer (or OAuth) server show as
+        // connected for the user who provided their own credential.
         return this.resolveCredentialForServer(
             {
                 ai_mcp_server_uuid: row.ai_mcp_server_uuid,
@@ -1470,12 +1472,10 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
+        // Bearer and OAuth both resolve per-user first, then fall back to a
+        // shared project credential. For bearer the mode is implicit: a
+        // per-user bearer server has user-scoped credentials (no shared), a
+        // shared bearer server has a shared credential everyone falls back to.
         const userCredential = await this.getCredential(
             row.ai_mcp_server_uuid,
             'user',
@@ -1489,7 +1489,10 @@ export class AiAgentModel {
             return userCredential;
         }
 
-        if (!row.allow_oauth_credential_sharing) {
+        // OAuth only falls back to a shared credential when sharing is allowed;
+        // bearer always allows the shared fallback (its sharing is implied by
+        // whether a shared credential was stored).
+        if (row.auth_type === 'oauth' && !row.allow_oauth_credential_sharing) {
             return undefined;
         }
 
@@ -1534,8 +1537,13 @@ export class AiAgentModel {
         authType: ApiCreateAiMcpServer['authType'];
         allowOAuthCredentialSharing: boolean;
         credentials: ApiCreateAiMcpServer['credentials'];
+        // Scope for the initial (bearer) credential: 'shared' stores one
+        // project credential; 'user' stores it for the creating user only
+        // (each user then connects their own). Defaults to 'shared'.
+        credentialScope?: AiMcpCredentialScope;
         actorUserUuid?: string | null;
     }): Promise<AiMcpServer> {
+        const credentialScope = args.credentialScope ?? 'shared';
         return this.database.transaction(async (trx) => {
             const [row] = await trx(AiMcpServerTableName)
                 .insert({
@@ -1563,7 +1571,11 @@ export class AiAgentModel {
                     ? null
                     : await this.upsertCredential({
                           serverUuid: row.ai_mcp_server_uuid,
-                          scope: 'shared',
+                          scope: credentialScope,
+                          userUuid:
+                              credentialScope === 'user'
+                                  ? (args.actorUserUuid ?? null)
+                                  : null,
                           credentials: credentialPayload,
                           actorUserUuid: args.actorUserUuid ?? null,
                           trx,

@@ -2556,11 +2556,9 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
-                if (body.credentialScope && body.credentialScope !== 'shared') {
-                    throw new ParameterError(
-                        'Bearer MCP servers only support shared credentials',
-                    );
-                }
+                // Bearer supports both 'shared' (one project credential) and
+                // 'user' (the creating user stores their own; each user
+                // connects their own token).
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -2627,6 +2625,8 @@ export class AiAgentService extends BaseService {
             authType: body.authType,
             allowOAuthCredentialSharing,
             credentials,
+            credentialScope:
+                body.authType === 'bearer' ? body.credentialScope : undefined,
             actorUserUuid: user.userUuid,
         });
 
@@ -2670,44 +2670,68 @@ export class AiAgentService extends BaseService {
             return { available: false, alreadyConnected: false };
         }
 
+        // No org GitHub App installation is required — the user supplies a PAT.
+        // Managers can create the project-level GitHub MCP server; once it
+        // exists, any project member can connect their own token (per-user
+        // scope), so the affordance is offered to them too.
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            return { available: false, alreadyConnected: false };
+        }
         const auditedAbility = this.createAuditedAbility(user);
-        const canManageGitIntegration = auditedAbility.can(
+        const canManageMcpServers = auditedAbility.can(
             'manage',
-            subject('GitIntegration', { organizationUuid }),
+            subject('AiAgent', { organizationUuid, projectUuid }),
         );
-        if (!canManageGitIntegration) {
-            return { available: false, alreadyConnected: false };
-        }
-
-        const installationId =
-            await this.githubAppInstallationsModel.findInstallationId(
-                organizationUuid,
-            );
-        if (!installationId) {
-            return { available: false, alreadyConnected: false };
-        }
 
         const servers = await this.aiAgentModel.listMcpServers(
             projectUuid,
             user.userUuid,
         );
-        const alreadyConnected = servers.some(
+        const githubServer = servers.find(
             (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
 
-        return { available: true, alreadyConnected };
+        // Offered to managers always (they can create), and to any member when
+        // a GitHub server already exists (they connect their own token).
+        const available = canManageMcpServers || !!githubServer;
+        if (!available) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        // Connected = the current user has a usable credential for GitHub
+        // (their own per-user token, or the shared project token). Drives
+        // per-user prompting: each user is offered connect until they have one.
+        const credential = githubServer
+            ? await this.aiAgentModel.resolveCredential(
+                  githubServer.uuid,
+                  user.userUuid,
+              )
+            : undefined;
+
+        return { available: true, alreadyConnected: !!credential };
     }
 
     /**
-     * One-click GitHub MCP setup: mints the org's GitHub App installation token
-     * and registers a bearer-authed MCP server pointing at the hosted GitHub
-     * MCP. Reuses createMcpServer so the URL validation, connection test and
-     * tool discovery all run. Idempotent — returns the existing server if one
-     * is already connected.
+     * One-click GitHub MCP setup. Registers a bearer-authed MCP server pointing
+     * at the hosted GitHub MCP, using a GitHub personal access token the user
+     * supplies (a fine-grained, read-only token scoped to the repos that
+     * produce their analytics events). Idempotent — if a GitHub MCP server
+     * already exists, the token is re-tested and upserted so this doubles as a
+     * "reconnect / update token" path.
+     *
+     * GitHub's hosted MCP does not support OAuth dynamic client registration,
+     * so we use a user-provided PAT rather than an OAuth flow.
+     *
+     * `credentialScope` chooses how the token is stored:
+     * - 'shared': one project-level credential everyone uses (manager-gated).
+     * - 'user': the connecting user's own token; each user connects their own.
      */
     public async connectGithubMcpServer(
         user: SessionUser,
         projectUuid: string,
+        personalAccessToken: string,
+        credentialScope: AiMcpCredentialScope,
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -2724,42 +2748,33 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // Gate on the same permission used to manage the GitHub integration.
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('GitIntegration', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage the GitHub integration',
+        const bearerToken = personalAccessToken.trim();
+        if (!bearerToken) {
+            throw new ParameterError(
+                'A GitHub personal access token is required',
             );
         }
 
-        const installationId =
-            await this.githubAppInstallationsModel.findInstallationId(
-                organizationUuid,
-            );
-        if (!installationId) {
-            throw new ForbiddenError(
-                'GitHub App is not installed for this organization',
-            );
-        }
-
-        const bearerToken = await getInstallationToken(installationId);
-
-        // Reconnect path: if a GitHub MCP server already exists, re-mint and
-        // upsert a fresh token rather than early-returning. The previous
-        // early-return left stuck (expired-token) servers unrecoverable.
         const existing = await this.aiAgentModel.listMcpServers(
             projectUuid,
             user.userUuid,
         );
-        const alreadyConnected = existing.find(
+        const githubServer = existing.find(
             (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
-        if (alreadyConnected) {
+
+        if (githubServer) {
+            // Setting/replacing the shared credential needs manage; storing
+            // your own personal token only needs project access.
+            if (credentialScope === 'shared') {
+                await this.assertCanManageMcpServers(user, projectUuid);
+            } else {
+                await this.assertCanUsePersonalMcpCredentials(
+                    user,
+                    projectUuid,
+                );
+            }
+
             try {
                 await this.aiAgentMcpRuntimeClient.testConnection({
                     name: GITHUB_MCP_SERVER_NAME,
@@ -2775,20 +2790,21 @@ export class AiAgentService extends BaseService {
                 });
             } catch (error) {
                 throw new ParameterError(
-                    `We couldn't reconnect to the GitHub MCP server. Details: ${
+                    `We couldn't connect to GitHub with that token. Check the token and its repository access, then try again. Details: ${
                         error instanceof Error ? error.message : String(error)
                     }`,
                 );
             }
 
             await this.aiAgentModel.upsertCredential({
-                serverUuid: alreadyConnected.uuid,
-                scope: 'shared',
+                serverUuid: githubServer.uuid,
+                scope: credentialScope,
+                userUuid: credentialScope === 'user' ? user.userUuid : null,
                 credentials: { type: 'bearer', bearerToken },
                 actorUserUuid: user.userUuid,
             });
             await this.aiAgentModel.updateMcpServerRuntimeState({
-                serverUuid: alreadyConnected.uuid,
+                serverUuid: githubServer.uuid,
                 connectionStatus: 'connected',
                 error: null,
                 actorUserUuid: user.userUuid,
@@ -2800,7 +2816,7 @@ export class AiAgentService extends BaseService {
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
-                    mcpServerId: alreadyConnected.uuid,
+                    mcpServerId: githubServer.uuid,
                     method: 'one_click_reconnect',
                 },
             });
@@ -2812,18 +2828,17 @@ export class AiAgentService extends BaseService {
             return (
                 refreshed.find(
                     (server) => server.url === GITHUB_MCP_SERVER_URL,
-                ) ?? alreadyConnected
+                ) ?? githubServer
             );
         }
 
-        // Delegates to createMcpServer, which additionally asserts the caller
-        // can manage MCP servers, validates the URL, tests the connection and
-        // discovers tools.
+        // First-time setup creates the project-level server (manager-gated by
+        // createMcpServer), storing the token at the chosen scope.
         const server = await this.createMcpServer(user, projectUuid, {
             name: GITHUB_MCP_SERVER_NAME,
             url: GITHUB_MCP_SERVER_URL,
             authType: 'bearer',
-            credentialScope: 'shared',
+            credentialScope,
             credentials: { bearerToken },
         });
 

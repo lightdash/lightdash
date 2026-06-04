@@ -1,5 +1,6 @@
 import {
     GITHUB_MCP_SERVER_URL,
+    type AiMcpCredentialScope,
     type AiMcpServer,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
@@ -57,6 +58,7 @@ import {
 } from '../hooks/useProjectAiMcpServers';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
+import { GithubMcpConnectModal } from './GithubMcpConnectModal';
 
 const CREATE_NEW_MCP_OPTION_VALUE = '__create_new_mcp__';
 
@@ -695,25 +697,43 @@ export const AiAgentMcpServersInput = ({
         [agentUuid, onChange, onPersistedChange, updateAgentMcpServers],
     );
 
-    const handleConnectGithubMcp = useCallback(async () => {
-        // Reuse the existing project-level server when present; otherwise mint
-        // the installation token and create it.
-        const server = existingGithubMcpServer ?? (await connectGithubMcp());
-        // Persist the attachment (not just local form state) so the agent's
-        // tool-permissions panel can load/save immediately, matching "+ Add".
-        if (server && !value.includes(server.uuid)) {
-            await persistMcpServerSelection([...value, server.uuid], value);
-        }
-        // Only reached on success — connectGithubMcp throws on failure (its
-        // mutation surfaces the error toast) and leaves the dialog open.
-        githubConfirmModalHandlers.close();
-    }, [
-        existingGithubMcpServer,
-        connectGithubMcp,
-        persistMcpServerSelection,
-        value,
-        githubConfirmModalHandlers,
-    ]);
+    const handleConnectGithubMcp = useCallback(
+        async (
+            personalAccessToken: string,
+            credentialScope: AiMcpCredentialScope,
+        ) => {
+            try {
+                // Idempotent server-side — creates the bearer GitHub MCP server
+                // with the user's token, or updates it if one already exists.
+                const server = await connectGithubMcp({
+                    personalAccessToken,
+                    credentialScope,
+                });
+                if (!server) {
+                    return;
+                }
+                // Persist the attachment (not just local form state) so the
+                // agent's tool-permissions panel can load/save immediately,
+                // matching "+ Add".
+                if (!value.includes(server.uuid)) {
+                    await persistMcpServerSelection(
+                        [...value, server.uuid],
+                        value,
+                    );
+                }
+                githubConfirmModalHandlers.close();
+            } catch {
+                // Toasts are handled in the mutations; keep the modal open so
+                // the user can fix the token and retry.
+            }
+        },
+        [
+            connectGithubMcp,
+            persistMcpServerSelection,
+            value,
+            githubConfirmModalHandlers,
+        ],
+    );
 
     const handleAttachMcpServers = useCallback(async () => {
         const nextValue = Array.from(new Set([...value, ...attachSelection]));
@@ -1012,7 +1032,7 @@ export const AiAgentMcpServersInput = ({
                                     withinPortal
                                     multiline
                                     w={260}
-                                    label="Connect the GitHub MCP using your organization's existing GitHub integration — no extra sign-in needed."
+                                    label="Let the agent read the code behind your metrics, using a GitHub personal access token."
                                 >
                                     <Button
                                         variant="default"
@@ -1366,34 +1386,12 @@ export const AiAgentMcpServersInput = ({
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
             />
-            <MantineModal
+            <GithubMcpConnectModal
                 opened={isGithubConfirmModalOpen}
                 onClose={githubConfirmModalHandlers.close}
-                title="Connect GitHub"
-                icon={IconBrandGithub}
-                actions={
-                    <Button
-                        leftSection={<MantineIcon icon={IconBrandGithub} />}
-                        loading={isConnectingGithubMcp || isPersistingSelection}
-                        onClick={handleConnectGithubMcp}
-                    >
-                        Connect GitHub
-                    </Button>
-                }
-            >
-                <Stack gap="sm">
-                    <Text size="sm">
-                        Lightdash will reuse your organization's existing GitHub
-                        connection — the same integration used for your dbt
-                        projects. No additional sign-in is required.
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                        This adds a read/write GitHub MCP server to this agent,
-                        scoped to the repositories your GitHub integration can
-                        already access. You can remove it at any time.
-                    </Text>
-                </Stack>
-            </MantineModal>
+                isLoading={isConnectingGithubMcp || isPersistingSelection}
+                onConnect={handleConnectGithubMcp}
+            />
         </>
     );
 };

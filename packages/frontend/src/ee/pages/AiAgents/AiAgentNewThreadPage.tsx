@@ -152,6 +152,17 @@ const AiAgentNewThreadPage: FC = () => {
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
+    // Post-connect "try asking" suggestions seed the composer. The input reads
+    // defaultValue only on mount, so bump a key to remount it with the seed —
+    // keyed separately from pendingPrompt so normal typing doesn't remount.
+    const [composerSeedKey, setComposerSeedKey] = useState(0);
+    const handleSuggestedPrompt = useCallback(
+        (prompt: string) => {
+            setPendingPrompt(prompt);
+            setComposerSeedKey((key) => key + 1);
+        },
+        [setPendingPrompt],
+    );
 
     const onSubmit = useCallback(
         ({
@@ -291,6 +302,7 @@ const AiAgentNewThreadPage: FC = () => {
                         <AiAgentNewThreadMcpConnections
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
+                            onSuggestedPrompt={handleSuggestedPrompt}
                         />
                     )}
 
@@ -326,6 +338,7 @@ const AiAgentNewThreadPage: FC = () => {
                     )}
 
                     <AgentChatInput
+                        key={composerSeedKey}
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
