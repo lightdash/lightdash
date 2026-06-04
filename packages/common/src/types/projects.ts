@@ -631,35 +631,6 @@ export type DbtProjectEnvironmentVariable = {
     value: string;
 };
 
-const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^DBT_[A-Z0-9_]*$/;
-const LIGHTDASH_DBT_PROFILE_ENVIRONMENT_VARIABLE_KEY_REGEX =
-    /^LIGHTDASH_DBT_PROFILE_VAR_[A-Z0-9_]+$/;
-
-export const isAllowedDbtEnvironmentVariableKey = (key: string): boolean =>
-    key.length === 0 || DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key);
-
-const isAllowedDbtProcessEnvironmentVariableKey = (key: string): boolean =>
-    DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key) ||
-    LIGHTDASH_DBT_PROFILE_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key);
-
-export const getInvalidDbtEnvironmentVariableKeys = (
-    environment: DbtProjectEnvironmentVariable[] | undefined,
-): string[] =>
-    (environment ?? [])
-        .map(({ key }) => key)
-        .filter((key) => !isAllowedDbtEnvironmentVariableKey(key));
-
-export const filterDbtEnvironment = (
-    environment: Record<string, string> | undefined,
-): Record<string, string> =>
-    Object.fromEntries(
-        Object.entries(environment ?? {}).filter(
-            ([key]) =>
-                key.length > 0 &&
-                isAllowedDbtProcessEnvironmentVariableKey(key),
-        ),
-    );
-
 export enum SupportedDbtVersions {
     V1_4 = 'v1.4',
     V1_5 = 'v1.5',

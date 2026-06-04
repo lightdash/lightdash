@@ -5,7 +5,6 @@ import {
     DbtLog,
     DbtPackages,
     DbtRpcGetManifestResults,
-    filterDbtEnvironment,
     getErrorMessage,
     isDbtLog,
     isDbtPackages,
@@ -208,9 +207,9 @@ export class DbtCliClient implements DbtClient {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 env: {
-                    ...filterDbtEnvironment(this.environment),
                     DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
                     DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
+                    ...this.environment,
                 },
             });
             return {

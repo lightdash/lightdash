@@ -1,8 +1,4 @@
-import {
-    getInvalidDbtEnvironmentVariableKeys,
-    validateDbtSelector,
-    type DbtProjectEnvironmentVariable,
-} from '@lightdash/common';
+import { validateDbtSelector } from '@lightdash/common';
 import {
     everyValidator,
     hasNoWhiteSpaces,
@@ -17,21 +13,9 @@ const selectorValidator = (value?: string) => {
     return 'dbt selector is invalid';
 };
 
-const environmentValidator = (
-    value?: DbtProjectEnvironmentVariable[],
-): string | undefined => {
-    const invalidKeys = getInvalidDbtEnvironmentVariableKeys(value);
-    if (invalidKeys.length === 0) return undefined;
-
-    return `Environment variable keys must be uppercase and start with DBT_. Invalid keys: ${invalidKeys.join(
-        ', ',
-    )}`;
-};
-
 export const dbtFormValidators = {
     api_key: hasNoWhiteSpaces('API Key'),
     environment_id: hasNoWhiteSpaces('Environment ID'),
-    environment: environmentValidator,
     selector: selectorValidator,
     // TODO :: improve this for github to detect the prefix
     // @mantine/form@7.5.2 doesn't support replacing validators after initialization
