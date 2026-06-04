@@ -37,6 +37,18 @@ import { getModel } from './ai/models';
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
 
+/**
+ * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
+ * — it follows the project_context vs semantic_layer routing far more reliably
+ * than other providers. Returns undefined to fall back to the org's default
+ * provider, so EE orgs that have an EE license but no Anthropic key (OpenAI /
+ * Azure only) keep working.
+ */
+export const resolveReviewJudgeProvider = (
+    copilot: LightdashConfig['ai']['copilot'],
+): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
+    copilot.providers.anthropic ? 'anthropic' : undefined;
+
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
     evidencePacket: AiAgentReviewJudgeEvidencePacket,
@@ -876,6 +888,9 @@ export class AiAgentReviewClassifierService extends BaseService {
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
         const model = getModel(this.lightdashConfig.ai.copilot, {
+            provider: resolveReviewJudgeProvider(
+                this.lightdashConfig.ai.copilot,
+            ),
             useFastModel: true,
         });
 
