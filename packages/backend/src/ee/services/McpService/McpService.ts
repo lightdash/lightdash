@@ -1601,6 +1601,7 @@ export class McpService extends BaseService {
                                     agentName: agent.name,
                                     agentDescription: agent.description,
                                     agentTags: agent.tags,
+                                    agentSpaceAccess: agent.spaceAccess,
                                     agentProjectUuid: agent.projectUuid,
                                     explores: agent.context.explores,
                                     verifiedQuestions:
@@ -1726,6 +1727,7 @@ export class McpService extends BaseService {
                                     agentName: agent.name,
                                     agentDescription: agent.description,
                                     agentTags: agent.tags,
+                                    agentSpaceAccess: agent.spaceAccess,
                                     agentProjectUuid: agent.projectUuid,
                                     explores: agent.context.explores,
                                     verifiedQuestions:

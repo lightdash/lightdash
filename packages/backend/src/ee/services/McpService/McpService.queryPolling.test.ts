@@ -239,7 +239,16 @@ const makeMcpService = ({
     const aiAgentService = {
         getAgent: jest.fn().mockImplementation(async () => {
             if (!agent) throw new Error('Agent not mocked');
-            return agent;
+            return {
+                description: null,
+                projectUuid,
+                context: {
+                    explores: [],
+                    verifiedQuestions: [],
+                    instruction: null,
+                },
+                ...agent,
+            };
         }),
     };
 
@@ -249,7 +258,9 @@ const makeMcpService = ({
 
     const service = new McpService({
         aiAgentService,
-        aiOrganizationSettingsService: {},
+        aiOrganizationSettingsService: {
+            getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
+        },
         aiWritebackService: {},
         analytics: { track: jest.fn() },
         asyncQueryService,
@@ -295,6 +306,14 @@ const getToolCallback = (toolName: McpToolName) => {
         throw new Error(`Tool ${toolName} was not registered`);
     }
     return callback;
+};
+
+const parseTextResult = (result: unknown) => {
+    const response = result as { content?: Array<{ text?: string }> };
+    return JSON.parse(response.content?.[0]?.text ?? '{}') as Record<
+        string,
+        unknown
+    >;
 };
 
 describe('MCP async query polling', () => {
@@ -405,6 +424,35 @@ describe('MCP async query polling', () => {
             headerProjectUuid,
             account,
         );
+    });
+
+    it('returns active agent space access in get_current_agent', async () => {
+        makeMcpService({
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'agent-uuid',
+                agentName: 'Agent',
+                tags: null,
+            },
+            agent: {
+                uuid: 'agent-uuid',
+                name: 'Agent',
+                tags: ['ai'],
+                spaceAccess: ['space-uuid'],
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GET_CURRENT_AGENT)(
+            {},
+            extra,
+        );
+
+        expect(parseTextResult(result)).toMatchObject({
+            agentUuid: 'agent-uuid',
+            agentTags: ['ai'],
+            agentSpaceAccess: ['space-uuid'],
+        });
     });
 
     it('uses active agent tags for run_metric_query', async () => {
