@@ -966,17 +966,9 @@ export class SavedChartModel {
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${SavedChartsTableName}.dashboard_uuid`,
                     )
-                    .innerJoin(SpaceTableName, function spaceJoin() {
-                        this.on(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${DashboardsTableName}.space_id`,
-                        ).orOn(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${SavedChartsTableName}.space_id`,
-                        );
-                    })
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                    )
                     .innerJoin(
                         ProjectTableName,
                         `${SpaceTableName}.project_id`,
@@ -987,10 +979,23 @@ export class SavedChartModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
-                    .innerJoin(
-                        'saved_queries_versions',
-                        `${SavedChartsTableName}.saved_query_id`,
-                        'saved_queries_versions.saved_query_id',
+                    // Lateral join fetches only the target version instead of
+                    // joining every historical version and sorting afterwards
+                    .joinRaw(
+                        versionUuid
+                            ? `CROSS JOIN LATERAL (
+                                SELECT * FROM ${SavedChartVersionsTableName}
+                                WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                                AND ${SavedChartVersionsTableName}.saved_queries_version_uuid = ?
+                                LIMIT 1
+                            ) AS ${SavedChartVersionsTableName}`
+                            : `CROSS JOIN LATERAL (
+                                SELECT * FROM ${SavedChartVersionsTableName}
+                                WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                                ORDER BY ${SavedChartVersionsTableName}.created_at DESC, ${SavedChartVersionsTableName}.saved_queries_version_id DESC
+                                LIMIT 1
+                            ) AS ${SavedChartVersionsTableName}`,
+                        versionUuid ? [versionUuid] : [],
                     )
                     .leftJoin(
                         UserTableName,
@@ -1097,13 +1102,6 @@ export class SavedChartModel {
                     void chartQuery.where(
                         `${ProjectTableName}.project_uuid`,
                         options.projectUuid,
-                    );
-                }
-
-                if (versionUuid) {
-                    void chartQuery.where(
-                        `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                        versionUuid,
                     );
                 }
 
