@@ -20,6 +20,7 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import isEqual from 'lodash/isEqual';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -205,6 +206,17 @@ const useTableConfig = (
         resultsData.rows.length &&
         pivotDimensions &&
         pivotDimensions.length > 0;
+
+    // True when the configured pivot dimensions differ from the ones the current
+    // results were computed with (warehouse pivots key on groupByColumns). Mirrors
+    // the mismatch check in VisualizationWarning so a re-run is needed.
+    const isPivotResultStale = useMemo(() => {
+        const resultsPivotDimensions =
+            resultsData?.pivotDetails?.groupByColumns?.map(
+                (col) => col.reference,
+            ) ?? [];
+        return !isEqual(pivotDimensions ?? [], resultsPivotDimensions);
+    }, [pivotDimensions, resultsData?.pivotDetails?.groupByColumns]);
 
     const dimensions = useMemo(() => {
         if (!itemsMap) return [];
@@ -701,6 +713,7 @@ const useTableConfig = (
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
+            isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
             rowLimit,
@@ -745,6 +758,7 @@ const useTableConfig = (
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
+            isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
             rowLimit,
