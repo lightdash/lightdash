@@ -1,3 +1,16 @@
+# [0.3093.0](https://github.com/lightdash/lightdash/compare/0.3092.2...0.3093.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ai:** always render explore + topMatchingFields blocks in findExplores ([#23143](https://github.com/lightdash/lightdash/issues/23143)) ([7d09582](https://github.com/lightdash/lightdash/commit/7d09582699805b27686a3e1bd4e3063881739845))
+
+
+### Features
+
+* **ai-agents:** validate mentioned content access ([#23893](https://github.com/lightdash/lightdash/issues/23893)) ([fb1dfdd](https://github.com/lightdash/lightdash/commit/fb1dfddebcfdcb74b7b482d0542d9d51ae7c3d5c))
+* **metrics-catalog:** support default_segment and default_filter in metric spotlight config ([#23837](https://github.com/lightdash/lightdash/issues/23837)) ([90f5cbb](https://github.com/lightdash/lightdash/commit/90f5cbbb7df63c83327f88e91b959150f2119961))
+
 ## [0.3092.2](https://github.com/lightdash/lightdash/compare/0.3092.1...0.3092.2) (2026-06-04)
 
 
