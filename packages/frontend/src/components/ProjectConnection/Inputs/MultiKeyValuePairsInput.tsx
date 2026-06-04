@@ -32,7 +32,6 @@ export const MultiKeyValuePairsInput = ({
 
     const values: { id: string; key: string; value: string }[] =
         get(form.values, name) ?? [];
-    const error = form.errors[name];
 
     const addValue = () => {
         form.insertListItem(name, {
@@ -80,7 +79,6 @@ export const MultiKeyValuePairsInput = ({
                 </>
             }
             description={isLabelInfoOpen && labelHelp}
-            error={error}
         >
             <Stack>
                 {values.map((value, index) => (
