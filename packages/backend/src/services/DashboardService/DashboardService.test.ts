@@ -26,6 +26,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -90,6 +91,21 @@ const schedulerModel = {
     getProjectSchedulerRuns: jest.fn(),
 };
 
+const dashboardChartsResult = {
+    dashboardName: dashboard.name,
+    charts: [],
+    pagination: {
+        page: 1,
+        pageSize: 20,
+        totalResults: 0,
+        totalPageCount: 0,
+    },
+};
+
+const searchModel = {
+    getDashboardCharts: jest.fn(async () => dashboardChartsResult),
+};
+
 const contentVerificationModel = {
     unverify: jest.fn(async () => undefined),
 };
@@ -145,6 +161,7 @@ describe('DashboardService', () => {
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
+        searchModel: searchModel as unknown as SearchModel,
         schedulerService: {} as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
@@ -175,6 +192,49 @@ describe('DashboardService', () => {
             dashboard.uuid,
             { projectUuid: undefined },
         );
+    });
+    test('should get dashboard charts after dashboard access check', async () => {
+        const result = await service.getDashboardCharts(
+            user,
+            projectUuid,
+            dashboard.uuid,
+            1,
+            20,
+        );
+
+        expect(result).toEqual(dashboardChartsResult);
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            dashboard.uuid,
+            { projectUuid },
+        );
+        expect(searchModel.getDashboardCharts).toHaveBeenCalledWith(
+            dashboard.uuid,
+            1,
+            20,
+        );
+    });
+    test('should not get dashboard charts without dashboard access', async () => {
+        const anotherUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [],
+            ),
+        };
+
+        await expect(
+            service.getDashboardCharts(
+                anotherUser,
+                projectUuid,
+                dashboard.uuid,
+                1,
+                20,
+            ),
+        ).rejects.toThrowError(ForbiddenError);
+        expect(searchModel.getDashboardCharts).not.toHaveBeenCalled();
     });
     test('should get all dashboard by project uuid', async () => {
         const result = await service.getAllByProject(
