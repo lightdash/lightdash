@@ -1,11 +1,23 @@
 import {
+    convertFieldRefToFieldId,
     flattenFilterGroup,
     getItemId,
+    isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
+    lightdashVariablePattern,
     NotSupportedError,
+    parseTableCalculationFunctions,
     type MetricQuery,
     type PivotConfiguration,
+    type TableCalculation,
 } from '@lightdash/common';
+import {
+    containsAggregateOrWindow,
+    extractColumnRefs,
+    parse as parseFormula,
+} from '@lightdash/formula';
 
 const getPopMetricIds = (metricQuery: MetricQuery): Set<string> =>
     new Set(
@@ -13,6 +25,72 @@ const getPopMetricIds = (metricQuery: MetricQuery): Set<string> =>
             .filter(isPeriodOverPeriodAdditionalMetric)
             .map(getItemId),
     );
+
+const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
+
+// Extract the field ids a table calc references, or null if the calc can't be
+// safely totaled. Only pure per-row scalar arithmetic over metrics survives:
+// template calcs, row/pivot/total helper functions, raw window SQL, and formula
+// aggregates/window functions all compile to cross-row/cross-column SQL that is
+// meaningless once the query collapses to a totals row.
+const getTotalableReferences = (calc: TableCalculation): string[] | null => {
+    if (isTemplateTableCalculation(calc)) {
+        return null;
+    }
+
+    if (isSqlTableCalculation(calc)) {
+        if (
+            WINDOW_CLAUSE_PATTERN.test(calc.sql) ||
+            parseTableCalculationFunctions(calc.sql).length > 0
+        ) {
+            return null;
+        }
+        try {
+            // convertFieldRefToFieldId throws on refs that aren't `table.field`;
+            // treat an unresolvable ref as non-totalable rather than failing the
+            // whole totals query.
+            return [...calc.sql.matchAll(lightdashVariablePattern)].map(
+                (match) =>
+                    match[1].includes('.')
+                        ? convertFieldRefToFieldId(match[1])
+                        : match[1],
+            );
+        } catch {
+            return null;
+        }
+    }
+
+    if (isFormulaTableCalculation(calc)) {
+        try {
+            const ast = parseFormula(calc.formula);
+            if (containsAggregateOrWindow(ast)) {
+                return null;
+            }
+            return extractColumnRefs(ast);
+        } catch {
+            return null;
+        }
+    }
+
+    return null;
+};
+
+// A table calc can be totaled when it depends only on aggregated metrics:
+// applying its formula to the collapsed totals row reproduces the correct
+// total. Calcs that reference dimensions, dropped PoP metrics, sibling table
+// calcs, or use window functions are excluded (their total stays blank).
+const getTotalableTableCalculations = (
+    metricQuery: MetricQuery,
+    keptMetricIds: Set<string>,
+): TableCalculation[] =>
+    metricQuery.tableCalculations.filter((calc) => {
+        const references = getTotalableReferences(calc);
+        return (
+            references !== null &&
+            references.length > 0 &&
+            references.every((ref) => keptMetricIds.has(ref))
+        );
+    });
 
 const assertNoBlockingFilters = (
     metricQuery: MetricQuery,
@@ -36,15 +114,21 @@ export const getGrandTotalMetricQuery = (
     metricQuery: MetricQuery,
 ): MetricQuery => {
     const popMetricIds = getPopMetricIds(metricQuery);
+    const keptMetrics = metricQuery.metrics.filter(
+        (id) => !popMetricIds.has(id),
+    );
 
     const totalQuery: MetricQuery = {
         ...metricQuery,
         limit: 1,
-        tableCalculations: [],
+        tableCalculations: getTotalableTableCalculations(
+            metricQuery,
+            new Set(keptMetrics),
+        ),
         sorts: [],
         dimensions: [],
         customDimensions: metricQuery.customDimensions,
-        metrics: metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
+        metrics: keptMetrics,
         additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
         ),
@@ -94,15 +178,19 @@ export const getColumnTotalQueryFromSource = (
 
     // PoP entries would fail validation once the index dim is dropped.
     const popMetricIds = getPopMetricIds(source.metricQuery);
+    const keptMetrics = source.metricQuery.metrics.filter(
+        (id) => !popMetricIds.has(id),
+    );
 
     const totalsMetricQuery: MetricQuery = {
         ...source.metricQuery,
         dimensions: groupByFieldIds,
         sorts: [],
-        tableCalculations: [],
-        metrics: source.metricQuery.metrics.filter(
-            (id) => !popMetricIds.has(id),
+        tableCalculations: getTotalableTableCalculations(
+            source.metricQuery,
+            new Set(keptMetrics),
         ),
+        metrics: keptMetrics,
         additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
         ),
@@ -161,15 +249,19 @@ export const getColumnSubtotalQueryFromSource = (
     }
 
     const popMetricIds = getPopMetricIds(source.metricQuery);
+    const keptMetrics = source.metricQuery.metrics.filter(
+        (id) => !popMetricIds.has(id),
+    );
 
     const subtotalMetricQuery: MetricQuery = {
         ...source.metricQuery,
         dimensions: [...new Set([...subtotalDimensions, ...groupByFieldIds])],
         sorts: [],
-        tableCalculations: [],
-        metrics: source.metricQuery.metrics.filter(
-            (id) => !popMetricIds.has(id),
+        tableCalculations: getTotalableTableCalculations(
+            source.metricQuery,
+            new Set(keptMetrics),
         ),
+        metrics: keptMetrics,
         additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
         ),
@@ -234,15 +326,19 @@ export const getRowTotalQueryFromSource = (
     // collapsed pivot, and keeping the two transforms symmetric makes the
     // contract easier to reason about.
     const popMetricIds = getPopMetricIds(source.metricQuery);
+    const keptMetrics = source.metricQuery.metrics.filter(
+        (id) => !popMetricIds.has(id),
+    );
 
     const totalsMetricQuery: MetricQuery = {
         ...source.metricQuery,
         dimensions: indexFieldIds,
         sorts: [],
-        tableCalculations: [],
-        metrics: source.metricQuery.metrics.filter(
-            (id) => !popMetricIds.has(id),
+        tableCalculations: getTotalableTableCalculations(
+            source.metricQuery,
+            new Set(keptMetrics),
         ),
+        metrics: keptMetrics,
         additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
         ),
