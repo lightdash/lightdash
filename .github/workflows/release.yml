@@ -35,6 +35,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: build-and-test
     concurrency: ${{ github.ref }}
     permissions:
