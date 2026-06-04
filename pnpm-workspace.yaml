@@ -45,3 +45,5 @@ minimumReleaseAgeExclude:
   - liquidjs@10.26.0
   # Renovate security update: axios@1.16.0
   - axios@1.16.0
+  # Renovate security update: react-router@7.15.0
+  - react-router@7.15.0
