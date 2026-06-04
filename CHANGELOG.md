@@ -1,3 +1,10 @@
+## [0.3092.2](https://github.com/lightdash/lightdash/compare/0.3092.1...0.3092.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* Revert "fix: filter ENV variables on dbt CLI execution ([#23848](https://github.com/lightdash/lightdash/issues/23848))" ([#23898](https://github.com/lightdash/lightdash/issues/23898)) ([bf1b284](https://github.com/lightdash/lightdash/commit/bf1b284cfd53e626ea22c69251cfe7c1d1d9142f))
+
 ## [0.3092.1](https://github.com/lightdash/lightdash/compare/0.3092.0...0.3092.1) (2026-06-04)
 
 
