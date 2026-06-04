@@ -1,7 +1,6 @@
 import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine-8/core';
 import {
-    IconArrowRight,
     IconChartBar,
     IconLayoutDashboard,
     IconTerminal2,
@@ -9,13 +8,13 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
+import { ContentReferenceLink } from './ContentReferenceLink';
 
 export type SqlRunnerLinkState = {
     sql: string;
@@ -46,6 +45,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const navigate = useNavigate();
     const location = useLocation();
     const dashboardHref = typeof props.href === 'string' ? props.href : '';
+    const title = typeof props.title === 'string' ? props.title : undefined;
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
@@ -86,39 +86,14 @@ export const ContentLink: FC<ContentLinkProps> = ({
     switch (contentType) {
         case 'dashboard-link':
             return (
-                <Anchor
-                    {...props}
-                    data-content-link="true"
+                <ContentReferenceLink
+                    href={dashboardHref}
+                    kind="dashboard"
                     onClick={handleDashboardClick}
-                    fz="xs"
-                    fw={500}
-                    c="ldGray.8"
-                    td="none"
-                    classNames={{
-                        root: styles.contentLink,
-                    }}
+                    title={title}
                 >
-                    <MantineIcon
-                        icon={IconLayoutDashboard}
-                        size={13}
-                        color="green.7"
-                        fill="green.6"
-                        fillOpacity={0.2}
-                        stroke={1.5}
-                    />
-
-                    {/* margin is added by md package */}
-                    <Text fz="xs" fw={500} m={0}>
-                        {children}
-                    </Text>
-
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        color="ldGray.6"
-                        size={11}
-                        stroke={1.5}
-                    />
-                </Anchor>
+                    {children}
+                </ContentReferenceLink>
             );
 
         case 'chart-link': {
@@ -135,41 +110,18 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     : ChartKind.VERTICAL_BAR;
 
             return (
-                <Anchor
-                    {...props}
-                    data-content-link="true"
+                <ContentReferenceLink
+                    chartKind={chartTypeKind}
+                    href={
+                        typeof props.href === 'string' ? props.href : undefined
+                    }
+                    kind="chart"
+                    rel="noreferrer"
                     target="_blank"
-                    fz="xs"
-                    fw={500}
-                    c="ldGray.8"
-                    td="none"
-                    classNames={{
-                        root: styles.contentLink,
-                    }}
+                    title={title}
                 >
-                    {chartTypeKind && (
-                        <MantineIcon
-                            icon={getChartIcon(chartTypeKind)}
-                            size={13}
-                            color="blue.7"
-                            fill="blue.4"
-                            fillOpacity={0.2}
-                            stroke={1.5}
-                        />
-                    )}
-
-                    {/* margin is added by md package */}
-                    <Text fz="xs" fw={500} m={0}>
-                        {children}
-                    </Text>
-
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        color="ldGray.6"
-                        size={11}
-                        stroke={1.5}
-                    />
-                </Anchor>
+                    {children}
+                </ContentReferenceLink>
             );
         }
 
