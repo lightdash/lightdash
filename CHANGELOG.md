@@ -1,3 +1,11 @@
+## [0.3089.1](https://github.com/lightdash/lightdash/compare/0.3089.0...0.3089.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* filter ENV variables on dbt CLI execution ([#23848](https://github.com/lightdash/lightdash/issues/23848)) ([abed5f7](https://github.com/lightdash/lightdash/commit/abed5f7a4f6bbae287a33bcaad63421d860e832c))
+* **mcp:** enforce active agent scope ([#23775](https://github.com/lightdash/lightdash/issues/23775)) ([0eeb301](https://github.com/lightdash/lightdash/commit/0eeb30165c796686c2c278f1491fd549bedc0ff3))
+
 # [0.3089.0](https://github.com/lightdash/lightdash/compare/0.3088.0...0.3089.0) (2026-06-04)
 
 
