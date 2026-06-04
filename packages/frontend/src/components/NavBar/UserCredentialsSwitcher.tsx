@@ -91,6 +91,17 @@ const UserCredentialsSwitcher = () => {
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);
                     }
+                    if (
+                        error?.error?.name === 'BigqueryTokenError' &&
+                        activeProject?.warehouseConnection?.type ===
+                            'bigquery' &&
+                        activeProject?.warehouseConnection
+                            ?.requireUserCredentials
+                    ) {
+                        console.info('Triggering reauth modal for BigQuery');
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
                 }
             }
         });
