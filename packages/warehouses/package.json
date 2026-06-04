@@ -21,9 +21,11 @@
     "fix-format": "oxfmt ./src",
     "test": "jest",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
     "build": "pnpm run copy-files && tsc --build tsconfig.json",
     "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",
+    "dev:fast": "pnpm run copy-files && tsgo --build --watch --preserveWatchOutput ./tsconfig.fast.json",
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
@@ -48,6 +50,7 @@
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",
     "@types/ssh2": "1.11.15",
+    "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "copyfiles": "2.4.1",
     "typescript": "6.0.3"
   }

@@ -4,8 +4,10 @@
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
+        "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
         "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
+        "dev:fast": "pnpm run dev",
         "build": "vite build",
         "build-sdk": "node --max-old-space-size=8192 ./node_modules/rollup/dist/bin/rollup -c rollup.config.mjs",
         "serve": "vite preview",
@@ -174,6 +176,7 @@
         "@types/topojson-client": "3.1.5",
         "@types/topojson-specification": "1.0.5",
         "@types/uuid": "8.3.4",
+        "@typescript/native-preview": "7.0.0-dev.20260527.2",
         "@vitejs/plugin-react": "6.0.1",
         "csstype": "3.2.3",
         "eslint-plugin-jest-dom": "5.1.0",
