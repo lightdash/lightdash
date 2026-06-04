@@ -285,6 +285,8 @@ export type DbtColumnLightdashMetric = {
         categories?: string[]; // yaml_reference
         filter_by?: string[]; // dimension IDs allowlist
         segment_by?: string[]; // dimension IDs allowlist
+        default_segment?: string; // dimension name pre-selected in Segment by
+        default_filter?: Record<string, AnyType>; // { dimension: value | value[] }, metric filter DSL
         owner?: string; // metric owner email
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
@@ -627,6 +629,15 @@ export const convertModelMetric = ({
 
     // Metric owner takes precedence over model owner
     const owner = metric.spotlight?.owner ?? modelOwner;
+    const [parsedDefaultFilter] = parseFilters(
+        metric.spotlight?.default_filter
+            ? [metric.spotlight.default_filter]
+            : undefined,
+    );
+    // A spotlight default filter is pre-applied but removable, i.e. non-required.
+    const defaultFilter = parsedDefaultFilter
+        ? { ...parsedDefaultFilter, required: false }
+        : undefined;
 
     return {
         fieldType: FieldType.METRIC,
@@ -678,6 +689,8 @@ export const convertModelMetric = ({
             categories: spotlightCategories,
             filterBy: metric.spotlight?.filter_by,
             segmentBy: metric.spotlight?.segment_by,
+            defaultSegment: metric.spotlight?.default_segment,
+            defaultFilter,
             owner,
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),

@@ -1,6 +1,7 @@
 import { ParseError } from '../types/errors';
 import type { Explore } from '../types/explore';
 import type { Metric } from '../types/field';
+import type { MetricFilterRule } from '../types/filter';
 import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 type SpotlightConfigArgs = {
@@ -8,6 +9,8 @@ type SpotlightConfigArgs = {
     categories?: string[];
     filterBy?: string[];
     segmentBy?: string[];
+    defaultSegment?: string;
+    defaultFilter?: MetricFilterRule;
     owner?: string;
 };
 
@@ -30,6 +33,8 @@ export const getSpotlightConfigurationForResource = ({
     categories,
     filterBy,
     segmentBy,
+    defaultSegment,
+    defaultFilter,
     owner,
 }: SpotlightConfigArgs):
     | Pick<Explore, 'spotlight'>
@@ -46,6 +51,8 @@ export const getSpotlightConfigurationForResource = ({
             categories,
             ...(filterBy ? { filterBy } : {}),
             ...(segmentBy ? { segmentBy } : {}),
+            ...(defaultSegment ? { defaultSegment } : {}),
+            ...(defaultFilter ? { defaultFilter } : {}),
             ...(validatedOwner ? { owner: validatedOwner } : {}),
         },
     };

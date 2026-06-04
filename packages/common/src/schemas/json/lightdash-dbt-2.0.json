@@ -325,6 +325,16 @@
                                         },
                                         "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                     },
+                                    "default_segment": {
+                                        "type": "string",
+                                        "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                    },
+                                    "default_filter": {
+                                        "type": "object",
+                                        "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                        "additionalProperties": true,
+                                        "maxProperties": 1
+                                    },
                                     "owner": {
                                         "type": "string",
                                         "description": "Email of the metric owner"
@@ -733,6 +743,16 @@
                                                 "type": "string"
                                             },
                                             "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                        },
+                                        "default_segment": {
+                                            "type": "string",
+                                            "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                        },
+                                        "default_filter": {
+                                            "type": "object",
+                                            "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                            "additionalProperties": true,
+                                            "maxProperties": 1
                                         },
                                         "owner": {
                                             "type": "string",
@@ -1322,6 +1342,16 @@
                                                 "type": "string"
                                             },
                                             "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                        },
+                                        "default_segment": {
+                                            "type": "string",
+                                            "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                        },
+                                        "default_filter": {
+                                            "type": "object",
+                                            "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                            "additionalProperties": true,
+                                            "maxProperties": 1
                                         },
                                         "owner": {
                                             "type": "string",

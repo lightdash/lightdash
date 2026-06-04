@@ -23,6 +23,7 @@ import { MetricExploreFilterAutoComplete } from './MetricExploreFilterAutoComple
 type Props = {
     dimensions: CompiledDimension[] | undefined;
     onFilterApply: (filterRule: FilterRule | undefined) => void;
+    initialFilterRule?: FilterRule;
 };
 
 interface FilterState {
@@ -32,20 +33,40 @@ interface FilterState {
     values: string[];
 }
 
+const EMPTY_FILTER_STATE: FilterState = {
+    dimension: null,
+    fieldId: null,
+    operator: null,
+    values: [],
+};
+
 export const MetricExploreFilter: FC<Props> = ({
     dimensions,
     onFilterApply,
+    initialFilterRule,
 }) => {
     const { classes: filterSelectClasses, theme } = useFilterSelectStyles();
     const { classes: operatorSelectClasses } = useOperatorSelectStyles();
 
-    const [filterState, setFilterState] = useState<FilterState>({
-        dimension: null,
-        fieldId: null,
-        operator: null,
-        values: [],
-    });
-    const [activeFilter, setActiveFilter] = useState<FilterRule | undefined>();
+    // Seed from the metric's default filter on mount. The parent remounts this
+    // component (via key) per metric, so this initializer re-runs on switch.
+    const [filterState, setFilterState] = useState<FilterState>(() =>
+        initialFilterRule
+            ? {
+                  fieldId: initialFilterRule.target.fieldId,
+                  dimension:
+                      dimensions?.find(
+                          (d) =>
+                              getItemId(d) === initialFilterRule.target.fieldId,
+                      )?.name ?? null,
+                  operator: initialFilterRule.operator,
+                  values: (initialFilterRule.values ?? []) as string[],
+              }
+            : EMPTY_FILTER_STATE,
+    );
+    const [activeFilter, setActiveFilter] = useState<FilterRule | undefined>(
+        initialFilterRule,
+    );
 
     const selectedDimension = dimensions?.find(
         (d) => getItemId(d) === filterState.fieldId,
@@ -93,12 +114,7 @@ export const MetricExploreFilter: FC<Props> = ({
 
     const handleClearFilter = () => {
         setActiveFilter(undefined);
-        setFilterState({
-            dimension: null,
-            fieldId: null,
-            operator: null,
-            values: [],
-        });
+        setFilterState(EMPTY_FILTER_STATE);
         onFilterApply(undefined);
     };
 

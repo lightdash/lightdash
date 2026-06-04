@@ -10,6 +10,7 @@ import {
     type FieldType,
     type Metric,
 } from './field';
+import { type MetricFilterRule } from './filter';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartSummary } from './savedCharts';
 import { type TraceTaskBase } from './scheduler';
@@ -95,6 +96,8 @@ export type CatalogField = Pick<
         searchRank?: number;
         spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
         spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
+        spotlightDefaultSegment?: string; // default segment dimension name (metrics only)
+        spotlightDefaultFilter?: MetricFilterRule; // default filter (metrics only)
         owner: CatalogOwner | null; // resolved metric owner
     };
 

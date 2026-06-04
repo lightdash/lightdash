@@ -907,6 +907,8 @@ export interface Metric extends Field {
         categories?: string[]; // yaml_reference
         filterBy?: string[]; // dimension IDs allowlist
         segmentBy?: string[]; // dimension IDs allowlist
+        defaultSegment?: string; // dimension name pre-selected in Segment by
+        defaultFilter?: MetricFilterRule; // parsed single default filter
         owner?: string; // metric owner email
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
