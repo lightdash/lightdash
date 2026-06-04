@@ -305,6 +305,8 @@ type AgentResponseStream = {
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 
+const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
+
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -576,6 +578,51 @@ export class AiAgentService extends BaseService {
             pinnedChartCount,
             pinnedDashboardCount,
         };
+    }
+
+    private async validatePromptContextAccess(
+        user: SessionUser,
+        agent: AiAgent,
+        context: AiPromptContextInput | undefined,
+    ): Promise<AiPromptContextInput | undefined> {
+        if (!context || context.length === 0) return undefined;
+
+        const seen = new Set<string>();
+        const deduped = context.filter((item) => {
+            const key =
+                item.type === 'chart'
+                    ? `chart:${item.chartUuid}`
+                    : `dashboard:${item.dashboardUuid}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        if (deduped.length > MAX_AI_PROMPT_CONTEXT_ITEMS) {
+            throw new ParameterError(
+                `You can attach up to ${MAX_AI_PROMPT_CONTEXT_ITEMS} items as context`,
+            );
+        }
+
+        await Promise.all(
+            deduped.map((item) => {
+                if (item.type === 'chart') {
+                    return this.savedChartService.hasAccess(
+                        'view',
+                        { user, projectUuid: agent.projectUuid },
+                        { savedChartUuid: item.chartUuid },
+                    );
+                }
+
+                return this.dashboardService.hasAccess(
+                    'view',
+                    { user, projectUuid: agent.projectUuid },
+                    { dashboardUuid: item.dashboardUuid },
+                );
+            }),
+        );
+
+        return deduped;
     }
 
     constructor(dependencies: AiAgentServiceDependencies) {
@@ -1963,6 +2010,10 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const context = body.prompt
+            ? await this.validatePromptContextAccess(user, agent, body.context)
+            : undefined;
+
         const threadUuid = await this.aiAgentModel.createWebAppThread({
             organizationUuid,
             projectUuid: agent.projectUuid,
@@ -1976,7 +2027,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
-                context: body.context,
+                context,
                 modelConfig: body.modelConfig,
             });
 
@@ -1990,7 +2041,7 @@ export class AiAgentService extends BaseService {
                     threadId: threadUuid,
                     context: 'web_app',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
-                        body.context,
+                        context,
                     ),
                 },
             });
@@ -2050,11 +2101,17 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const context = await this.validatePromptContextAccess(
+            user,
+            agent,
+            body.context,
+        );
+
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
-            context: body.context,
+            context,
             modelConfig: body.modelConfig,
         });
 
@@ -2067,9 +2124,7 @@ export class AiAgentService extends BaseService {
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
                 context: 'web_app',
-                ...AiAgentService.getPinnedContextAnalyticsProperties(
-                    body.context,
-                ),
+                ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
         });
 

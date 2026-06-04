@@ -2044,6 +2044,9 @@ export class SavedChartService
             if (!savedChart) {
                 throw new NotFoundError('Chart not found');
             }
+            if (savedChart.projectUuid !== actor.projectUuid) {
+                throw new NotFoundError('Chart not found');
+            }
 
             if (savedChart.dashboardUuid) {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
