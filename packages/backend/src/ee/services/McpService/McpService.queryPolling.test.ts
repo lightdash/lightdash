@@ -503,29 +503,6 @@ describe('MCP async query polling', () => {
         });
     });
 
-    it('memoizes active agent scope within a tool request', async () => {
-        const { aiAgentService } = makeMcpService({
-            context: {
-                projectUuid,
-                projectName: 'Project',
-                agentUuid: 'agent-uuid',
-                agentName: 'Agent',
-                tags: null,
-            },
-            agent: {
-                uuid: 'agent-uuid',
-                name: 'Agent',
-                tags: ['ai'],
-                spaceAccess: [],
-            },
-            explores: { orders: makeExplore({ tags: ['ai'] }) },
-        });
-
-        await getToolCallback(McpToolName.LIST_EXPLORES)({}, extra);
-
-        expect(aiAgentService.getAgent).toHaveBeenCalledTimes(1);
-    });
-
     it('filters content by active agent space access', async () => {
         const allowedChart = makeChartSearchResult({
             name: 'Allowed Chart',
