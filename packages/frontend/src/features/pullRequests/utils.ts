@@ -28,20 +28,6 @@ export const getSourceLabel = (source: PullRequestSource): string => {
     }
 };
 
-export const getStateLabel = (state: PullRequestState | null): string => {
-    if (state === null) return EMPTY_VALUE;
-    switch (state) {
-        case PullRequestState.OPEN:
-            return 'Open';
-        case PullRequestState.CLOSED:
-            return 'Closed';
-        case PullRequestState.MERGED:
-            return 'Merged';
-        default:
-            return assertUnreachable(state, `Unknown state ${state}`);
-    }
-};
-
 /** Mantine color for a PR state badge. */
 export const getStateColor = (state: PullRequestState | null): string => {
     if (state === null) return 'gray';
