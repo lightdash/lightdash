@@ -1,3 +1,13 @@
+## [0.3089.2](https://github.com/lightdash/lightdash/compare/0.3089.1...0.3089.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ai-agents:** string filter case sensitivity ([#23824](https://github.com/lightdash/lightdash/issues/23824)) ([250c266](https://github.com/lightdash/lightdash/commit/250c266aa08296910582b2dcd5c48531ac876000))
+* make agent rows clickable ([#23875](https://github.com/lightdash/lightdash/issues/23875)) ([ce46cef](https://github.com/lightdash/lightdash/commit/ce46cefb1404da1eb039a7ba598583922e637110))
+* **mcp:** remove agent scope cache ([#23878](https://github.com/lightdash/lightdash/issues/23878)) ([f4fc0c9](https://github.com/lightdash/lightdash/commit/f4fc0c96760b2c250783ae3b195af48cec28a159))
+* **mcp:** show agent space scope ([133e638](https://github.com/lightdash/lightdash/commit/133e6386c2ce647d36fb7561aba7971d5f76f13e))
+
 ## [0.3089.1](https://github.com/lightdash/lightdash/compare/0.3089.0...0.3089.1) (2026-06-04)
 
 
