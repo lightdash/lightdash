@@ -945,6 +945,77 @@ export class SavedChartModel {
         }));
     }
 
+    /**
+     * Resolves the saved_query_id for a uuid-or-slug lookup using two
+     * single-column index probes combined in a CTE. A combined
+     * `saved_query_uuid = ? OR slug = ?` filter lets the planner mis-estimate
+     * the slug match under degraded statistics and fall back to scanning the
+     * whole table; single-predicate probes always stay on their indexes.
+     * A uuid match takes priority over a slug that happens to be uuid-shaped.
+     */
+    private buildChartLookupCte(
+        queryBuilder: Knex.QueryBuilder,
+        savedChartUuidOrSlug: string,
+        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+    ): void {
+        const withDeletedFilter = (lookupQuery: Knex.QueryBuilder) => {
+            if (options?.deleted === 'any') {
+                return lookupQuery;
+            }
+            if (options?.deleted) {
+                return lookupQuery.whereNotNull(
+                    `${SavedChartsTableName}.deleted_at`,
+                );
+            }
+            return lookupQuery.whereNull(`${SavedChartsTableName}.deleted_at`);
+        };
+
+        const lookupByUuid = withDeletedFilter(
+            this.database(SavedChartsTableName)
+                .select(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    this.database.raw('1 as match_priority'),
+                )
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    savedChartUuidOrSlug,
+                )
+                .limit(1),
+        );
+
+        const lookupBySlug = withDeletedFilter(
+            this.database(SavedChartsTableName)
+                .select(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    this.database.raw('2 as match_priority'),
+                )
+                .where(`${SavedChartsTableName}.slug`, savedChartUuidOrSlug)
+                .limit(1),
+        );
+
+        // Slugs are only unique within a project, so scope the slug probe to
+        // the project when one is provided
+        if (options?.projectUuid) {
+            void lookupBySlug
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .joinRaw(
+                    `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, options.projectUuid);
+        }
+
+        void queryBuilder.unionAll([lookupByUuid, lookupBySlug], true);
+    }
+
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
@@ -957,7 +1028,6 @@ export class SavedChartModel {
             },
             async () => {
                 const isUuid = isValidUuid(savedChartUuidOrSlug);
-                const filterField = isUuid ? 'saved_query_uuid' : 'slug';
 
                 const chartQuery = this.database
                     .from<DbSavedChartDetails>(SavedChartsTableName)
@@ -1080,17 +1150,23 @@ export class SavedChartModel {
                 }
 
                 if (isUuid) {
-                    void chartQuery.where((builder) => {
-                        void builder
-                            .where(
-                                `${SavedChartsTableName}.saved_query_uuid`,
+                    void chartQuery
+                        .with('chart_lookup', (queryBuilder) =>
+                            this.buildChartLookupCte(
+                                queryBuilder,
                                 savedChartUuidOrSlug,
-                            )
-                            .orWhere(
-                                `${SavedChartsTableName}.slug`,
-                                savedChartUuidOrSlug,
-                            );
-                    });
+                                options,
+                            ),
+                        )
+                        .where(
+                            `${SavedChartsTableName}.saved_query_id`,
+                            '=',
+                            this.database
+                                .select('saved_query_id')
+                                .from('chart_lookup')
+                                .orderBy('match_priority')
+                                .limit(1),
+                        );
                 } else {
                     void chartQuery.where(
                         `${SavedChartsTableName}.slug`,
