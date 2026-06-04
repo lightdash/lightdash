@@ -104,3 +104,45 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
         });
     });
 });
+
+describe('DbtCliClient environment filtering', () => {
+    beforeEach(() => {
+        jest.resetAllMocks();
+    });
+
+    it('only passes allowed dbt environment variables to dbt processes', async () => {
+        execaMock.mockImplementationOnce(cliMockImplementation.success);
+
+        const client = new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtVersion: SupportedDbtVersions.V1_11,
+            environment: {
+                DBT_ENV_CUSTOM_ENV_KEY: 'dbt-value',
+                DBT_PARTIAL_PARSE: 'true',
+                DBT_SEND_ANONYMOUS_USAGE_STATS: 'true',
+                LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: 'password',
+                LIGHTDASH_API_KEY: 'lightdash-api-key',
+                AWS_ACCESS_KEY_ID: 'aws-key',
+                GIT_SSH_COMMAND: 'touch /tmp/pwned',
+                LD_PRELOAD: '/tmp/payload.so',
+                PYTHONPATH: '/tmp',
+            },
+        });
+
+        await expect(client.installDeps()).resolves.toEqual(undefined);
+
+        expect(execaMock).toHaveBeenCalledTimes(1);
+        expect(execaMock).toHaveBeenCalledWith(
+            client.getDbtExec(),
+            [...expectedDbtOptions, 'deps', ...expectedCommandOptions],
+            expect.objectContaining({
+                env: {
+                    DBT_PARTIAL_PARSE: 'false',
+                    DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
+                    DBT_ENV_CUSTOM_ENV_KEY: 'dbt-value',
+                    LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: 'password',
+                },
+            }),
+        );
+    });
+});
