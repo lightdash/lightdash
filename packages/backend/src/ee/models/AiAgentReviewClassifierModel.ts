@@ -1112,14 +1112,41 @@ export class AiAgentReviewClassifierModel {
 
     async createTurnSignal(args: CreateTurnSignalArgs): Promise<string> {
         const { finding, turnSignal } = args;
-        const [row] = await this.database.transaction(async (trx) => {
+        const promptUuid = turnSignal.subject.assistantPromptUuid;
+        const newFingerprint =
+            turnSignal.promotedToFinding && finding
+                ? finding.reviewItem.fingerprint
+                : null;
+
+        return this.database.transaction(async (trx) => {
+            // Serialize reviews of the same turn. A re-review (a feedback change,
+            // or the next turn supplying a correction) supersedes the prior
+            // signal with a delete+insert. Without this lock two concurrent
+            // reviews of the same turn can interleave so the loser's signal — and
+            // the review item it created — are clobbered and orphaned. The lock
+            // is transaction-scoped and released on commit/rollback.
+            await trx.raw(
+                'select pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [promptUuid],
+            );
+
+            // Capture the fingerprints we're about to supersede so we can
+            // reconcile any review item left without a backing signal.
+            const supersededRows = await trx(AiAgentTurnSignalTableName)
+                .where('ai_prompt_uuid', promptUuid)
+                .whereNotNull('fingerprint')
+                .distinct('fingerprint');
+            const supersededFingerprints = supersededRows
+                .map((r) => r.fingerprint as string | null)
+                .filter((fp): fp is string => fp !== null);
+
             // Supersede: keep one current signal per turn. A re-review (once a
             // later turn supplies the correction) replaces the earlier judgment
             // instead of stacking a second signal — so the queue shows the
             // latest verdict and findingCount counts distinct turns, not
             // re-reviews of the same turn.
             await trx(AiAgentTurnSignalTableName)
-                .where('ai_prompt_uuid', turnSignal.subject.assistantPromptUuid)
+                .where('ai_prompt_uuid', promptUuid)
                 .delete();
             const inserted = await trx<AiAgentTurnSignalTable>(
                 AiAgentTurnSignalTableName,
@@ -1177,35 +1204,54 @@ export class AiAgentReviewClassifierModel {
                     ) as never,
                 })
                 .returning('ai_agent_review_turn_signal_uuid');
-            return inserted;
+
+            // Write the review item in the same transaction so a signal and the
+            // item it promotes are always created together.
+            if (newFingerprint) {
+                await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                    .insert({
+                        fingerprint: newFingerprint,
+                        organization_uuid: turnSignal.subject.organizationUuid,
+                        project_uuid: turnSignal.subject.projectUuid,
+                        agent_uuid: turnSignal.subject.agentUuid,
+                    })
+                    .onConflict('fingerprint')
+                    .merge({ updated_at: trx.fn.now() });
+            }
+
+            // Reconcile: a superseded finding can leave its review item with no
+            // backing signal. Drop such orphans, but only while still pristine —
+            // an item a human has triaged (assigned, linked, status changed) is
+            // kept so manual work is never discarded.
+            const orphanCandidates = supersededFingerprints.filter(
+                (fp) => fp !== newFingerprint,
+            );
+            if (orphanCandidates.length > 0) {
+                const stillReferencedRows = await trx(
+                    AiAgentTurnSignalTableName,
+                )
+                    .whereIn('fingerprint', orphanCandidates)
+                    .distinct('fingerprint');
+                const stillReferenced = new Set(
+                    stillReferencedRows.map((r) => r.fingerprint),
+                );
+                const orphaned = orphanCandidates.filter(
+                    (fp) => !stillReferenced.has(fp),
+                );
+                if (orphaned.length > 0) {
+                    await trx(AiAgentReviewItemTableName)
+                        .whereIn('fingerprint', orphaned)
+                        .where('status', 'open')
+                        .whereNull('assigned_to_user_uuid')
+                        .whereNull('linked_issue_url')
+                        .whereNull('linked_pr_url')
+                        .whereNull('pr_writeback_thread_uuid')
+                        .whereNull('status_updated_by_user_uuid')
+                        .delete();
+                }
+            }
+
+            return inserted[0].ai_agent_review_turn_signal_uuid;
         });
-
-        if (turnSignal.promotedToFinding && finding) {
-            await this.ensureReviewItem({
-                fingerprint: finding.reviewItem.fingerprint,
-                organizationUuid: turnSignal.subject.organizationUuid,
-                projectUuid: turnSignal.subject.projectUuid,
-                agentUuid: turnSignal.subject.agentUuid,
-            });
-        }
-
-        return row.ai_agent_review_turn_signal_uuid;
-    }
-
-    private async ensureReviewItem(args: {
-        fingerprint: string;
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-    }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .insert({
-                fingerprint: args.fingerprint,
-                organization_uuid: args.organizationUuid,
-                project_uuid: args.projectUuid,
-                agent_uuid: args.agentUuid,
-            })
-            .onConflict('fingerprint')
-            .merge({ updated_at: this.database.fn.now() });
     }
 }
