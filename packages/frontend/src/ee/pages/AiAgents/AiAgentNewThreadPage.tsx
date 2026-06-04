@@ -152,6 +152,14 @@ const AiAgentNewThreadPage: FC = () => {
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
+    const [composerSeedKey, setComposerSeedKey] = useState(0);
+    const handleSuggestedPrompt = useCallback(
+        (prompt: string) => {
+            setPendingPrompt(prompt);
+            setComposerSeedKey((key) => key + 1);
+        },
+        [setPendingPrompt],
+    );
 
     const onSubmit = useCallback(
         ({
@@ -291,6 +299,7 @@ const AiAgentNewThreadPage: FC = () => {
                         <AiAgentNewThreadMcpConnections
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
+                            onSuggestedPrompt={handleSuggestedPrompt}
                         />
                     )}
 
@@ -326,6 +335,7 @@ const AiAgentNewThreadPage: FC = () => {
                     )}
 
                     <AgentChatInput
+                        key={composerSeedKey}
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}

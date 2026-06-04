@@ -1426,14 +1426,11 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
         if (!userUuid) {
-            if (!row.allow_oauth_credential_sharing) {
+            if (
+                row.auth_type === 'oauth' &&
+                !row.allow_oauth_credential_sharing
+            ) {
                 return undefined;
             }
 
@@ -1470,12 +1467,6 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
         const userCredential = await this.getCredential(
             row.ai_mcp_server_uuid,
             'user',
@@ -1489,7 +1480,7 @@ export class AiAgentModel {
             return userCredential;
         }
 
-        if (!row.allow_oauth_credential_sharing) {
+        if (row.auth_type === 'oauth' && !row.allow_oauth_credential_sharing) {
             return undefined;
         }
 
@@ -1534,8 +1525,10 @@ export class AiAgentModel {
         authType: ApiCreateAiMcpServer['authType'];
         allowOAuthCredentialSharing: boolean;
         credentials: ApiCreateAiMcpServer['credentials'];
+        credentialScope?: AiMcpCredentialScope;
         actorUserUuid?: string | null;
     }): Promise<AiMcpServer> {
+        const credentialScope = args.credentialScope ?? 'shared';
         return this.database.transaction(async (trx) => {
             const [row] = await trx(AiMcpServerTableName)
                 .insert({
@@ -1563,7 +1556,11 @@ export class AiAgentModel {
                     ? null
                     : await this.upsertCredential({
                           serverUuid: row.ai_mcp_server_uuid,
-                          scope: 'shared',
+                          scope: credentialScope,
+                          userUuid:
+                              credentialScope === 'user'
+                                  ? (args.actorUserUuid ?? null)
+                                  : null,
                           credentials: credentialPayload,
                           actorUserUuid: args.actorUserUuid ?? null,
                           trx,

@@ -373,6 +373,11 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
 export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
 export const GITHUB_MCP_SERVER_NAME = 'GitHub';
 
+export type ApiConnectGithubMcpServerBody = {
+    personalAccessToken: string;
+    credentialScope: AiMcpCredentialScope;
+};
+
 export type AiMcpGithubAvailability = {
     // The org has a GitHub App installation AND the caller has permission to
     // manage that integration (manage:GitIntegration).

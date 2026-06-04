@@ -38,6 +38,7 @@ import {
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
+    ApiConnectGithubMcpServerBody,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiCreateAiMcpServer,
@@ -245,6 +246,7 @@ export class AiAgentController extends BaseController {
     async connectGithubMcpServer(
         @Request() req: express.Request,
         @Path() projectUuid: string,
+        @Body() body: ApiConnectGithubMcpServerBody,
     ): Promise<ApiAiMcpServerResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(201);
@@ -253,6 +255,8 @@ export class AiAgentController extends BaseController {
             results: await this.getAiAgentService().connectGithubMcpServer(
                 toSessionUser(req.account),
                 projectUuid,
+                body.personalAccessToken,
+                body.credentialScope,
             ),
         };
     }
