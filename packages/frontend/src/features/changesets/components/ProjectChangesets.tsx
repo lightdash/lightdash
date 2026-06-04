@@ -29,6 +29,7 @@ import {
     IconArrowBackUp,
     IconChartBar,
     IconClock,
+    IconDownload,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
@@ -50,6 +51,7 @@ import {
     useRevertAllChanges,
     useRevertChange,
 } from '../hooks';
+import { downloadChangesetJson } from '../utils/downloadChangeset';
 
 dayjs.extend(relativeTime);
 
@@ -661,16 +663,34 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     </Stack>
                     {allChanges.length > 0 && (
-                        <Button
-                            variant="default"
-                            radius="md"
-                            size="compact-sm"
-                            onClick={handleRevertAllChanges}
-                            loading={revertAllChangesMutation.isLoading}
-                            leftSection={<MantineIcon icon={IconArrowBackUp} />}
-                        >
-                            Revert All
-                        </Button>
+                        <Group gap="xs">
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={() =>
+                                    changesets &&
+                                    downloadChangesetJson(changesets)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconDownload} />
+                                }
+                            >
+                                Download
+                            </Button>
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={handleRevertAllChanges}
+                                loading={revertAllChangesMutation.isLoading}
+                                leftSection={
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                }
+                            >
+                                Revert All
+                            </Button>
+                        </Group>
                     )}
                 </Group>
                 <ContentTable table={table} />
