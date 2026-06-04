@@ -66,6 +66,7 @@ describe('dbt environment variables', () => {
                 '': 'ignored-empty-row',
                 DBT_ENV_CUSTOM_ENV_KEY: 'dbt-value',
                 LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: 'password',
+                LIGHTDASH_API_KEY: 'lightdash-api-key',
                 AWS_ACCESS_KEY_ID: 'aws-key',
                 GIT_SSH_COMMAND: 'touch /tmp/pwned',
             }),

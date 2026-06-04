@@ -631,14 +631,16 @@ export type DbtProjectEnvironmentVariable = {
     value: string;
 };
 
-const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^[A-Z_][A-Z0-9_]*$/;
+const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^DBT_[A-Z0-9_]*$/;
+const LIGHTDASH_DBT_PROFILE_ENVIRONMENT_VARIABLE_KEY_REGEX =
+    /^LIGHTDASH_DBT_PROFILE_VAR_[A-Z0-9_]+$/;
 
 export const isAllowedDbtEnvironmentVariableKey = (key: string): boolean =>
-    key.length === 0 ||
-    (DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key) && key.startsWith('DBT_'));
+    key.length === 0 || DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key);
 
 const isAllowedDbtProcessEnvironmentVariableKey = (key: string): boolean =>
-    isAllowedDbtEnvironmentVariableKey(key) || key.startsWith('LIGHTDASH_');
+    DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key) ||
+    LIGHTDASH_DBT_PROFILE_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key);
 
 export const getInvalidDbtEnvironmentVariableKeys = (
     environment: DbtProjectEnvironmentVariable[] | undefined,
