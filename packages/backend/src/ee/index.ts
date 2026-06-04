@@ -46,6 +46,7 @@ import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
+import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
@@ -191,6 +192,35 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         context.lightdashConfig.ai.copilot.providers.openai,
                     ), // TODO This should go in client repository as soon as it is available
                 }),
+            aiAgentToolsService: ({ models, repository, context }) =>
+                new AiAgentToolsService({
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    catalogService: repository.getCatalogService(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
+                    searchModel: models.getSearchModel(),
+                    searchService: repository.getSearchService(),
+                    spaceService: repository.getSpaceService(),
+                    spaceModel: models.getSpaceModel(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
+                    coderService: repository.getCoderService(),
+                    contentService: repository.getContentService(),
+                    aiAgentContentValidation: new AiAgentContentValidation(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
+                    aiAgentDocumentModel:
+                        models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    changesetModel: models.getChangesetModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                    previewDeploySetupService:
+                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
+                    shareService: repository.getShareService(),
+                }),
             aiAgentService: ({
                 models,
                 repository,
@@ -242,6 +272,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    aiAgentToolsService:
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
@@ -538,6 +570,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     aiAgentService: repository.getAiAgentService(),
+                    aiAgentToolsService:
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                     aiWritebackService: repository.getAiWritebackService(),
                 }),
             slackService: ({ repository, clients }) =>

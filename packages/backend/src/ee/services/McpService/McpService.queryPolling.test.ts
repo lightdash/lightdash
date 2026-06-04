@@ -1,6 +1,7 @@
 import {
     CatalogType,
     MetricType,
+    NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
 } from '@lightdash/common';
@@ -301,8 +302,94 @@ const makeMcpService = ({
         getAttributeValuesForOrgMember: jest.fn().mockResolvedValue({}),
     };
 
+    const makeToolsRuntime = (runtimeContext: {
+        tags: string[] | null;
+        spaceAccess: string[] | null;
+    }) => {
+        const listScopedExplores = async () =>
+            Object.values(explores).filter(
+                (explore) =>
+                    !runtimeContext.tags ||
+                    runtimeContext.tags.length === 0 ||
+                    runtimeContext.tags.some((tag) =>
+                        explore.tags.includes(tag),
+                    ),
+            );
+
+        return {
+            listExplores: jest.fn(listScopedExplores),
+            getExplore: jest.fn(async ({ table }: { table: string }) => {
+                const scopedExplores = await listScopedExplores();
+                const explore = scopedExplores.find(
+                    (scopedExplore) => scopedExplore.name === table,
+                );
+                if (!explore) throw new NotFoundError('Explore not found');
+                return explore;
+            }),
+            findExplores: jest.fn(async () => {
+                const scopedExplores = await listScopedExplores();
+                return {
+                    exploreSearchResults: scopedExplores.map((explore) => ({
+                        name: explore.name,
+                        label:
+                            (explore as { label?: string }).label ??
+                            explore.name,
+                        description: null,
+                        aiHints: undefined,
+                        searchRank: 1,
+                        joinedTables: [],
+                    })),
+                    topMatchingFields: [
+                        {
+                            name: 'orders_count',
+                            label: 'Orders Count',
+                            tableName: 'orders',
+                            fieldType: 'metric',
+                            searchRank: 1,
+                            description: null,
+                        },
+                    ],
+                };
+            }),
+            findFields: jest.fn(async () => ({ fields: [], pagination: {} })),
+            findContent: jest.fn(async () => ({
+                content: [
+                    ...dashboardSearchResults,
+                    ...chartSearchResults,
+                ].filter(
+                    ({ spaceUuid }) =>
+                        !runtimeContext.spaceAccess ||
+                        runtimeContext.spaceAccess.length === 0 ||
+                        runtimeContext.spaceAccess.includes(
+                            spaceUuid as string,
+                        ),
+                ),
+            })),
+            searchFieldValues: jest.fn(async (args) => {
+                if (args.fieldId === 'orders_hidden') {
+                    throw new NotFoundError(`Field not found: ${args.fieldId}`);
+                }
+                const { results } =
+                    await projectService.searchFieldUniqueValues(
+                        user,
+                        projectUuid,
+                        args.table,
+                        args.fieldId,
+                        args.query,
+                    );
+                return results;
+            }),
+        };
+    };
+    const aiAgentToolsService = {
+        createRuntime: jest.fn((runtimeContext) =>
+            makeToolsRuntime(runtimeContext),
+        ),
+    };
+
     const service = new McpService({
         aiAgentService,
+        aiAgentToolsService,
         aiOrganizationSettingsService: {
             getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
@@ -335,6 +422,7 @@ const makeMcpService = ({
 
     return {
         aiAgentService,
+        aiAgentToolsService,
         asyncQueryService,
         catalogService,
         contentVerificationService,
@@ -609,8 +697,8 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalled();
     });
 
-    it('uses filtered explores instead of catalog tag UUID filters for find_explores', async () => {
-        const { catalogService } = makeMcpService({
+    it('lists only explores available to the active agent in find_explores', async () => {
+        makeMcpService({
             context: {
                 projectUuid,
                 projectName: 'Project',
@@ -624,21 +712,28 @@ describe('MCP async query polling', () => {
                 tags: ['ai'],
                 spaceAccess: [],
             },
-            explores: { orders: makeExplore({ tags: ['ai'] }) },
+            explores: {
+                orders: makeExplore({ tags: ['ai'] }),
+                payments: makeExplore({ tags: ['finance'] }),
+            },
         });
 
-        await getToolCallback(McpToolName.FIND_EXPLORES)(
+        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
             { searchQuery: 'orders' },
             extra,
         );
 
-        expect(catalogService.searchCatalog).toHaveBeenCalledTimes(2);
-        catalogService.searchCatalog.mock.calls.forEach(([call]) => {
-            expect(call.catalogSearch.catalogTags).toBeUndefined();
-            expect(call.filteredExplores).toEqual([
-                expect.objectContaining({ name: 'orders' }),
-            ]);
+        expect(result).toMatchObject({
+            content: [
+                expect.objectContaining({
+                    text: expect.stringContaining('name="orders"'),
+                }),
+                expect.objectContaining({
+                    text: expect.stringContaining('Active agent: Agent'),
+                }),
+            ],
         });
+        expect(JSON.stringify(result)).not.toContain('payments');
     });
 
     it('does not fall back to manual tags with an active agent', async () => {
@@ -683,7 +778,7 @@ describe('MCP async query polling', () => {
             content: [
                 {
                     type: 'text',
-                    text: "Error running metric query: Explore 'orders' not found",
+                    text: 'Error running metric query: Explore not found',
                 },
             ],
         });

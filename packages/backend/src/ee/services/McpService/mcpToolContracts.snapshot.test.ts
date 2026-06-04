@@ -78,6 +78,7 @@ const schemaToJson = (
 const makeMcpService = (): McpService =>
     new McpService({
         aiAgentService: {},
+        aiAgentToolsService: { createRuntime: jest.fn() },
         aiOrganizationSettingsService: {},
         aiWritebackService: {},
         analytics: {},
@@ -98,7 +99,7 @@ const makeMcpService = (): McpService =>
         shareService: {},
         spaceService: {},
         userAttributesModel: {},
-    } as ConstructorParameters<typeof McpService>[0]);
+    } as unknown as ConstructorParameters<typeof McpService>[0]);
 
 const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
