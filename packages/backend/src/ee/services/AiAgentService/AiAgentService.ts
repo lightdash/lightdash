@@ -283,6 +283,8 @@ import {
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
+import type { AiWritebackSource } from '../AiWritebackService/types';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
@@ -389,7 +391,7 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call proposeWriteback with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
 
 If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
@@ -6001,6 +6003,33 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
             };
 
+            // When the user asks to write back their changeset, build the
+            // instructions deterministically from the active changeset's
+            // structured changes instead of trusting the LLM-composed prompt.
+            let writebackPrompt: string;
+            let source: AiWritebackSource;
+            if (args.fromActiveChangeset) {
+                const changeset =
+                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                        projectUuid,
+                    );
+                if (!changeset || changeset.changes.length === 0) {
+                    throw new ParameterError(
+                        'There are no changes to write back for this project',
+                    );
+                }
+                writebackPrompt = buildChangesetWritebackPrompt(changeset);
+                source = 'changeset';
+            } else {
+                if (!args.prompt) {
+                    throw new ParameterError(
+                        'A writeback prompt is required when fromActiveChangeset is false',
+                    );
+                }
+                writebackPrompt = args.prompt;
+                source = isSlackPrompt(prompt) ? 'slack' : 'web';
+            }
+
             const result = await wrapSentryTransaction(
                 'AiAgent.proposeWriteback',
                 {},
@@ -6008,10 +6037,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     this.aiWritebackService.run({
                         user,
                         projectUuid,
-                        prompt: args.prompt,
+                        prompt: writebackPrompt,
                         prUrl: args.prUrl,
                         aiThreadUuid: prompt.threadUuid,
-                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                        source,
                         onProgress: writebackProgressCallback,
                     }),
             );

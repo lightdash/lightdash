@@ -53,7 +53,6 @@ import { AiWritebackService } from './services/AiWritebackService/AiWritebackSer
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
-import { ChangesetWritebackService } from './services/ChangesetWritebackService/ChangesetWritebackService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
@@ -138,13 +137,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         getRepoDefaultBranch,
                         getRepoWorkflowFiles,
                     },
-                }),
-            changesetWritebackService: ({ models, repository }) =>
-                new ChangesetWritebackService({
-                    changesetModel: models.getChangesetModel(),
-                    projectModel: models.getProjectModel(),
-                    aiWritebackService:
-                        repository.getAiWritebackService<AiWritebackService>(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({

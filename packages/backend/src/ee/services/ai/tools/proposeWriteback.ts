@@ -13,7 +13,11 @@ const toolDefinition = proposeWritebackToolDefinition.for('agent');
 export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ prompt, prUrl: pastedPrUrl }) => {
+        execute: async ({
+            prompt,
+            prUrl: pastedPrUrl,
+            fromActiveChangeset,
+        }) => {
             try {
                 const {
                     prUrl,
@@ -21,7 +25,11 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                     projectName,
                     repository,
                     previewDeployConfigured,
-                } = await proposeWriteback({ prompt, prUrl: pastedPrUrl });
+                } = await proposeWriteback({
+                    prompt,
+                    prUrl: pastedPrUrl,
+                    fromActiveChangeset,
+                });
 
                 // Surface which Lightdash project + repo were used so the
                 // assistant can report it back and the user can catch a wrong

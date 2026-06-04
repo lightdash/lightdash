@@ -375,8 +375,9 @@ export type LoadAgentSkillFn = (
 ) => Promise<AiAgentSkill | undefined>;
 
 export type ProposeWritebackFn = (args: {
-    prompt: string;
+    prompt: string | null;
     prUrl: string | null;
+    fromActiveChangeset: boolean;
 }) => Promise<
     AiWritebackRunResult & { previewDeployConfigured: boolean | null }
 >;
