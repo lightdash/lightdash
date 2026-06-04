@@ -11,6 +11,26 @@ import {
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 
+/**
+ * How long to defer a feedback-driven review so a rate-then-comment pair (two
+ * separate feedback requests) coalesces into one review via the shared jobKey.
+ */
+const FEEDBACK_REVIEW_DEBOUNCE_MS = 60_000;
+
+/**
+ * When a review for `eventType` should run. Feedback-driven reviews are deferred
+ * so a rate-then-comment pair (two separate feedback requests) coalesces into a
+ * single review via the shared jobKey — otherwise a review on the bare score
+ * races a second review on the full feedback. Everything else runs immediately.
+ */
+export const aiAgentReviewRunAt = (
+    eventType: AiAgentReviewClassifierJobPayload['eventType'],
+    now: Date,
+): Date =>
+    eventType === 'feedback_changed'
+        ? new Date(now.getTime() + FEEDBACK_REVIEW_DEBOUNCE_MS)
+        : now;
+
 export class CommercialSchedulerClient extends SchedulerClient {
     /**
      * Enqueue (or re-enqueue) a poll for a write-back PR's preview URL. Keyed by
@@ -64,12 +84,12 @@ export class CommercialSchedulerClient extends SchedulerClient {
 
     async aiAgentReviewClassifier(payload: AiAgentReviewClassifierJobPayload) {
         const graphileClient = await this.graphileUtils;
-        const now = new Date();
+        const runAt = aiAgentReviewRunAt(payload.eventType, new Date());
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
             payload,
             {
-                runAt: now,
+                runAt,
                 maxAttempts: 1,
                 jobKey: `ai-agent-review:${payload.eventType}:${payload.promptUuid}`,
             },
