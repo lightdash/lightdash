@@ -4,11 +4,11 @@ import {
     prepareAutoBatched,
     type PayloadAction,
 } from '@reduxjs/toolkit';
-import { type AiAgentToolCall, type AiAgentToolOutput } from '../types';
+import { type AiAgentToolCall } from '../types';
 
 type ToolCall = AiAgentToolCall & {
     toolCallId: string;
-    toolResult: AiAgentToolOutput | null;
+    toolResult: AiAgentToolCall['toolResult'] | null;
 };
 
 type Reasoning = {

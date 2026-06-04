@@ -1,15 +1,18 @@
 import {
     agentToolDefinitionsByName,
+    isAiAgentMcpToolName,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
 import { type z } from 'zod';
 
 type ParsedToolName = ToolName;
-type ToolArgs<TName extends ParsedToolName> = z.infer<
+type McpStreamToolName = `mcp_${string}`;
+
+type ToolArgs<TName extends ToolName> = z.infer<
     (typeof agentToolDefinitionsByName)[TName]['inputSchema']
 >;
-type ToolOutputSchema<TName extends ParsedToolName> =
+type ToolOutputSchema<TName extends ToolName> =
     (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
         string,
         z.ZodObject<z.ZodRawShape>,
@@ -26,7 +29,7 @@ export type AiAgentToolOutput = {
     [K in ParsedToolName]: ToolResult<K>;
 }[ParsedToolName];
 
-export type AiAgentToolCall = {
+type BuiltInToolCall = {
     [K in ParsedToolName]: {
         toolName: K;
         toolArgs: ToolArgs<K>;
@@ -35,7 +38,7 @@ export type AiAgentToolCall = {
     };
 }[ParsedToolName];
 
-export type AiAgentToolResult = {
+type BuiltInToolResult = {
     [K in ParsedToolName]: {
         toolName: K;
         toolArgs: ToolArgs<K>;
@@ -44,6 +47,22 @@ export type AiAgentToolResult = {
     };
 }[ParsedToolName];
 
+type McpToolCall = {
+    toolName: McpStreamToolName;
+    toolArgs: object;
+    toolResult?: unknown | null;
+    isPreliminary?: boolean;
+};
+
+type McpToolResult = {
+    toolName: McpStreamToolName;
+    toolArgs: object;
+    toolResult: unknown;
+    isPreliminary?: boolean;
+};
+
+export type AiAgentToolCall = BuiltInToolCall | McpToolCall;
+export type AiAgentToolResult = BuiltInToolResult | McpToolResult;
 export type AiAgentToolCallHandler = (toolCall: AiAgentToolCall) => void;
 export type AiAgentToolResultHandler = (toolResult: AiAgentToolResult) => void;
 
@@ -60,6 +79,14 @@ export type StreamRawToolResult = StreamRawToolCall & {
 const isParsedToolName = (toolName: string): toolName is ParsedToolName =>
     toolName in agentToolDefinitionsByName;
 
+const isMcpStreamToolName = (toolName: string): toolName is McpStreamToolName =>
+    isAiAgentMcpToolName(toolName);
+
+const parseMcpToolArgs = (toolArgs: unknown): object =>
+    toolArgs && typeof toolArgs === 'object' && !Array.isArray(toolArgs)
+        ? toolArgs
+        : {};
+
 const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
     agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
 
@@ -73,8 +100,15 @@ const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
 export const parseStreamRawToolCall = (
     toolCall: StreamRawToolCall,
 ): AiAgentToolCall | null => {
-    if (!isParsedToolName(toolCall.toolName)) return null;
+    if (isMcpStreamToolName(toolCall.toolName)) {
+        return {
+            toolName: toolCall.toolName,
+            toolArgs: parseMcpToolArgs(toolCall.toolArgs),
+            isPreliminary: toolCall.isPreliminary,
+        };
+    }
 
+    if (!isParsedToolName(toolCall.toolName)) return null;
     const toolArgs = parseToolArgs(toolCall.toolName, toolCall.toolArgs);
     if (!toolArgs.success) return null;
 
@@ -88,8 +122,16 @@ export const parseStreamRawToolCall = (
 export const parseStreamRawToolResult = (
     toolResult: StreamRawToolResult,
 ): AiAgentToolResult | null => {
-    if (!isParsedToolName(toolResult.toolName)) return null;
+    if (isMcpStreamToolName(toolResult.toolName)) {
+        return {
+            toolName: toolResult.toolName,
+            toolArgs: parseMcpToolArgs(toolResult.toolArgs),
+            toolResult: toolResult.toolOutput,
+            isPreliminary: toolResult.isPreliminary,
+        };
+    }
 
+    if (!isParsedToolName(toolResult.toolName)) return null;
     const toolArgs = parseToolArgs(toolResult.toolName, toolResult.toolArgs);
     const parsedToolResult = parseToolOutput(
         toolResult.toolName,
