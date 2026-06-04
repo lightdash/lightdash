@@ -143,6 +143,11 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
     }
 
     const summary = summarisePrUrl(metadata.prUrl);
+    // Older tool-call rows predate `prAction`; treat a missing value as 'opened'.
+    const title =
+        metadata.prAction === 'updated'
+            ? 'Pull request updated'
+            : 'Pull request opened';
 
     return (
         <Paper withBorder p="sm" radius="md">
@@ -163,7 +168,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                     </ThemeIcon>
                     <Stack gap={0}>
                         <Text size="sm" fw={500}>
-                            Pull request opened
+                            {title}
                         </Text>
                         {summary && (
                             <Text size="xs" c="ldGray.6">

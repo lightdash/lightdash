@@ -15,12 +15,21 @@ export type AiWritebackRequestBody = {
 };
 
 /**
+ * Whether a writeback run opened a brand-new pull request or updated an
+ * existing one (a resumed thread or a pasted PR link). `null` when no pull
+ * request was touched (the agent made no file changes).
+ */
+export type PullRequestWritebackAction = 'opened' | 'updated';
+
+/**
  * Result of a (synchronous) AI writeback run.
  *
  * - `output` is the text the agent produced.
  * - `exitCode` is the sandbox command's exit status.
  * - `prUrl` is the URL of the pull request opened from the agent's changes, or
  *   `null` when the agent made no file changes (nothing to raise a PR for).
+ * - `prAction` is whether that PR was newly opened or an existing one updated,
+ *   or `null` when no PR was touched.
  * - `projectName` is the Lightdash project the run targeted.
  * - `repository` is the GitHub repository (`owner/repo`) the run targeted.
  */
@@ -28,6 +37,7 @@ export type AiWritebackRunResult = {
     output: string;
     exitCode: number;
     prUrl: string | null;
+    prAction: PullRequestWritebackAction | null;
     projectName: string;
     repository: string;
 };

@@ -3547,6 +3547,20 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
+                "prAction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "opened",
+                        "updated",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
                 "prUrl": {
                   "type": [
                     "string",

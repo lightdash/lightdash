@@ -18940,6 +18940,18 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccessEmpty', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PullRequestWritebackAction: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['opened'] },
+                { dataType: 'enum', enums: ['updated'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiWritebackRunResult: {
         dataType: 'refAlias',
         type: {
@@ -18947,6 +18959,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 repository: { dataType: 'string', required: true },
                 projectName: { dataType: 'string', required: true },
+                prAction: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PullRequestWritebackAction' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 prUrl: {
                     dataType: 'union',
                     subSchemas: [

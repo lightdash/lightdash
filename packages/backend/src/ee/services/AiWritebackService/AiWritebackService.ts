@@ -10,6 +10,7 @@ import {
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
+    type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -81,6 +82,18 @@ import {
 } from './utils';
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
+
+// Maps the applied-changes outcome to the PR action surfaced to the user: a
+// fresh PR is 'opened', a resumed thread or adopted pasted-link PR is
+// 'updated', and no PR touched is null.
+const getPrAction = (
+    applied: AppliedChanges,
+): PullRequestWritebackAction | null => {
+    if (!applied.prUrl) {
+        return null;
+    }
+    return applied.prCreated ? 'opened' : 'updated';
+};
 
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -494,10 +507,15 @@ export class AiWritebackService extends BaseService {
                     hasChanges,
                     prCreated: false,
                 });
+                const crashPrUrl =
+                    turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
                 return {
                     output: sanitizedStdout,
                     exitCode: agent.exitCode,
-                    prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
+                    prUrl: crashPrUrl,
+                    // The agent crashed before pushing changes, so any PR here
+                    // is a pre-existing one — never newly opened.
+                    prAction: crashPrUrl ? 'updated' : null,
                     projectName: turn.projectName,
                     repository,
                 };
@@ -543,6 +561,7 @@ export class AiWritebackService extends BaseService {
                 output: sanitizedStdout,
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
+                prAction: getPrAction(applied),
                 projectName: turn.projectName,
                 repository,
             };
