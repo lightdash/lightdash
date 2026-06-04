@@ -1,3 +1,20 @@
+# [0.3094.0](https://github.com/lightdash/lightdash/compare/0.3093.0...0.3094.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **ai-agents:** AI context bridge should react to all active ai thread streams ([#23897](https://github.com/lightdash/lightdash/issues/23897)) ([d69c2ab](https://github.com/lightdash/lightdash/commit/d69c2aba663cb05e87114eff0256495d8253f099)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **ai-agents:** use uuids in ai content urls ([#23896](https://github.com/lightdash/lightdash/issues/23896)) ([b7b3a98](https://github.com/lightdash/lightdash/commit/b7b3a98988281595c21ae54f16eabeba5626ba90)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **ai-review:** debounce feedback_changed review so it sees full feedback ([#23901](https://github.com/lightdash/lightdash/issues/23901)) ([b1a1c42](https://github.com/lightdash/lightdash/commit/b1a1c42bf791801a885eaace316f1eea7dedd053))
+* **ai-review:** disambiguate project_context vs semantic_layer in judge prompt ([#23900](https://github.com/lightdash/lightdash/issues/23900)) ([7c118ad](https://github.com/lightdash/lightdash/commit/7c118ad0a92778dd21b32070a75bd9383e9abccc))
+* **ai-review:** make turn-signal supersede atomic and concurrency-safe ([#23899](https://github.com/lightdash/lightdash/issues/23899)) ([4a75ae8](https://github.com/lightdash/lightdash/commit/4a75ae8f96e58ec80eb542358a53396a3a10ab3c))
+* handle dashboard UUID vs slug in AI agent context bridge ([#23892](https://github.com/lightdash/lightdash/issues/23892)) ([78fe845](https://github.com/lightdash/lightdash/commit/78fe84511136131ed3d6455c279dd3c2da49d40a))
+
+
+### Features
+
+* **ai-agents:** add content mentions to chat input ([#23894](https://github.com/lightdash/lightdash/issues/23894)) ([f80f41d](https://github.com/lightdash/lightdash/commit/f80f41d0ec01f04dba226f6ab13d2b1b45519324))
+
 # [0.3093.0](https://github.com/lightdash/lightdash/compare/0.3092.2...0.3093.0) (2026-06-04)
 
 
