@@ -88,6 +88,7 @@ const projectModel = {
 const schedulerModel = {
     getScheduler: jest.fn(),
     getProjectSchedulerRuns: jest.fn(),
+    getSchedulers: jest.fn(),
 };
 
 const contentVerificationModel = {
@@ -812,6 +813,77 @@ describe('DashboardService', () => {
             expect(
                 schedulerModel.getProjectSchedulerRuns,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getSchedulers', () => {
+        const adminUser: SessionUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const editorUser: SessionUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.EDITOR,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+
+        beforeEach(() => {
+            schedulerModel.getSchedulers.mockResolvedValue({
+                data: [],
+                pagination: undefined,
+            });
+        });
+
+        test('admin lists all schedulers for the dashboard', async () => {
+            await service.getSchedulers(adminUser, dashboard.uuid);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filters: {
+                        resourceType: 'dashboard',
+                        resourceUuids: [dashboard.uuid],
+                    },
+                }),
+            );
+        });
+
+        test('editor lists only their own schedulers for the dashboard', async () => {
+            await service.getSchedulers(editorUser, dashboard.uuid);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filters: {
+                        resourceType: 'dashboard',
+                        resourceUuids: [dashboard.uuid],
+                        createdByUserUuids: [user.userUuid],
+                    },
+                }),
+            );
         });
     });
 });

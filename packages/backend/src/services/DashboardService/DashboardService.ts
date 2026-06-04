@@ -1604,6 +1604,14 @@ export class DashboardService
             user,
             dashboardUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            }),
+        );
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: dashboard.projectUuid,
             organizationUuid: dashboard.organizationUuid,
@@ -1612,6 +1620,9 @@ export class DashboardService
             filters: {
                 resourceType: 'dashboard',
                 resourceUuids: [dashboardUuid],
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
             },
         });
 
