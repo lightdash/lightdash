@@ -1,4 +1,5 @@
 import type {
+    DiscoverFieldsInput,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -18,11 +19,14 @@ import {
     type ToolGetDashboardChartsArgs,
     type ToolGetKnowledgeDocumentContentArgs,
     type ToolGetKnowledgeDocumentContentOutput,
+    type ToolListContentArgs,
     type ToolListWarehouseTablesArgs,
     type ToolName,
+    type ToolRunContentQueryArgs,
     type ToolRunQueryArgs,
     type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
+    type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
@@ -32,12 +36,16 @@ import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescrip
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
+import { DiscoverFieldsToolCallDescription } from './DiscoverFieldsToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
+import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
+import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
@@ -91,6 +99,13 @@ export const ToolCallDescription: FC<{
             return (
                 <FieldSearchToolCallDescription
                     searchQueries={toolArgsFindFields.fieldSearchQueries}
+                />
+            );
+        case 'discoverFields':
+            const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
+            return (
+                <DiscoverFieldsToolCallDescription
+                    userQuery={discoverFieldsArgs.userQuery}
                 />
             );
         case 'searchFieldValues':
@@ -228,6 +243,22 @@ export const ToolCallDescription: FC<{
                     search={listWarehouseTablesArgs.search ?? null}
                 />
             );
+        case 'listContent':
+            const listContentArgs = toolCall.toolArgs as ToolListContentArgs;
+            return (
+                <ListContentToolCallDescription
+                    page={listContentArgs.page}
+                    spaceSlug={listContentArgs.spaceSlug}
+                />
+            );
+        case 'runContentQuery':
+            const runContentQueryArgs =
+                toolCall.toolArgs as ToolRunContentQueryArgs;
+            return (
+                <RunContentQueryToolCallDescription
+                    source={runContentQueryArgs.source}
+                />
+            );
         case 'describeWarehouseTable':
             const describeWarehouseTableArgs =
                 toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
@@ -250,11 +281,18 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'searchSemanticLayer':
+            const searchSemanticLayerArgs =
+                toolCall.toolArgs as ToolSearchSemanticLayerArgs;
+            return (
+                <SemanticLayerSearchToolCallDescription
+                    page={searchSemanticLayerArgs.page}
+                    searchQuery={searchSemanticLayerArgs.searchQuery}
+                    type={searchSemanticLayerArgs.type}
+                />
+            );
         case 'listKnowledgeDocuments':
         case 'listProjects':
         case 'getProjectInfo':
-        case 'listContent':
-        case 'discoverFields':
         case 'generateHashes':
         case 'generateUuids':
         case 'improveContext':
@@ -262,7 +300,6 @@ export const ToolCallDescription: FC<{
         case 'loadProjectContext':
         case 'proposeChange':
         case 'proposeWriteback':
-        case 'runContentQuery':
         case 'setupPreviewDeploy':
         case 'runSavedChart':
             return <> </>;

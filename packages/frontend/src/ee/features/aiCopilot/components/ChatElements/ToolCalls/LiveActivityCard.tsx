@@ -1,6 +1,4 @@
 import {
-    TOOL_DISPLAY_MESSAGES,
-    TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
@@ -31,12 +29,14 @@ import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
+import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
     getMcpServerForToolName,
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
 
@@ -44,6 +44,7 @@ export type LiveActivityToolGroup = {
     toolName: AiAgentToolName;
     calls: ToolCallSummary[];
     keyId: string;
+    display?: ToolCallGroupDisplay;
 };
 
 type Props = {
@@ -83,7 +84,6 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
     'proposeChange',
-    'runContentQuery',
     'runSavedChart',
 ]);
 
@@ -97,7 +97,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'listKnowledgeDocuments',
     'listProjects',
     'getProjectInfo',
-    'listContent',
     'generateHashes',
     'generateUuids',
     'improveContext',
@@ -106,7 +105,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'proposeChange',
     'proposeWriteback',
     'setupPreviewDeploy',
-    'runContentQuery',
     'runSavedChart',
 ]);
 
@@ -290,16 +288,23 @@ const LatestRow: FC<{
         ? null
         : getMcpToolDisplayName(group.toolName);
     const label = builtInToolName
-        ? isLive
-            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        ? getToolCallDisplayMessage({
+              toolName: builtInToolName,
+              calls: group.calls,
+              display: group.display,
+              status: isLive ? 'running' : 'done',
+          })
         : null;
     const isGrouped = group.calls.length > 1;
     const lastCall = group.calls[group.calls.length - 1];
-    const chipLabel = isToolName(group.toolName)
-        ? getToolCallChipLabel(group.toolName, lastCall.toolArgs)
+    const lastBuiltInToolName = isToolName(lastCall.toolName)
+        ? lastCall.toolName
+        : builtInToolName;
+    const chipLabel = lastBuiltInToolName
+        ? getToolCallChipLabel(lastBuiltInToolName, lastCall.toolArgs)
         : null;
-    const showPreview = chipLabel && !TOOLS_WITHOUT_PREVIEW.has(group.toolName);
+    const showPreview =
+        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
 
     return (
         <Group
@@ -765,14 +770,20 @@ export const LiveActivityCard: FC<Props> = ({
                             : null;
                         if (!latestBuiltInToolName) return null;
 
-                        const hasNoDescription =
-                            TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
-                                latestBuiltInToolName,
-                            );
                         const renderableCalls = latest.calls
                             .map((tc) => {
+                                const callBuiltInToolName = isToolName(
+                                    tc.toolName,
+                                )
+                                    ? tc.toolName
+                                    : null;
+                                if (!callBuiltInToolName) return null;
+                                const hasNoDescription =
+                                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
+                                        callBuiltInToolName,
+                                    );
                                 const trace =
-                                    latestBuiltInToolName === 'discoverFields'
+                                    callBuiltInToolName === 'discoverFields'
                                         ? (getDiscoverFieldsTraceFromCall(tc) ??
                                           getDiscoverFieldsTrace(
                                               toolResults?.find(
@@ -794,7 +805,7 @@ export const LiveActivityCard: FC<Props> = ({
                                     >
                                         {!hasNoDescription && (
                                             <ToolCallDescription
-                                                toolName={latestBuiltInToolName}
+                                                toolName={callBuiltInToolName}
                                                 toolCall={tc}
                                                 toolResult={toolResults?.find(
                                                     (result) =>
@@ -850,6 +861,7 @@ export const LiveActivityCard: FC<Props> = ({
                                         <ToolCallRow
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
+                                            display={group.display}
                                             status="done"
                                             toolResults={toolResults}
                                             mcpServers={mcpServers}
