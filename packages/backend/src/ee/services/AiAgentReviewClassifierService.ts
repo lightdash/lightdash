@@ -35,7 +35,7 @@ import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v2';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
 
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
@@ -948,15 +948,17 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - assistant_no_answer due to disabled SQL or data access, missing instructions, or missing knowledge docs → agent_configuration.
    - assistant_no_answer because the warehouse genuinely lacks the data → data_gap.
    - assistant_no_answer because Lightdash cannot express the question (missing chart type, unsupported pivot, etc.) → product_capability.
-   - next_user_correction or next_user_dispute about field choice, scoping, or definition → semantic_layer or project_context.
+   - next_user_correction or next_user_dispute about which explore/source/table to use, or about what an entity, acronym, or business term refers to → project_context.
+   - next_user_correction or next_user_dispute about a field, metric, dimension, join, or filter definition within the right explore → semantic_layer.
    - next_user_retry after a failed or empty answer → runtime_reliability or agent_configuration depending on cause.
    - tool_error → runtime_reliability.
    - product_capability_request → product_capability.
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
+   - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
 
 3. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
 
-4. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity.
+4. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity, choosing between them with the explore-vs-definition tiebreaker above.
 
 5. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
 
