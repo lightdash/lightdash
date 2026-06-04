@@ -25,8 +25,14 @@ import {
     IconUser,
     IconUsers,
 } from '@tabler/icons-react';
-import { useDeferredValue, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import {
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
     ContentTable,
@@ -40,6 +46,7 @@ import {
 } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useProjects } from '../../../../../hooks/useProjects';
+import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import ProjectsFilter from './ProjectsFilter';
@@ -48,12 +55,45 @@ import { SearchFilter } from './SearchFilter';
 const AiAgentAdminAgentsTable = () => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
+    const { pathname, search: locationSearch } = useLocation();
     const { data: agents, isLoading } = useAiAgentAdminAgents();
     const { data: projects } = useProjects();
+    const projectsParam = useSearchParams<string>('projects');
 
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
-        [],
+        () => projectsParam?.split(',').filter(Boolean) ?? [],
+    );
+
+    useEffect(() => {
+        setSelectedProjectUuids(
+            projectsParam?.split(',').filter(Boolean) ?? [],
+        );
+    }, [projectsParam]);
+
+    const handleSelectedProjectUuidsChange = useCallback(
+        (projectUuids: string[]) => {
+            setSelectedProjectUuids(projectUuids);
+
+            const searchParams = new URLSearchParams(locationSearch);
+            if (projectUuids.length > 0) {
+                searchParams.set('projects', projectUuids.join(','));
+            } else {
+                searchParams.delete('projects');
+            }
+
+            const nextSearch = searchParams.toString();
+            if (nextSearch !== new URLSearchParams(locationSearch).toString()) {
+                void navigate(
+                    {
+                        pathname,
+                        search: nextSearch,
+                    },
+                    { replace: true },
+                );
+            }
+        },
+        [locationSearch, navigate, pathname],
     );
 
     const {
@@ -137,7 +177,7 @@ const AiAgentAdminAgentsTable = () => {
 
     const handleClearFilters = () => {
         setSearch(undefined);
-        setSelectedProjectUuids([]);
+        handleSelectedProjectUuidsChange([]);
     };
 
     const columns: MRT_ColumnDef<AiAgentSummary>[] = useMemo(
@@ -568,7 +608,9 @@ const AiAgentAdminAgentsTable = () => {
                         />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
-                            setSelectedProjectUuids={setSelectedProjectUuids}
+                            setSelectedProjectUuids={
+                                handleSelectedProjectUuidsChange
+                            }
                             tooltipLabel="Filter agents by project"
                         />
 
