@@ -397,6 +397,7 @@ const makeMcpService = ({
         analytics: { track: jest.fn() },
         asyncQueryService,
         catalogService,
+        contentService: {},
         contentVerificationService,
         featureFlagService: {},
         lightdashConfig: {

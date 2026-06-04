@@ -29,7 +29,8 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 
@@ -243,6 +244,36 @@ Usage tips:
       },
       "name": "find_content",
       "title": "Find content",
+    },
+    {
+      "agentName": null,
+      "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "description": "Use this to paginate through the results. Starts at 1., ",
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "spaceSlug": {
+            "description": "Optional space slug/path to list. Use null to list root-level content., ",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "list_content",
+      "title": "List content",
     },
     {
       "agentName": null,
@@ -7798,6 +7829,7 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "run_sql",
   "get_query_result",
   "render_chart",
+  "list_content",
   "get_lightdash_version",
   "list_explores",
   "list_skills",

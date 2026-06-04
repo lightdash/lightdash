@@ -476,9 +476,13 @@ export const listContentToolDefinition = defineTool({
     name: 'listContent',
     title: 'List content',
     description: TOOL_LIST_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolListContentArgsSchema,
     agent: { outputSchema: toolListContentOutputSchema },
+    mcp: {
+        name: 'list_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const improveContextToolDefinition = defineTool({

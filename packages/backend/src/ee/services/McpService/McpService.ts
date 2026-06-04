@@ -28,6 +28,7 @@ import {
     getValidAiQueryLimit,
     ItemsMap,
     listAgentsToolDefinition,
+    listContentToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
@@ -107,6 +108,7 @@ import {
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
@@ -136,6 +138,7 @@ export enum McpToolName {
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
     FIND_CONTENT = 'find_content',
+    LIST_CONTENT = 'list_content',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -164,6 +167,7 @@ const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
+const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -1276,6 +1280,46 @@ export class McpService extends BaseService {
                     trackCoverage: () => {},
                 });
                 const result = await findContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpListContentTool.name,
+            {
+                title: mcpListContentTool.title,
+                description: mcpListContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpListContentTool.inputSchema,
+                ),
+                annotations: mcpListContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const listContentTool = getListContent({
+                    listContent: toolsRuntime.listContent,
+                });
+                const result = await listContentTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });

@@ -87,6 +87,7 @@ const makeMcpService = (): McpService =>
         analytics: {},
         asyncQueryService: {},
         catalogService: {},
+        contentService: {},
         contentVerificationService: {},
         featureFlagService: {},
         lightdashConfig: {
