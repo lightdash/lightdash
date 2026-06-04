@@ -256,9 +256,17 @@ export const getRowTotalQueryFromSource = (
     // `groupByColumns: []` opts out of the pivot SQL path in
     // PivotQueryBuilder, so the totals query returns a flat shape:
     // one row per index-dim value combination with plain metric columns.
+    // Keep only sorts on index columns: the collapsed query no longer selects
+    // pivot/groupBy dimensions and exposes metrics under an `_any` alias, so any
+    // other sort reference would produce an ORDER BY on a non-existent column.
+    // Row totals are matched by index key, not order, so this is safe.
+    const indexFieldIdSet = new Set(indexFieldIds);
     const totalsPivotConfiguration: PivotConfiguration = {
         ...source.pivotConfiguration!,
         groupByColumns: [],
+        sortBy: source.pivotConfiguration!.sortBy?.filter((sort) =>
+            indexFieldIdSet.has(sort.reference),
+        ),
         sortOnlyDimensions: undefined,
         passthroughDimensions: undefined,
     };

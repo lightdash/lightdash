@@ -1,5 +1,6 @@
 import {
     NotSupportedError,
+    SortByDirection,
     VizAggregationOptions,
     VizIndexType,
     type MetricQuery,
@@ -420,6 +421,66 @@ describe('getRowTotalQueryFromSource', () => {
                     pivotConfiguration,
                 }),
             ).toThrow(NotSupportedError);
+        });
+
+        it('drops sortBy on the pivot column dimension that the collapse removes', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    sortBy: [
+                        {
+                            reference: 'orders_payment_method',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+            });
+
+            expect(result.pivotConfiguration?.sortBy).toEqual([]);
+        });
+
+        it('drops sortBy on a metric (exposed under an `_any` alias in the collapsed query)', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    sortBy: [
+                        {
+                            reference: 'orders_total_revenue',
+                            direction: SortByDirection.DESC,
+                        },
+                    ],
+                },
+            });
+
+            expect(result.pivotConfiguration?.sortBy).toEqual([]);
+        });
+
+        it('keeps sortBy on index columns and drops sorts on non-index dimensions', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    sortBy: [
+                        {
+                            reference: 'orders_created_at',
+                            direction: SortByDirection.ASC,
+                        },
+                        {
+                            reference: 'orders_payment_method',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+            });
+
+            expect(result.pivotConfiguration?.sortBy).toEqual([
+                {
+                    reference: 'orders_created_at',
+                    direction: SortByDirection.ASC,
+                },
+            ]);
         });
 
         it('clears sortOnlyDimensions and passthroughDimensions on the totals pivot config', () => {
