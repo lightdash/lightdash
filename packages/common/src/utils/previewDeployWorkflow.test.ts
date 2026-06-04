@@ -163,13 +163,48 @@ describe('generatePreviewDeployWorkflowFiles', () => {
             expect(content).toMatch(/actions\/checkout@[0-9a-f]{40}/);
             expect(content).toMatch(/actions\/setup-node@[0-9a-f]{40}/);
             expect(content).not.toMatch(/uses: actions\/\S+@v\d/);
-            // Least-privilege token: read-only, and never pull-requests:write
-            // (it would zero `contents` and break checkout on private repos).
-            expect(content).toContain('permissions:\n  contents: read');
-            expect(content).not.toContain('pull-requests: write');
+            // Token always grants contents:read so checkout works on private repos.
+            expect(content).toContain('contents: read');
             // CLI pinned for reproducibility; job bounded by a timeout.
             expect(content).toMatch(/@lightdash\/cli@\d+\.\d+\.\d+/);
             expect(content).toContain('timeout-minutes:');
         });
+    });
+
+    it('grants pull-requests:write only to start-preview (the one that comments)', () => {
+        const files = generatePreviewDeployWorkflowFiles({
+            projectSubPath: 'dbt',
+            cliVersion: '0.3075.2',
+        });
+        const start = files.find((f) => f.path.endsWith('start-preview.yml'));
+        const close = files.find((f) => f.path.endsWith('close-preview.yml'));
+        // start-preview needs contents:read (checkout) AND pull-requests:write
+        // (comment) — an omitted scope defaults to none, so both are explicit.
+        expect(start?.content).toContain('contents: read');
+        expect(start?.content).toContain('pull-requests: write');
+        // close-preview never comments, so it stays least-privilege read-only.
+        expect(close?.content).toContain('permissions:\n  contents: read');
+        expect(close?.content).not.toContain('pull-requests: write');
+    });
+
+    it('comments the preview URL on the PR with a SHA-pinned first-party action', () => {
+        const files = generatePreviewDeployWorkflowFiles({
+            projectSubPath: 'dbt',
+            cliVersion: '0.3075.2',
+        });
+        const start = files.find((f) => f.path.endsWith('start-preview.yml'));
+        // Captures the CLI's url output and posts it back to the PR.
+        expect(start?.content).toContain('id: preview');
+        expect(start?.content).toContain(
+            'PREVIEW_URL: ${{ steps.preview.outputs.url }}',
+        );
+        expect(start?.content).toContain('Comment preview link on PR');
+        // Reuses a first-party action pinned to a commit SHA, never a third
+        // party on a floating tag (the workflow runs with secrets in scope).
+        expect(start?.content).toMatch(/actions\/github-script@[0-9a-f]{40}/);
+        // Sticky comment: an HTML marker lets reruns update one comment.
+        expect(start?.content).toContain('<!-- lightdash-preview -->');
+        expect(start?.content).toContain('updateComment');
+        expect(start?.content).toContain('createComment');
     });
 });
