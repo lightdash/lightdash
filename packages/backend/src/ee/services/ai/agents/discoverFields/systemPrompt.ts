@@ -92,6 +92,7 @@ Then call submitResult with the resolved handoff.
 ## Hard rules
 
 - Never invent fieldIds. Only return fieldIds returned by findFields.
+- Copy selected field attributes from findFields.
 - Never call findFields when the status will be "ambiguous". If two explores are tied, call submitResult with the ambiguous handoff directly.
 - Never return all fields. Always filter.
 - Keep field descriptions short — one sentence max. Many fields should have no description.

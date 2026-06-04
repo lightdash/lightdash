@@ -188,6 +188,15 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "items": {
                             "additionalProperties": false,
                             "properties": {
+                              "caseSensitiveFilters": {
+                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
+                                "enum": [
+                                  "true",
+                                  "false",
+                                  "not_applicable",
+                                ],
+                                "type": "string",
+                              },
                               "description": {
                                 "description": "Short description, only include when needed to distinguish similar fields.",
                                 "type": [
@@ -234,6 +243,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "fieldType",
                               "fieldValueType",
                               "fieldFilterType",
+                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
                             ],

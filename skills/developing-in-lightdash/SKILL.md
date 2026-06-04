@@ -137,6 +137,12 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --project 
 
 **CRITICAL**: Never guess filter values. Case mismatches (e.g., `'Payment'` vs `'payment'`) cause charts to silently return no data.
 
+Filters are case-sensitive by default. The `case_sensitive` key can override this in order of priority:
+
+- Dimension metadata
+- Model/explore metadata
+- `lightdash.config.yml` `defaults.case_sensitive`
+
 **Before writing any string filter**, query actual values from the warehouse:
 
 ```bash
