@@ -2556,9 +2556,6 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
-                // Bearer supports both 'shared' (one project credential) and
-                // 'user' (the creating user stores their own; each user
-                // connects their own token).
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -2670,10 +2667,6 @@ export class AiAgentService extends BaseService {
             return { available: false, alreadyConnected: false };
         }
 
-        // No org GitHub App installation is required — the user supplies a PAT.
-        // Managers can create the project-level GitHub MCP server; once it
-        // exists, any project member can connect their own token (per-user
-        // scope), so the affordance is offered to them too.
         const isCopilotEnabled = await this.getIsCopilotEnabled(user);
         if (!isCopilotEnabled) {
             return { available: false, alreadyConnected: false };
@@ -2692,16 +2685,11 @@ export class AiAgentService extends BaseService {
             (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
 
-        // Offered to managers always (they can create), and to any member when
-        // a GitHub server already exists (they connect their own token).
         const available = canManageMcpServers || !!githubServer;
         if (!available) {
             return { available: false, alreadyConnected: false };
         }
 
-        // Connected = the current user has a usable credential for GitHub
-        // (their own per-user token, or the shared project token). Drives
-        // per-user prompting: each user is offered connect until they have one.
         const credential = githubServer
             ? await this.aiAgentModel.resolveCredential(
                   githubServer.uuid,
@@ -2712,21 +2700,6 @@ export class AiAgentService extends BaseService {
         return { available: true, alreadyConnected: !!credential };
     }
 
-    /**
-     * One-click GitHub MCP setup. Registers a bearer-authed MCP server pointing
-     * at the hosted GitHub MCP, using a GitHub personal access token the user
-     * supplies (a fine-grained, read-only token scoped to the repos that
-     * produce their analytics events). Idempotent — if a GitHub MCP server
-     * already exists, the token is re-tested and upserted so this doubles as a
-     * "reconnect / update token" path.
-     *
-     * GitHub's hosted MCP does not support OAuth dynamic client registration,
-     * so we use a user-provided PAT rather than an OAuth flow.
-     *
-     * `credentialScope` chooses how the token is stored:
-     * - 'shared': one project-level credential everyone uses (manager-gated).
-     * - 'user': the connecting user's own token; each user connects their own.
-     */
     public async connectGithubMcpServer(
         user: SessionUser,
         projectUuid: string,
@@ -2754,11 +2727,6 @@ export class AiAgentService extends BaseService {
                 'A GitHub personal access token is required',
             );
         }
-        // Reject obviously malformed input before storing/forwarding it.
-        // Accept any GitHub token shape — fine-grained PAT (github_pat_),
-        // classic PAT (ghp_) or OAuth/app token (gho_/ghu_/ghs_/ghr_) — since
-        // the hosted GitHub MCP accepts all of them. testConnection below does
-        // the real validation against GitHub.
         if (!/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]+$/.test(bearerToken)) {
             throw new ParameterError(
                 'That doesn\'t look like a GitHub personal access token. Expected a fine-grained token starting with "github_pat_".',
@@ -2774,8 +2742,6 @@ export class AiAgentService extends BaseService {
         );
 
         if (githubServer) {
-            // Setting/replacing the shared credential needs manage; storing
-            // your own personal token only needs project access.
             if (credentialScope === 'shared') {
                 await this.assertCanManageMcpServers(user, projectUuid);
             } else {
@@ -2842,8 +2808,6 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // First-time setup creates the project-level server (manager-gated by
-        // createMcpServer), storing the token at the chosen scope.
         const server = await this.createMcpServer(user, projectUuid, {
             name: GITHUB_MCP_SERVER_NAME,
             url: GITHUB_MCP_SERVER_URL,
@@ -3035,9 +2999,6 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    // Disconnects a stored MCP credential at the given scope. Handles both
-    // OAuth (runtime client tears down the connection) and bearer (the stored
-    // token is deleted) — e.g. a user clearing their own per-user GitHub PAT.
     public async disconnectMcpOAuthConnection(
         user: SessionUser,
         projectUuid: string,
@@ -3083,7 +3044,6 @@ export class AiAgentService extends BaseService {
             return;
         }
 
-        // Bearer: just delete the stored token at the requested scope.
         await this.aiAgentModel.deleteCredential({
             serverUuid: mcpServerUuid,
             scope: credentialScope,

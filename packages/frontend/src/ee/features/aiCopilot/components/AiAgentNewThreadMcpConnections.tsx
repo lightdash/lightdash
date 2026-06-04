@@ -135,8 +135,6 @@ const getConnectionIconColor = (
 type Props = {
     projectUuid: string;
     agentUuid: string;
-    // When provided, the post-connect success state offers a one-click prompt
-    // that seeds the message composer (the activation moment).
     onSuggestedPrompt?: (prompt: string) => void;
 };
 
@@ -179,11 +177,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             ),
         [mcpServers],
     );
-    // GitHub uses a PAT (bearer auth), so it never appears in
-    // mcpServersNeedingConnection (that list is OAuth-only). Offer the one-click
-    // connect when GitHub is available and the current user doesn't already have
-    // a usable credential — `alreadyConnected` is per-user, so each user is
-    // prompted to connect their own token on a per-user GitHub server.
     const canOneClickConnectGithub =
         githubMcpAvailability?.available === true &&
         githubMcpAvailability?.alreadyConnected === false;
@@ -229,8 +222,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             credentialScope: AiMcpCredentialScope,
         ) => {
             try {
-                // connect is idempotent server-side — creates the bearer GitHub
-                // MCP server with the user's token, or updates it if one exists.
                 const server = await connectGithubMcp({
                     personalAccessToken,
                     credentialScope,
@@ -250,8 +241,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                 githubConfirmModalHandlers.close();
                 setJustConnectedGithub(true);
             } catch {
-                // Toasts are handled in the mutations; keep the modal open so
-                // the user can fix the token and retry.
             } finally {
                 await refetchAgentMcpServers();
             }
@@ -362,8 +351,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         return null;
     }
 
-    // GitHub is the marquee integration: when it's the only thing to connect,
-    // lead with what connecting unlocks instead of the generic app copy.
     const isGithubOnly =
         canOneClickConnectGithub && mcpServersNeedingConnection.length === 0;
     const sectionTitle = isGithubOnly

@@ -373,11 +373,6 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
 export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
 export const GITHUB_MCP_SERVER_NAME = 'GitHub';
 
-// Body for the one-click GitHub MCP connect: the user's GitHub personal access
-// token (a fine-grained, read-only token scoped to the repos that produce their
-// analytics events). Stored as the bearer credential for the GitHub MCP server.
-// `credentialScope` controls whether the token is shared across the project or
-// scoped to the connecting user (each user connects their own).
 export type ApiConnectGithubMcpServerBody = {
     personalAccessToken: string;
     credentialScope: AiMcpCredentialScope;

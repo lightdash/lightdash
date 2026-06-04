@@ -20,8 +20,6 @@ const GITHUB_FINE_GRAINED_TOKEN_URL =
 type Props = {
     opened: boolean;
     isLoading: boolean;
-    // When false, the scope toggle is hidden (e.g. a member adding their own
-    // token to an existing per-user server can't choose 'shared').
     canChooseScope?: boolean;
     onClose: () => void;
     onConnect: (

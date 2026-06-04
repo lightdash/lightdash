@@ -1,11 +1,3 @@
-// Value-forward copy shared by every surface that offers the GitHub MCP
-// one-click connect (chat empty state + agent settings). Keep these in one
-// place so the surfaces never drift.
-//
-// Note: this is NOT about writeback/opening PRs — the org's GitHub integration
-// already handles dbt-project writeback. The MCP connection lets the agent READ
-// the codebases that produce your analytics events, giving it extra context for
-// semantic-layer changes and the business logic behind your metrics.
 export const GITHUB_MCP_VALUE_HEADLINE =
     'Give the agent the code behind your data';
 export const GITHUB_MCP_VALUE_SUMMARY =

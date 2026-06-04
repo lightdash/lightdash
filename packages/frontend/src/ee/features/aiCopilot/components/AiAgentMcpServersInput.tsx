@@ -703,8 +703,6 @@ export const AiAgentMcpServersInput = ({
             credentialScope: AiMcpCredentialScope,
         ) => {
             try {
-                // Idempotent server-side — creates the bearer GitHub MCP server
-                // with the user's token, or updates it if one already exists.
                 const server = await connectGithubMcp({
                     personalAccessToken,
                     credentialScope,
@@ -712,9 +710,6 @@ export const AiAgentMcpServersInput = ({
                 if (!server) {
                     return;
                 }
-                // Persist the attachment (not just local form state) so the
-                // agent's tool-permissions panel can load/save immediately,
-                // matching "+ Add".
                 if (!value.includes(server.uuid)) {
                     await persistMcpServerSelection(
                         [...value, server.uuid],
@@ -722,10 +717,7 @@ export const AiAgentMcpServersInput = ({
                     );
                 }
                 githubConfirmModalHandlers.close();
-            } catch {
-                // Toasts are handled in the mutations; keep the modal open so
-                // the user can fix the token and retry.
-            }
+            } catch {}
         },
         [
             connectGithubMcp,

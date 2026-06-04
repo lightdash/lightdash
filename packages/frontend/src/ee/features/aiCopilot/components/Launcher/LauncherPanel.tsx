@@ -124,8 +124,6 @@ const NewThreadPanel: FC<{
     // New threads have no uuid yet — keep the toggle in local state and seed
     // the per-thread slice entry once the thread is created.
     const [sqlMode, setSqlMode] = useState(false);
-    // Post-connect "try asking" suggestions seed the composer by remounting it
-    // with a new defaultValue (the input only reads defaultValue on mount).
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
