@@ -24,6 +24,7 @@ import {
     formatTimestamp,
     formatValueWithExpression,
     getCustomFormatFromLegacy,
+    getEffectiveSeparator,
     isMomentInput,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
@@ -2226,6 +2227,200 @@ describe('Formatting', () => {
                     tz,
                 ),
             ).toBe('2024-01-15 07:00:00.000');
+        });
+    });
+
+    describe('field-level number separator (PROD-7558)', () => {
+        const big = 1234567.5;
+
+        describe('ECMA-376 format expression respects the separator', () => {
+            const ecma = {
+                ...metric,
+                type: MetricType.NUMBER,
+                format: '#,##0.00',
+            };
+
+            test('no separator is byte-identical to the default (US) output', () => {
+                expect(formatItemValue(ecma, big)).toEqual('1,234,567.50');
+                expect(
+                    formatItemValue(
+                        { ...ecma, separator: NumberSeparator.DEFAULT },
+                        big,
+                    ),
+                ).toEqual('1,234,567.50');
+                expect(
+                    formatItemValue(
+                        { ...ecma, separator: NumberSeparator.COMMA_PERIOD },
+                        big,
+                    ),
+                ).toEqual('1,234,567.50');
+            });
+
+            test('period-comma (European)', () => {
+                expect(
+                    formatItemValue(
+                        { ...ecma, separator: NumberSeparator.PERIOD_COMMA },
+                        big,
+                    ),
+                ).toEqual('1.234.567,50');
+            });
+
+            test('space-period (French-ish)', () => {
+                expect(
+                    formatItemValue(
+                        { ...ecma, separator: NumberSeparator.SPACE_PERIOD },
+                        big,
+                    ),
+                ).toEqual('1 234 567.50');
+            });
+
+            test('no separator', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...ecma,
+                            separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                        },
+                        big,
+                    ),
+                ).toEqual('1234567.50');
+            });
+
+            test('currency expression localises symbol-prefixed values', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            format: '[$€]#,##0.00',
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        big,
+                    ),
+                ).toEqual('€1.234.567,50');
+            });
+
+            test('parameterised format expression localises too', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            format: '${ld.parameters.symbol}0,0.00',
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        1234.56,
+                        false,
+                        { symbol: '€' },
+                    ),
+                ).toEqual('€1.234,56');
+            });
+        });
+
+        describe('legacy + structured paths pick up the field separator', () => {
+            test('legacy format enum (the documented workaround)', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            format: Format.EUR,
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        12345.1235,
+                    ),
+                ).toEqual('12.345,12 €');
+            });
+
+            test('formatOptions without a separator inherits the field separator', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            formatOptions: {
+                                type: CustomFormatType.NUMBER,
+                                round: 2,
+                            },
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        big,
+                    ),
+                ).toEqual('1.234.567,50');
+            });
+
+            test('formatOptions separator wins over the field separator', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            formatOptions: {
+                                type: CustomFormatType.NUMBER,
+                                round: 2,
+                                separator: NumberSeparator.COMMA_PERIOD,
+                            },
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        big,
+                    ),
+                ).toEqual('1,234,567.50');
+            });
+        });
+
+        test('AdditionalMetric ECMA expression respects the separator', () => {
+            expect(
+                formatItemValue(
+                    {
+                        ...additionalMetric,
+                        type: MetricType.NUMBER,
+                        format: '#,##0.00',
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    },
+                    big,
+                ),
+            ).toEqual('1.234.567,50');
+        });
+
+        describe('getEffectiveSeparator', () => {
+            test('reads the field-level separator', () => {
+                expect(
+                    getEffectiveSeparator({
+                        ...metric,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    }),
+                ).toEqual(NumberSeparator.PERIOD_COMMA);
+            });
+
+            test('formatOptions separator takes precedence', () => {
+                expect(
+                    getEffectiveSeparator({
+                        ...metric,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                        formatOptions: {
+                            type: CustomFormatType.NUMBER,
+                            separator: NumberSeparator.SPACE_PERIOD,
+                        },
+                    }),
+                ).toEqual(NumberSeparator.SPACE_PERIOD);
+            });
+
+            test('reads a table calculation format separator', () => {
+                expect(
+                    getEffectiveSeparator({
+                        ...tableCalculation,
+                        format: {
+                            type: CustomFormatType.NUMBER,
+                            separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                        },
+                    }),
+                ).toEqual(NumberSeparator.NO_SEPARATOR_PERIOD);
+            });
+
+            test('returns undefined when nothing sets one', () => {
+                expect(getEffectiveSeparator(metric)).toBeUndefined();
+                expect(getEffectiveSeparator(undefined)).toBeUndefined();
+            });
         });
     });
 });

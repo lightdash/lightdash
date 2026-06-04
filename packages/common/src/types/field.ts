@@ -602,6 +602,12 @@ export interface Field {
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
     /**
+     * Number separator style for grouping/decimal characters. Composes with
+     * `format` (including ECMA-376 expressions) and `formatOptions` — it only
+     * controls the separator characters, not the format shape.
+     */
+    separator?: NumberSeparator;
+    /**
      * @deprecated Use groups property instead.
      */
     groupLabel?: string;

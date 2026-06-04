@@ -183,6 +183,9 @@
                             "format": {
                                 "type": "string"
                             },
+                            "separator": {
+                                "$ref": "#/$defs/separator"
+                            },
                             "compact": {
                                 "type": "string",
                                 "enum": [
@@ -416,6 +419,16 @@
     "additionalProperties": false,
     "required": [],
     "$defs": {
+        "separator": {
+            "type": "string",
+            "enum": [
+                "default",
+                "commaPeriod",
+                "spacePeriod",
+                "periodComma",
+                "noSeparatorPeriod"
+            ]
+        },
         "filterItem": {
             "type": "object",
             "additionalProperties": {
@@ -580,6 +593,9 @@
                                 },
                                 "format": {
                                     "type": "string"
+                                },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
                                 },
                                 "percentile": {
                                     "type": "number"
@@ -1189,6 +1205,9 @@
                                 "format": {
                                     "type": "string"
                                 },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
+                                },
                                 "percentile": {
                                     "type": "number"
                                 },
@@ -1426,6 +1445,9 @@
                         },
                         "format": {
                             "type": "string"
+                        },
+                        "separator": {
+                            "$ref": "#/$defs/separator"
                         },
                         "time_intervals": {
                             "anyOf": [
@@ -1703,6 +1725,9 @@
                                 },
                                 "format": {
                                     "type": "string"
+                                },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
                                 },
                                 "compact": {
                                     "type": "string",
