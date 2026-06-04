@@ -1949,12 +1949,19 @@ export const EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS: PivotData = {
             null,
             null,
             {
+                fieldId: 'orders_average_order_size',
+            },
+        ],
+        [
+            null,
+            null,
+            {
                 fieldId: 'orders_total_order_amount',
             },
         ],
     ],
     rowTotals: [[52.5], [52.5], [52.5]],
-    columnTotals: [[52.5], [52.5]],
+    columnTotals: [[52.5], [52.5], [52.5]],
     cellsCount: 5,
     rowsCount: 3,
     pivotConfig: {

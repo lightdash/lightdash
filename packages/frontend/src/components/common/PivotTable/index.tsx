@@ -10,7 +10,6 @@ import {
     isField,
     isHexCodeColor,
     isNumericItem,
-    isSummable,
     type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
@@ -179,10 +178,6 @@ type PivotTableProps = BoxProps & // TODO: remove this
         sortBy?: SortField[];
         /** Renders inside a Mantine Menu opened by clicking sortable headers. */
         renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
-        // When true the footer skips the `isSummable` gate that hides
-        // totals for count_distinct/avg/min/max — only safe to skip when
-        // `data.columnTotals` carries warehouse-recomputed values.
-        columnTotalsAreWarehouseComputed?: boolean;
     };
 
 export type PivotSortMenuTarget =
@@ -213,7 +208,6 @@ const PivotTable: FC<PivotTableProps> = ({
     parameters,
     sortBy,
     renderSortMenu,
-    columnTotalsAreWarehouseComputed = false,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -711,14 +705,8 @@ const PivotTable: FC<PivotTableProps> = ({
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-            // Skip the `isSummable` gate when totals were computed by the
-            // warehouse — the value is correct for any metric type
-            // (count_distinct, avg, min, max, ratios). Without this guard the
-            // legacy client-side path would (incorrectly) sum pre-aggregated
-            // cells, so the gate stays in place when totals are local.
-            if (!columnTotalsAreWarehouseComputed && !isSummable(item)) {
-                return null;
-            }
+            // Column totals are warehouse-computed for every metric type, so
+            // there is no `isSummable` gate; a null total just renders blank.
             if (total === null || total === undefined) {
                 return null;
             }
@@ -734,20 +722,18 @@ const PivotTable: FC<PivotTableProps> = ({
                 formatted: formattedValue,
             };
         },
-        [
-            data.headerValues,
-            columnTotalsAreWarehouseComputed,
-            getField,
-            parameters,
-        ],
+        [data.headerValues, getField, parameters],
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue => {
+        (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.columnTotalFields?.[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
+            if (total === null || total === undefined) {
+                return null;
+            }
 
             const formattedValue = formatItemValue(
                 item,

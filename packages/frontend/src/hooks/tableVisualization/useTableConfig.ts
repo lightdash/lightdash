@@ -408,6 +408,7 @@ const useTableConfig = (
                 getFieldLabel,
                 groupedSubtotals,
                 warehouseRowTotals: asyncRowTotals,
+                warehouseColumnTotals: asyncTotals,
                 parameters,
             })
             .then((data) => {
@@ -439,6 +440,7 @@ const useTableConfig = (
         worker,
         groupedSubtotals,
         asyncRowTotals,
+        asyncTotals,
         parameters,
     ]);
 
@@ -626,86 +628,6 @@ const useTableConfig = (
 
     const exposedColumnProperties = columnProperties;
 
-    // Overlay warehouse-computed totals onto the worker's client-side ones.
-    // We match cells by (metric, pivotValue) since the warehouse keys
-    // (`<metric>_any_<value>`) differ from the worker's synthetic column ids.
-    const effectivePivotTableData = useMemo(() => {
-        if (!pivotTableData.data || !pivotTableData.data.columnTotals) {
-            return pivotTableData;
-        }
-        if (!asyncTotals) {
-            return pivotTableData;
-        }
-        const { headerValues } = pivotTableData.data;
-        const metricRow = headerValues[headerValues.length - 1] ?? [];
-        // metricsAsRows=true has a different headerValues shape — skip
-        // overlay there for now and let the worker's totals stand.
-        const pivotDimRows = headerValues.slice(0, -1);
-        if (pivotDimRows.length === 0) {
-            return pivotTableData;
-        }
-
-        const extractNumeric = (raw: unknown): number | undefined => {
-            const candidate =
-                typeof raw === 'object' && raw !== null && 'value' in raw
-                    ? (raw as { value?: { raw?: unknown } }).value?.raw
-                    : raw;
-            const n = Number(candidate);
-            return Number.isFinite(n) ? n : undefined;
-        };
-
-        const nextColumnTotals = pivotTableData.data.columnTotals.map((row) =>
-            row.map((existingValue, colIndex) => {
-                const metricCell = metricRow[colIndex];
-                if (!metricCell || !metricCell.fieldId) {
-                    return existingValue;
-                }
-                const pivotValues = pivotDimRows.map((dimRow) => {
-                    const cell = dimRow[colIndex];
-                    if (
-                        cell &&
-                        cell.type === 'value' &&
-                        cell.value?.raw !== undefined &&
-                        cell.value?.raw !== null
-                    ) {
-                        return String(cell.value.raw);
-                    }
-                    return undefined;
-                });
-                if (pivotValues.some((v) => v === undefined)) {
-                    return existingValue;
-                }
-                // Backend PivotQueryBuilder emits column names of the form
-                // `<metric>_<agg>_<pivotValue1>_<pivotValue2>...`. Metric
-                // aggregations default to 'any' when the source field is
-                // already aggregated (i.e. a Lightdash metric).
-                const key = [
-                    metricCell.fieldId,
-                    'any',
-                    ...(pivotValues as string[]),
-                ].join('_');
-                const rawTotal = asyncTotals[key];
-                if (rawTotal === undefined || rawTotal === null) {
-                    return existingValue;
-                }
-                const numeric = extractNumeric(rawTotal);
-                return numeric === undefined ? existingValue : numeric;
-            }),
-        );
-        return {
-            ...pivotTableData,
-            data: {
-                ...pivotTableData.data,
-                columnTotals: nextColumnTotals,
-            },
-        };
-    }, [pivotTableData, asyncTotals]);
-
-    // True when the overlay above replaced `columnTotals` — callers
-    // forward this so PivotTable skips the `isSummable` footer gate.
-    const columnTotalsAreWarehouseComputed =
-        effectivePivotTableData.data !== pivotTableData.data;
-
     const validConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
@@ -775,8 +697,7 @@ const useTableConfig = (
             minMaxMap,
             conditionalFormattings,
             onSetConditionalFormattings: handleSetConditionalFormattings,
-            pivotTableData: effectivePivotTableData,
-            columnTotalsAreWarehouseComputed,
+            pivotTableData,
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
@@ -820,8 +741,7 @@ const useTableConfig = (
             minMaxMap,
             conditionalFormattings,
             handleSetConditionalFormattings,
-            effectivePivotTableData,
-            columnTotalsAreWarehouseComputed,
+            pivotTableData,
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
