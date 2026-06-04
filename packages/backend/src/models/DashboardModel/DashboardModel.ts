@@ -2358,6 +2358,17 @@ export class DashboardModel {
         const updateCount = await tx(DashboardsTableName)
             .update({ space_id: space.space_id })
             .where('dashboard_uuid', dashboardUuid)
+            .whereIn(
+                `${DashboardsTableName}.space_id`,
+                tx(SpaceTableName)
+                    .select(`${SpaceTableName}.space_id`)
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid),
+            )
             .whereNull('deleted_at');
 
         if (updateCount !== 1) {

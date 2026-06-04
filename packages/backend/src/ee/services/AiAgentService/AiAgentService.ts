@@ -4346,7 +4346,10 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const change = await this.changesetModel.getChange(changeUuid);
+        const change = await this.changesetModel.getChange(
+            changeUuid,
+            agent.projectUuid,
+        );
 
         const originalExplores = await this.projectModel.findExploresFromCache(
             agent.projectUuid,
@@ -4355,7 +4358,7 @@ export class AiAgentService extends BaseService {
             { applyChangeset: false },
         );
 
-        await this.changesetModel.revertChange(changeUuid);
+        await this.changesetModel.revertChange(changeUuid, agent.projectUuid);
 
         await this.catalogModel.indexCatalogReverts({
             projectUuid: agent.projectUuid,

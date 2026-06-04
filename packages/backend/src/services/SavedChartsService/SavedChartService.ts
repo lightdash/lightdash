@@ -2247,12 +2247,12 @@ export class SavedChartService
     async restore(
         user: SessionUser,
         chartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
@@ -2326,7 +2326,7 @@ export class SavedChartService
     async permanentDelete(
         user: SessionUser,
         chartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
@@ -2338,7 +2338,7 @@ export class SavedChartService
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { organizationUuid, projectUuid } = deletedChart;
 

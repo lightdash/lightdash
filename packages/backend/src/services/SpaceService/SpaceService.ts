@@ -469,7 +469,9 @@ export class SpaceService
             trackEvent?: boolean;
         } = {},
     ) {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
 
         if (!space) {
             throw new NotFoundError('Space not found');
@@ -494,7 +496,7 @@ export class SpaceService
 
         await this.spaceModel.moveToSpace(
             {
-                projectUuid: space.projectUuid,
+                projectUuid,
                 itemUuid: spaceUuid,
                 targetSpaceUuid,
             },
@@ -686,10 +688,11 @@ export class SpaceService
     async restore(
         user: SessionUser,
         spaceUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
 
         if (options?.bypassPermissions) {
@@ -800,7 +803,7 @@ export class SpaceService
     async permanentDelete(
         user: SessionUser,
         spaceUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
@@ -811,6 +814,7 @@ export class SpaceService
         } else {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
+                projectUuid: options?.projectUuid,
             });
             const auditedAbility = this.createAuditedAbility(user);
             if (

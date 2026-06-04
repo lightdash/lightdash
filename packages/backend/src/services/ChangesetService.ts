@@ -176,7 +176,7 @@ export class ChangesetService extends BaseService {
             );
         }
 
-        return this.changesetModel.getChange(changeUuid);
+        return this.changesetModel.getChange(changeUuid, projectUuid);
     }
 
     async revertChange(
@@ -210,7 +210,10 @@ export class ChangesetService extends BaseService {
             return;
         }
 
-        const change = await this.changesetModel.getChange(changeUuid);
+        const change = await this.changesetModel.getChange(
+            changeUuid,
+            projectUuid,
+        );
 
         // Get original explores WITHOUT any changes for revert reconstruction
         const originalExplores = await this.projectModel.findExploresFromCache(
@@ -221,7 +224,7 @@ export class ChangesetService extends BaseService {
         );
 
         // Delete the change
-        await this.changesetModel.revertChange(changeUuid);
+        await this.changesetModel.revertChange(changeUuid, projectUuid);
 
         // Update catalog using revert logic
         await this.catalogModel.indexCatalogReverts({

@@ -2034,6 +2034,36 @@ export class SavedChartModel {
             // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
             .update({ space_id: space.space_id, dashboard_uuid: null })
             .where('saved_query_uuid', savedChartUuid)
+            .whereIn(
+                `${SavedChartsTableName}.saved_query_id`,
+                tx(`${SavedChartsTableName} as source_saved_queries`)
+                    .select('source_saved_queries.saved_query_id')
+                    .leftJoin(
+                        `${DashboardsTableName} as source_dashboards`,
+                        'source_dashboards.dashboard_uuid',
+                        'source_saved_queries.dashboard_uuid',
+                    )
+                    .innerJoin(
+                        `${SpaceTableName} as source_spaces`,
+                        function sourceSpaceJoin() {
+                            this.on(
+                                'source_spaces.space_id',
+                                '=',
+                                'source_dashboards.space_id',
+                            ).orOn(
+                                'source_spaces.space_id',
+                                '=',
+                                'source_saved_queries.space_id',
+                            );
+                        },
+                    )
+                    .innerJoin(
+                        `${ProjectTableName} as source_projects`,
+                        'source_projects.project_id',
+                        'source_spaces.project_id',
+                    )
+                    .where('source_projects.project_uuid', projectUuid),
+            )
             .whereNull('deleted_at');
 
         if (updateCount !== 1) {

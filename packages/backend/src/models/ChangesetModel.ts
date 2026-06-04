@@ -169,9 +169,23 @@ export class ChangesetModel {
         });
     }
 
-    async getChange(changeUuid: string): Promise<Change> {
+    async getChange(changeUuid: string, projectUuid?: string): Promise<Change> {
         const change = await this.database(ChangesTableName)
+            .innerJoin(
+                ChangesetsTableName,
+                `${ChangesetsTableName}.changeset_uuid`,
+                `${ChangesTableName}.changeset_uuid`,
+            )
+            .select(`${ChangesTableName}.*`)
             .where('change_uuid', changeUuid)
+            .modify((queryBuilder) => {
+                if (projectUuid) {
+                    void queryBuilder.where(
+                        `${ChangesetsTableName}.project_uuid`,
+                        projectUuid,
+                    );
+                }
+            })
             .first();
 
         if (!change) {
@@ -206,9 +220,24 @@ export class ChangesetModel {
             .delete();
     }
 
-    async revertChange(changeUuid: string): Promise<void> {
-        await this.getChange(changeUuid);
+    async revertChange(
+        changeUuid: string,
+        projectUuid?: string,
+    ): Promise<void> {
+        await this.getChange(changeUuid, projectUuid);
 
-        await this.revertChanges({ changeUuids: [changeUuid] });
+        await this.database(ChangesTableName)
+            .where('change_uuid', changeUuid)
+            .modify((queryBuilder) => {
+                if (projectUuid) {
+                    void queryBuilder.whereIn(
+                        'changeset_uuid',
+                        this.database(ChangesetsTableName)
+                            .select('changeset_uuid')
+                            .where('project_uuid', projectUuid),
+                    );
+                }
+            })
+            .delete();
     }
 }

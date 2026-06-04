@@ -506,6 +506,7 @@ export class SearchModel {
 
     async getDashboardCharts(
         dashboardUuid: string,
+        projectUuid: string,
         page: number,
         pageSize: number,
     ): Promise<{
@@ -519,9 +520,23 @@ export class SearchModel {
         };
     }> {
         const dashboard = await this.database(DashboardsTableName)
-            .select('dashboard_uuid', 'name')
-            .where('dashboard_uuid', dashboardUuid)
-            .whereNull('deleted_at')
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .first();
 
         if (!dashboard) {

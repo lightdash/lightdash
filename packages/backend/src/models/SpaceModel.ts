@@ -840,7 +840,7 @@ export class SpaceModel {
 
     async getSpaceSummary(
         spaceUuid: string,
-        options?: { deleted?: boolean },
+        options?: { deleted?: boolean; projectUuid?: string },
     ): Promise<SpaceSummaryBase> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
@@ -849,6 +849,7 @@ export class SpaceModel {
                 const [space] = await this.find({
                     spaceUuid,
                     deleted: options?.deleted,
+                    projectUuid: options?.projectUuid,
                 });
                 if (space === undefined)
                     throw new NotFoundError(

@@ -210,6 +210,7 @@ describe('DashboardService', () => {
         );
         expect(searchModel.getDashboardCharts).toHaveBeenCalledWith(
             dashboard.uuid,
+            projectUuid,
             1,
             20,
         );

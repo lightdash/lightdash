@@ -48,6 +48,64 @@ describe('SpaceService', () => {
         jest.clearAllMocks();
     });
 
+    describe('moveToSpace', () => {
+        it('scopes the source space lookup and move to the requested project', async () => {
+            const requestedProjectUuid = 'authorized-project-uuid';
+            const spaceUuid = 'space-uuid';
+            const targetSpaceUuid = 'target-space-uuid';
+            const spaceModel = {
+                getSpaceSummary: jest.fn().mockResolvedValue({
+                    uuid: spaceUuid,
+                    name: 'Space',
+                    parentSpaceUuid: 'old-parent-space-uuid',
+                    projectUuid: 'source-project-uuid',
+                }),
+                moveToSpace: jest.fn().mockResolvedValue(undefined),
+            };
+            const spacePermissionService = {
+                can: jest.fn().mockResolvedValue(true),
+            };
+            const scopedService = new SpaceService({
+                analytics: analyticsMock,
+                lightdashConfig: lightdashConfigMock,
+                projectModel: {} as ProjectModel,
+                spaceModel: spaceModel as unknown as SpaceModel,
+                organizationModel: {} as OrganizationModel,
+                pinnedListModel: {} as PinnedListModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+                savedChartService: {} as SavedChartService,
+                dashboardService: {} as DashboardService,
+                appGenerateService: undefined,
+            });
+
+            await scopedService.moveToSpace(
+                createTestUser({
+                    projectUuid: requestedProjectUuid,
+                    projectRole: ProjectMemberRole.ADMIN,
+                }) as unknown as SessionUser,
+                {
+                    projectUuid: requestedProjectUuid,
+                    itemUuid: spaceUuid,
+                    targetSpaceUuid,
+                },
+                { trackEvent: false },
+            );
+
+            expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith(spaceUuid, {
+                projectUuid: requestedProjectUuid,
+            });
+            expect(spaceModel.moveToSpace).toHaveBeenCalledWith(
+                {
+                    projectUuid: requestedProjectUuid,
+                    itemUuid: spaceUuid,
+                    targetSpaceUuid,
+                },
+                { tx: undefined },
+            );
+        });
+    });
+
     describe('_userCanActionSpace', () => {
         describe('organization admins', () => {
             it.each([

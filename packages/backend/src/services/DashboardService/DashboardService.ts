@@ -578,6 +578,7 @@ export class DashboardService
 
         return this.searchModel.getDashboardCharts(
             dashboard.uuid,
+            projectUuid,
             page,
             pageSize,
         );
@@ -1552,11 +1553,11 @@ export class DashboardService
     async restore(
         user: SessionUser,
         dashboardUuidOrSlug: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
 
         if (options?.bypassPermissions) {
@@ -1607,14 +1608,14 @@ export class DashboardService
     async permanentDelete(
         user: SessionUser,
         dashboardUuidOrSlug: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         // 'any' so this works whether called directly on a soft-deleted
         // dashboard (restore-then-purge flow) or via `delete()` on a
         // not-yet-deleted dashboard (when softDelete config is off).
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: 'any' },
+            { deleted: 'any', projectUuid: options?.projectUuid },
         );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {

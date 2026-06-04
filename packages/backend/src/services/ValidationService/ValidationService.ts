@@ -1484,6 +1484,9 @@ export class ValidationService extends BaseService {
 
         // Get the chart to find which explore it uses
         const chart = await this.savedChartModel.get(chartUuid);
+        if (chart.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Chart ${chartUuid} not found`);
+        }
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -1569,8 +1572,10 @@ export class ValidationService extends BaseService {
         }
 
         // Get the dashboard to check permissions
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
