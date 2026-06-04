@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
-import { useAiAgentStoreSelector } from '../../ee/features/aiCopilot/store/hooks';
+import { useActiveAiAgentThreadStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
 import { planDashboardAiAgentChanges } from './dashboardAiAgentChangePlanner';
@@ -51,14 +51,7 @@ const DashboardAiAgentContextBridge = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
 
-    const activeThreadId = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.activeThreadId,
-    );
-    const activeThreadParts = useAiAgentStoreSelector((state) =>
-        activeThreadId
-            ? (state.aiAgentThreadStream[activeThreadId]?.parts ?? [])
-            : [],
-    );
+    const activeThreadParts = useActiveAiAgentThreadStreamParts();
 
     const handledToolCallIdsRef = useRef<Set<string>>(new Set());
     const pendingChartSlugToFocusRef = useRef<string | null>(null);
