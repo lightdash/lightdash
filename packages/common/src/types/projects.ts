@@ -631,6 +631,78 @@ export type DbtProjectEnvironmentVariable = {
     value: string;
 };
 
+export const LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX =
+    'LIGHTDASH_DBT_PROFILE_VAR_';
+
+const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
+    'GIT_ASKPASS',
+    'GIT_SSH',
+    'GIT_SSH_COMMAND',
+    'LD_AUDIT',
+    'LD_LIBRARY_PATH',
+    'LD_PRELOAD',
+    'NODE_OPTIONS',
+    'NODE_PATH',
+    'PATH',
+    'PERL5OPT',
+    'PYTHONHOME',
+    'PYTHONPATH',
+    'RUBYOPT',
+    'SHELL',
+    'SSH_ASKPASS',
+]);
+
+const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = ['DYLD_', 'GIT_CONFIG_'];
+
+export const getDbtEnvironmentVariableKeyError = (
+    key: string,
+    options: {
+        allowLightdashProfileEnvironmentVariables?: boolean;
+    } = {},
+): string | undefined => {
+    if (key.length === 0) {
+        return undefined;
+    }
+
+    if (!DBT_ENVIRONMENT_VARIABLE_KEY_REGEX.test(key)) {
+        return `Environment variable "${key}" must contain only letters, numbers, and underscores, and cannot start with a number`;
+    }
+
+    if (
+        !options.allowLightdashProfileEnvironmentVariables &&
+        key.startsWith(LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX)
+    ) {
+        return `Environment variable "${key}" is reserved for Lightdash`;
+    }
+
+    if (
+        BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS.has(key) ||
+        BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES.some((prefix) =>
+            key.startsWith(prefix),
+        )
+    ) {
+        return `Environment variable "${key}" cannot be used because it can change how dbt or its child processes execute`;
+    }
+
+    return undefined;
+};
+
+export const isSafeDbtEnvironmentVariableKey = (
+    key: string,
+    options: {
+        allowLightdashProfileEnvironmentVariables?: boolean;
+    } = {},
+): boolean => getDbtEnvironmentVariableKeyError(key, options) === undefined;
+
+export const getInvalidDbtEnvironmentVariableKeys = (
+    environment: DbtProjectEnvironmentVariable[] | undefined,
+): string[] =>
+    (environment ?? [])
+        .map(({ key }) => key)
+        .filter((key) => getDbtEnvironmentVariableKeyError(key) !== undefined);
+
 export enum SupportedDbtVersions {
     V1_4 = 'v1.4',
     V1_5 = 'v1.5',

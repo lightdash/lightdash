@@ -48,6 +48,7 @@ import {
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
+    DbtProjectConfig,
     DbtProjectEnvironmentVariable,
     DbtProjectType,
     DbtRawModelNode,
@@ -70,6 +71,7 @@ import {
     getAvailableParametersFromTables,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -2101,6 +2103,9 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+        ProjectService.validateDbtEnvironmentVariables(
+            newProjectData.dbtConnection,
+        );
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -2324,6 +2329,7 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
+        ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
         try {
@@ -2650,6 +2656,31 @@ export class ProjectService extends BaseService {
     /* When editing a project, most fields are optional
     but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
+    static validateDbtEnvironmentVariables(dbtConnection: DbtProjectConfig) {
+        if (!('environment' in dbtConnection) || !dbtConnection.environment) {
+            return;
+        }
+
+        const keys = new Set<string>();
+        dbtConnection.environment.forEach(({ key }) => {
+            const error = getDbtEnvironmentVariableKeyError(key);
+            if (error) {
+                throw new ParameterError(error);
+            }
+
+            if (key.length === 0) {
+                return;
+            }
+
+            if (keys.has(key)) {
+                throw new ParameterError(
+                    `Environment variable "${key}" is duplicated`,
+                );
+            }
+            keys.add(key);
+        });
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
@@ -2759,6 +2790,9 @@ export class ProjectService extends BaseService {
         );
 
         this.validateConfigSecrets(updatedProject);
+        ProjectService.validateDbtEnvironmentVariables(
+            updatedProject.dbtConnection,
+        );
 
         await this.projectModel.update(projectUuid, updatedProject);
 
