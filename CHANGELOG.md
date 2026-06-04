@@ -1,3 +1,20 @@
+# [0.3091.0](https://github.com/lightdash/lightdash/compare/0.3090.0...0.3091.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* audit ai content lookups ([#23884](https://github.com/lightdash/lightdash/issues/23884)) ([b7a0551](https://github.com/lightdash/lightdash/commit/b7a05519ab963ada31a2e611b7f8a8d63861641b))
+* **data-apps:** hash filters in data app tile URL to avoid oversized request ([#23879](https://github.com/lightdash/lightdash/issues/23879)) ([ad0ab2b](https://github.com/lightdash/lightdash/commit/ad0ab2b77613f8009632218f87100f409fe89cfe)), closes [#23870](https://github.com/lightdash/lightdash/issues/23870)
+* **pivot:** warehouse-only column totals for all metric types ([#23885](https://github.com/lightdash/lightdash/issues/23885)) ([4a28752](https://github.com/lightdash/lightdash/commit/4a28752fd0d0674fd75caac6830b09fbd7a15e1a))
+* preserve ask ai project settings filter ([#23882](https://github.com/lightdash/lightdash/issues/23882)) ([545de42](https://github.com/lightdash/lightdash/commit/545de4260d33d947634788fccf98b162eb9ac43c))
+* scope `getByIdOrSlug` dashboard lookups to the requested project ([#23871](https://github.com/lightdash/lightdash/issues/23871)) ([c3128e7](https://github.com/lightdash/lightdash/commit/c3128e7478a9bbbf322a1cc867b5bc47434fc193))
+* upgrade vitest 3.2.4→3.2.6 in backend ([#23776](https://github.com/lightdash/lightdash/issues/23776)) ([619a363](https://github.com/lightdash/lightdash/commit/619a363c894c38389b2ab36b72a76aff06bb4a2b))
+
+
+### Features
+
+* **pivot:** warehouse-computed subtotals for all metric types ([#23857](https://github.com/lightdash/lightdash/issues/23857)) ([2e23ee5](https://github.com/lightdash/lightdash/commit/2e23ee58c93eb7944d4d514e3503478fadcedb1f))
+
 # [0.3090.0](https://github.com/lightdash/lightdash/compare/0.3089.2...0.3090.0) (2026-06-04)
 
 
