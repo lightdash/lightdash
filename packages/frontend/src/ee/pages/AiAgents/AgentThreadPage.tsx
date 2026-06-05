@@ -4,12 +4,16 @@ import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
-import { contextItemsToContentMentionSuggestions } from '../../features/aiCopilot/components/ChatElements/contentMentions';
+import {
+    contextItemsToContentMentionSuggestions,
+    mergeContentMentionSuggestionItems,
+} from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
+import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -156,7 +160,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const activeDisabledReason = disabledReasons.find((r) => r.when);
     const inputDisabled = !!activeDisabledReason;
     const inputDisabledReason = activeDisabledReason?.message;
-    const contentMentionItems = useMemo(
+    const threadMentionItems = useMemo(
         () =>
             contextItemsToContentMentionSuggestions(
                 thread?.messages.flatMap((message) =>
@@ -165,6 +169,31 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 'thread',
             ),
         [thread?.messages],
+    );
+
+    // Expand the thread's pinned dashboard into tiles, mentionable by tile name.
+    const pinnedDashboardUuid = useMemo(() => {
+        for (const message of thread?.messages ?? []) {
+            if (message.role !== 'user') continue;
+            for (const item of message.context ?? []) {
+                if (item.type === 'dashboard') return item.dashboardUuid;
+            }
+        }
+        return null;
+    }, [thread?.messages]);
+
+    const { contentMentionItems: pinnedDashboardTileItems } = usePinnedContext({
+        projectUuid,
+        dashboardUuidOrSlug: pinnedDashboardUuid,
+    });
+
+    const contentMentionItems = useMemo(
+        () =>
+            mergeContentMentionSuggestionItems(
+                threadMentionItems,
+                pinnedDashboardTileItems,
+            ),
+        [threadMentionItems, pinnedDashboardTileItems],
     );
 
     const handleSubmit = ({

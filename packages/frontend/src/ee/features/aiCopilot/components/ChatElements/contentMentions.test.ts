@@ -7,6 +7,8 @@ import {
     fuzzyContentMentionLabelMatch,
     getContentMentionEmptyMessage,
     mergeAiPromptContextInput,
+    mergeContentMentionSuggestionItems,
+    type ContentMentionSuggestionItem,
 } from './contentMentions';
 
 vi.mock('../../../../../api', () => ({
@@ -55,6 +57,40 @@ describe('contentMentions', () => {
                 chartSlug: 'revenue-chart',
             },
         ]);
+    });
+
+    it('merges mention suggestions deduping charts by uuid, first wins', () => {
+        const threadChart: ContentMentionSuggestionItem = {
+            id: 'thread:chart:chart-1',
+            label: 'Revenue',
+            contentType: ContentType.CHART,
+            uuid: 'chart-1',
+            slug: 'revenue-chart',
+            group: 'thread',
+        };
+        const tileChart: ContentMentionSuggestionItem = {
+            id: 'dashboardTile:chart:chart-1',
+            label: 'Revenue by month (tile title)',
+            contentType: ContentType.CHART,
+            uuid: 'chart-1',
+            slug: 'revenue-chart',
+            group: 'dashboardTile',
+        };
+        const tileChart2: ContentMentionSuggestionItem = {
+            id: 'dashboardTile:chart:chart-2',
+            label: 'Active users',
+            contentType: ContentType.CHART,
+            uuid: 'chart-2',
+            slug: 'active-users',
+            group: 'dashboardTile',
+        };
+
+        expect(
+            mergeContentMentionSuggestionItems(
+                [threadChart],
+                [tileChart, tileChart2],
+            ),
+        ).toEqual([threadChart, tileChart2]);
     });
 
     it('maps existing context into mention suggestions', () => {
