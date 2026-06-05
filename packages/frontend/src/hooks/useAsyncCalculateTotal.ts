@@ -14,12 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 
-// Read every page of a ready query from the paginated results endpoint. Unlike
-// the raw JSONL stream (`getResultsFromStream`), this endpoint applies the same
-// display formatting as the main query rows — including the temporal timezone
-// shift — so date/datetime dimension raw values match exactly when totals and
-// subtotals are matched back to rendered cells. Reading totals from the stream
-// instead drops the shift and breaks matching for DST-affected periods.
+// Reads every page of a ready query from the paginated results endpoint.
 const fetchAllResultRows = async (
     projectUuid: string,
     queryUuid: string,
@@ -173,9 +168,6 @@ const fetchRowTotals = async (
         throw new Error('Unexpected query status while polling totals');
     }
 
-    // One row per index combination — potentially more than a single page. Read
-    // from the paginated endpoint (not the raw stream) so temporal index values
-    // carry the same timezone shift as the main query rows the worker keys by.
     const rows = await fetchAllResultRows(projectUuid, queryUuid);
 
     const indexFieldIdSet = new Set(indexFieldIds);
@@ -309,9 +301,6 @@ const fetchSubtotals = async (args: {
                     );
                 }
 
-                // Read from the paginated endpoint (not the raw stream) so date
-                // dimension raw values carry the same timezone shift as the main
-                // query rows they're matched against.
                 const rows = await fetchAllResultRows(projectUuid, queryUuid);
 
                 const records = rows.map((row) => {

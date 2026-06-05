@@ -64,10 +64,7 @@ export function getGroupingValuesAndSubtotalKey(
     return { groupingValues, subtotalGroupKey };
 }
 
-// Match a rendered subtotal cell to its backend subtotal record. Raw values are
-// normalized before comparison because date dimensions serialize differently
-// between the main pivot query (`...00Z`) and the flat calculate-total query
-// (`...00.000Z`). Pass `{}` for pivotedHeaderValues in the non-pivoted path.
+// Pass `{}` for pivotedHeaderValues in the non-pivoted path.
 export function findMatchingSubtotal(
     records: Record<string, number>[] | undefined,
     groupingValues: Record<string, { value: ResultValue } | undefined>,

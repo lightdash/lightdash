@@ -4,9 +4,6 @@ import { findMatchingSubtotal } from './getDataAndColumns';
 const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
 const headerValue = (raw: unknown) => ({ raw, formatted: String(raw) });
 
-// Subtotal records carry both dimension raw values (strings/dates) and metric
-// numbers; the shared GroupedSubtotals type widens them to number, so build
-// them through this helper to mirror that runtime shape.
 const records = (...rows: Record<string, unknown>[]) =>
     rows as unknown as Record<string, number>[];
 
@@ -19,7 +16,6 @@ describe('findMatchingSubtotal', () => {
 
         const match = findMatchingSubtotal(
             recs,
-            // Main pivot query serializes the date without milliseconds
             { orders_order_date_month: cell('2018-04-01T00:00:00Z') },
             {},
         );
