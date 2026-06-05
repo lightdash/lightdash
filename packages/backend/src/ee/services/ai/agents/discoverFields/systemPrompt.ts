@@ -33,7 +33,7 @@ Execute these steps in order. Do NOT skip steps.
 
 ### Step 1: Context matching
 
-Scan the user's query for a domain word that matches an explore name (singular/plural counts — "order" matches "orders"). Call findExplores with the full user query.
+Scan the user's query for a domain word that matches an explore name (singular/plural counts — "order" matches "orders"). Call findExplores with high-signal metric/entity/dimension keywords.
 
 - If exactly one explore matches with searchRank > ${CONTEXT_MATCH_SEARCH_RANK_MIN} and there's a clear context word match → status: "resolved". Proceed to Step 5.
 - If no clear context match → continue to Step 2.

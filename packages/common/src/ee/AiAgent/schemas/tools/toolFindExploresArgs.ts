@@ -5,11 +5,11 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
-- searchQuery: Full user query for finding relevant explores
+- searchQuery: Keyword terms for finding relevant explores
 
 Output:
 - Matching explores with searchRank scores
@@ -40,7 +40,7 @@ export const toolFindExploresArgsSchemaV3 = createToolSchema()
         searchQuery: z
             .string()
             .describe(
-                'The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.',
+                "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
             ),
     })
     .build();
