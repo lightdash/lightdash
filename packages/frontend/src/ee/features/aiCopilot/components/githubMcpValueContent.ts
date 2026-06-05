@@ -1,5 +1,3 @@
-export const GITHUB_MCP_VALUE_HEADLINE =
-    'Give the agent the code behind your data';
 export const GITHUB_MCP_VALUE_SUMMARY =
     'Connect GitHub so the agent can read the codebases that produce your analytics events — extra context for semantic-layer changes and the business logic behind your metrics.';
 export const GITHUB_MCP_SUGGESTED_PROMPT =
