@@ -8,8 +8,6 @@ import { useCallback } from 'react';
  *   const select = useOnboardingMock(EXAMPLE_ROWS, isTourOpen);
  *   const { data } = useThings(args, { select });
  */
-// Consumed in the Reviews onboarding PR; this ignore is removed there.
-// ts-unused-exports:disable-next-line
 export const useOnboardingMock = <T>(
     mockData: T[],
     enabled: boolean,
