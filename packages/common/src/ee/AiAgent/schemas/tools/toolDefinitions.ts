@@ -440,27 +440,39 @@ export const readContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description: TOOL_READ_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolReadContentArgsSchema,
     agent: { outputSchema: toolReadContentOutputSchema },
+    mcp: {
+        name: 'read_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const editContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolEditContentArgsSchema,
     agent: { outputSchema: toolEditContentOutputSchema },
+    mcp: {
+        name: 'edit_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const createContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolCreateContentArgsSchema,
     agent: { outputSchema: toolCreateContentOutputSchema },
+    mcp: {
+        name: 'create_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const runContentQueryToolDefinition = defineTool({
