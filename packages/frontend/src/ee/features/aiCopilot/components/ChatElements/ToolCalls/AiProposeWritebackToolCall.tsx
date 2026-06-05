@@ -1,5 +1,6 @@
 import { type ToolProposeWritebackOutput } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Loader,
@@ -23,6 +24,7 @@ import {
     isPreviewWaitTimedOut,
     usePullRequestPreview,
 } from '../../../hooks/usePullRequestPreview';
+import styles from './AiProposeWritebackToolCall.module.css';
 
 type Props = {
     metadata: ToolProposeWritebackOutput['metadata'];
@@ -150,7 +152,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
             : 'Pull request opened';
 
     return (
-        <Paper withBorder p="sm" radius="md">
+        <Paper withBorder p="sm" radius="md" className={styles.card}>
             <Group
                 gap="sm"
                 align="center"
@@ -177,7 +179,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                         )}
                     </Stack>
                 </Group>
-                <Group gap="xs" wrap="nowrap">
+                <Box className={styles.actions}>
                     {isPreviewDeploySetup ? null : preview?.previewUrl ? (
                         <Button
                             component="a"
@@ -235,7 +237,7 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
                     >
                         View pull request
                     </Button>
-                </Group>
+                </Box>
             </Group>
         </Paper>
     );
