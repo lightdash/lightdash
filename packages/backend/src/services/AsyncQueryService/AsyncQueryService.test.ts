@@ -1889,6 +1889,130 @@ describe('AsyncQueryService', () => {
             expect(pivotSpy).toHaveBeenCalledTimes(1);
             expect(flatSpy).not.toHaveBeenCalled();
         });
+
+        it('pivots based on stored pivot details even when the request omits pivotConfig', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest.fn().mockResolvedValue(
+                baseReadyQueryHistory({
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'user_id',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'order_date' }],
+                        sortBy: [],
+                        metricsAsRows: false,
+                    },
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: {
+                        amount_sum_2021: {
+                            referenceField: 'amount',
+                            pivotColumnName: 'amount_sum_2021',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [
+                                { referenceField: 'order_date', value: '2021' },
+                            ],
+                        },
+                    } as AnyType,
+                }),
+            );
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({ fileUrl: 'pivot-url', truncated: false });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    exportPivotedData: true,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'pivot-url' });
+
+            expect(pivotSpy).toHaveBeenCalledTimes(1);
+            expect(pivotSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    options: expect.objectContaining({
+                        pivotConfig: expect.objectContaining({
+                            pivotDimensions: ['order_date'],
+                            metricsAsRows: false,
+                        }),
+                    }),
+                }),
+            );
+            expect(flatSpy).not.toHaveBeenCalled();
+        });
+
+        it('does not pivot when the user opts out via exportPivotedData=false', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest.fn().mockResolvedValue(
+                baseReadyQueryHistory({
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'user_id',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'order_date' }],
+                        sortBy: [],
+                        metricsAsRows: false,
+                    },
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: {
+                        amount_sum_2021: {
+                            referenceField: 'amount',
+                            pivotColumnName: 'amount_sum_2021',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [
+                                { referenceField: 'order_date', value: '2021' },
+                            ],
+                        },
+                    } as AnyType,
+                }),
+            );
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({
+                    fileUrl: 'should-not-be-used',
+                    truncated: false,
+                });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    pivotConfig,
+                    exportPivotedData: false,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'flat-url' });
+
+            expect(pivotSpy).not.toHaveBeenCalled();
+            expect(flatSpy).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('getAsyncQueryHistory', () => {
