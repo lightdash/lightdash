@@ -1,3 +1,15 @@
+# [0.3104.0](https://github.com/lightdash/lightdash/compare/0.3103.0...0.3104.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **frontend:** polish pull requests table row layout ([#23972](https://github.com/lightdash/lightdash/issues/23972)) ([28260b1](https://github.com/lightdash/lightdash/commit/28260b19de7b14d0f25546ad8183e20226eafbc7))
+
+
+### Features
+
+* **ai-agents:** actionable error states for writeback "not connected" ([#23970](https://github.com/lightdash/lightdash/issues/23970)) ([993e531](https://github.com/lightdash/lightdash/commit/993e5311a1e738b667dea16e0f05f5d8908979e1))
+
 # [0.3103.0](https://github.com/lightdash/lightdash/compare/0.3102.0...0.3103.0) (2026-06-05)
 
 
