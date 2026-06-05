@@ -26,7 +26,11 @@ import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 const LazyExplorePanel = lazy(() => import('../ExplorePanel'));
 const LazyBasePanel = lazy(() => import('./BasePanel'));
 
-const ExploreSideBar = memo(() => {
+interface ExploreSideBarProps {
+    onCollapse?: () => void;
+}
+
+const ExploreSideBar = memo(({ onCollapse }: ExploreSideBarProps) => {
     const projectUuid = useProjectUuid();
 
     const tableName = useExplorerSelector(selectTableName);
@@ -71,12 +75,13 @@ const ExploreSideBar = memo(() => {
                 <LoadingSkeleton />
             ) : !tableName ? (
                 <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyBasePanel />
+                    <LazyBasePanel onCollapse={onCollapse} />
                 </Suspense>
             ) : (
                 <Suspense fallback={<LoadingSkeleton />}>
                     <LazyExplorePanel
                         onBack={canManageExplore ? handleBack : undefined}
+                        onCollapse={onCollapse}
                     />
                 </Suspense>
             )}
