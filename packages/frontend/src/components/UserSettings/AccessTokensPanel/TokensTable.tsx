@@ -105,7 +105,7 @@ const TokenItem: FC<{
                             maw={350}
                             label={formatTimestamp(lastUsedAt)}
                         >
-                            <Text>{formatDate(lastUsedAt)}</Text>
+                            <span>{formatDate(lastUsedAt)}</span>
                         </Tooltip>
                     )}
                 </Table.Td>
