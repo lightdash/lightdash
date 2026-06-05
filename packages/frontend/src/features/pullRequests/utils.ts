@@ -8,9 +8,6 @@ import { type PullRequestRow } from './types';
 
 export const DEFAULT_PULL_REQUESTS_PAGE_SIZE = 25;
 
-/** Empty-cell placeholder used when live title/state can't be resolved. */
-export const EMPTY_VALUE = '—';
-
 export const getSourceLabel = (source: PullRequestSource): string => {
     switch (source) {
         case PullRequestSource.CUSTOM_METRIC:

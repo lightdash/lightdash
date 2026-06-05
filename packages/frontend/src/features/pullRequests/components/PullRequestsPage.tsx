@@ -46,7 +46,6 @@ import { ThreadPreviewSidebar } from '../../../ee/features/aiCopilot/components/
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
-    EMPTY_VALUE,
     getProviderLabel,
     getSourceColor,
     getSourceLabel,
@@ -171,9 +170,39 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 size: 520,
                 Cell: ({ row }) => {
                     const pr = row.original;
+                    // title/state are both null when the live lookup from the
+                    // provider failed (PR deleted, access revoked, API down).
+                    const liveLookupFailed =
+                        pr.title === null && pr.state === null;
                     return (
                         <Stack gap={2} className={classes.title}>
-                            {pr.title ? (
+                            {liveLookupFailed ? (
+                                <Tooltip
+                                    label={`Couldn't load this pull request from ${getProviderLabel(
+                                        pr.provider,
+                                    )}. It may have been deleted, or access was revoked.`}
+                                    openDelay={300}
+                                    multiline
+                                    maw={420}
+                                    withinPortal
+                                >
+                                    <Group gap="two" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={IconAlertCircle}
+                                            color="red"
+                                            size="sm"
+                                        />
+                                        <Text
+                                            size="sm"
+                                            fw={500}
+                                            c="red"
+                                            truncate
+                                        >
+                                            Couldn't load pull request
+                                        </Text>
+                                    </Group>
+                                </Tooltip>
+                            ) : (
                                 <Tooltip
                                     label={pr.title}
                                     openDelay={400}
@@ -185,10 +214,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         {pr.title}
                                     </Text>
                                 </Tooltip>
-                            ) : (
-                                <Text size="sm" fw={500} c="dimmed">
-                                    {EMPTY_VALUE}
-                                </Text>
                             )}
                             <Tooltip
                                 label={formatTimestamp(
