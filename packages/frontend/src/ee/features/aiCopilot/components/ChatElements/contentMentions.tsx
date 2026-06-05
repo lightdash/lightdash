@@ -163,6 +163,20 @@ export const mergeAiPromptContextItems = (
     return merged.length > 0 ? merged : undefined;
 };
 
+export const mergeContentMentionSuggestionItems = (
+    ...groups: Array<ContentMentionSuggestionItem[] | undefined>
+): ContentMentionSuggestionItem[] => {
+    const seen = new Set<string>();
+    return groups
+        .flatMap((group) => group ?? [])
+        .filter((item) => {
+            const key = `${item.contentType}:${item.uuid}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+};
+
 export const contextItemsToContentMentionSuggestions = (
     context: AiPromptContextItem[],
     group: ContentMentionGroup,
