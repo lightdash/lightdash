@@ -55,100 +55,96 @@ const TokenItem: FC<{
     const { description, expiresAt, rotatedAt, lastUsedAt } = token;
 
     return (
-        <>
-            <Table.Tr>
-                <Table.Td>
-                    <Text fw={500} size="sm">
-                        {description}
-                    </Text>
-                </Table.Td>
-                <Table.Td>
-                    <Group align="center" justify="flex-start" gap="xs">
-                        <span>
-                            {expiresAt ? (
-                                <Tooltip
-                                    withinPortal
-                                    position="top"
-                                    maw={350}
-                                    label={formatTimestamp(expiresAt)}
-                                >
-                                    <span>{formatDate(expiresAt)}</span>
-                                </Tooltip>
-                            ) : (
-                                'No expiration date'
-                            )}
-                        </span>
-
-                        {rotatedAt && (
+        <Table.Tr>
+            <Table.Td>
+                <Text fw={500} fz="sm">
+                    {description}
+                </Text>
+            </Table.Td>
+            <Table.Td>
+                <Group gap="xs">
+                    <span>
+                        {expiresAt ? (
                             <Tooltip
                                 withinPortal
                                 position="top"
                                 maw={350}
-                                label={`Last rotated at ${formatTimestamp(
-                                    rotatedAt,
-                                )}`}
+                                label={formatTimestamp(expiresAt)}
                             >
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    color="ldGray.6"
-                                    size="md"
-                                />
+                                <span>{formatDate(expiresAt)}</span>
                             </Tooltip>
+                        ) : (
+                            'No expiration date'
                         )}
-                    </Group>
-                </Table.Td>
-                <Table.Td>
-                    {lastUsedAt && (
+                    </span>
+
+                    {rotatedAt && (
                         <Tooltip
                             withinPortal
                             position="top"
                             maw={350}
-                            label={formatTimestamp(lastUsedAt)}
+                            label={`Last rotated at ${formatTimestamp(
+                                rotatedAt,
+                            )}`}
                         >
-                            <span>{formatDate(lastUsedAt)}</span>
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                                size="md"
+                            />
                         </Tooltip>
                     )}
-                </Table.Td>
-                <Table.Td w="1%">
-                    <Menu withinPortal position="bottom-end">
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="transparent"
-                                size="sm"
-                                color="ldGray.6"
-                            >
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
+                </Group>
+            </Table.Td>
+            <Table.Td>
+                {lastUsedAt && (
+                    <Tooltip
+                        withinPortal
+                        position="top"
+                        maw={350}
+                        label={formatTimestamp(lastUsedAt)}
+                    >
+                        <span>{formatDate(lastUsedAt)}</span>
+                    </Tooltip>
+                )}
+            </Table.Td>
+            <Table.Td w="1%">
+                <Menu withinPortal position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            color="ldGray.6"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            onClick={() => setTokenToCopy(token)}
+                        >
+                            Copy token UUID
+                        </Menu.Item>
+                        {token.expiresAt && (
                             <Menu.Item
-                                leftSection={<MantineIcon icon={IconCopy} />}
-                                onClick={() => setTokenToCopy(token)}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
+                                onClick={() => setTokenToRotate(token)}
                             >
-                                Copy token UUID
+                                Rotate token
                             </Menu.Item>
-                            {token.expiresAt && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconRefresh} />
-                                    }
-                                    onClick={() => setTokenToRotate(token)}
-                                >
-                                    Rotate token
-                                </Menu.Item>
-                            )}
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={() => setTokenToDelete(token)}
-                            >
-                                Delete
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Table.Td>
-            </Table.Tr>
-        </>
+                        )}
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => setTokenToDelete(token)}
+                        >
+                            Delete
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Table.Td>
+        </Table.Tr>
     );
 };
 
