@@ -107,8 +107,38 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Ensure .env.development.local"
+ENV_PORTS_CHANGED=0
 if test -f .env.development.local; then
-    echo "SKIP: env file exists"
+    # Reconcile slot-derived ports. The claimed slot can differ from when the file
+    # was first written (e.g. after stop-all the next start lands on a free slot).
+    # A stale PGPORT/PORT silently points PM2 at a dead container, and the API
+    # crash-loops on "Error migrating graphile worker" (its first DB op at boot).
+    reconcile_env() {
+        local key="$1" val="$2" cur
+        grep -q "^${key}=" .env.development.local || return 0
+        cur="$(grep "^${key}=" .env.development.local | head -1 | cut -d= -f2-)"
+        [ "$cur" = "$val" ] && return 0
+        awk -v k="$key" -v v="$val" 'BEGIN{FS=OFS="="} $1==k{print k"="v; next} {print}' \
+            .env.development.local > .env.development.local.tmp \
+            && mv .env.development.local.tmp .env.development.local
+        ENV_PORTS_CHANGED=1
+    }
+    reconcile_env PGPORT "${LD_PG_PORT}"
+    reconcile_env PORT "${PORT}"
+    reconcile_env FE_PORT "${FE_PORT}"
+    reconcile_env SCHEDULER_PORT "${SCHEDULER_PORT}"
+    reconcile_env DEBUG_PORT "${DEBUG_PORT}"
+    reconcile_env SDK_TEST_PORT "${SDK_TEST_PORT}"
+    reconcile_env SPOTLIGHT_PORT "${SPOTLIGHT_PORT}"
+    reconcile_env LIGHTDASH_PROMETHEUS_PORT "${LIGHTDASH_PROMETHEUS_PORT}"
+    reconcile_env SITE_URL "http://localhost:${FE_PORT}"
+    reconcile_env INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}"
+    reconcile_env LIGHTDASH_API_URL "http://localhost:${PORT}"
+    if [ "$ENV_PORTS_CHANGED" = 1 ]; then
+        echo "OK: env file reconciled to slot ports (PGPORT=${LD_PG_PORT} PORT=${PORT} FE_PORT=${FE_PORT})"
+    else
+        echo "SKIP: env file exists and ports match slot"
+    fi
 else
     cat > .env.development.local << EOF
 # Local development overrides (instance: ${LD_INSTANCE_ID})
@@ -287,6 +317,13 @@ if mine:
 " 2>/dev/null || true)"
 if [ -n "$RUNNING_CWD" ] && [ "$RUNNING_CWD" != "$(pwd)" ]; then
     echo "Instance PM2 was running from $RUNNING_CWD — switching to this worktree"
+    # shellcheck disable=SC2046
+    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
+    # Ports were reconciled but procs may already be online with the stale env.
+    # PM2 caches env at spawn time, so delete+start is required (restart --update-env
+    # only inherits the current shell, not the .env file).
+    echo "Env ports changed — recycling PM2 so the new env is picked up"
     # shellcheck disable=SC2046
     pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
 fi
