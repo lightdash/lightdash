@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Box,
     Center,
     Group,
     Pill,
@@ -45,6 +46,7 @@ import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
 import { type AgentContext } from './AgentPage';
+import styles from './AiAgentNewThreadPage.module.css';
 
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid, projectUuid } = useParams();
@@ -218,21 +220,25 @@ const AiAgentNewThreadPage: FC = () => {
                 {...ChatElementsUtils.centeredElementProps}
                 h="unset"
             >
-                <Stack flex={1} py="xl">
-                    <Stack align="center" gap="xxs">
-                        <LightdashUserAvatar
-                            size="lg"
-                            name={agent.name || 'AI'}
-                            src={agent.imageUrl}
-                        />
-                        <Group justify="center" gap={2}>
-                            <Title order={4} ta="center">
-                                {agent.name}
-                            </Title>
+                <Stack flex={1} py="lg">
+                    <Stack align="center" gap={6}>
+                        <Box className={styles.agentAvatarWrap}>
+                            <LightdashUserAvatar
+                                size="lg"
+                                name={agent.name || 'AI'}
+                                src={agent.imageUrl}
+                            />
                             <DefaultAgentButton
                                 projectUuid={projectUuid}
                                 agentUuid={agent.uuid}
+                                size="xs"
+                                className={styles.defaultAgentBadge}
                             />
+                        </Box>
+                        <Group justify="center" gap={4}>
+                            <Title order={4} ta="center">
+                                {agent.name}
+                            </Title>
                             {agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>

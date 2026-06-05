@@ -166,23 +166,24 @@ const AgentPage = () => {
                 />
             }
             Header={
-                <AgentPageHeader
-                    leftSection={
-                        threadUuid && agentsList && agentsList.length > 0 ? (
+                agentsList && agentsList.length > 0 ? (
+                    <AgentPageHeader
+                        leftSection={
                             <AgentSelector
                                 projectUuid={projectUuid!}
                                 agents={agentsList}
                                 selectedAgent={agent}
+                                variant="header"
                             />
-                        ) : undefined
-                    }
-                    onMinimize={() => handleMinimize()}
-                    settingsHref={
-                        canManageAgents
-                            ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
-                            : undefined
-                    }
-                />
+                        }
+                        onMinimize={() => handleMinimize()}
+                        settingsHref={
+                            canManageAgents
+                                ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
+                                : undefined
+                        }
+                    />
+                ) : undefined
             }
         >
             <Outlet
