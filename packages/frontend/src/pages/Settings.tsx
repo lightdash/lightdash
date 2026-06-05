@@ -1231,7 +1231,7 @@ const Settings: FC = () => {
                                 {user.ability.can('manage', 'Organization') &&
                                     isServiceAccountsEnabled && (
                                         <RouterNavLink
-                                            label="Service Accounts"
+                                            label="Service accounts"
                                             exact
                                             to="/generalSettings/serviceAccounts"
                                             leftSection={

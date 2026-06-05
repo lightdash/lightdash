@@ -35,6 +35,7 @@ import { useProjects } from '../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
+import classes from './ServiceAccountsCreateModal.module.css';
 
 // Organization-mode role options. `Member` is intentionally hidden — it's
 // the backend marker for "Project-scope SA" (see the SegmentedControl
@@ -439,7 +440,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                                             projects.length
                                     }
                                     onClick={addProjectRow}
-                                    style={{ alignSelf: 'flex-start' }}
+                                    className={classes.addProjectButton}
                                 >
                                     Add project
                                 </Button>
