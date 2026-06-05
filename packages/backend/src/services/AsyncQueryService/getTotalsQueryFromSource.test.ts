@@ -44,13 +44,14 @@ const pivotConfiguration: PivotConfiguration = {
 };
 
 describe('getGrandTotalMetricQuery', () => {
-    it('strips dimensions, sorts, table calculations and clamps the limit to 1', () => {
+    it('strips dimensions and sorts, clamps the limit to 1, and drops calcs referencing non-metric fields', () => {
         const result = getGrandTotalMetricQuery({
             ...baseMetricQuery,
             tableCalculations: [
                 {
                     name: 'profit_margin',
                     displayName: 'Profit margin',
+                    // references orders_total_cost which is not a metric
                     sql: '${orders.total_revenue} - ${orders.total_cost}',
                 } as never,
             ],
@@ -60,6 +61,169 @@ describe('getGrandTotalMetricQuery', () => {
         expect(result.sorts).toEqual([]);
         expect(result.tableCalculations).toEqual([]);
         expect(result.limit).toBe(1);
+    });
+
+    it('keeps SQL and formula table calcs that reference only metrics', () => {
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            tableCalculations: [
+                {
+                    name: 'rev_per_customer_sql',
+                    displayName: 'Rev per customer (sql)',
+                    sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                } as never,
+                {
+                    name: 'rev_per_customer_formula',
+                    displayName: 'Rev per customer (formula)',
+                    formula:
+                        '=orders_total_revenue / orders_unique_customer_count',
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations.map((tc) => tc.name)).toEqual([
+            'rev_per_customer_sql',
+            'rev_per_customer_formula',
+        ]);
+    });
+
+    it('drops calcs that reference a dimension, use window functions, or are template-based', () => {
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            tableCalculations: [
+                {
+                    name: 'sql_with_dimension',
+                    displayName: 'Sql with dimension',
+                    sql: '${orders.total_revenue} / ${orders.status}',
+                } as never,
+                {
+                    name: 'sql_with_window',
+                    displayName: 'Sql with window',
+                    sql: 'SUM(${orders.total_revenue}) OVER ()',
+                } as never,
+                {
+                    name: 'formula_with_dimension',
+                    displayName: 'Formula with dimension',
+                    formula: '=orders_total_revenue / orders_status',
+                } as never,
+                {
+                    name: 'template_rank',
+                    displayName: 'Template rank',
+                    template: { type: 'rank_in_column' },
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations).toEqual([]);
+    });
+
+    it('drops SQL calcs using row/pivot/total helper functions', () => {
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            tableCalculations: [
+                {
+                    name: 'with_offset',
+                    displayName: 'With offset',
+                    sql: 'offset(${orders.total_revenue}, 1)',
+                } as never,
+                {
+                    name: 'with_row',
+                    displayName: 'With row',
+                    sql: 'row()',
+                } as never,
+                {
+                    name: 'percent_of_total',
+                    displayName: 'Percent of total',
+                    sql: '${orders.total_revenue} / total(${orders.total_revenue})',
+                } as never,
+                {
+                    name: 'with_pivot_offset',
+                    displayName: 'With pivot offset',
+                    sql: 'pivot_offset(${orders.total_revenue}, -1)',
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations).toEqual([]);
+    });
+
+    it('drops calcs with unresolvable references instead of throwing', () => {
+        expect(() =>
+            getGrandTotalMetricQuery({
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'bad_ref',
+                        displayName: 'Bad ref',
+                        sql: '${orders.total.revenue} + 1',
+                    } as never,
+                ],
+            }),
+        ).not.toThrow();
+
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            tableCalculations: [
+                {
+                    name: 'bad_ref',
+                    displayName: 'Bad ref',
+                    sql: '${orders.total.revenue} + 1',
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations).toEqual([]);
+    });
+
+    it('drops formula calcs that use aggregates or window functions', () => {
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            tableCalculations: [
+                {
+                    name: 'formula_aggregate',
+                    displayName: 'Formula aggregate',
+                    formula:
+                        '=SUM(orders_total_revenue) / SUM(orders_unique_customer_count)',
+                } as never,
+                {
+                    name: 'formula_window',
+                    displayName: 'Formula window',
+                    formula:
+                        '=SUM(orders_total_revenue) OVER (ORDER BY orders_total_revenue)',
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations).toEqual([]);
+    });
+
+    it('drops calcs that reference a stripped period-over-period metric', () => {
+        const result = getGrandTotalMetricQuery({
+            ...baseMetricQuery,
+            metrics: ['orders_total_revenue', 'orders_total_revenue_pop_12m'],
+            additionalMetrics: [
+                {
+                    name: 'total_revenue_pop_12m',
+                    table: 'orders',
+                    sql: '${TABLE}.revenue',
+                    type: 'sum' as never,
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_total_revenue',
+                    timeDimensionId: 'orders_created_at',
+                    granularity: 'MONTH' as never,
+                    periodOffset: 12,
+                } as never,
+            ],
+            tableCalculations: [
+                {
+                    name: 'pop_delta',
+                    displayName: 'PoP delta',
+                    sql: '${orders.total_revenue} - ${orders_total_revenue_pop_12m}',
+                } as never,
+            ],
+        });
+
+        expect(result.tableCalculations).toEqual([]);
     });
 
     it('preserves the metrics list when no PoP metrics are present', () => {
@@ -174,6 +338,31 @@ describe('getColumnTotalQueryFromSource', () => {
             expect(result.pivotConfiguration?.groupByColumns).toEqual(
                 pivotConfiguration.groupByColumns,
             );
+        });
+
+        it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
+            const result = getColumnTotalQueryFromSource({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    tableCalculations: [
+                        {
+                            name: 'rev_per_customer',
+                            displayName: 'Rev per customer',
+                            sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                        } as never,
+                        {
+                            name: 'rev_by_status',
+                            displayName: 'Rev by status',
+                            sql: '${orders.total_revenue} / ${orders.status}',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration,
+            });
+
+            expect(
+                result.metricQuery.tableCalculations.map((tc) => tc.name),
+            ).toEqual(['rev_per_customer']);
         });
 
         it('throws when groupByColumns reference dimensions not in the source query', () => {
@@ -296,6 +485,31 @@ describe('getRowTotalQueryFromSource', () => {
             expect(result.pivotConfiguration?.indexColumn).toEqual(
                 pivotConfiguration.indexColumn,
             );
+        });
+
+        it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    tableCalculations: [
+                        {
+                            name: 'rev_per_customer',
+                            displayName: 'Rev per customer',
+                            sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                        } as never,
+                        {
+                            name: 'rev_by_status',
+                            displayName: 'Rev by status',
+                            sql: '${orders.total_revenue} / ${orders.status}',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration,
+            });
+
+            expect(
+                result.metricQuery.tableCalculations.map((tc) => tc.name),
+            ).toEqual(['rev_per_customer']);
         });
 
         it('handles an indexColumn array by expanding all references into dimensions', () => {
@@ -565,6 +779,32 @@ describe('getColumnSubtotalQueryFromSource', () => {
             expect(result.metricQuery.sorts).toEqual([]);
             expect(result.metricQuery.tableCalculations).toEqual([]);
             expect(result.pivotConfiguration).toBeUndefined();
+        });
+
+        it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
+            const result = getColumnSubtotalQueryFromSource({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    tableCalculations: [
+                        {
+                            name: 'rev_per_customer',
+                            displayName: 'Rev per customer',
+                            sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                        } as never,
+                        {
+                            name: 'rev_by_status',
+                            displayName: 'Rev by status',
+                            sql: '${orders.total_revenue} / ${orders.status}',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration: singleGroupByPivotConfiguration,
+                subtotalDimensions: ['orders_status'],
+            });
+
+            expect(
+                result.metricQuery.tableCalculations.map((tc) => tc.name),
+            ).toEqual(['rev_per_customer']);
         });
 
         it('dedupes when a subtotal dimension is also a pivot groupBy column', () => {
