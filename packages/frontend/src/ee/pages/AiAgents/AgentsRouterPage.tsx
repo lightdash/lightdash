@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Avatar,
     Badge,
     Box,
+    Button,
     Center,
     Group,
     Popover,
@@ -20,14 +20,14 @@ import {
 import {
     IconChevronRight,
     IconInfoCircle,
-    IconSparkles,
+    IconSettings,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
-import { AgentPageHeader } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentPageHeader';
+import { useProject } from '../../../hooks/useProject';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
@@ -44,6 +44,8 @@ import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
+import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
 
 type Phase =
@@ -62,11 +64,13 @@ type Phase =
 const AgentsRouterPage = () => {
     const { projectUuid } = useParams();
     const navigate = useNavigate();
+    const dispatch = useAiAgentStoreDispatch();
 
     const { data: agents } = useProjectAiAgents({
         projectUuid: projectUuid!,
         redirectOnUnauthorized: true,
     });
+    const { data: project } = useProject(projectUuid);
 
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -143,10 +147,26 @@ const AgentsRouterPage = () => {
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
+                enableSqlMode: sqlModeAvailable && sqlMode,
                 optimisticContext: args.optimisticContext,
                 prompt: args.prompt,
                 toolHints: args.toolHints,
+                modelConfig: selectedModel
+                    ? {
+                          modelName: selectedModel.name,
+                          modelProvider: selectedModel.provider,
+                          reasoning: showExtendedThinking
+                              ? extendedThinking
+                              : undefined,
+                      }
+                    : undefined,
             });
+            dispatch(
+                setThreadSqlMode({
+                    threadUuid: thread.uuid,
+                    enabled: sqlModeAvailable && sqlMode,
+                }),
+            );
             // Fire-and-forget telemetry — the user is already navigating away.
             commitDecisionMutate({
                 decisionUuid: args.decisionUuid,
@@ -154,7 +174,16 @@ const AgentsRouterPage = () => {
                 threadUuid: thread.uuid,
             });
         },
-        [createThread, commitDecisionMutate],
+        [
+            createThread,
+            commitDecisionMutate,
+            dispatch,
+            extendedThinking,
+            selectedModel,
+            showExtendedThinking,
+            sqlMode,
+            sqlModeAvailable,
+        ],
     );
 
     const handleSubmit = useCallback(
@@ -260,7 +289,10 @@ const AgentsRouterPage = () => {
               ? 'Opening the conversation…'
               : null;
 
-    const placeholder = 'Ask anything about your data...';
+    const title = project?.name ? `Ask ${project.name}` : 'Ask this project';
+    const placeholder = project?.name
+        ? `Ask ${project.name} anything...`
+        : 'Ask anything about your data...';
     const settingsHref = projectUuid
         ? `/generalSettings/ai/agents?projects=${projectUuid}`
         : '/generalSettings/ai/agents';
@@ -275,203 +307,210 @@ const AgentsRouterPage = () => {
                     isAgentSidebarCollapsed={isSidebarCollapsed}
                 />
             }
-            Header={
-                <AgentPageHeader
-                    settingsHref={canManageAgents ? settingsHref : undefined}
-                />
-            }
         >
-            <Center h="100%">
-                <Stack
-                    gap="lg"
-                    {...ChatElementsUtils.centeredElementProps}
-                    h="unset"
-                    py="xl"
-                >
-                    <Stack align="center" gap="xxs">
-                        <Avatar
-                            size="lg"
-                            color="ldGray"
-                            radius="xl"
-                            className={`${classes.heroAvatar} ${
-                                isWorking ? classes.heroAvatarWorking : ''
-                            }`}
-                        >
-                            <MantineIcon
-                                icon={IconSparkles}
-                                size="xl"
-                                color="ldGray.6"
-                                className={classes.heroSparkles}
-                            />
-                        </Avatar>
-                        <Title order={2}>Ask AI</Title>
-                    </Stack>
+            <Box className={classes.routerView}>
+                {canManageAgents && (
+                    <Button
+                        component={Link}
+                        to={settingsHref}
+                        variant="default"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconSettings} />}
+                        className={classes.routerSettingsButton}
+                    >
+                        Settings
+                    </Button>
+                )}
 
-                    <AgentChatInput
-                        projectUuid={projectUuid}
-                        agents={agents ?? []}
-                        selectedAgent="auto"
-                        placeholder={placeholder}
-                        loading={isLocked}
-                        onSubmit={handleSubmit}
-                        defaultValue={pendingPrompt}
-                        onValueChange={setPendingPrompt}
-                        models={modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking ? extendedThinking : undefined
-                        }
-                        onExtendedThinkingChange={
-                            showExtendedThinking
-                                ? setExtendedThinking
-                                : undefined
-                        }
-                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                        onSqlModeChange={
-                            sqlModeAvailable ? setSqlMode : undefined
-                        }
-                        clearOnSubmit={false}
-                        fullWidth
-                        showSuggestions={false}
-                    />
-
-                    {isWorking && workingLabel && (
-                        <Group
-                            gap={8}
-                            justify="center"
-                            className={classes.routingStatus}
-                            aria-live="polite"
-                        >
-                            <span className={classes.routingDots}>
-                                <span />
-                                <span />
-                                <span />
-                            </span>
-                            <Text size="xs" c="dimmed">
-                                {workingLabel}
-                            </Text>
-                        </Group>
-                    )}
-
-                    {phase.kind === 'picker' && (
-                        <Stack gap="xs" className={classes.pickerStack}>
-                            <div className={classes.pickerHeader}>
-                                <Text size="sm" fw={600}>
-                                    Which agent should answer?
-                                </Text>
-                                {phase.decision.decision.reasoning && (
-                                    <Popover
-                                        width={280}
-                                        position="bottom-end"
-                                        withArrow
-                                        shadow="md"
-                                    >
-                                        <Popover.Target>
-                                            <ActionIcon
-                                                size="sm"
-                                                variant="subtle"
-                                                color="gray"
-                                                aria-label="Why these agents?"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                    size={14}
-                                                />
-                                            </ActionIcon>
-                                        </Popover.Target>
-                                        <Popover.Dropdown>
-                                            <Text size="xs" c="dimmed">
-                                                {
-                                                    phase.decision.decision
-                                                        .reasoning
-                                                }
-                                            </Text>
-                                        </Popover.Dropdown>
-                                    </Popover>
-                                )}
-                            </div>
-
-                            <Box className={classes.pickerScroll}>
-                                {sortedCandidates.map((c) => {
-                                    const agent = agentsByUuid.get(c.agentUuid);
-                                    const isRecommended =
-                                        c.agentUuid ===
-                                        phase.decision.decision
-                                            .suggestedAgentUuid;
-                                    return (
-                                        <UnstyledButton
-                                            key={c.agentUuid}
-                                            onClick={() =>
-                                                confirmPick(c.agentUuid)
-                                            }
-                                            className={`${classes.candidateButton} ${
-                                                isRecommended
-                                                    ? classes.recommended
-                                                    : ''
-                                            }`}
-                                            aria-label={`Send to ${c.name}`}
-                                        >
-                                            <Group
-                                                gap="sm"
-                                                wrap="nowrap"
-                                                align="center"
-                                            >
-                                                <LightdashUserAvatar
-                                                    size={32}
-                                                    name={c.name}
-                                                    src={agent?.imageUrl}
-                                                />
-                                                <Stack gap={2} miw={0} flex={1}>
-                                                    <Group
-                                                        gap="xs"
-                                                        wrap="nowrap"
-                                                    >
-                                                        <Text
-                                                            size="sm"
-                                                            fw={600}
-                                                            truncate="end"
-                                                        >
-                                                            {c.name}
-                                                        </Text>
-                                                        {isRecommended && (
-                                                            <Badge
-                                                                size="xs"
-                                                                color="violet"
-                                                                variant="light"
-                                                                radius="sm"
-                                                            >
-                                                                Recommended
-                                                            </Badge>
-                                                        )}
-                                                    </Group>
-                                                    {c.description && (
-                                                        <Text
-                                                            size="xs"
-                                                            c="dimmed"
-                                                            truncate="end"
-                                                            className={
-                                                                classes.candidateDescription
-                                                            }
-                                                        >
-                                                            {c.description}
-                                                        </Text>
-                                                    )}
-                                                </Stack>
-                                                <MantineIcon
-                                                    icon={IconChevronRight}
-                                                    size={16}
-                                                    className={classes.chevron}
-                                                />
-                                            </Group>
-                                        </UnstyledButton>
-                                    );
-                                })}
-                            </Box>
+                <Center h="100%">
+                    <Stack
+                        gap="lg"
+                        {...ChatElementsUtils.centeredElementProps}
+                        h="unset"
+                        py="xl"
+                    >
+                        <Stack align="center" gap="xxs">
+                            <Title order={2}>{title}</Title>
                         </Stack>
-                    )}
-                </Stack>
-            </Center>
+
+                        <AgentChatInput
+                            projectUuid={projectUuid}
+                            agents={agents ?? []}
+                            selectedAgent="auto"
+                            placeholder={placeholder}
+                            loading={isLocked}
+                            onSubmit={handleSubmit}
+                            defaultValue={pendingPrompt}
+                            onValueChange={setPendingPrompt}
+                            models={modelOptions}
+                            selectedModelId={selectedModelKey}
+                            onModelChange={handleSelectedModelKeyChange}
+                            extendedThinking={
+                                showExtendedThinking
+                                    ? extendedThinking
+                                    : undefined
+                            }
+                            onExtendedThinkingChange={
+                                showExtendedThinking
+                                    ? setExtendedThinking
+                                    : undefined
+                            }
+                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                            onSqlModeChange={
+                                sqlModeAvailable ? setSqlMode : undefined
+                            }
+                            clearOnSubmit={false}
+                            fullWidth
+                            showSuggestions={false}
+                        />
+
+                        {isWorking && workingLabel && (
+                            <Group
+                                gap={8}
+                                justify="center"
+                                className={classes.routingStatus}
+                                aria-live="polite"
+                            >
+                                <span className={classes.routingDots}>
+                                    <span />
+                                    <span />
+                                    <span />
+                                </span>
+                                <Text size="xs" c="dimmed">
+                                    {workingLabel}
+                                </Text>
+                            </Group>
+                        )}
+
+                        {phase.kind === 'picker' && (
+                            <Stack gap="xs" className={classes.pickerStack}>
+                                <div className={classes.pickerHeader}>
+                                    <Text size="sm" fw={600}>
+                                        Which agent should answer?
+                                    </Text>
+                                    {phase.decision.decision.reasoning && (
+                                        <Popover
+                                            width={280}
+                                            position="bottom-end"
+                                            withArrow
+                                            shadow="md"
+                                        >
+                                            <Popover.Target>
+                                                <ActionIcon
+                                                    size="sm"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    aria-label="Why these agents?"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconInfoCircle}
+                                                        size={14}
+                                                    />
+                                                </ActionIcon>
+                                            </Popover.Target>
+                                            <Popover.Dropdown>
+                                                <Text size="xs" c="dimmed">
+                                                    {
+                                                        phase.decision.decision
+                                                            .reasoning
+                                                    }
+                                                </Text>
+                                            </Popover.Dropdown>
+                                        </Popover>
+                                    )}
+                                </div>
+
+                                <Box className={classes.pickerScroll}>
+                                    {sortedCandidates.map((c) => {
+                                        const agent = agentsByUuid.get(
+                                            c.agentUuid,
+                                        );
+                                        const isRecommended =
+                                            c.agentUuid ===
+                                            phase.decision.decision
+                                                .suggestedAgentUuid;
+                                        return (
+                                            <UnstyledButton
+                                                key={c.agentUuid}
+                                                onClick={() =>
+                                                    confirmPick(c.agentUuid)
+                                                }
+                                                className={`${
+                                                    classes.candidateButton
+                                                } ${
+                                                    isRecommended
+                                                        ? classes.recommended
+                                                        : ''
+                                                }`}
+                                                aria-label={`Send to ${c.name}`}
+                                            >
+                                                <Group
+                                                    gap="sm"
+                                                    wrap="nowrap"
+                                                    align="center"
+                                                >
+                                                    <LightdashUserAvatar
+                                                        size={32}
+                                                        name={c.name}
+                                                        src={agent?.imageUrl}
+                                                    />
+                                                    <Stack
+                                                        gap={2}
+                                                        miw={0}
+                                                        flex={1}
+                                                    >
+                                                        <Group
+                                                            gap="xs"
+                                                            wrap="nowrap"
+                                                        >
+                                                            <Text
+                                                                size="sm"
+                                                                fw={600}
+                                                                truncate="end"
+                                                            >
+                                                                {c.name}
+                                                            </Text>
+                                                            {isRecommended && (
+                                                                <Badge
+                                                                    size="xs"
+                                                                    color="violet"
+                                                                    variant="light"
+                                                                    radius="sm"
+                                                                >
+                                                                    Recommended
+                                                                </Badge>
+                                                            )}
+                                                        </Group>
+                                                        {c.description && (
+                                                            <Text
+                                                                size="xs"
+                                                                c="dimmed"
+                                                                truncate="end"
+                                                                className={
+                                                                    classes.candidateDescription
+                                                                }
+                                                            >
+                                                                {c.description}
+                                                            </Text>
+                                                        )}
+                                                    </Stack>
+                                                    <MantineIcon
+                                                        icon={IconChevronRight}
+                                                        size={16}
+                                                        className={
+                                                            classes.chevron
+                                                        }
+                                                    />
+                                                </Group>
+                                            </UnstyledButton>
+                                        );
+                                    })}
+                                </Box>
+                            </Stack>
+                        )}
+                    </Stack>
+                </Center>
+            </Box>
         </AiAgentPageLayout>
     );
 };

@@ -94,6 +94,9 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 className={`${styles.sidebar} ${
                                     !isResizing ? styles.sidebarTransition : ''
                                 }`}
+                                data-collapsed={
+                                    isAgentSidebarCollapsed ? 'true' : undefined
+                                }
                                 onCollapse={() =>
                                     setIsAgentSidebarCollapsed?.(true)
                                 }
@@ -101,8 +104,17 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                     setIsAgentSidebarCollapsed?.(false)
                                 }
                             >
-                                <Flex justify="flex-end">
+                                <Flex
+                                    align="center"
+                                    justify="flex-end"
+                                    className={styles.sidebarHeader}
+                                >
                                     <SidebarButton
+                                        aria-label={
+                                            isAgentSidebarCollapsed
+                                                ? 'Expand Ask AI sidebar'
+                                                : 'Collapse Ask AI sidebar'
+                                        }
                                         size="sm"
                                         leftSection={
                                             <MantineIcon
@@ -162,13 +174,15 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         <ErrorBoundary>
                             <Panel
                                 className={styles.floatingArtifactRegion}
-                                defaultSize={50}
+                                defaultSize={46}
                                 id="artifact"
-                                minSize={30}
-                                maxSize={70}
+                                minSize={32}
+                                maxSize={64}
                                 order={3}
                             >
-                                <AiArtifactPanel artifact={artifact} />
+                                <Box className={styles.floatingArtifactWrap}>
+                                    <AiArtifactPanel artifact={artifact} />
+                                </Box>
                             </Panel>
                         </ErrorBoundary>
                     </Fragment>

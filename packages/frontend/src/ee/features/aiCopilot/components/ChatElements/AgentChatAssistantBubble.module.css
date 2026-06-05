@@ -98,10 +98,20 @@
 }
 
 .mcpUnavailableNotice {
-    border-radius: 10px;
-    padding: 7px 12px;
+    width: fit-content;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 5px 8px;
     animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
     font-family: var(--mantine-font-family);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
 }
 
 .mcpUnavailableNoticeHeader {
@@ -114,15 +124,7 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    border-radius: 6px;
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-ldGray-1)
-    );
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldGray-4));
-    box-shadow: 0 1px 3px
-        light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.28));
+    border-radius: 999px;
 }
 
 .mcpUnavailableNoticeIcon {
@@ -136,13 +138,13 @@
 
 .mcpUnavailableNoticeLabel {
     line-height: 1.1;
-    letter-spacing: -0.005em;
+    letter-spacing: 0;
     color: var(--mantine-color-ldGray-8);
 }
 
 .mcpUnavailableNoticeMessage {
     color: var(--mantine-color-ldGray-6);
-    letter-spacing: -0.005em;
+    letter-spacing: 0;
 }
 
 .mcpUnavailableNoticeAction {

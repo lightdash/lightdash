@@ -1,0 +1,21 @@
+.connectionStrip {
+    align-self: center;
+    width: fit-content;
+    max-width: min(100%, rem(760px));
+    padding: rem(5px) rem(8px);
+    border-radius: 999px;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-ldGray-7);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        color: var(--mantine-color-ldGray-3);
+    }
+}
+
+.connectionCopy {
+    min-width: 0;
+}
