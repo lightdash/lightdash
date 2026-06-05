@@ -1,3 +1,20 @@
+# [0.3103.0](https://github.com/lightdash/lightdash/compare/0.3102.0...0.3103.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ai-agents:** stack writeback PR card actions in minimized chat bubble ([#23960](https://github.com/lightdash/lightdash/issues/23960)) ([92891dd](https://github.com/lightdash/lightdash/commit/92891dd9676cc1905c06772e940e44d7c9a7d958))
+* **filters:** read async field values from result column key ([#23958](https://github.com/lightdash/lightdash/issues/23958)) ([802ea7f](https://github.com/lightdash/lightdash/commit/802ea7f8052d82498860b88690bcce00dfa1a3f0))
+* **frontend:** polish OAuth applications table styling ([#23967](https://github.com/lightdash/lightdash/issues/23967)) ([3569527](https://github.com/lightdash/lightdash/commit/35695271c95f5b3d07a988bc07a6fab728395fa2))
+* preserve AI agent integrations on partial agent updates ([#23966](https://github.com/lightdash/lightdash/issues/23966)) ([e6286bb](https://github.com/lightdash/lightdash/commit/e6286bbb5ec550ea6f91c5933e4b1f140f1d7b27))
+
+
+### Features
+
+* **ai-agents:** onboard users to the Reviews page ([#23965](https://github.com/lightdash/lightdash/issues/23965)) ([85681ae](https://github.com/lightdash/lightdash/commit/85681ae73c5bd10443649fc2a744460fe9549db3))
+* **ai-agents:** self-document the generated project_context.yml ([#23963](https://github.com/lightdash/lightdash/issues/23963)) ([3814e5c](https://github.com/lightdash/lightdash/commit/3814e5c2f899dade422fe7aba44fe573b0312d0a))
+* **frontend:** reusable guided-tour onboarding kit ([#23964](https://github.com/lightdash/lightdash/issues/23964)) ([b5fac6e](https://github.com/lightdash/lightdash/commit/b5fac6e0be996077aa3d42c5d184e06881fab724))
+
 # [0.3102.0](https://github.com/lightdash/lightdash/compare/0.3101.1...0.3102.0) (2026-06-05)
 
 
