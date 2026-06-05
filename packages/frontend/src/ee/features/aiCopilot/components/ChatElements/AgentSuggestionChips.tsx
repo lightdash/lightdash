@@ -9,6 +9,8 @@ type Props = {
     chips: AgentSuggestion[];
     onChipClick: (chip: AgentSuggestion, index: number) => void;
     onImpression?: (chipCount: number) => void;
+    align?: 'center' | 'left';
+    showPromptAffordance?: boolean;
 };
 
 const chipKey = (chip: AgentSuggestion, idx: number) =>
@@ -21,10 +23,20 @@ const renderLeftIcon = (chip: AgentSuggestion) => {
     return <MantineIcon icon={IconArrowUpRight} size={13} stroke={1.75} />;
 };
 
+const renderRightIcon = (
+    chip: AgentSuggestion,
+    showPromptAffordance: boolean,
+) => {
+    if (chip.kind !== 'prompt' || !showPromptAffordance) return undefined;
+    return <MantineIcon icon={IconArrowUpRight} size={12} stroke={1.75} />;
+};
+
 export const AgentSuggestionChips = ({
     chips,
     onChipClick,
     onImpression,
+    align = 'center',
+    showPromptAffordance = false,
 }: Props) => {
     const impressedRef = useRef<string | null>(null);
 
@@ -39,7 +51,9 @@ export const AgentSuggestionChips = ({
     if (chips.length === 0) return null;
 
     return (
-        <Box className={styles.row}>
+        <Box
+            className={`${styles.row} ${align === 'left' ? styles.rowLeft : ''}`}
+        >
             {chips.map((chip, idx) => {
                 const classes = [styles.chip, styles.fadeIn];
                 if (chip.kind === 'navigate') classes.push(styles.navigateChip);
@@ -51,6 +65,10 @@ export const AgentSuggestionChips = ({
                         className={classes.join(' ')}
                         style={{ ['--chip-idx' as string]: idx }}
                         leftSection={renderLeftIcon(chip)}
+                        rightSection={renderRightIcon(
+                            chip,
+                            showPromptAffordance,
+                        )}
                         onClick={() => onChipClick(chip, idx)}
                     >
                         {chip.label}

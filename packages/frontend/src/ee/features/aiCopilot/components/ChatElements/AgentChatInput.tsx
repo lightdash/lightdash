@@ -5,22 +5,9 @@ import {
     type AiPromptContextItem,
     type AiModelOption,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Group,
-    Paper,
-    Switch,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
-import {
-    IconArrowUp,
-    IconBulb,
-    IconBulbFilled,
-    IconTerminal2,
-} from '@tabler/icons-react';
+import { IconArrowUp, IconTerminal2 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -416,6 +403,8 @@ export const AgentChatInput = ({
 
     const hasValue = value.trim().length > 0;
     const showDisabledBanner = disabled && disabledReason;
+    const isThreadInput = Boolean(threadUuid);
+    const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
 
     const handleSubmit = () => {
         const ed = editorRef.current;
@@ -443,6 +432,8 @@ export const AgentChatInput = ({
                 chips={chips}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
+                align={isThreadInput ? 'left' : 'center'}
+                showPromptAffordance={isThreadInput}
             />
         );
     }, [
@@ -452,19 +443,73 @@ export const AgentChatInput = ({
         suggestionsQuery.data,
         handleChipClick,
         handleImpression,
+        isThreadInput,
     ]);
+    const shouldReserveEmptyStateSuggestions =
+        !isThreadInput &&
+        emptyStateMode &&
+        !chipRow &&
+        !suggestionsQuery.isError &&
+        (suggestionsQuery.isLoading || suggestionsQuery.isFetching);
 
-    const renderChipRow = (extraClassName = '') =>
-        chipRow && (
+    const renderChipRow = (extraClassName = '', reserve = false) =>
+        (chipRow || reserve) && (
             <Box
                 className={`${styles.chipReveal} ${extraClassName} ${
                     chipsNearBottom ? '' : styles.chipHidden
-                }`}
-                aria-hidden={!chipsNearBottom}
+                } ${!chipRow ? styles.chipReserved : ''}`}
+                aria-hidden={!chipsNearBottom || !chipRow}
             >
-                {chipRow}
+                {chipRow ?? <Box className={styles.chipTrayReserve} />}
             </Box>
         );
+
+    const renderSqlModeControl = ({
+        actionSize,
+        iconSize,
+        labelPosition = 'after',
+    }: {
+        actionSize: number | 'sm' | 'md';
+        iconSize: number;
+        labelPosition?: 'before' | 'after';
+    }) => {
+        if (!onSqlModeChange || disabled) return null;
+        const label = sqlMode ? (
+            <Text size="xs" fw={600} className={styles.sqlModeLabel}>
+                SQL mode on
+            </Text>
+        ) : null;
+
+        return (
+            <Tooltip
+                multiline
+                w={260}
+                withArrow
+                position="top"
+                label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
+            >
+                <Group gap={6} wrap="nowrap" className={styles.sqlModeControl}>
+                    {labelPosition === 'before' && label}
+                    <ActionIcon
+                        variant={sqlMode ? 'light' : 'subtle'}
+                        color={sqlMode ? 'indigo' : 'gray'}
+                        size={actionSize}
+                        className={styles.sqlModeButton}
+                        onClick={() => onSqlModeChange(!sqlMode)}
+                        aria-label="Toggle SQL mode"
+                        aria-pressed={sqlMode}
+                    >
+                        <MantineIcon
+                            icon={IconTerminal2}
+                            size={iconSize}
+                            color={sqlMode ? 'indigo.5' : 'ldGray.6'}
+                        />
+                    </ActionIcon>
+                    {labelPosition === 'after' && label}
+                </Group>
+            </Tooltip>
+        );
+    };
 
     if (isMinimalMode) {
         return (
@@ -474,79 +519,66 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {renderChipRow()}
+                {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                <Box
-                    className={`${styles.minimalInputWrapper} ${
-                        sqlMode ? styles.sqlModeActive : ''
-                    }`}
-                    pos="relative"
-                >
-                    <RichTextEditor
-                        editor={editor}
-                        classNames={{
-                            root: styles.editorRoot,
-                            content: styles.minimalEditorContent,
-                        }}
+                <Box className={styles.threadInputStack}>
+                    <Box
+                        className={`${styles.minimalInputWrapper} ${
+                            sqlMode ? styles.sqlModeActive : ''
+                        }`}
+                        pos="relative"
                     >
-                        <RichTextEditor.Content />
-                    </RichTextEditor>
+                        <RichTextEditor
+                            editor={editor}
+                            classNames={{
+                                root: styles.editorRoot,
+                                content: styles.minimalEditorContent,
+                            }}
+                        >
+                            <RichTextEditor.Content />
+                        </RichTextEditor>
 
-                    <ActionIcon
-                        right={12}
-                        bottom={10}
-                        variant="filled"
-                        size="md"
-                        className={styles.minimalSubmitButton}
-                        disabled={disabled || !hasValue}
-                        loading={loading}
-                        onClick={handleSubmit}
-                        aria-label="Send message"
-                    >
-                        <MantineIcon
-                            icon={IconArrowUp}
-                            color="ldGray.0"
-                            size={18}
-                            stroke={2}
-                        />
-                    </ActionIcon>
+                        {!isThreadInput &&
+                            renderSqlModeControl({
+                                actionSize: 'md',
+                                iconSize: 16,
+                            })}
+
+                        <ActionIcon
+                            right={12}
+                            bottom={10}
+                            variant="filled"
+                            size="md"
+                            className={styles.minimalSubmitButton}
+                            disabled={disabled || !hasValue}
+                            loading={loading}
+                            onClick={handleSubmit}
+                            aria-label="Send message"
+                        >
+                            <MantineIcon
+                                icon={IconArrowUp}
+                                color="ldGray.0"
+                                size={18}
+                                stroke={2}
+                            />
+                        </ActionIcon>
+                    </Box>
                 </Box>
 
-                {onSqlModeChange && !disabled && (
-                    <Group justify="flex-end" px="xs" pt="xs">
-                        <Tooltip
-                            multiline
-                            w={260}
-                            withArrow
-                            position="top"
-                            label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
-                        >
-                            <Group gap={6} align="center" wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconTerminal2}
-                                    size={14}
-                                    color={sqlMode ? 'indigo.5' : 'ldGray.6'}
-                                />
-                                <Text
-                                    size="xs"
-                                    c={sqlMode ? 'indigo.5' : 'dimmed'}
-                                    fw={500}
-                                >
-                                    SQL mode
-                                </Text>
-                                <Switch
-                                    size="xs"
-                                    color="indigo"
-                                    checked={sqlMode}
-                                    onChange={(e) =>
-                                        onSqlModeChange(e.currentTarget.checked)
-                                    }
-                                    aria-label="Toggle SQL mode"
-                                />
-                            </Group>
-                        </Tooltip>
-                    </Group>
-                )}
+                {isThreadInput
+                    ? showSqlModeControl && (
+                          <Box className={styles.threadBelowControls}>
+                              {renderSqlModeControl({
+                                  actionSize: 'sm',
+                                  iconSize: 14,
+                                  labelPosition: 'before',
+                              })}
+                          </Box>
+                      )
+                    : renderChipRow(
+                          styles.chipTray,
+                          shouldReserveEmptyStateSuggestions,
+                      )}
 
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
@@ -564,6 +596,8 @@ export const AgentChatInput = ({
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
         >
+            {isThreadInput && renderChipRow(styles.threadChipFlow)}
+
             <Box
                 className={`${styles.inputCard} ${
                     sqlMode ? styles.sqlModeActive : ''
@@ -579,77 +613,16 @@ export const AgentChatInput = ({
                     <RichTextEditor.Content />
                 </RichTextEditor>
 
-                <hr className={styles.divider} />
-
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
-                        {(showModelSelector || onExtendedThinkingChange) && (
-                            <Box className={styles.modelGroup}>
-                                {showModelSelector && (
-                                    <ModelSelector
-                                        models={models}
-                                        value={selectedModelId ?? null}
-                                        onChange={onModelChange}
-                                        variant="subtle"
-                                        color="gray"
-                                        size="xs"
-                                    />
-                                )}
+                        {!isThreadInput &&
+                            renderSqlModeControl({
+                                actionSize: 30,
+                                iconSize: 15,
+                            })}
+                    </Box>
 
-                                {showModelSelector &&
-                                    onExtendedThinkingChange && (
-                                        <div
-                                            className={styles.modelGroupDivider}
-                                        />
-                                    )}
-
-                                {onExtendedThinkingChange && (
-                                    <Tooltip
-                                        multiline
-                                        w={240}
-                                        withArrow
-                                        position="top"
-                                        label="Let the model spend extra reasoning time before answering. Slower but better on complex questions."
-                                    >
-                                        <ActionIcon
-                                            variant={
-                                                extendedThinking
-                                                    ? 'light'
-                                                    : 'subtle'
-                                            }
-                                            color={
-                                                extendedThinking
-                                                    ? 'indigo'
-                                                    : 'gray'
-                                            }
-                                            size={30}
-                                            onClick={() =>
-                                                onExtendedThinkingChange(
-                                                    !extendedThinking,
-                                                )
-                                            }
-                                            aria-label="Toggle extended thinking"
-                                            aria-pressed={extendedThinking}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    extendedThinking
-                                                        ? IconBulbFilled
-                                                        : IconBulb
-                                                }
-                                                size="sm"
-                                                color={
-                                                    extendedThinking
-                                                        ? 'indigo.5'
-                                                        : 'ldGray.6'
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                            </Box>
-                        )}
-
+                    <Group gap="xs" align="center" wrap="nowrap">
                         {showAgentSelector && (
                             <AgentSelector
                                 projectUuid={projectUuid!}
@@ -658,46 +631,25 @@ export const AgentChatInput = ({
                                 compact
                             />
                         )}
-                    </Box>
 
-                    <Group gap="md" align="center" wrap="nowrap">
-                        {onSqlModeChange && !disabled && (
-                            <Tooltip
-                                multiline
-                                w={260}
-                                withArrow
-                                position="top"
-                                label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
-                            >
-                                <Group gap={6} align="center" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconTerminal2}
-                                        size={14}
-                                        color={
-                                            sqlMode ? 'indigo.5' : 'ldGray.6'
+                        {(showModelSelector || onExtendedThinkingChange) &&
+                            models &&
+                            onModelChange && (
+                                <Box className={styles.modelGroup}>
+                                    <ModelSelector
+                                        models={models}
+                                        value={selectedModelId ?? null}
+                                        onChange={onModelChange}
+                                        variant="subtle"
+                                        color="gray"
+                                        size="xs"
+                                        reasoningEnabled={extendedThinking}
+                                        onReasoningChange={
+                                            onExtendedThinkingChange
                                         }
                                     />
-                                    <Text
-                                        size="xs"
-                                        c={sqlMode ? 'indigo.5' : 'dimmed'}
-                                        fw={500}
-                                    >
-                                        SQL mode
-                                    </Text>
-                                    <Switch
-                                        size="xs"
-                                        color="indigo"
-                                        checked={sqlMode}
-                                        onChange={(e) =>
-                                            onSqlModeChange(
-                                                e.currentTarget.checked,
-                                            )
-                                        }
-                                        aria-label="Toggle SQL mode"
-                                    />
-                                </Group>
-                            </Tooltip>
-                        )}
+                                </Box>
+                            )}
 
                         <ActionIcon
                             variant="filled"
@@ -719,7 +671,20 @@ export const AgentChatInput = ({
                 </Box>
             </Box>
 
-            {renderChipRow(styles.chipFloat)}
+            {isThreadInput
+                ? showSqlModeControl && (
+                      <Box className={styles.threadBelowControls}>
+                          {renderSqlModeControl({
+                              actionSize: 'sm',
+                              iconSize: 14,
+                              labelPosition: 'before',
+                          })}
+                      </Box>
+                  )
+                : renderChipRow(
+                      styles.chipTray,
+                      shouldReserveEmptyStateSuggestions,
+                  )}
 
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
