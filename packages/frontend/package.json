@@ -9,6 +9,7 @@
         "dev": "vite",
         "dev:fast": "pnpm run dev",
         "build": "vite build",
+        "build:fast": "pnpm run build",
         "build-sdk": "node --max-old-space-size=8192 ./node_modules/rollup/dist/bin/rollup -c rollup.config.mjs",
         "serve": "vite preview",
         "test": "vitest run",

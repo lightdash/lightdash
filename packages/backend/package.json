@@ -10,6 +10,7 @@
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
         "dev:fast": "pnpm run dev",
         "build": "tsc --build tsconfig.json",
+        "build:fast": "tsgo --build tsconfig.fast.json && pnpm run postbuild",
         "build:mcp-app": "pnpm -F @lightdash/mcp-chart-app build",
         "build-sourcemaps": "tsc --build tsconfig.sentry.json",
         "typecheck": "tsc --project tsconfig.json --noEmit",
