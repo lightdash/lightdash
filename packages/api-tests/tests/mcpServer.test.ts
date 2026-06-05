@@ -52,7 +52,13 @@ describe('MCP server', () => {
         );
         expect(response.body.result.serverInfo).toHaveProperty('version');
         expect(response.body.result.capabilities).toMatchObject({
-            resources: { listChanged: false },
+            resources: { subscribe: false, listChanged: false },
+            experimental: {
+                'io.modelcontextprotocol/skills': {},
+            },
+            extensions: {
+                'io.modelcontextprotocol/skills': {},
+            },
         });
     });
 
@@ -147,18 +153,27 @@ describe('MCP server', () => {
         expect(response.body.jsonrpc).toBe('2.0');
         expect(response.body.id).toBe(4);
 
+        const indexResource = response.body.result.resources.find(
+            (resource) => resource.uri === 'skill://index.json',
+        );
         const overviewResource = response.body.result.resources.find(
             (resource) =>
-                resource.uri === 'lightdash://skills/developing-in-lightdash',
+                resource.uri === 'skill://developing-in-lightdash/SKILL.md',
         );
         const nestedResource = response.body.result.resources.find((resource) =>
             resource.uri.startsWith(
-                'lightdash://skills/developing-in-lightdash/resources/',
+                'skill://developing-in-lightdash/resources/',
             ),
         );
 
+        expect(indexResource).toMatchObject({
+            uri: 'skill://index.json',
+            name: 'skills-index',
+            title: 'Lightdash Skills Index',
+            mimeType: 'application/json',
+        });
         expect(overviewResource).toMatchObject({
-            uri: 'lightdash://skills/developing-in-lightdash',
+            uri: 'skill://developing-in-lightdash/SKILL.md',
             name: 'developing-in-lightdash',
             title: 'Developing in Lightdash',
             mimeType: 'text/markdown',
@@ -167,7 +182,7 @@ describe('MCP server', () => {
             mimeType: 'text/markdown',
         });
         expect(nestedResource?.name).toMatch(
-            /^developing-in-lightdash\/[^/]+$/,
+            /^developing-in-lightdash\/resources\/[^/]+$/,
         );
         expect(nestedResource?.title).toMatch(/^Developing in Lightdash \/ /);
     });
@@ -193,7 +208,7 @@ describe('MCP server', () => {
         const nestedResource = listResponse.body.result.resources.find(
             (resource) =>
                 resource.uri.startsWith(
-                    'lightdash://skills/developing-in-lightdash/resources/',
+                    'skill://developing-in-lightdash/resources/',
                 ),
         );
 
@@ -235,6 +250,54 @@ describe('MCP server', () => {
         ).toBeGreaterThan(0);
     });
 
+    it('should read the skills index resource', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                contents: Array<{
+                    uri: string;
+                    mimeType?: string;
+                    text: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 7,
+                method: 'resources/read',
+                params: {
+                    uri: 'skill://index.json',
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.result.contents).toHaveLength(1);
+        expect(response.body.result.contents[0]).toMatchObject({
+            uri: 'skill://index.json',
+            mimeType: 'application/json',
+        });
+
+        const index = JSON.parse(response.body.result.contents[0].text) as {
+            skills: Array<{
+                name: string;
+                type: string;
+                description: string;
+                url: string;
+                digest: string;
+            }>;
+        };
+        expect(index.skills).toContainEqual({
+            name: 'developing-in-lightdash',
+            type: 'skill-md',
+            description:
+                'Use when reading, creating, and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.',
+            url: 'skill://developing-in-lightdash/SKILL.md',
+            digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        });
+    });
+
     it('should return an MCP error for an unknown skill resource', async () => {
         const response = await admin.post<{
             jsonrpc: string;
@@ -244,10 +307,10 @@ describe('MCP server', () => {
             '/api/v1/mcp',
             {
                 jsonrpc: '2.0',
-                id: 7,
+                id: 8,
                 method: 'resources/read',
                 params: {
-                    uri: 'lightdash://skills/developing-in-lightdash/resources/does-not-exist',
+                    uri: 'skill://developing-in-lightdash/resources/does-not-exist.md',
                 },
             },
             { headers: mcpHeaders },
@@ -255,7 +318,7 @@ describe('MCP server', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(7);
+        expect(response.body.id).toBe(8);
         expect(response.body.error?.code).toBe(JSON_RPC_INVALID_PARAMS);
     });
 
@@ -264,7 +327,7 @@ describe('MCP server', () => {
             '/api/v1/mcp',
             {
                 jsonrpc: '2.0',
-                id: 8,
+                id: 9,
                 method: 'ping',
                 params: {},
             },
@@ -272,7 +335,7 @@ describe('MCP server', () => {
         );
         expect(response.status).toBe(200);
         expect(response.body.jsonrpc).toBe('2.0');
-        expect(response.body.id).toBe(8);
+        expect(response.body.id).toBe(9);
         expect(response.body.result).toEqual({});
     });
 });

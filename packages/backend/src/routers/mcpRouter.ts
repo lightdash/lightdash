@@ -172,7 +172,7 @@ mcpRouter.all(
                 const headerProjectUuid = extractProjectUuidFromHeader(req);
                 const aiWritebackEnabled =
                     await mcpService.isAiWritebackEnabled(req.user!);
-                const mcpServer = await mcpService.createServer({
+                const mcpServer = mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     aiWritebackEnabled,
                 });

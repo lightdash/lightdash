@@ -63,6 +63,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
+    ServerCapabilities,
     ServerNotification,
     ServerRequest,
     // eslint-disable-next-line import/extensions
@@ -169,7 +170,7 @@ const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
-const MCP_SKILL_RESOURCE_MIME_TYPE = 'text/markdown';
+const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -335,9 +336,12 @@ export class McpService extends BaseService {
                 ],
             }),
         );
-        void this.setupHandlers().catch((error) => {
+        try {
+            this.setupHandlers();
+        } catch (error) {
             this.logger.error('Error initializing MCP server:', error);
-        });
+            throw error;
+        }
     }
 
     private async getScopeInfo(
@@ -1055,12 +1059,12 @@ export class McpService extends BaseService {
         );
     }
 
-    async setupHandlers(
+    setupHandlers(
         options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
             projectPinned: false,
             aiWritebackEnabled: false,
         },
-    ): Promise<void> {
+    ): void {
         this.mcpServer.registerTool(
             mcpGetLightdashVersionTool.name,
             {
@@ -2383,20 +2387,21 @@ export class McpService extends BaseService {
             },
         );
 
-        await this.setupSkillResourceHandlers();
+        McpService.setupSkillResourceHandlers(this.mcpServer);
     }
 
-    private async setupSkillResourceHandlers(): Promise<void> {
-        const resources = await BuiltInSkills.listMcpResources();
+    private static setupSkillResourceHandlers(mcpServer: McpServer): void {
+        const resources = BuiltInSkills.listMcpResourcesSync();
 
         resources.forEach((resource) => {
-            this.mcpServer.registerResource(
+            mcpServer.registerResource(
                 resource.name,
                 resource.uri,
                 {
                     title: resource.title,
                     description: resource.description,
-                    mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                    mimeType: resource.mimeType,
+                    size: resource.size,
                 },
                 async () => {
                     const text = await BuiltInSkills.getMcpResourceBody(
@@ -2413,7 +2418,7 @@ export class McpService extends BaseService {
                         contents: [
                             {
                                 uri: resource.uri,
-                                mimeType: MCP_SKILL_RESOURCE_MIME_TYPE,
+                                mimeType: resource.mimeType,
                                 text,
                             },
                         ],
@@ -2425,9 +2430,15 @@ export class McpService extends BaseService {
         // The SDK auto-advertises `resources.listChanged: true` when
         // registerResource is called, but we never emit list_changed
         // notifications, so override it to avoid misleading clients.
-        this.mcpServer.server.registerCapabilities({
-            resources: { listChanged: false },
-        });
+        mcpServer.server.registerCapabilities({
+            resources: { subscribe: false, listChanged: false },
+            experimental: {
+                [MCP_SKILLS_EXTENSION_NAME]: {},
+            },
+            extensions: {
+                [MCP_SKILLS_EXTENSION_NAME]: {},
+            },
+        } as ServerCapabilities);
     }
 
     async getProjectUuidFromContext(context: McpProtocolContext) {
@@ -2700,10 +2711,10 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public async createServer(options?: {
+    public createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-    }): Promise<McpServer> {
+    }): McpServer {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2732,7 +2743,7 @@ export class McpService extends BaseService {
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
         try {
-            await this.setupHandlers({
+            this.setupHandlers({
                 projectPinned: options?.projectPinned ?? false,
                 aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
             });
