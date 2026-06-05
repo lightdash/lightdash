@@ -47,8 +47,9 @@ const ISO_DATETIME_RE =
 // Canonicalize a raw index value to a stable string. Date columns serialize
 // differently between the pivot query (`...00Z`) and the flat totals query
 // (`...00.000Z`), so any ISO datetime is normalized to its ISO instant; other
-// values pass through as a plain string.
-const normalizeRowTotalRaw = (raw: unknown): string | null => {
+// values pass through as a plain string. Shared by row-total key building and
+// subtotal cell↔record matching.
+export const normalizePivotMatchRaw = (raw: unknown): string | null => {
     if (raw === null || raw === undefined) return null;
     const str = String(raw);
     if (ISO_DATETIME_RE.test(str)) {
@@ -68,7 +69,7 @@ export const buildPivotRowTotalKey = (
     JSON.stringify(
         [...indexEntries]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([fieldId, raw]) => [fieldId, normalizeRowTotalRaw(raw)]),
+            .map(([fieldId, raw]) => [fieldId, normalizePivotMatchRaw(raw)]),
     );
 
 // Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
