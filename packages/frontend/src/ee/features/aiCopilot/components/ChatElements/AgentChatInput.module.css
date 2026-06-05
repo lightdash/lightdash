@@ -387,7 +387,7 @@
 
 .editorContent {
     padding: rem(22px) rem(24px) rem(10px);
-    font-size: rem(18px);
+    font-size: var(--mantine-font-size-md);
     line-height: 1.5;
     min-height: rem(118px);
     max-height: 240px;
