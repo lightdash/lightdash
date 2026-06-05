@@ -1,3 +1,10 @@
+# [0.3100.0](https://github.com/lightdash/lightdash/compare/0.3099.2...0.3100.0) (2026-06-05)
+
+
+### Features
+
+* **ai-agents:** polish ask ai page shell ([#23942](https://github.com/lightdash/lightdash/issues/23942)) ([452da4c](https://github.com/lightdash/lightdash/commit/452da4c6d499ce7d564b788d9c2425ac04e6178a))
+
 ## [0.3099.2](https://github.com/lightdash/lightdash/compare/0.3099.1...0.3099.2) (2026-06-05)
 
 
