@@ -1,3 +1,17 @@
+# [0.3102.0](https://github.com/lightdash/lightdash/compare/0.3101.1...0.3102.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ai-agents:** polish new-thread composer (SQL toggle placement + input size) ([#23956](https://github.com/lightdash/lightdash/issues/23956)) ([95c4ec7](https://github.com/lightdash/lightdash/commit/95c4ec7a8cbba1702f22e14f7d5035e991ca11d2))
+* **pull-requests:** show error when a PR's live details fail to load ([#23951](https://github.com/lightdash/lightdash/issues/23951)) ([34a9379](https://github.com/lightdash/lightdash/commit/34a9379b848bc0d428101ea70364a54fd19fcfa1))
+* use keyword queries for findExplores ([#23957](https://github.com/lightdash/lightdash/issues/23957)) ([85a90ac](https://github.com/lightdash/lightdash/commit/85a90acde9dede4bd52c96afb7779dd9f81c793e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* **ai-agents:** @-mention dashboard tiles in pinned-context threads ([#23954](https://github.com/lightdash/lightdash/issues/23954)) ([4c58506](https://github.com/lightdash/lightdash/commit/4c58506260a2f604b37a24256b0e920d3c2c3281))
+
 ## [0.3101.1](https://github.com/lightdash/lightdash/compare/0.3101.0...0.3101.1) (2026-06-05)
 
 
