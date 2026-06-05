@@ -1662,7 +1662,10 @@ describe('Project member permissions', () => {
                     ),
                 ).toEqual(false);
             });
-            it('cannot Explore', () => {
+            it('can view but cannot manage Explore', () => {
+                expect(
+                    ability.can('view', subject('Explore', { projectUuid })),
+                ).toEqual(true);
                 expect(
                     ability.can('manage', subject('Explore', { projectUuid })),
                 ).toEqual(false);

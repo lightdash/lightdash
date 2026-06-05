@@ -20,6 +20,7 @@ const BASE_ROLE_SCOPES = {
         'view:SavedChart',
         'view:Space',
         'view:Project',
+        'view:Explore', // Run ad-hoc/data-app queries (metric-query endpoint)
         'view:PinnedItems',
         'view:DashboardComments',
         'view:Tags',

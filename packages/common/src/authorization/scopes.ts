@@ -564,6 +564,13 @@ const scopes: Scope[] = [
         ],
     },
     {
+        name: 'view:Explore',
+        description: 'Run queries against explores',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Explore',
         description: 'Explore and query data',
         isEnterprise: false,

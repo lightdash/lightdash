@@ -86,6 +86,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'Explore', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });

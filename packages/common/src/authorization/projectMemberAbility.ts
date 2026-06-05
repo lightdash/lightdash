@@ -50,6 +50,9 @@ export const projectMemberAbilities: Record<
         can('view', 'Project', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'Explore', {
+            projectUuid: member.projectUuid,
+        });
         can('view', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
