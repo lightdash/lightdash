@@ -1,5 +1,5 @@
 import { Group } from '@mantine-8/core';
-import { lazy, memo, Suspense, useEffect, useState } from 'react';
+import { lazy, memo, Suspense, useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
@@ -13,6 +13,8 @@ import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsVisualizationConfigOpen,
+    useExplorerSelector,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -29,6 +31,21 @@ const SavedExplorerContent = memo(() => {
     const isEditMode = mode === 'edit';
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // The chart config panel renders inside the sidebar (via a portal). Opening
+    // it while the sidebar is collapsed must reveal the sidebar, otherwise the
+    // panel has nowhere to render. Fire only on the open transition so a manual
+    // collapse afterwards still works.
+    const isVizConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+    const prevVizConfigOpen = useRef(isVizConfigOpen);
+    useEffect(() => {
+        if (isVizConfigOpen && !prevVizConfigOpen.current) {
+            setIsSidebarOpen(true);
+        }
+        prevVizConfigOpen.current = isVizConfigOpen;
+    }, [isVizConfigOpen]);
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();

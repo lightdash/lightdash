@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { Group } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
@@ -13,6 +13,7 @@ import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsVisualizationConfigOpen,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -37,6 +38,21 @@ const ExplorerContent = memo(() => {
     const navigate = useNavigate();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // The chart config panel renders inside the sidebar (via a portal). Opening
+    // it while the sidebar is collapsed must reveal the sidebar, otherwise the
+    // panel has nowhere to render. Fire only on the open transition so a manual
+    // collapse afterwards still works.
+    const isVizConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+    const prevVizConfigOpen = useRef(isVizConfigOpen);
+    useEffect(() => {
+        if (isVizConfigOpen && !prevVizConfigOpen.current) {
+            setIsSidebarOpen(true);
+        }
+        prevVizConfigOpen.current = isVizConfigOpen;
+    }, [isVizConfigOpen]);
 
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
