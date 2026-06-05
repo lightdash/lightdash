@@ -1,3 +1,12 @@
+## [0.3099.2](https://github.com/lightdash/lightdash/compare/0.3099.1...0.3099.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* clean shared turbo cache ([#23936](https://github.com/lightdash/lightdash/issues/23936)) ([2d2dd06](https://github.com/lightdash/lightdash/commit/2d2dd0636637bbacfcfdb3b3fb2a076851ff47c8))
+* **pivot-table:** force pivot dimensions visible when dragged to columns ([#23941](https://github.com/lightdash/lightdash/issues/23941)) ([18aa582](https://github.com/lightdash/lightdash/commit/18aa582988317c8ee3ee9e238acb5ccbbc074a9b))
+* **warehouse:** stop persisting empty BigQuery per-user keyfile ([#23920](https://github.com/lightdash/lightdash/issues/23920)) ([4e028da](https://github.com/lightdash/lightdash/commit/4e028dab9de0c501d860e69ac1aca0f98af2777c)), closes [#23914](https://github.com/lightdash/lightdash/issues/23914)
+
 ## [0.3099.1](https://github.com/lightdash/lightdash/compare/0.3099.0...0.3099.1) (2026-06-05)
 
 
