@@ -1,3 +1,10 @@
+## [0.3101.1](https://github.com/lightdash/lightdash/compare/0.3101.0...0.3101.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **export:** derive pivot download from stored query config ([#23947](https://github.com/lightdash/lightdash/issues/23947)) ([47a608b](https://github.com/lightdash/lightdash/commit/47a608be08eb9537ac8b544e3d46cedb6f55ccc2))
+
 # [0.3101.0](https://github.com/lightdash/lightdash/compare/0.3100.0...0.3101.0) (2026-06-05)
 
 
