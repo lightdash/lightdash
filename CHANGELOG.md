@@ -1,3 +1,10 @@
+## [0.3099.1](https://github.com/lightdash/lightdash/compare/0.3099.0...0.3099.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **docker-dev:** reconcile stale env ports on slot change ([#23939](https://github.com/lightdash/lightdash/issues/23939)) ([78bf84b](https://github.com/lightdash/lightdash/commit/78bf84b1ce5d837e390f32c2a2b31b7dcc119638))
+
 # [0.3099.0](https://github.com/lightdash/lightdash/compare/0.3098.1...0.3099.0) (2026-06-05)
 
 
