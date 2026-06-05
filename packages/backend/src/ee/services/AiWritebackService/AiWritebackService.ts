@@ -50,6 +50,7 @@ import {
     SYSTEM_PROMPT_PATH,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { WritebackGitNotConnectedError } from './errors';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
@@ -163,7 +164,8 @@ export class AiWritebackService extends BaseService {
         if (connectionType === DbtProjectType.GITLAB) {
             return this.gitlabProvider;
         }
-        throw new ParameterError(
+        throw new WritebackGitNotConnectedError(
+            null,
             `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
         );
     }

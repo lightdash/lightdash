@@ -12,12 +12,17 @@ import {
 } from '@mantine-8/core';
 import {
     IconAlertTriangle,
+    IconBrandGithub,
+    IconBrandGitlab,
     IconExternalLink,
     IconEye,
     IconGitPullRequest,
     IconInfoCircle,
+    IconSettings,
+    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
 import {
@@ -61,6 +66,44 @@ const summarisePrUrl = (prUrl: string): string | null => {
     }
 };
 
+// A writeback can't open a PR until the org installs the matching git app.
+// The agent's prose already explains the problem, so we surface only the
+// one-click action — each `installUrl` is the same install entry point as the
+// Integrations settings page, opened in a new tab so the user keeps their thread.
+const INSTALL_ACTIONS: Record<
+    'github_not_installed' | 'gitlab_not_installed',
+    { icon: TablerIcon; installUrl: string; cta: string }
+> = {
+    github_not_installed: {
+        icon: IconBrandGithub,
+        installUrl: '/api/v1/github/install',
+        cta: 'Install GitHub App',
+    },
+    gitlab_not_installed: {
+        icon: IconBrandGitlab,
+        installUrl: '/api/v1/gitlab/install',
+        cta: 'Connect GitLab',
+    },
+};
+
+const InstallAppButton: FC<{
+    action: (typeof INSTALL_ACTIONS)[keyof typeof INSTALL_ACTIONS];
+}> = ({ action }) => (
+    <Group gap={0}>
+        <Button
+            component="a"
+            href={action.installUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="default"
+            size="compact-sm"
+            leftSection={<MantineIcon icon={action.icon} size={14} />}
+        >
+            {action.cta}
+        </Button>
+    </Group>
+);
+
 /**
  * Inline card rendered after a `proposeWriteback` tool call lands. The
  * agent's textual reply intentionally omits the URL (the proposeWriteback
@@ -96,6 +139,65 @@ export const AiProposeWritebackToolCall: FC<Props> = ({
     const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
 
     if (metadata.status === 'error') {
+        // When the project just needs its git app installed, the agent's reply
+        // already explains it — surface only the one-click install action.
+        if (
+            metadata.errorCode === 'github_not_installed' ||
+            metadata.errorCode === 'gitlab_not_installed'
+        ) {
+            return (
+                <InstallAppButton
+                    action={INSTALL_ACTIONS[metadata.errorCode]}
+                />
+            );
+        }
+        // The project's dbt connection isn't GitHub/GitLab, so there's no app to
+        // install — point the user at the connection settings to switch it.
+        if (metadata.errorCode === 'unsupported_source_control') {
+            return (
+                <Paper withBorder p="sm" radius="md">
+                    <Group gap="xs" align="flex-start" wrap="nowrap">
+                        <ThemeIcon
+                            variant="light"
+                            color="ldGray"
+                            radius="md"
+                            size="md"
+                        >
+                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                        </ThemeIcon>
+                        <Stack gap="xs">
+                            <Stack gap={2}>
+                                <Text size="sm" fw={500}>
+                                    Source control not supported
+                                </Text>
+                                <Text size="xs" c="ldGray.6">
+                                    AI writeback needs this project's dbt
+                                    connection to use GitHub or GitLab. Update
+                                    the connection to open pull requests from
+                                    chat.
+                                </Text>
+                            </Stack>
+                            <Group gap={0}>
+                                <Button
+                                    component={Link}
+                                    to={`/generalSettings/projectManagement/${projectUuid}/settings`}
+                                    variant="default"
+                                    size="compact-sm"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconSettings}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Edit project connection
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Group>
+                </Paper>
+            );
+        }
         return (
             <Paper withBorder p="sm" radius="md" bg="red.0">
                 <Group gap="xs" align="center" wrap="nowrap">

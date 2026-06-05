@@ -1,11 +1,38 @@
-import { proposeWritebackToolDefinition } from '@lightdash/common';
+import {
+    proposeWritebackToolDefinition,
+    PullRequestProvider,
+} from '@lightdash/common';
 import { tool } from 'ai';
+import { WritebackGitNotConnectedError } from '../../AiWritebackService/errors';
 import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     proposeWriteback: ProposeWritebackFn;
+};
+
+type WritebackErrorCode =
+    | 'github_not_installed'
+    | 'gitlab_not_installed'
+    | 'unsupported_source_control'
+    | 'unknown';
+
+// Map a thrown writeback error to the metadata code the chat card renders.
+// A not-connected error carries the expected git host, so the card can offer
+// the matching install action; null means the project's dbt connection is not a
+// supported source control type (e.g. local dbt, dbt Cloud, Bitbucket).
+const classifyWritebackError = (error: unknown): WritebackErrorCode => {
+    if (error instanceof WritebackGitNotConnectedError) {
+        if (error.provider === PullRequestProvider.GITHUB) {
+            return 'github_not_installed';
+        }
+        if (error.provider === PullRequestProvider.GITLAB) {
+            return 'gitlab_not_installed';
+        }
+        return 'unsupported_source_control';
+    }
+    return 'unknown';
 };
 
 const toolDefinition = proposeWritebackToolDefinition.for('agent');
@@ -68,6 +95,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                     ),
                     metadata: {
                         status: 'error' as const,
+                        errorCode: classifyWritebackError(error),
                     },
                 };
             }

@@ -467,6 +467,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             } as AnyType,
             githubAppInstallationsModel: {
                 getInstallationId: jest.fn().mockResolvedValue('inst-1'),
+                findInstallationId: jest.fn().mockResolvedValue('inst-1'),
                 getAuth: jest
                     .fn()
                     .mockResolvedValue({ token: 'oauth', refreshToken: 'r' }),
