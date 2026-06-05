@@ -68,6 +68,7 @@ import {
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
     type AiAgent,
+    type AiAgentIntegration,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
@@ -1906,72 +1907,101 @@ export class AiAgentModel {
                 })
                 .returning('*');
 
-            // Reset all integrations
-            // we cannot relay on cascade deletes because might run into race condition
-            // delete child records first to avoid unique constraint violations
-            const integrationUuids = await trx(AiAgentIntegrationTableName)
-                .select('ai_agent_integration_uuid')
-                .where('ai_agent_uuid', args.agentUuid);
+            // `integrations` is optional on the update payload (PATCH
+            // semantics). Only rebuild integrations when the caller explicitly
+            // provides them — an omitted value must leave existing integrations
+            // untouched. Otherwise partial updates (e.g. changing MCP servers
+            // via the agent update endpoint) would silently delete the agent's
+            // Slack channel assignments and unassign it from its channels.
+            let integrations: AiAgentIntegration[];
+            if (args.integrations !== undefined) {
+                // Reset all integrations
+                // we cannot relay on cascade deletes because might run into race condition
+                // delete child records first to avoid unique constraint violations
+                const integrationUuids = await trx(AiAgentIntegrationTableName)
+                    .select('ai_agent_integration_uuid')
+                    .where('ai_agent_uuid', args.agentUuid);
 
-            if (integrationUuids.length > 0) {
-                await trx(AiAgentSlackIntegrationTableName)
-                    .whereIn(
-                        'ai_agent_integration_uuid',
-                        integrationUuids.map(
-                            (i) => i.ai_agent_integration_uuid,
-                        ),
-                    )
+                if (integrationUuids.length > 0) {
+                    await trx(AiAgentSlackIntegrationTableName)
+                        .whereIn(
+                            'ai_agent_integration_uuid',
+                            integrationUuids.map(
+                                (i) => i.ai_agent_integration_uuid,
+                            ),
+                        )
+                        .delete();
+                }
+
+                // Then delete parent integration records
+                await trx(AiAgentIntegrationTableName)
+                    .where('ai_agent_uuid', args.agentUuid)
                     .delete();
-            }
 
-            // Then delete parent integration records
-            await trx(AiAgentIntegrationTableName)
-                .where('ai_agent_uuid', args.agentUuid)
-                .delete();
+                integrations = await Promise.all(
+                    args.integrations.map(async (integration) => {
+                        switch (integration.type) {
+                            case 'slack':
+                                try {
+                                    const [baseIntegration] = await trx(
+                                        AiAgentIntegrationTableName,
+                                    )
+                                        .insert({
+                                            ai_agent_uuid: agent.ai_agent_uuid,
+                                            integration_type: integration.type,
+                                        })
+                                        .returning('*');
 
-            const integrationPromises =
-                args.integrations?.map(async (integration) => {
-                    switch (integration.type) {
-                        case 'slack':
-                            try {
-                                const [baseIntegration] = await trx(
-                                    AiAgentIntegrationTableName,
-                                )
-                                    .insert({
-                                        ai_agent_uuid: agent.ai_agent_uuid,
-                                        integration_type: integration.type,
-                                    })
-                                    .returning('*');
-
-                                await trx(
-                                    AiAgentSlackIntegrationTableName,
-                                ).insert({
-                                    ai_agent_integration_uuid:
-                                        baseIntegration.ai_agent_integration_uuid,
-                                    organization_uuid: agent.organization_uuid,
-                                    slack_channel_id: integration.channelId,
-                                });
-                            } catch (error) {
-                                if (isUniqueConstraintViolation(error)) {
-                                    throw new AlreadyExistsError(
-                                        'This Slack channel is already assigned to another AI agent',
-                                    );
+                                    await trx(
+                                        AiAgentSlackIntegrationTableName,
+                                    ).insert({
+                                        ai_agent_integration_uuid:
+                                            baseIntegration.ai_agent_integration_uuid,
+                                        organization_uuid:
+                                            agent.organization_uuid,
+                                        slack_channel_id: integration.channelId,
+                                    });
+                                } catch (error) {
+                                    if (isUniqueConstraintViolation(error)) {
+                                        throw new AlreadyExistsError(
+                                            'This Slack channel is already assigned to another AI agent',
+                                        );
+                                    }
+                                    throw error;
                                 }
-                                throw error;
-                            }
 
-                            return {
-                                type: integration.type,
-                                channelId: integration.channelId,
-                            };
-                        default:
-                            return assertUnreachable(
-                                integration.type,
-                                `Unknown integration type ${integration.type} in updateAgent`,
-                            );
-                    }
-                }) || [];
-            const integrations = await Promise.all(integrationPromises);
+                                return {
+                                    type: integration.type,
+                                    channelId: integration.channelId,
+                                };
+                            default:
+                                return assertUnreachable(
+                                    integration.type,
+                                    `Unknown integration type ${integration.type} in updateAgent`,
+                                );
+                        }
+                    }),
+                );
+            } else {
+                // Leave existing integrations untouched and return them as-is.
+                integrations = await trx(AiAgentIntegrationTableName)
+                    .leftJoin(
+                        AiAgentSlackIntegrationTableName,
+                        `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                        `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+                    )
+                    .where(
+                        `${AiAgentIntegrationTableName}.ai_agent_uuid`,
+                        args.agentUuid,
+                    )
+                    .whereNotNull(
+                        `${AiAgentIntegrationTableName}.integration_type`,
+                    )
+                    .select({
+                        type: `${AiAgentIntegrationTableName}.integration_type`,
+                        channelId: `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                    });
+            }
 
             let instruction = await this.getAgentLastInstruction(
                 {
