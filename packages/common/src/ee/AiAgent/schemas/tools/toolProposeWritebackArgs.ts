@@ -41,6 +41,18 @@ export const toolProposeWritebackOutputSchema = z.object({
         }),
         z.object({
             status: z.literal('error'),
+            // Classifies the failure so the client can render a specific,
+            // actionable error state instead of a generic "it failed". Nullish,
+            // not required: persisted tool-call rows written before this field
+            // existed must still parse — absent/null is treated as 'unknown'.
+            errorCode: z
+                .enum([
+                    'github_not_installed',
+                    'gitlab_not_installed',
+                    'unsupported_source_control',
+                    'unknown',
+                ])
+                .nullish(),
         }),
     ]),
 });

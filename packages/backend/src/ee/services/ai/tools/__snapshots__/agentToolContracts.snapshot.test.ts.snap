@@ -3581,6 +3581,22 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "github_not_installed",
+                        "gitlab_not_installed",
+                        "unsupported_source_control",
+                        "unknown",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
                 "status": {
                   "const": "error",
                   "type": "string",

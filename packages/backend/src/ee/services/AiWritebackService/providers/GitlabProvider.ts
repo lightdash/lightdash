@@ -2,7 +2,6 @@
 // `this`, which is fine for a stateless host wrapper.
 /* eslint-disable class-methods-use-this */
 import {
-    ForbiddenError,
     getErrorMessage,
     MissingConfigError,
     ParameterError,
@@ -23,6 +22,7 @@ import {
 } from '../../../../clients/gitlab/Gitlab';
 import type { GitlabAppInstallationsModel } from '../../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { COMMIT_AUTHOR_EMAIL, COMMIT_AUTHOR_NAME, CWD } from '../constants';
+import { WritebackGitNotConnectedError } from '../errors';
 import type {
     AdoptedPullRequest,
     CloneTarget,
@@ -151,7 +151,8 @@ export class GitlabProvider implements GitProvider {
                     organizationUuid,
                 );
         } catch {
-            throw new ForbiddenError(
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
                 'GitLab App is not installed for this organization',
             );
         }
