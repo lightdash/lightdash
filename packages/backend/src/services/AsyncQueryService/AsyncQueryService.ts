@@ -1348,12 +1348,29 @@ export class AsyncQueryService extends ProjectService {
                       ),
                   )
                 : fields;
-        const downloadPivotConfig = exportPivotedData ? pivotConfig : undefined;
-        // The export only pivots when the underlying query stored pivot details.
-        // A chart's UI pivot config can be more permissive than the backend's
-        // query-side derivation, so fall back to a flat export when they diverge.
+        // Pivot structure (which dimension is pivoted, layout) comes from the
+        // query's stored config so the export matches the rendered results;
+        // pivotConfig only adds presentation (totals, hidden fields).
         const pivotDetails =
             AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory);
+        const downloadPivotConfig: PivotConfig | undefined =
+            exportPivotedData && pivotDetails
+                ? {
+                      pivotDimensions: (pivotDetails.groupByColumns ?? []).map(
+                          (col) => col.reference,
+                      ),
+                      metricsAsRows:
+                          queryHistory.pivotConfiguration?.metricsAsRows ??
+                          false,
+                      columnOrder: validColumnOrder,
+                      hiddenMetricFieldIds: pivotConfig?.hiddenMetricFieldIds,
+                      hiddenDimensionFieldIds:
+                          pivotConfig?.hiddenDimensionFieldIds,
+                      visibleMetricFieldIds: pivotConfig?.visibleMetricFieldIds,
+                      rowTotals: pivotConfig?.rowTotals,
+                      columnTotals: pivotConfig?.columnTotals,
+                  }
+                : undefined;
 
         switch (type) {
             case DownloadFileType.CSV:
