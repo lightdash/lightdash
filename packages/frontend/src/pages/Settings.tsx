@@ -1220,7 +1220,7 @@ const Settings: FC = () => {
                                 {user.ability.can('manage', 'Organization') &&
                                     isScimTokenManagementEnabled?.enabled && (
                                         <RouterNavLink
-                                            label="SCIM Access Tokens"
+                                            label="SCIM access tokens"
                                             exact
                                             to="/generalSettings/scimAccessTokens"
                                             leftSection={
