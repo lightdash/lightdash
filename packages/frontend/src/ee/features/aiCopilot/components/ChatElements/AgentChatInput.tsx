@@ -538,12 +538,6 @@ export const AgentChatInput = ({
                             <RichTextEditor.Content />
                         </RichTextEditor>
 
-                        {!isThreadInput &&
-                            renderSqlModeControl({
-                                actionSize: 'md',
-                                iconSize: 16,
-                            })}
-
                         <ActionIcon
                             right={12}
                             bottom={10}
@@ -565,20 +559,21 @@ export const AgentChatInput = ({
                     </Box>
                 </Box>
 
-                {isThreadInput
-                    ? showSqlModeControl && (
-                          <Box className={styles.threadBelowControls}>
-                              {renderSqlModeControl({
-                                  actionSize: 'sm',
-                                  iconSize: 14,
-                                  labelPosition: 'before',
-                              })}
-                          </Box>
-                      )
-                    : renderChipRow(
-                          styles.chipTray,
-                          shouldReserveEmptyStateSuggestions,
-                      )}
+                {showSqlModeControl && (
+                    <Box className={styles.threadBelowControls}>
+                        {renderSqlModeControl({
+                            actionSize: 'sm',
+                            iconSize: 14,
+                            labelPosition: 'before',
+                        })}
+                    </Box>
+                )}
+
+                {!isThreadInput &&
+                    renderChipRow(
+                        styles.chipTray,
+                        shouldReserveEmptyStateSuggestions,
+                    )}
 
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
