@@ -1,3 +1,10 @@
+## [0.3098.1](https://github.com/lightdash/lightdash/compare/0.3098.0...0.3098.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **spaces:** search nested spaces in Spaces list ([#23887](https://github.com/lightdash/lightdash/issues/23887)) ([#23890](https://github.com/lightdash/lightdash/issues/23890)) ([f3b0c76](https://github.com/lightdash/lightdash/commit/f3b0c767f0c3c4814c62b7b345b2610a720242f0))
+
 # [0.3098.0](https://github.com/lightdash/lightdash/compare/0.3097.0...0.3098.0) (2026-06-04)
 
 
