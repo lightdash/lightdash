@@ -30,6 +30,7 @@ import {
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpGithubAvailabilityResponse,
+    ApiAiMcpGitlabAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
@@ -39,6 +40,7 @@ import {
     ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
     ApiConnectGithubMcpServerBody,
+    ApiConnectGitlabMcpServerBody,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiCreateAiMcpServer,
@@ -256,6 +258,50 @@ export class AiAgentController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 body.personalAccessToken,
+                body.credentialScope,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcpServers/gitlab/availability')
+    @OperationId('getGitlabMcpAvailability')
+    async getGitlabMcpAvailability(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiMcpGitlabAvailabilityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getGitlabMcpAvailability(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/mcpServers/gitlab/connect')
+    @OperationId('connectGitlabMcpServer')
+    async connectGitlabMcpServer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiConnectGitlabMcpServerBody,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().connectGitlabMcpServer(
+                toSessionUser(req.account),
+                projectUuid,
                 body.credentialScope,
             ),
         };

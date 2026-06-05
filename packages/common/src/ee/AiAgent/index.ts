@@ -389,6 +389,36 @@ export type AiMcpGithubAvailability = {
 export type ApiAiMcpGithubAvailabilityResponse =
     ApiSuccess<AiMcpGithubAvailability>;
 
+// The hosted GitLab MCP server. Unlike GitHub it is not a single fixed host:
+// GitLab can be self-hosted, so the MCP lives at `{instanceUrl}/api/v4/mcp`
+// (GitLab's Streamable-HTTP MCP endpoint). The one-click "Connect GitLab" flow
+// builds this URL from the org's connected GitLab instance and authenticates
+// with the org's OAuth token (refreshed server-side), so no manual auth step is
+// needed.
+export const GITLAB_MCP_SERVER_NAME = 'GitLab';
+export const GITLAB_MCP_PATH = '/api/v4/mcp';
+
+export const getGitlabMcpServerUrl = (gitlabInstanceUrl: string): string =>
+    `${gitlabInstanceUrl.replace(/\/+$/, '')}${GITLAB_MCP_PATH}`;
+
+export const isGitlabMcpServerUrl = (url: string): boolean =>
+    url.endsWith(GITLAB_MCP_PATH);
+
+// True one-click: no user token needed — the org's GitLab OAuth token is used.
+export type ApiConnectGitlabMcpServerBody = {
+    credentialScope: AiMcpCredentialScope;
+};
+
+export type AiMcpGitlabAvailability = {
+    // The org has a GitLab app connection AND the caller has permission to
+    // manage that integration (manage:GitIntegration).
+    available: boolean;
+    // A GitLab MCP server already exists for this project.
+    alreadyConnected: boolean;
+};
+export type ApiAiMcpGitlabAvailabilityResponse =
+    ApiSuccess<AiMcpGitlabAvailability>;
+
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';
     results: AiAgentThreadSummary[];

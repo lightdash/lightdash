@@ -1,5 +1,6 @@
 import {
     GITHUB_MCP_SERVER_NAME,
+    GITLAB_MCP_SERVER_NAME,
     type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import {
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconBrandGithub,
+    IconBrandGitlab,
     IconCircleCheck,
     IconInfoCircle,
     IconSparkles,
@@ -25,7 +27,9 @@ import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
     useConnectGithubMcpServerMutation,
+    useConnectGitlabMcpServerMutation,
     useGithubMcpAvailability,
+    useGitlabMcpAvailability,
     useStartMcpOAuthConnectionMutation,
 } from '../hooks/useProjectAiMcpServers';
 import styles from './AiAgentNewThreadMcpConnections.module.css';
@@ -163,6 +167,12 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     );
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
         useConnectGithubMcpServerMutation(projectUuid);
+    const { data: gitlabMcpAvailability } = useGitlabMcpAvailability(
+        projectUuid,
+        { enabled: !!projectUuid },
+    );
+    const { mutateAsync: connectGitlabMcp, isLoading: isConnectingGitlabMcp } =
+        useConnectGitlabMcpServerMutation(projectUuid);
     const { mutateAsync: updateAgentMcpServers, isLoading: isAttachingGithub } =
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
@@ -180,6 +190,9 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     const canOneClickConnectGithub =
         githubMcpAvailability?.available === true &&
         githubMcpAvailability?.alreadyConnected === false;
+    const canOneClickConnectGitlab =
+        gitlabMcpAvailability?.available === true &&
+        gitlabMcpAvailability?.alreadyConnected === false;
 
     const appNames = useMemo(() => {
         const oauthAppNames = Array.from(
@@ -187,10 +200,16 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                 mcpServersNeedingConnection.map((mcpServer) => mcpServer.name),
             ),
         );
-        return canOneClickConnectGithub
-            ? [...oauthAppNames, GITHUB_MCP_SERVER_NAME]
-            : oauthAppNames;
-    }, [mcpServersNeedingConnection, canOneClickConnectGithub]);
+        const oneClickNames = [
+            ...(canOneClickConnectGithub ? [GITHUB_MCP_SERVER_NAME] : []),
+            ...(canOneClickConnectGitlab ? [GITLAB_MCP_SERVER_NAME] : []),
+        ];
+        return [...oauthAppNames, ...oneClickNames];
+    }, [
+        mcpServersNeedingConnection,
+        canOneClickConnectGithub,
+        canOneClickConnectGitlab,
+    ]);
 
     const connectionNote = useMemo(() => {
         for (const mcpServer of mcpServersNeedingConnection) {
@@ -254,6 +273,38 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             updateAgentMcpServers,
         ],
     );
+
+    // True one-click for GitLab: the org's OAuth token is used, so there's no
+    // token to paste — connect (shared scope) and attach to the agent directly.
+    const handleConnectGitlabMcp = useCallback(async () => {
+        try {
+            const server = await connectGitlabMcp({
+                credentialScope: 'shared',
+            });
+            if (!server) {
+                return;
+            }
+            const attachedUuids = (mcpServers ?? []).map(
+                (mcpServer) => mcpServer.uuid,
+            );
+            if (!attachedUuids.includes(server.uuid)) {
+                await updateAgentMcpServers({
+                    uuid: agentUuid,
+                    mcpServerUuids: [...attachedUuids, server.uuid],
+                });
+            }
+        } catch {
+            // Toasts are handled in the mutation.
+        } finally {
+            await refetchAgentMcpServers();
+        }
+    }, [
+        agentUuid,
+        connectGitlabMcp,
+        mcpServers,
+        refetchAgentMcpServers,
+        updateAgentMcpServers,
+    ]);
 
     if (isLoading) {
         return (
@@ -329,7 +380,11 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         );
     }
 
-    if (mcpServersNeedingConnection.length === 0 && !canOneClickConnectGithub) {
+    if (
+        mcpServersNeedingConnection.length === 0 &&
+        !canOneClickConnectGithub &&
+        !canOneClickConnectGitlab
+    ) {
         return null;
     }
 
@@ -350,6 +405,20 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             onClick={githubConfirmModalHandlers.open}
         >
             GitHub
+        </Button>
+    ) : null;
+
+    const gitlabConnectButton = canOneClickConnectGitlab ? (
+        <Button
+            key="gitlab-connect"
+            size="compact-xs"
+            variant="subtle"
+            color="gray"
+            leftSection={<MantineIcon icon={IconBrandGitlab} />}
+            loading={isConnectingGitlabMcp || isAttachingGithub}
+            onClick={() => void handleConnectGitlabMcp()}
+        >
+            GitLab
         </Button>
     ) : null;
 
@@ -418,6 +487,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                             );
                         })}
                         {githubConnectButton}
+                        {gitlabConnectButton}
                     </Group>
                 </Stack>
             </Group>

@@ -248,6 +248,14 @@ export enum FeatureFlags {
     GithubMcpOneClick = 'github-mcp-one-click',
 
     /**
+     * Enable one-click "Connect GitLab" setup for AI agent MCP servers. When
+     * enabled (and the org has a GitLab app connection the user can manage),
+     * the agent MCP settings offer a button that provisions the hosted GitLab
+     * MCP using the org's existing OAuth token — no manual URL/auth.
+     */
+    GitlabMcpOneClick = 'gitlab-mcp-one-click',
+
+    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.

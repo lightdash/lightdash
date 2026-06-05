@@ -1835,6 +1835,17 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentGitlabMcpConnectedEvent = BaseTrack & {
+    event: 'ai_agent.gitlab_mcp_connected';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        mcpServerId: string;
+        method: 'one_click' | 'one_click_reconnect';
+    };
+};
+
 export type AiAgentDeletedEvent = BaseTrack & {
     event: 'ai_agent.deleted';
     userId: string;
@@ -2296,6 +2307,7 @@ type TypedEvent =
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentGithubMcpConnectedEvent
+    | AiAgentGitlabMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentDocumentCreatedEvent

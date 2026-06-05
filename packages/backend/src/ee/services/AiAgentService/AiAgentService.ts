@@ -21,6 +21,7 @@ import {
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
+    AiMcpGitlabAvailability,
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
@@ -52,12 +53,15 @@ import {
     followUpToolsText,
     ForbiddenError,
     getErrorMessage,
+    getGitlabMcpServerUrl,
     getGroupByDimensions,
     getItemId,
     getItemMap,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    GITLAB_MCP_SERVER_NAME,
+    isGitlabMcpServerUrl,
     isGitProjectType,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -134,6 +138,7 @@ import {
     getInstallationToken,
     getPullRequestComments,
 } from '../../../clients/github/Github';
+import { getOrRefreshToken } from '../../../clients/gitlab/Gitlab';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -144,6 +149,7 @@ import {
 import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -305,6 +311,7 @@ type AiAgentServiceDependencies = {
     aiWritebackService: AiWritebackService;
     previewDeploySetupService: PreviewDeploySetupService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiAgentToolsService: AiAgentToolsService;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -457,6 +464,8 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
+    private readonly gitlabAppInstallationsModel: GitlabAppInstallationsModel;
 
     private readonly projectContextModel: ProjectContextModel;
 
@@ -633,6 +642,8 @@ export class AiAgentService extends BaseService {
         this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
+        this.gitlabAppInstallationsModel =
+            dependencies.gitlabAppInstallationsModel;
         this.aiAgentToolsService = dependencies.aiAgentToolsService;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
@@ -2780,6 +2791,291 @@ export class AiAgentService extends BaseService {
                 ? {
                       ...server,
                       resolvedCredential: { type: 'bearer', bearerToken },
+                  }
+                : server,
+        );
+    }
+
+    /**
+     * Resolve a fresh GitLab MCP bearer token plus the instance MCP URL from the
+     * org's GitLab app connection (refreshing the OAuth token if stale, the same
+     * way writeback does). Returns null when the org has no GitLab connection or
+     * the GitLab integration isn't configured.
+     */
+    private async resolveGitlabMcpCredentials(
+        organizationUuid: string | undefined,
+    ): Promise<{ url: string; bearerToken: string } | null> {
+        if (!organizationUuid) {
+            return null;
+        }
+        const { clientId, clientSecret } = this.lightdashConfig.gitlab;
+        if (!clientId || !clientSecret) {
+            return null;
+        }
+        let auth: {
+            token: string;
+            refreshToken: string;
+            gitlabInstanceUrl: string;
+        };
+        try {
+            auth =
+                await this.gitlabAppInstallationsModel.getAuth(
+                    organizationUuid,
+                );
+        } catch {
+            return null;
+        }
+        // The org's stored OAuth token can be expired or revoked — if it can't
+        // be refreshed, treat the org as not connected rather than letting the
+        // raw GitLab OAuth error escape (which would leak into the connect toast
+        // and, worse, throw during the per-run agent credential refresh).
+        let refreshed: { token: string; refreshToken: string };
+        try {
+            refreshed = await getOrRefreshToken(
+                auth.token,
+                auth.refreshToken,
+                clientId,
+                clientSecret,
+                auth.gitlabInstanceUrl,
+            );
+        } catch (error) {
+            Logger.warn(
+                `[AiAgent][MCP][${GITLAB_MCP_SERVER_NAME}] Could not refresh the org GitLab token for ${organizationUuid}; treating as not connected. ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
+        if (refreshed.token !== auth.token) {
+            await this.gitlabAppInstallationsModel.updateAuth(
+                organizationUuid,
+                refreshed.token,
+                refreshed.refreshToken,
+            );
+        }
+        return {
+            url: getGitlabMcpServerUrl(auth.gitlabInstanceUrl),
+            bearerToken: refreshed.token,
+        };
+    }
+
+    public async getGitlabMcpAvailability(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiMcpGitlabAvailability> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.GitlabMcpOneClick,
+        });
+        if (!oneClickEnabled) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageMcpServers = auditedAbility.can(
+            'manage',
+            subject('AiAgent', { organizationUuid, projectUuid }),
+        );
+
+        // The org must actually have a GitLab connection to one-click-connect.
+        const hasGitlabInstall =
+            !!(await this.gitlabAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            ));
+
+        const servers = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            user.userUuid,
+        );
+        const gitlabServer = servers.find((server) =>
+            isGitlabMcpServerUrl(server.url),
+        );
+
+        const available =
+            (canManageMcpServers && hasGitlabInstall) || !!gitlabServer;
+        if (!available) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const credential = gitlabServer
+            ? await this.aiAgentModel.resolveCredential(
+                  gitlabServer.uuid,
+                  user.userUuid,
+              )
+            : undefined;
+
+        return { available: true, alreadyConnected: !!credential };
+    }
+
+    public async connectGitlabMcpServer(
+        user: SessionUser,
+        projectUuid: string,
+        credentialScope: AiMcpCredentialScope,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.GitlabMcpOneClick,
+        });
+        if (!oneClickEnabled) {
+            throw new ForbiddenError(
+                'One-click GitLab MCP setup is not enabled',
+            );
+        }
+
+        const credentials =
+            await this.resolveGitlabMcpCredentials(organizationUuid);
+        if (!credentials) {
+            throw new ParameterError(
+                "We couldn't connect to GitLab for this organization. Make sure GitLab is connected in the project settings (and reconnect it if it has expired), then try again.",
+            );
+        }
+        const { url, bearerToken } = credentials;
+
+        const existing = await this.aiAgentModel.listMcpServers(
+            projectUuid,
+            user.userUuid,
+        );
+        const gitlabServer = existing.find((server) =>
+            isGitlabMcpServerUrl(server.url),
+        );
+
+        if (gitlabServer) {
+            if (credentialScope === 'shared') {
+                await this.assertCanManageMcpServers(user, projectUuid);
+            } else {
+                await this.assertCanUsePersonalMcpCredentials(
+                    user,
+                    projectUuid,
+                );
+            }
+
+            try {
+                await this.aiAgentMcpRuntimeClient.testConnection({
+                    name: GITLAB_MCP_SERVER_NAME,
+                    url,
+                    authType: 'bearer',
+                    bearerToken,
+                    onUncaughtError: (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${GITLAB_MCP_SERVER_NAME}] Uncaught MCP client error while reconnecting`,
+                            error,
+                        );
+                    },
+                });
+            } catch (error) {
+                Logger.error(
+                    `[AiAgent][MCP][${GITLAB_MCP_SERVER_NAME}] Failed to reconnect with the org GitLab token`,
+                    error,
+                );
+                throw new ParameterError(
+                    "We couldn't connect to GitLab. Check the organization's GitLab connection, then try again.",
+                );
+            }
+
+            await this.aiAgentModel.upsertCredential({
+                serverUuid: gitlabServer.uuid,
+                scope: credentialScope,
+                userUuid: credentialScope === 'user' ? user.userUuid : null,
+                credentials: { type: 'bearer', bearerToken },
+                actorUserUuid: user.userUuid,
+            });
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: gitlabServer.uuid,
+                connectionStatus: 'connected',
+                error: null,
+                actorUserUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'ai_agent.gitlab_mcp_connected',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    mcpServerId: gitlabServer.uuid,
+                    method: 'one_click_reconnect',
+                },
+            });
+
+            const refreshed = await this.aiAgentModel.listMcpServers(
+                projectUuid,
+                user.userUuid,
+            );
+            return (
+                refreshed.find((server) => isGitlabMcpServerUrl(server.url)) ??
+                gitlabServer
+            );
+        }
+
+        const server = await this.createMcpServer(user, projectUuid, {
+            name: GITLAB_MCP_SERVER_NAME,
+            url,
+            authType: 'bearer',
+            credentialScope,
+            credentials: { bearerToken },
+        });
+
+        this.analytics.track({
+            event: 'ai_agent.gitlab_mcp_connected',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                mcpServerId: server.uuid,
+                method: 'one_click',
+            },
+        });
+
+        return server;
+    }
+
+    /**
+     * GitLab MCP servers authenticate with the org's GitLab OAuth token, which
+     * expires. Refresh a fresh token per run (mirroring the GitHub MCP and
+     * writeback flows) so the connection can never expire mid-session.
+     */
+    private async refreshGitlabMcpCredentials(
+        organizationUuid: string | undefined,
+        servers: AiMcpServerWithSensitiveData[],
+    ): Promise<AiMcpServerWithSensitiveData[]> {
+        const hasGitlabMcp = servers.some(
+            (server) =>
+                isGitlabMcpServerUrl(server.url) &&
+                server.authType === 'bearer',
+        );
+        if (!hasGitlabMcp || !organizationUuid) {
+            return servers;
+        }
+
+        const credentials =
+            await this.resolveGitlabMcpCredentials(organizationUuid);
+        if (!credentials) {
+            return servers;
+        }
+
+        return servers.map((server) =>
+            isGitlabMcpServerUrl(server.url) && server.authType === 'bearer'
+                ? {
+                      ...server,
+                      resolvedCredential: {
+                          type: 'bearer',
+                          bearerToken: credentials.bearerToken,
+                      },
                   }
                 : server,
         );
@@ -5270,11 +5566,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid: prompt.projectUuid,
             });
         const agentMcpServersWithSensitiveData =
-            await this.refreshGithubMcpCredentials(
+            await this.refreshGitlabMcpCredentials(
                 user.organizationUuid,
-                await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
-                    agentSettings.uuid,
-                    user.userUuid,
+                await this.refreshGithubMcpCredentials(
+                    user.organizationUuid,
+                    await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                        agentSettings.uuid,
+                        user.userUuid,
+                    ),
                 ),
             );
         const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({

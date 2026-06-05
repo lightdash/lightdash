@@ -1,10 +1,12 @@
 import type {
     ApiAiMcpGithubAvailabilityResponse,
+    ApiAiMcpGitlabAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
     ApiConnectGithubMcpServerBody,
+    ApiConnectGitlabMcpServerBody,
     ApiAiMcpServerToolListResponse,
     ApiCreateAiMcpServer,
     ApiError,
@@ -74,6 +76,28 @@ const connectGithubMcpServer = async (
     lightdashApi<ApiAiMcpServerResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/mcpServers/github/connect`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+const getGitlabMcpAvailability = async (
+    projectUuid: string,
+): Promise<ApiAiMcpGitlabAvailabilityResponse['results']> =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lightdashApi<any>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/gitlab/availability`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const connectGitlabMcpServer = async (
+    projectUuid: string,
+    body: ApiConnectGitlabMcpServerBody,
+): Promise<ApiAiMcpServerResponse['results']> =>
+    lightdashApi<ApiAiMcpServerResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/gitlab/connect`,
         method: 'POST',
         body: JSON.stringify(body),
     });
@@ -399,6 +423,53 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to connect GitHub',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const GITLAB_MCP_AVAILABILITY_KEY = 'gitlabMcpAvailability';
+
+export const useGitlabMcpAvailability = (
+    projectUuid: string | undefined,
+    options?: UseQueryOptions<
+        ApiAiMcpGitlabAvailabilityResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiMcpGitlabAvailabilityResponse['results'], ApiError>({
+        queryKey: [GITLAB_MCP_AVAILABILITY_KEY, projectUuid],
+        queryFn: () => getGitlabMcpAvailability(projectUuid!),
+        enabled: !!projectUuid && options?.enabled !== false,
+        ...options,
+    });
+
+export const useConnectGitlabMcpServerMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiAiMcpServerResponse['results'],
+        ApiError,
+        ApiConnectGitlabMcpServerBody
+    >({
+        mutationFn: (body) => connectGitlabMcpServer(projectUuid, body),
+        onSuccess: async (result) => {
+            showToastSuccess({
+                title: 'GitLab connected',
+                subtitle: `${result.name} is ready to use with your agents.`,
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [GITLAB_MCP_AVAILABILITY_KEY, projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to connect GitLab',
                 apiError: error,
             });
         },
