@@ -14,6 +14,7 @@ import {
     Collapse,
     Divider,
     Group,
+    HoverCard,
     Loader,
     Menu,
     SegmentedControl,
@@ -63,6 +64,7 @@ import FilterFacet, {
 } from '../../../../../components/common/FilterFacet';
 import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
     useAiAgentAdminAgents,
@@ -74,6 +76,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
+import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import { SearchFilter } from './SearchFilter';
 
@@ -161,6 +164,11 @@ export type AiAgentAdminReviewItemPreviewTarget = {
 type AiAgentAdminReviewItemsTableProps = {
     selectedReviewItemUuid?: string | null;
     onReviewItemSelect?: (target: AiAgentAdminReviewItemPreviewTarget) => void;
+    /**
+     * While true and the queue is empty, sample rows are shown so the onboarding
+     * tour has findings to highlight. Flips to real data once the tour is done.
+     */
+    showOnboardingExamples?: boolean;
 };
 
 const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
@@ -380,17 +388,126 @@ const SuggestedStep = ({ children }: { children: string }) => (
     </Tooltip>
 );
 
+// Plain-English gloss for each root cause + which two are fixable from this page.
+const rootCauseHelp: Record<
+    AiAgentRootCause,
+    { desc: string; opensPr: boolean }
+> = {
+    semantic_layer: {
+        desc: 'A metric or field was missing or off',
+        opensPr: true,
+    },
+    project_context: {
+        desc: 'The agent didn’t know something about your data',
+        opensPr: true,
+    },
+    agent_configuration: {
+        desc: 'Its instructions or setup got in the way',
+        opensPr: false,
+    },
+    data_gap: {
+        desc: 'The data to answer this isn’t there yet',
+        opensPr: false,
+    },
+    product_capability: {
+        desc: 'The agent can’t do this yet',
+        opensPr: false,
+    },
+    runtime_reliability: {
+        desc: 'Something broke or timed out',
+        opensPr: false,
+    },
+    feedback_quality: {
+        desc: 'The judge’s read needs a second look',
+        opensPr: false,
+    },
+    not_a_failure: { desc: 'Nothing wrong, it answered fine', opensPr: false },
+    ambiguous: { desc: 'Not clear, worth a look', opensPr: false },
+};
+
+const rootCauseHelpOrder: AiAgentRootCause[] = [
+    'semantic_layer',
+    'project_context',
+    'agent_configuration',
+    'data_gap',
+    'product_capability',
+    'runtime_reliability',
+    'feedback_quality',
+    'not_a_failure',
+    'ambiguous',
+];
+
 const ReviewConceptHelp = () => (
-    <Tooltip
-        label="Turn: one user prompt and assistant response. Signal: the judge's per-turn assessment. Finding: a promoted signal that needs admin review."
+    <HoverCard
+        width={380}
+        shadow="md"
+        position="bottom-start"
         withArrow
-        multiline
-        maw={320}
+        openDelay={150}
     >
-        <Box className={styles.headerHelpIcon}>
-            <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
-        </Box>
-    </Tooltip>
+        <HoverCard.Target>
+            <Box className={styles.headerHelpIcon}>
+                <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
+            </Box>
+        </HoverCard.Target>
+        <HoverCard.Dropdown>
+            <Stack gap="sm">
+                <Stack gap={4}>
+                    <Text fz="xs" c="dimmed">
+                        A{' '}
+                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                            turn
+                        </Text>{' '}
+                        is one question and answer. A{' '}
+                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                            signal
+                        </Text>{' '}
+                        is what the judge thought of it. A{' '}
+                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                            finding
+                        </Text>{' '}
+                        is one worth your attention.
+                    </Text>
+                </Stack>
+                <Divider />
+                <Stack gap={6}>
+                    <Text fz="xs" fw={600} c="ldGray.9">
+                        What went wrong
+                    </Text>
+                    {rootCauseHelpOrder.map((cause) => (
+                        <Group
+                            key={cause}
+                            gap="xs"
+                            wrap="nowrap"
+                            align="flex-start"
+                        >
+                            <Box miw={110}>
+                                <CategoryBadge
+                                    variant="dot"
+                                    label={rootCauseLabels[cause]}
+                                    color={rootCauseColors[cause]}
+                                />
+                            </Box>
+                            <Text fz="xs" c="dimmed">
+                                {rootCauseHelp[cause].desc}
+                                {rootCauseHelp[cause].opensPr && (
+                                    <Text
+                                        span
+                                        fz="inherit"
+                                        c="ldGray.7"
+                                        fw={600}
+                                    >
+                                        {' '}
+                                        · fixable here
+                                    </Text>
+                                )}
+                            </Text>
+                        </Group>
+                    ))}
+                </Stack>
+            </Stack>
+        </HoverCard.Dropdown>
+    </HoverCard>
 );
 
 const statusColors: Record<AiAgentReviewItemStatus, string> = {
@@ -557,6 +674,7 @@ const ReviewItemActionsCell = ({
                                 maw={260}
                             >
                                 <Button
+                                    data-tour="reviews-create-pr"
                                     size="compact-xs"
                                     radius="md"
                                     variant="default"
@@ -652,6 +770,7 @@ const ReviewItemActionsCell = ({
 const AiAgentAdminReviewItemsTable = ({
     onReviewItemSelect,
     selectedReviewItemUuid,
+    showOnboardingExamples = false,
 }: AiAgentAdminReviewItemsTableProps) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
@@ -668,9 +787,17 @@ const AiAgentAdminReviewItemsTable = ({
     );
     const deferredSearch = useDeferredValue(search);
 
-    const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems({
-        statuses: ALL_REVIEW_ITEM_STATUSES,
-    });
+    // While the tour is running the table always shows the sample rows so the
+    // tour is deterministic; otherwise it passes real data straight through
+    // (which may be empty or not).
+    const selectReviewItems = useOnboardingMock(
+        EXAMPLE_REVIEW_ITEMS,
+        showOnboardingExamples,
+    );
+    const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems(
+        { statuses: ALL_REVIEW_ITEM_STATUSES },
+        { select: selectReviewItems },
+    );
     const { data: reviewSignals = [], isLoading: isSignalsLoading } =
         useAiAgentAdminReviewSignals({
             enabled: reviewSurface === 'signals',
@@ -1018,12 +1145,20 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
+                    const isExample = isExampleReviewItem(reviewItem.uuid);
                     const subcategory =
                         reviewItem.latestFinding?.subcategories[0];
                     const contextEntry =
                         reviewItem.latestFinding?.projectContextEntry ?? null;
                     return (
                         <Stack gap={7} align="flex-start">
+                            {isExample && (
+                                <CategoryBadge
+                                    variant="token"
+                                    color="gray"
+                                    label="Example"
+                                />
+                            )}
                             <CategoryBadge
                                 variant="dot"
                                 label={
@@ -1151,9 +1286,24 @@ const AiAgentAdminReviewItemsTable = ({
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <ReviewItemActionsCell reviewItem={row.original} />
-                ),
+                Cell: ({ row }) =>
+                    isExampleReviewItem(row.original.uuid) ? (
+                        <Box data-tour="reviews-create-pr">
+                            <Button
+                                size="compact-xs"
+                                radius="md"
+                                variant="default"
+                                disabled
+                                leftSection={
+                                    <MantineIcon icon={IconGitPullRequest} />
+                                }
+                            >
+                                Create PR
+                            </Button>
+                        </Box>
+                    ) : (
+                        <ReviewItemActionsCell reviewItem={row.original} />
+                    ),
             },
         ],
         [agentsMap, onReviewItemSelect, projectsMap],
@@ -1409,6 +1559,14 @@ const AiAgentAdminReviewItemsTable = ({
             }
 
             const reviewItem = row.original;
+            // Anchor the tour to the first row so it spotlights the whole finding.
+            const rowAnchor =
+                row.index === 0 ? { 'data-tour': 'reviews-row' } : {};
+
+            if (isExampleReviewItem(reviewItem.uuid)) {
+                return { className: styles.exampleRow, ...rowAnchor };
+            }
+
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
 
             return {
@@ -1418,6 +1576,7 @@ const AiAgentAdminReviewItemsTable = ({
                         ? theme.colors.ldGray[1]
                         : undefined,
                 },
+                ...rowAnchor,
             };
         },
         renderTopToolbar: () =>
@@ -1428,6 +1587,14 @@ const AiAgentAdminReviewItemsTable = ({
                 isLoading,
                 surface: 'findings',
             }),
+        emptyState: {
+            entityName: 'reviews',
+            emptyMessage:
+                'Nothing to review yet. When an agent gets an answer wrong, it shows up here.',
+            search,
+            hasActiveFilters,
+            onClearFilters: clearAllFilters,
+        },
         state: {
             showProgressBars: false,
             showSkeletons: isLoading,

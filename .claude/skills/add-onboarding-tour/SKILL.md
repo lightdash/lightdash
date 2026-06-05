@@ -16,7 +16,21 @@ A zero-dependency, centralised kit for first-run onboarding in `packages/fronten
 | `GuidedTour` | `src/components/common/GuidedTour` | Spotlight rendering. Dims the page, highlights a `data-tour` target, anchors a Next/Back/Skip card. `target: null` → centered card. |
 | `useOnboardingMock` | `src/hooks/useOnboardingMock.ts` | A react-query `select` that swaps real data for deterministic mock rows while a flag is on. |
 
-**Reference implementation:** `src/ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage.tsx` (wiring) and `AiAgentAdminReviewItemsTable.tsx` (mock rows). Read these first — copying them is the fastest path.
+**Reference implementation:** the Reviews page — `src/ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage.tsx` (wiring), `AiAgentAdminReviewItemsTable.tsx` (mock rows), and `Admin/onboarding/` (the content). Read these first — copying them is the fastest path.
+
+## Where content lives
+
+**Kit = global, content = per-feature.** The three building blocks above are shared. Everything specific to one feature — its steps, copy, sample rows, and any onboarding-only visuals — goes in a co-located `onboarding/` folder next to the feature, with the same fixed layout every time:
+
+```
+<feature-dir>/onboarding/
+  index.ts          public surface (re-exports)
+  steps.tsx         TOUR_STEPS: GuidedTourStep[]   (all the step copy)
+  exampleData.ts    EXAMPLE_*, isExample*()         (only if the feature shows mock rows)
+  <Visual>.tsx      onboarding-only visuals, e.g. a diagram (+ .module.css)
+```
+
+The feature imports from `./onboarding`. Do **not** put feature content in a global folder, and do **not** inline steps or mock data in the page/table — keep components about rendering. Only re-export from `index.ts` what's consumed outside the folder (`ts-unused-exports` is enforced).
 
 ## Recipe
 
@@ -27,14 +41,15 @@ A zero-dependency, centralised kit for first-run onboarding in `packages/fronten
    });
    ```
 
-2. **Define steps** (memoised). Each `target` is a CSS selector resolved when the step is reached, or `null` for a centered explainer:
+2. **Define steps** in `onboarding/steps.tsx` as a module constant (they're static — no `useMemo` needed). Each `target` is a CSS selector resolved when the step is reached, or `null` for a centered explainer:
    ```tsx
-   const steps: GuidedTourStep[] = useMemo(() => [
+   export const TOUR_STEPS: GuidedTourStep[] = [
        { target: '[data-tour="<feature>-intro"]', title: '…', body: '…' },
        { target: '[data-tour="<feature>-row"]',   title: '…', body: '…' },
        { target: null, title: '…', body: <SomeDiagram /> }, // centered
-   ], []);
+   ];
    ```
+   The page imports `{ TOUR_STEPS }` from `./onboarding` and passes it to `<GuidedTour>`.
 
 3. **Add `data-tour` anchors** to the elements each step points at. For a **table row**, add it in the row props so the whole row is spotlit:
    ```tsx
@@ -50,7 +65,7 @@ A zero-dependency, centralised kit for first-run onboarding in `packages/fronten
    <GuidedTour steps={steps} opened={isOpen} onClose={closeTour} />
    ```
 
-5. **(Optional) Deterministic example data** so a tour on an empty (or any) page always highlights the same rows. Define stable, clearly-labelled mock rows and inject them via `select` while the tour is open:
+5. **(Optional) Deterministic example data** so a tour on an empty (or any) page always highlights the same rows. Put stable, clearly-labelled mock rows and the `isExample` helper in `onboarding/exampleData.ts`, and inject them via `select` while the tour is open:
    ```tsx
    const select = useOnboardingMock(EXAMPLE_ROWS, isOpen);
    const { data } = useThings(args, { select }); // hook must forward `select` to useQuery

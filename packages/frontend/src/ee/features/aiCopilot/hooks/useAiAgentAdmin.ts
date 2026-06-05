@@ -133,13 +133,23 @@ const getAiAgentAdminReviewItems = async (args: {
 
 export const useAiAgentAdminReviewItems = (
     args: { statuses?: AiAgentReviewItemStatus[] },
-    options?: { enabled?: boolean },
+    options?: {
+        enabled?: boolean;
+        select?: (
+            data: ApiAiAgentReviewItemsResponse['results'],
+        ) => ApiAiAgentReviewItemsResponse['results'];
+    },
 ) => {
-    return useQuery<ApiAiAgentReviewItemsResponse['results'], ApiError>({
+    return useQuery<
+        ApiAiAgentReviewItemsResponse['results'],
+        ApiError,
+        ApiAiAgentReviewItemsResponse['results']
+    >({
         queryKey: ['ai-agent-admin-review-items', args],
         queryFn: () => getAiAgentAdminReviewItems(args),
         keepPreviousData: true,
         enabled: options?.enabled ?? true,
+        select: options?.select,
     });
 };
 

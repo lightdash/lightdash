@@ -40,8 +40,6 @@ const markSeen = (key: string): void => {
  * remembers it was seen (localStorage), and exposes a replay trigger. Pair with
  * the `<GuidedTour>` component for the spotlight rendering.
  */
-// Consumed in the Reviews onboarding PR; this ignore is removed there.
-// ts-unused-exports:disable-next-line
 export const useGuidedTour = ({
     storageKey,
     autoStartOnFirstVisit = true,
