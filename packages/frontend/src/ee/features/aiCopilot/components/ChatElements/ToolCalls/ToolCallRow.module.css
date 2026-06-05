@@ -19,6 +19,9 @@
 .icon {
     flex-shrink: 0;
     color: var(--mantine-color-ldGray-5);
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
     transition: color 220ms ease;
 }
 
