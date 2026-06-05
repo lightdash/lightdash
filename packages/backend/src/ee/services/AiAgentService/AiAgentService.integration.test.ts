@@ -497,6 +497,74 @@ describe('AiAgentService MCP support', () => {
         expect(updatedAgentMcpServers).toEqual([]);
     });
 
+    it('preserves Slack channel integrations when updating an agent without an integrations field', async () => {
+        const services = getServices(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const slackChannelId = `C_TEST_${suffix}`;
+
+        const agent = await services.aiAgentService.createAgent(
+            context.testUser,
+            {
+                name: `Slack Integration Agent ${suffix}`,
+                description: null,
+                projectUuid: SEED_PROJECT.project_uuid,
+                tags: null,
+                integrations: [{ type: 'slack', channelId: slackChannelId }],
+                instruction: '',
+                groupAccess: [],
+                userAccess: [],
+                spaceAccess: [],
+                mcpServerUuids: [],
+                imageUrl: null,
+                enableDataAccess: true,
+                enableSelfImprovement: false,
+                version: 2,
+            },
+        );
+
+        expect(agent.integrations).toEqual([
+            { type: 'slack', channelId: slackChannelId },
+        ]);
+
+        // A partial update (e.g. changing MCP servers) omits `integrations`.
+        // It must NOT wipe the agent's Slack channel assignments.
+        const updatedAgent = await services.aiAgentService.updateAgent(
+            context.testUser,
+            agent.uuid,
+            {
+                uuid: agent.uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                mcpServerUuids: [],
+            },
+        );
+
+        expect(updatedAgent.integrations).toEqual([
+            { type: 'slack', channelId: slackChannelId },
+        ]);
+
+        const refetchedAgent = await services.aiAgentService.getAgent(
+            context.testUser,
+            agent.uuid,
+        );
+
+        expect(refetchedAgent.integrations).toEqual([
+            { type: 'slack', channelId: slackChannelId },
+        ]);
+
+        // Explicitly providing `integrations` still replaces them.
+        const clearedAgent = await services.aiAgentService.updateAgent(
+            context.testUser,
+            agent.uuid,
+            {
+                uuid: agent.uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                integrations: [],
+            },
+        );
+
+        expect(clearedAgent.integrations).toEqual([]);
+    });
+
     it('creates OAuth MCP servers without credentials and disables sharing by default', async () => {
         const services = getServices(context.app);
         const models = getModels(context.app);
