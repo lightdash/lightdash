@@ -39,7 +39,7 @@
 
     @mixin light {
         background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-gray-3);
+        border: 1px solid var(--mantine-color-ldGray-2);
         box-shadow:
             0 8px 24px rgba(15, 23, 42, 0.05),
             0 1px 4px rgba(15, 23, 42, 0.04);
@@ -286,7 +286,7 @@
 
     @mixin light {
         background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-3);
+        border: 1px solid var(--mantine-color-ldGray-2);
     }
 
     @mixin dark {
