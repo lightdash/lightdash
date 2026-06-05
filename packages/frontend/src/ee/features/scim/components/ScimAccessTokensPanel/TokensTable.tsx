@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     CopyButton,
     Group,
     Paper,
@@ -41,107 +40,92 @@ const TokenItem: FC<{
 }> = ({ token, setTokenToDelete }) => {
     const { description, expiresAt, rotatedAt, lastUsedAt, uuid } = token;
     return (
-        <>
-            <tr>
-                <Text
-                    component="td"
-                    fw={500}
-                    className={classesModule.nameColumn}
-                >
+        <Table.Tr>
+            <Table.Td>
+                <Text fw={500} fz="sm">
                     {description}
                 </Text>
+            </Table.Td>
 
-                <td>
-                    <Group align="center" justify="flex-start" gap="xs">
-                        <span>
-                            {expiresAt
-                                ? formatDate(expiresAt)
-                                : 'No expiration date'}
-                        </span>
-                        {rotatedAt && (
+            <Table.Td>
+                <Group gap="xs">
+                    <span>
+                        {expiresAt
+                            ? formatDate(expiresAt)
+                            : 'No expiration date'}
+                    </span>
+                    {rotatedAt && (
+                        <Tooltip
+                            withinPortal
+                            position="top"
+                            maw={350}
+                            label={`Last rotated at ${formatTimestamp(
+                                rotatedAt,
+                            )}`}
+                        >
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                                size="md"
+                            />
+                        </Tooltip>
+                    )}
+                </Group>
+            </Table.Td>
+            <Table.Td>
+                {lastUsedAt ? (
+                    <Tooltip
+                        withinPortal
+                        position="top"
+                        maw={350}
+                        label={formatTimestamp(lastUsedAt)}
+                    >
+                        <span>{formatDate(lastUsedAt)}</span>
+                    </Tooltip>
+                ) : (
+                    <span>Never used</span>
+                )}
+            </Table.Td>
+            <Table.Td>
+                <Group gap="xs" wrap="nowrap">
+                    <Tooltip withinPortal position="top" maw={350} label={uuid}>
+                        <Text fz="sm" className={classesModule.uuid}>
+                            ...{uuid.slice(-8)}
+                        </Text>
+                    </Tooltip>
+                    <CopyButton value={uuid}>
+                        {({ copied, copy }) => (
                             <Tooltip
-                                withinPortal
-                                position="top"
-                                maw={350}
-                                label={`Last rotated at ${formatTimestamp(
-                                    rotatedAt,
-                                )}`}
+                                label={copied ? 'Copied' : 'Copy'}
+                                withArrow
+                                position="right"
                             >
-                                <MantineIcon
-                                    icon={IconInfoCircle}
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={copy}
+                                    variant="transparent"
                                     color="ldGray.6"
-                                    size="md"
-                                />
+                                >
+                                    <MantineIcon
+                                        icon={copied ? IconCheck : IconCopy}
+                                    />
+                                </ActionIcon>
                             </Tooltip>
                         )}
-                    </Group>
-                </td>
-                <td>
-                    {lastUsedAt ? (
-                        <Tooltip
-                            withinPortal
-                            position="top"
-                            maw={350}
-                            label={formatTimestamp(lastUsedAt)}
-                        >
-                            <span>{formatDate(lastUsedAt)}</span>
-                        </Tooltip>
-                    ) : (
-                        <span>Never used</span>
-                    )}
-                </td>
-                <td>
-                    <Group
-                        align="center"
-                        justify="flex-start"
-                        gap="xs"
-                        wrap="nowrap"
-                    >
-                        <Tooltip
-                            withinPortal
-                            position="top"
-                            maw={350}
-                            label={uuid}
-                        >
-                            <span className={classesModule.uuid}>
-                                ...{uuid.slice(-8)}
-                            </span>
-                        </Tooltip>
-                        <CopyButton value={uuid}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={copy}
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon
-                                            color="ldGray.6"
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
-                    </Group>
-                </td>
-                <td width="1%">
-                    <Button
-                        px="xs"
-                        variant="outline"
-                        size="xs"
-                        color="red"
-                        onClick={() => setTokenToDelete(token)}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </Button>
-                </td>
-            </tr>
-        </>
+                    </CopyButton>
+                </Group>
+            </Table.Td>
+            <Table.Td w="1%">
+                <ActionIcon
+                    variant="outline"
+                    size="md"
+                    color="red"
+                    onClick={() => setTokenToDelete(token)}
+                >
+                    <MantineIcon icon={IconTrash} />
+                </ActionIcon>
+            </Table.Td>
+        </Table.Tr>
     );
 };
 
@@ -164,27 +148,23 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table
-                    className={cx(
-                        classes.root,
-                        classes.alignLastTdRight,
-                        classesModule.table,
-                    )}
-                >
-                    <thead>
-                        <tr>
-                            <th className={classesModule.nameColumn}>Name</th>
-                            <th className={classesModule.dateColumn}>
+                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th className={classesModule.nameColumn}>
+                                Name
+                            </Table.Th>
+                            <Table.Th className={classesModule.dateColumn}>
                                 Expiration date
-                            </th>
-                            <th className={classesModule.dateColumn}>
+                            </Table.Th>
+                            <Table.Th className={classesModule.dateColumn}>
                                 Last used at
-                            </th>
-                            <th>UUID</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                            </Table.Th>
+                            <Table.Th>UUID</Table.Th>
+                            <Table.Th></Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
                         {data?.map((token) => (
                             <TokenItem
                                 key={token.uuid}
@@ -192,7 +172,7 @@ export const TokensTable = () => {
                                 setTokenToDelete={setTokenToDelete}
                             />
                         ))}
-                    </tbody>
+                    </Table.Tbody>
                 </Table>
             </Paper>
 

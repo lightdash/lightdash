@@ -1,7 +1,3 @@
-.table thead tr th {
-    text-align: left;
-}
-
 .uuid {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
     user-select: all;
