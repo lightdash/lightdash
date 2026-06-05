@@ -34,6 +34,7 @@ Rules:
 | **Guessing filter values**                              | Case mismatches like `"Payment"` vs `"payment"` can make a chart silently return no data         | Verify exact values before editing filters. Do not guess string filter values                       |
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows the old title because tile `title` and `chartName` do not auto-update | If you change a chart's name or purpose, also update dashboard tiles that reference its `chartSlug` |
 | **Including unused dimensions in `metricQuery`**        | Extra dimensions change grouping and can produce wrong numbers                                   | Every dimension in `metricQuery.dimensions` must be used by the chart configuration                 |
+| **Leaving invalid touched tile positions**              | Edited tiles overlap, sit outside the 36-column grid, or leave unintended gaps                   | Validate touched tiles against `dashboard-reference` grid layout rules after tile actions           |
 | **Missing `contentType`**                               | Content type becomes ambiguous                                                                   | Always keep `contentType: "chart"` or `contentType: "dashboard"`                                    |
 
 ## Core Workflows
