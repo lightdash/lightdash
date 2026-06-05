@@ -139,6 +139,7 @@ interface ServiceManifest {
     embedService: unknown;
     aiService: unknown;
     aiAgentService: unknown;
+    aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
     aiAgentDocumentService: unknown;
     aiAgentReviewClassifierService: unknown;
@@ -1294,6 +1295,12 @@ export class ServiceRepository
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
         return this.getService('aiAgentService');
+    }
+
+    public getAiAgentToolsService<
+        AiAgentToolsServiceImplT,
+    >(): AiAgentToolsServiceImplT {
+        return this.getService('aiAgentToolsService');
     }
 
     public getAiAgentAdminService<
