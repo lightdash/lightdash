@@ -87,7 +87,7 @@ export function findMatchingSubtotal(
                 )
             );
         } catch (e) {
-            console.error(e);
+            captureException(e);
             return false;
         }
     });
