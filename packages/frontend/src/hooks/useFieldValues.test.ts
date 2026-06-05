@@ -1,7 +1,11 @@
 import { QueryHistoryStatus } from '@lightdash/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
-import { MAX_POLL_ATTEMPTS, pollForFieldValueResults } from './useFieldValues';
+import {
+    getFieldValuesAsync,
+    MAX_POLL_ATTEMPTS,
+    pollForFieldValueResults,
+} from './useFieldValues';
 
 vi.mock('../api', () => ({
     lightdashApi: vi.fn(),
@@ -122,5 +126,93 @@ describe('pollForFieldValueResults', () => {
         );
 
         expect(lightdashApi).toHaveBeenCalledTimes(MAX_POLL_ATTEMPTS);
+    });
+});
+
+describe('getFieldValuesAsync', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const executeResult = {
+        queryUuid: 'query-uuid',
+        cacheMetadata: { cacheHit: false },
+    };
+
+    it('maps rows using the results column key when the backend rewrites the fieldId', async () => {
+        // Aliased joins resolve to the original explore's field, so rows come
+        // back keyed by the rewritten id (e.g. generated_b_region instead of
+        // the requested join_1_region)
+        const readyResult = {
+            status: QueryHistoryStatus.READY,
+            queryUuid: 'query-uuid',
+            rows: [
+                {
+                    generated_b_region: {
+                        value: { raw: 'Agder', formatted: 'Agder' },
+                    },
+                },
+                {
+                    generated_b_region: {
+                        value: { raw: 'Alsace', formatted: 'Alsace' },
+                    },
+                },
+            ],
+            columns: {
+                generated_b_region: {
+                    type: 'string',
+                    reference: 'generated_b_region',
+                },
+            },
+            metadata: { performance: {} },
+            pivotDetails: null,
+        };
+
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce(executeResult as never)
+            .mockResolvedValueOnce(readyResult as never);
+
+        const result = await getFieldValuesAsync(
+            'project-uuid',
+            'join_1',
+            'join_1_region',
+            '',
+            false,
+            undefined,
+        );
+
+        expect(result.results).toEqual(['Agder', 'Alsace']);
+    });
+
+    it('falls back to the requested fieldId when columns are missing', async () => {
+        const readyResult = {
+            status: QueryHistoryStatus.READY,
+            queryUuid: 'query-uuid',
+            rows: [
+                {
+                    orders_status: {
+                        value: { raw: 'completed', formatted: 'completed' },
+                    },
+                },
+            ],
+            columns: {},
+            metadata: { performance: {} },
+            pivotDetails: null,
+        };
+
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce(executeResult as never)
+            .mockResolvedValueOnce(readyResult as never);
+
+        const result = await getFieldValuesAsync(
+            'project-uuid',
+            'orders',
+            'orders_status',
+            '',
+            false,
+            undefined,
+        );
+
+        expect(result.results).toEqual(['completed']);
     });
 });
