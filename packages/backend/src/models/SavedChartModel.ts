@@ -958,60 +958,64 @@ export class SavedChartModel {
         savedChartUuidOrSlug: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): void {
-        const withDeletedFilter = (lookupQuery: Knex.QueryBuilder) => {
+        const buildProbe = (matchPriority: number) => {
+            const lookupQuery = this.database(SavedChartsTableName)
+                .select(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    this.database.raw(`${matchPriority} as match_priority`),
+                )
+                .limit(1);
+
             if (options?.deleted === 'any') {
-                return lookupQuery;
-            }
-            if (options?.deleted) {
-                return lookupQuery.whereNotNull(
+                // No filter — match regardless of deleted status
+            } else if (options?.deleted) {
+                void lookupQuery.whereNotNull(
+                    `${SavedChartsTableName}.deleted_at`,
+                );
+            } else {
+                void lookupQuery.whereNull(
                     `${SavedChartsTableName}.deleted_at`,
                 );
             }
-            return lookupQuery.whereNull(`${SavedChartsTableName}.deleted_at`);
+
+            // Scope both probes to the project when one is provided, matching
+            // the outer query's project filter. Slugs are only unique within
+            // a project.
+            if (options?.projectUuid) {
+                void lookupQuery
+                    .leftJoin(
+                        DashboardsTableName,
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                    )
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(
+                        `${ProjectTableName}.project_uuid`,
+                        options.projectUuid,
+                    );
+            }
+
+            return lookupQuery;
         };
 
-        const lookupByUuid = withDeletedFilter(
-            this.database(SavedChartsTableName)
-                .select(
-                    `${SavedChartsTableName}.saved_query_id`,
-                    this.database.raw('1 as match_priority'),
-                )
-                .where(
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    savedChartUuidOrSlug,
-                )
-                .limit(1),
+        const lookupByUuid = buildProbe(1).where(
+            `${SavedChartsTableName}.saved_query_uuid`,
+            savedChartUuidOrSlug,
         );
 
-        const lookupBySlug = withDeletedFilter(
-            this.database(SavedChartsTableName)
-                .select(
-                    `${SavedChartsTableName}.saved_query_id`,
-                    this.database.raw('2 as match_priority'),
-                )
-                .where(`${SavedChartsTableName}.slug`, savedChartUuidOrSlug)
-                .limit(1),
+        // The slug probe always runs as a uuid-shaped-slug fallback, even
+        // without a projectUuid
+        const lookupBySlug = buildProbe(2).where(
+            `${SavedChartsTableName}.slug`,
+            savedChartUuidOrSlug,
         );
-
-        // Slugs are only unique within a project, so scope the slug probe to
-        // the project when one is provided
-        if (options?.projectUuid) {
-            void lookupBySlug
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                )
-                .joinRaw(
-                    `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
-                )
-                .innerJoin(
-                    ProjectTableName,
-                    `${SpaceTableName}.project_id`,
-                    `${ProjectTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, options.projectUuid);
-        }
 
         void queryBuilder.unionAll([lookupByUuid, lookupBySlug], true);
     }
