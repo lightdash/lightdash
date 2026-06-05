@@ -1,3 +1,15 @@
+# [0.3101.0](https://github.com/lightdash/lightdash/compare/0.3100.0...0.3101.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **access-tokens:** match Last used at font size to Expiration date ([#23949](https://github.com/lightdash/lightdash/issues/23949)) ([0d559b8](https://github.com/lightdash/lightdash/commit/0d559b8a449b548bdcf7ff3c2d9c1cf53b943892))
+
+
+### Features
+
+* **totals:** table calculation totals in v2 calculate-total endpoint ([#23891](https://github.com/lightdash/lightdash/issues/23891)) ([a4f7e06](https://github.com/lightdash/lightdash/commit/a4f7e06c8129d582e9ad685e0e5bad4706fec3fe))
+
 # [0.3100.0](https://github.com/lightdash/lightdash/compare/0.3099.2...0.3100.0) (2026-06-05)
 
 
