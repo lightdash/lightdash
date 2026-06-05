@@ -119,3 +119,17 @@ export const databricksOauthU2mUserCredentialsSchema = z
         httpPath: z.string().optional(),
     })
     .strict();
+
+// Zod schema for validating BigQuery SSO user warehouse credentials.
+// Per-user BigQuery credentials are always SSO ("authorized_user" keyfile),
+// so a usable keyfile must carry a non-empty refresh_token. This guards
+// against an empty `keyfileContents: {}` being persisted or used, which
+// otherwise surfaces as the opaque "does not contain a client_email field".
+export const bigquerySsoUserCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.BIGQUERY),
+        keyfileContents: z
+            .object({ refresh_token: z.string().min(1) })
+            .passthrough(),
+    })
+    .passthrough();
