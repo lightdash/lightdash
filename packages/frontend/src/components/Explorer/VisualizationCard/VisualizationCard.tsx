@@ -233,12 +233,25 @@ const VisualizationCard: FC<Props> = memo((props) => {
     } = useElementSize();
 
     useLayoutEffect(() => {
-        if (isVisualizationConfigOpen) {
-            const target = document.getElementById(VisualizationConfigPortalId);
-            setPortalTarget(target);
-        } else {
+        if (!isVisualizationConfigOpen) {
             setPortalTarget(null);
+            return;
         }
+        // The portal target lives in the sidebar, which may still be mounting
+        // (e.g. reopening after a collapse — Mantine's Transition renders its
+        // children a frame later), so retry until the element appears.
+        let frame: number;
+        let attempts = 0;
+        const acquire = () => {
+            const target = document.getElementById(VisualizationConfigPortalId);
+            if (target) {
+                setPortalTarget(target);
+            } else if (attempts++ < 60) {
+                frame = requestAnimationFrame(acquire);
+            }
+        };
+        acquire();
+        return () => cancelAnimationFrame(frame);
     }, [isVisualizationConfigOpen]);
 
     useLayoutEffect(() => {

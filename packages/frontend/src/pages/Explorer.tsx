@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { Group } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
@@ -39,20 +39,14 @@ const ExplorerContent = memo(() => {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    // The chart config panel renders inside the sidebar (via a portal). Opening
-    // it while the sidebar is collapsed must reveal the sidebar, otherwise the
-    // panel has nowhere to render. Fire only on the open transition so a manual
-    // collapse afterwards still works.
+    // The chart config panel renders inside the sidebar (via a portal), so the
+    // sidebar must be visible whenever config is open — even if collapsed.
+    // Deriving it (rather than reacting in an effect) keeps the portal target
+    // mounted in the same render the config opens, so it has somewhere to go.
     const isVizConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
     );
-    const prevVizConfigOpen = useRef(isVizConfigOpen);
-    useEffect(() => {
-        if (isVizConfigOpen && !prevVizConfigOpen.current) {
-            setIsSidebarOpen(true);
-        }
-        prevVizConfigOpen.current = isVizConfigOpen;
-    }, [isVizConfigOpen]);
+    const isSidebarVisible = isSidebarOpen || isVizConfigOpen;
 
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
@@ -77,7 +71,7 @@ const ExplorerContent = memo(() => {
             sidebar={
                 <ExploreSideBar onCollapse={() => setIsSidebarOpen(false)} />
             }
-            isSidebarOpen={isSidebarOpen}
+            isSidebarOpen={isSidebarVisible}
             withFullHeight
             withPaddedContent
         >
@@ -88,7 +82,7 @@ const ExplorerContent = memo(() => {
                 gap="xs"
                 style={{ flexGrow: 1 }}
             >
-                {!isSidebarOpen && (
+                {!isSidebarVisible && (
                     <SidebarOpenGutter onClick={() => setIsSidebarOpen(true)} />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
