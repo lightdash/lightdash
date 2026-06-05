@@ -16,6 +16,7 @@
     "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
     "dev:fast": "tsgo --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
     "build": "tsc --build ./tsconfig.build.json",
+    "build:fast": "tsgo --build ./tsconfig.build.fast.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
