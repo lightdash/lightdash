@@ -9,6 +9,7 @@
     box-shadow: var(--mantine-shadow-subtle);
     cursor: pointer;
     font-size: var(--mantine-font-size-xs);
+    font-family: var(--mantine-font-family);
     transition:
         background-color 120ms ease,
         border-color 120ms ease;
@@ -26,6 +27,30 @@
 .label {
     flex: 1;
     text-align: left;
+    font-family: var(--mantine-font-family);
+}
+
+.headerTarget {
+    width: auto;
+    min-width: 0;
+    max-width: 260px;
+    padding: 4px 6px;
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+}
+
+.headerTarget:hover,
+.headerTarget:focus-visible,
+.headerTarget[data-open='true'] {
+    border-color: transparent;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
 }
 
 /* Compact: icon-only at rest, no border. On hover / focus / open, the chip
@@ -60,8 +85,18 @@
     transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.compact[data-auto='true'] .label {
+    width: auto;
+}
+
 .compact:hover .label,
 .compact:focus-visible .label,
 .compact[data-open='true'] .label {
     width: 140px;
+}
+
+.compact[data-auto='true']:hover .label,
+.compact[data-auto='true']:focus-visible .label,
+.compact[data-auto='true'][data-open='true'] .label {
+    width: auto;
 }

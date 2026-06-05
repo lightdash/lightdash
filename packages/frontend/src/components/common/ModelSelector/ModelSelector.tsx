@@ -1,6 +1,7 @@
 import type { AiModelOption } from '@lightdash/common';
 import {
     Button,
+    Group,
     Menu,
     ScrollArea,
     Stack,
@@ -16,12 +17,16 @@ interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
     value: string | null;
     onChange: (modelKey: string) => void;
+    reasoningEnabled?: boolean;
+    onReasoningChange?: (enabled: boolean) => void;
 }
 
 export const ModelSelector: FC<Props> = ({
     models,
     value,
     onChange,
+    reasoningEnabled,
+    onReasoningChange,
     ...buttonProps
 }) => {
     const selectedModel = useMemo(
@@ -43,7 +48,12 @@ export const ModelSelector: FC<Props> = ({
         [groupedModels],
     );
 
-    if (models.length === 1) {
+    const showReasoning =
+        selectedModel?.supportsReasoning === true &&
+        onReasoningChange !== undefined;
+    const reasoningLabel = reasoningEnabled ? 'High' : null;
+
+    if (models.length === 1 && !showReasoning) {
         return null;
     }
 
@@ -51,8 +61,9 @@ export const ModelSelector: FC<Props> = ({
         <Menu
             shadow="md"
             width={280}
-            position="bottom-start"
-            withinPortal={false}
+            position="top-end"
+            offset={8}
+            withinPortal
         >
             <Menu.Target>
                 <Button
@@ -66,13 +77,54 @@ export const ModelSelector: FC<Props> = ({
                         />
                     }
                 >
-                    <Text size="xs" fw={500} c="dimmed">
-                        {selectedModel?.displayName ?? 'Select model'}
-                    </Text>
+                    <Group gap={6} wrap="nowrap">
+                        <Text size="xs" fw={600} c="ldGray.8" span>
+                            {selectedModel?.displayName ?? 'Select model'}
+                        </Text>
+                        {showReasoning && reasoningLabel && (
+                            <Text size="xs" fw={500} c="ldGray.6" span>
+                                {reasoningLabel}
+                            </Text>
+                        )}
+                    </Group>
                 </Button>
             </Menu.Target>
 
             <Menu.Dropdown>
+                {showReasoning && (
+                    <>
+                        <Menu.Label>Reasoning</Menu.Label>
+                        <Menu.Item
+                            onClick={() => onReasoningChange(false)}
+                            rightSection={
+                                !reasoningEnabled ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size="sm"
+                                        color="ldGray.7"
+                                    />
+                                ) : null
+                            }
+                        >
+                            Default
+                        </Menu.Item>
+                        <Menu.Item
+                            onClick={() => onReasoningChange(true)}
+                            rightSection={
+                                reasoningEnabled ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size="sm"
+                                        color="ldGray.7"
+                                    />
+                                ) : null
+                            }
+                        >
+                            High
+                        </Menu.Item>
+                        {models.length > 1 && <Menu.Divider />}
+                    </>
+                )}
                 <ScrollArea.Autosize mah={200}>
                     {providerGroups.map((provider, groupIndex) => {
                         const providerModels =

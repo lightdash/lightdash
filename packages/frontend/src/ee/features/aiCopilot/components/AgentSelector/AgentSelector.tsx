@@ -12,7 +12,6 @@ import {
     IconCheck,
     IconChevronDown,
     IconCirclePlus,
-    IconSparkles,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -31,6 +30,7 @@ type Props = {
     agents: Agent[];
     selectedAgent: Agent | 'auto';
     projectUuid: string;
+    variant?: 'default' | 'header';
     /**
      * Render the target as an icon-only chip; the label reveals on hover,
      * focus, or while the dropdown is open. Used when toolbar space is
@@ -45,6 +45,7 @@ export const AgentSelector = ({
     agents,
     selectedAgent,
     projectUuid,
+    variant = 'default',
     compact = false,
 }: Props) => {
     const navigate = useNavigate();
@@ -109,19 +110,12 @@ export const AgentSelector = ({
                     onClick={() => combobox.toggleDropdown()}
                     className={`${styles.target} ${
                         compact ? styles.compact : ''
-                    }`}
+                    } ${variant === 'header' ? styles.headerTarget : ''}`}
                     data-open={opened ? 'true' : undefined}
+                    data-auto={isAuto ? 'true' : undefined}
                 >
                     <Group gap={6} wrap="nowrap" align="center" w="100%">
-                        {isAuto ? (
-                            <Avatar size={22} color="ldGray" radius="xl">
-                                <MantineIcon
-                                    icon={IconSparkles}
-                                    size="sm"
-                                    color="ldGray.6"
-                                />
-                            </Avatar>
-                        ) : (
+                        {!isAuto && (
                             <LightdashUserAvatar
                                 size={22}
                                 name={selectedAgent.name}
@@ -146,11 +140,9 @@ export const AgentSelector = ({
                         <Combobox.Option value={AUTO_VALUE} p={2}>
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Avatar size={22} color="ldGray" radius="xl">
-                                    <MantineIcon
-                                        icon={IconSparkles}
-                                        size="sm"
-                                        color="ldGray.6"
-                                    />
+                                    <Text size="10px" fw={700} c="ldGray.6">
+                                        AI
+                                    </Text>
                                 </Avatar>
                                 <Stack gap={0} flex={1} miw={0}>
                                     <Text size="xs" fw={600}>
