@@ -215,8 +215,18 @@ const useTableConfig = (
             resultsData?.pivotDetails?.groupByColumns?.map(
                 (col) => col.reference,
             ) ?? [];
-        return !isEqual(pivotDimensions ?? [], resultsPivotDimensions);
-    }, [pivotDimensions, resultsData?.pivotDetails?.groupByColumns]);
+        // Compare only VISIBLE configured dims — a hidden sort-only pivot dim is
+        // routed to sortOnlyDimensions and never appears in results.groupByColumns,
+        // so including it here would keep the re-run prompt permanently stale.
+        const visiblePivotDimensions = (pivotDimensions ?? []).filter(
+            isColumnVisible,
+        );
+        return !isEqual(visiblePivotDimensions, resultsPivotDimensions);
+    }, [
+        pivotDimensions,
+        resultsData?.pivotDetails?.groupByColumns,
+        isColumnVisible,
+    ]);
 
     const dimensions = useMemo(() => {
         if (!itemsMap) return [];
