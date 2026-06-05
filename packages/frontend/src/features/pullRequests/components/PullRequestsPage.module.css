@@ -1,11 +1,15 @@
-/* Artsy pull-request medallion: a soft shadow gives it a little lift */
-.medallion {
-    box-shadow: 0 1px 3px
-        light-dark(rgba(15, 18, 20, 0.08), rgba(0, 0, 0, 0.35));
+/* Icon + title row: let the text block shrink so the title can truncate */
+.titleCell {
+    min-width: 0;
 }
 
-/* Title text truncates (but doesn't grow) so the source tag sits inline
-   immediately after it rather than being pushed to the right edge */
+/* Match the validator's icon: theme Paper border + subtle shadow */
+.medallion {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+/* Title text truncates (but doesn't grow) so it doesn't push the row wider */
 .title {
     min-width: 0;
 }

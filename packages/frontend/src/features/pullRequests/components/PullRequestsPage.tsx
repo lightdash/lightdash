@@ -134,40 +134,10 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
     const columns = useMemo<MRT_ColumnDef<PullRequestRow>[]>(
         () => [
             {
-                id: 'medallion',
-                header: '',
-                enableSorting: false,
-                size: 56,
-                Cell: ({ row }) => (
-                    <ThemeIcon
-                        variant="light"
-                        color={getStateColor(row.original.state)}
-                        radius="xl"
-                        size={34}
-                        className={classes.medallion}
-                    >
-                        <MantineIcon icon={IconGitPullRequest} size="md" />
-                    </ThemeIcon>
-                ),
-            },
-            {
-                id: 'source',
-                header: 'Source',
-                enableSorting: false,
-                size: 120,
-                Cell: ({ row }) => (
-                    <CategoryBadge
-                        label={getSourceLabel(row.original.source)}
-                        color={getSourceColor(row.original.source)}
-                        variant="dot"
-                    />
-                ),
-            },
-            {
                 accessorKey: 'title',
                 header: 'Pull request',
                 enableSorting: false,
-                size: 520,
+                size: 620,
                 Cell: ({ row }) => {
                     const pr = row.original;
                     // title/state are both null when the live lookup from the
@@ -175,62 +145,102 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                     const liveLookupFailed =
                         pr.title === null && pr.state === null;
                     return (
-                        <Stack gap={2} className={classes.title}>
-                            {liveLookupFailed ? (
-                                <Tooltip
-                                    label={`Couldn't load this pull request from ${getProviderLabel(
-                                        pr.provider,
-                                    )}. It may have been deleted, or access was revoked.`}
-                                    openDelay={300}
-                                    multiline
-                                    maw={420}
-                                    withinPortal
-                                >
-                                    <Group gap="two" wrap="nowrap">
-                                        <MantineIcon
-                                            icon={IconAlertCircle}
-                                            color="red"
-                                            size="sm"
-                                        />
-                                        <Text
-                                            size="sm"
-                                            fw={500}
-                                            c="red"
-                                            truncate
-                                        >
-                                            Couldn't load pull request
+                        <Group
+                            gap="sm"
+                            wrap="nowrap"
+                            className={classes.titleCell}
+                        >
+                            <ThemeIcon
+                                variant="light"
+                                color={getStateColor(pr.state)}
+                                radius="md"
+                                size={32}
+                                className={classes.medallion}
+                            >
+                                <MantineIcon
+                                    icon={IconGitPullRequest}
+                                    size="md"
+                                />
+                            </ThemeIcon>
+                            <Stack gap={2} className={classes.title}>
+                                {liveLookupFailed ? (
+                                    <Tooltip
+                                        label={`Couldn't load this pull request from ${getProviderLabel(
+                                            pr.provider,
+                                        )}. It may have been deleted, or access was revoked.`}
+                                        openDelay={300}
+                                        multiline
+                                        maw={420}
+                                        withinPortal
+                                    >
+                                        <Group gap="two" wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconAlertCircle}
+                                                color="red"
+                                                size="sm"
+                                            />
+                                            <Text
+                                                fz="sm"
+                                                fw={600}
+                                                c="red"
+                                                truncate
+                                            >
+                                                Couldn't load pull request
+                                            </Text>
+                                        </Group>
+                                    </Tooltip>
+                                ) : (
+                                    <Tooltip
+                                        label={pr.title}
+                                        openDelay={400}
+                                        multiline
+                                        maw={420}
+                                        withinPortal
+                                    >
+                                        <Text fz="sm" fw={600} truncate>
+                                            {pr.title}
                                         </Text>
-                                    </Group>
-                                </Tooltip>
-                            ) : (
+                                    </Tooltip>
+                                )}
                                 <Tooltip
-                                    label={pr.title}
-                                    openDelay={400}
-                                    multiline
-                                    maw={420}
+                                    label={formatTimestamp(
+                                        pr.createdAt,
+                                        TimeFrames.MINUTE,
+                                    )}
+                                    openDelay={300}
                                     withinPortal
                                 >
-                                    <Text size="sm" fw={500} truncate>
-                                        {pr.title}
+                                    <Text fz="xs" c="ldGray.6" truncate span>
+                                        opened {dayjs(pr.createdAt).fromNow()}
+                                        {pr.author ? (
+                                            <>
+                                                {' by '}
+                                                <Text span fw={700} fz="xs">
+                                                    {pr.author.name}
+                                                </Text>
+                                            </>
+                                        ) : (
+                                            ''
+                                        )}
                                     </Text>
                                 </Tooltip>
-                            )}
-                            <Tooltip
-                                label={formatTimestamp(
-                                    pr.createdAt,
-                                    TimeFrames.MINUTE,
-                                )}
-                                openDelay={300}
-                                withinPortal
-                            >
-                                <Text fz="xs" c="dimmed" truncate span>
-                                    opened {dayjs(pr.createdAt).fromNow()}
-                                    {pr.author ? ` by ${pr.author.name}` : ''}
-                                </Text>
-                            </Tooltip>
-                        </Stack>
+                            </Stack>
+                        </Group>
                     );
                 },
+            },
+            {
+                id: 'source',
+                header: 'Source',
+                enableSorting: false,
+                size: 140,
+                Cell: ({ row }) => (
+                    <CategoryBadge
+                        label={getSourceLabel(row.original.source)}
+                        color={getSourceColor(row.original.source)}
+                        variant="dot"
+                    />
+                ),
             },
         ],
         [],
