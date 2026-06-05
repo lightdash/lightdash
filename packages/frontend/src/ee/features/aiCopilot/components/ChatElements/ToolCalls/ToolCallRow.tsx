@@ -250,7 +250,7 @@ export const ToolCallRow: FC<Props> = ({
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
-                <Stack gap={8} className={styles.body}>
+                <Stack gap={4} className={styles.body}>
                     {toolCalls.map((tc) =>
                         isToolName(tc.toolName) ? (
                             <ToolCallDescription
