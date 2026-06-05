@@ -946,25 +946,19 @@ export class SavedChartModel {
     }
 
     /**
-     * Resolves the saved_query_id for a uuid-or-slug lookup using two
-     * single-column index probes combined in a CTE. A combined
-     * `saved_query_uuid = ? OR slug = ?` filter lets the planner mis-estimate
-     * the slug match under degraded statistics and fall back to scanning the
-     * whole table; single-predicate probes always stay on their indexes.
-     * A uuid match takes priority over a slug that happens to be uuid-shaped.
+     * Finds candidate chart ids via two single-column index probes instead of
+     * a `uuid = ? OR slug = ?` filter, which can degrade to a seq scan under
+     * stale statistics. Returns all matches; the outer ORDER BY picks the winner.
      */
     private buildChartLookupCte(
         queryBuilder: Knex.QueryBuilder,
         savedChartUuidOrSlug: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): void {
-        const buildProbe = (matchPriority: number) => {
-            const lookupQuery = this.database(SavedChartsTableName)
-                .select(
-                    `${SavedChartsTableName}.saved_query_id`,
-                    this.database.raw(`${matchPriority} as match_priority`),
-                )
-                .limit(1);
+        const buildProbe = () => {
+            const lookupQuery = this.database(SavedChartsTableName).select(
+                `${SavedChartsTableName}.saved_query_id`,
+            );
 
             if (options?.deleted === 'any') {
                 // No filter — match regardless of deleted status
@@ -1005,14 +999,13 @@ export class SavedChartModel {
             return lookupQuery;
         };
 
-        const lookupByUuid = buildProbe(1).where(
+        const lookupByUuid = buildProbe().where(
             `${SavedChartsTableName}.saved_query_uuid`,
             savedChartUuidOrSlug,
         );
 
-        // The slug probe always runs as a uuid-shaped-slug fallback, even
-        // without a projectUuid
-        const lookupBySlug = buildProbe(2).where(
+        // Fallback for uuid-shaped slugs
+        const lookupBySlug = buildProbe().where(
             `${SavedChartsTableName}.slug`,
             savedChartUuidOrSlug,
         );
@@ -1053,8 +1046,7 @@ export class SavedChartModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
-                    // Lateral join fetches only the target version instead of
-                    // joining every historical version and sorting afterwards
+                    // Lateral fetches only the target version per chart
                     .joinRaw(
                         versionUuid
                             ? `CROSS JOIN LATERAL (
@@ -1154,6 +1146,9 @@ export class SavedChartModel {
                 }
 
                 if (isUuid) {
+                    // ANY(ARRAY(...)) folds the candidate ids into a constant so
+                    // the lookup stays an index probe; IN (subquery) plans as a
+                    // full-table semi-join instead.
                     void chartQuery
                         .with('chart_lookup', (queryBuilder) =>
                             this.buildChartLookupCte(
@@ -1162,14 +1157,8 @@ export class SavedChartModel {
                                 options,
                             ),
                         )
-                        .where(
-                            `${SavedChartsTableName}.saved_query_id`,
-                            '=',
-                            this.database
-                                .select('saved_query_id')
-                                .from('chart_lookup')
-                                .orderBy('match_priority')
-                                .limit(1),
+                        .whereRaw(
+                            `${SavedChartsTableName}.saved_query_id = ANY(ARRAY(SELECT saved_query_id FROM chart_lookup))`,
                         );
                 } else {
                     void chartQuery.where(
