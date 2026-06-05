@@ -33,6 +33,7 @@ import {
     useDeleteScimToken,
     useScimTokenList,
 } from '../../hooks/useScimAccessToken';
+import classesModule from './TokensTable.module.css';
 
 const TokenItem: FC<{
     token: ServiceAccount;
@@ -42,7 +43,11 @@ const TokenItem: FC<{
     return (
         <>
             <tr>
-                <Text component="td" fw={500}>
+                <Text
+                    component="td"
+                    fw={500}
+                    className={classesModule.nameColumn}
+                >
                     {description}
                 </Text>
 
@@ -72,26 +77,35 @@ const TokenItem: FC<{
                     </Group>
                 </td>
                 <td>
-                    {lastUsedAt && (
+                    {lastUsedAt ? (
                         <Tooltip
                             withinPortal
                             position="top"
                             maw={350}
                             label={formatTimestamp(lastUsedAt)}
                         >
-                            <Text>{formatDate(lastUsedAt)}</Text>
+                            <span>{formatDate(lastUsedAt)}</span>
                         </Tooltip>
+                    ) : (
+                        <span>Never used</span>
                     )}
                 </td>
                 <td>
-                    <Group align="center" justify="flex-start" gap="xs">
+                    <Group
+                        align="center"
+                        justify="flex-start"
+                        gap="xs"
+                        wrap="nowrap"
+                    >
                         <Tooltip
                             withinPortal
                             position="top"
                             maw={350}
                             label={uuid}
                         >
-                            <span>{uuid.substring(0, 4)}...</span>
+                            <span className={classesModule.uuid}>
+                                ...{uuid.slice(-8)}
+                            </span>
                         </Tooltip>
                         <CopyButton value={uuid}>
                             {({ copied, copy }) => (
@@ -150,12 +164,22 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <Table
+                    className={cx(
+                        classes.root,
+                        classes.alignLastTdRight,
+                        classesModule.table,
+                    )}
+                >
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Expiration date</th>
-                            <th>Last used at</th>
+                            <th className={classesModule.nameColumn}>Name</th>
+                            <th className={classesModule.dateColumn}>
+                                Expiration date
+                            </th>
+                            <th className={classesModule.dateColumn}>
+                                Last used at
+                            </th>
                             <th>UUID</th>
                             <th></th>
                         </tr>
