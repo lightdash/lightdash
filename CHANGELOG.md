@@ -1,3 +1,10 @@
+# [0.3099.0](https://github.com/lightdash/lightdash/compare/0.3098.1...0.3099.0) (2026-06-05)
+
+
+### Features
+
+* **scim:** polish SCIM access tokens table layout ([#23938](https://github.com/lightdash/lightdash/issues/23938)) ([802dda7](https://github.com/lightdash/lightdash/commit/802dda71e4ad07e83c2279544f5e79839af1dcc7))
+
 ## [0.3098.1](https://github.com/lightdash/lightdash/compare/0.3098.0...0.3098.1) (2026-06-05)
 
 
