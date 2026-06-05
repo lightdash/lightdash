@@ -52,7 +52,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         py={rem(4)}
         className={classes.threadNavLink}
         label={
-            <Text truncate="end" size="sm" fw={500} c="ldGray.9">
+            <Text truncate="end" size="xs" fw={500} c="ldGray.9">
                 {thread.title || thread.firstMessage.message}
             </Text>
         }
@@ -100,12 +100,12 @@ const ThreadList: FC<ThreadListProps> = ({
     }
 
     return (
-        <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Stack gap="xs" className={classes.threadList}>
             <Title order={6} c="dimmed" tt="uppercase" size="xs" ml="xs">
                 Recent
             </Title>
 
-            <Stack gap={2}>
+            <Stack gap={2} className={classes.threadItems}>
                 {threads.length === 0 && (
                     <Paper variant="dotted" p="sm">
                         <Text truncate="end" size="sm" c="ldGray.6" ta="center">
@@ -191,7 +191,11 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
         aiOrganizationSettingsQuery.data.isTrial;
 
     return (
-        <Stack gap="md" style={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Stack
+            gap="sm"
+            className={classes.sidebarSurface}
+            data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
+        >
             <Box>
                 <SidebarButton
                     leftSection={<MantineIcon icon={IconCirclePlus} />}
@@ -236,7 +240,11 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
         aiOrganizationSettingsQuery.data.isTrial;
 
     return (
-        <Stack gap="md" style={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Stack
+            gap="sm"
+            className={classes.sidebarSurface}
+            data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
+        >
             <Box>
                 <SidebarButton
                     leftSection={<MantineIcon icon={IconCirclePlus} />}

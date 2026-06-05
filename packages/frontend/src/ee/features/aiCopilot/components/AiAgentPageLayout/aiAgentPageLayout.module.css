@@ -1,6 +1,6 @@
 .panelGroup {
     @mixin light {
-        background-color: white;
+        background-color: var(--mantine-color-white);
     }
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
@@ -11,9 +11,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    overflow-y: auto;
+    overflow: hidden;
 
-    padding: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-sm);
     @mixin light {
         background: var(--mantine-color-ldGray-0);
     }
@@ -23,10 +23,24 @@
     &[data-panel-size='0.0'] {
         min-width: 3rem;
     }
+
+    &[data-collapsed='true'] {
+        align-items: center;
+        padding: var(--mantine-spacing-sm) rem(6px);
+    }
 }
 
 .sidebarTransition {
     transition: all 300ms ease-in-out;
+}
+
+.sidebarHeader {
+    min-height: rem(32px);
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.sidebarTitle {
+    letter-spacing: 0;
 }
 
 .chat {
@@ -40,25 +54,38 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    padding: var(--mantine-spacing-md);
+    min-height: rem(52px);
+    padding: rem(6px) var(--mantine-spacing-md);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
 }
 
 .chatContent {
     flex: 1;
     overflow-y: auto;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-8)
+    );
 }
 
 .resizeHandle {
     width: 1px;
     background-color: var(--mantine-color-ldGray-2);
     cursor: col-resize;
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease;
+    position: relative;
 
     &[data-resize-handle-state='hover'],
     &[data-resize-handle-state='drag'] {
-        background-color: var(--mantine-color-ldGray-4);
-        box-shadow: 0 0 0 1px var(--mantine-color-ldGray-4);
+        background-color: var(--mantine-color-ldGray-3);
     }
 }
 
@@ -85,9 +112,12 @@
     display: flex;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+
     @mixin light {
-        background-color: white;
+        background-color: var(--mantine-color-white);
     }
+
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
     }
@@ -99,9 +129,23 @@
     min-height: 0;
     display: flex;
     overflow: hidden;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
 }
 
-.floatingArtifactRegion > * {
+.floatingArtifactWrap {
     flex: 1;
     min-height: 0;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-8)
+    );
+    border-radius: 12px;
+    overflow: hidden;
 }

@@ -3,6 +3,7 @@ import { IconSettings, IconWindowMinimize } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import styles from './agentPageHeader.module.css';
 
 type Props = {
     leftSection?: ReactNode;
@@ -15,16 +16,19 @@ export const AgentPageHeader: FC<Props> = ({
     onMinimize,
     settingsHref,
 }) => (
-    <Group align="center" justify="space-between">
+    <Group align="center" justify="space-between" className={styles.root}>
         <Box>{leftSection}</Box>
-        <Group gap="xs">
+        <Group gap={4}>
             {onMinimize && (
                 <Button
                     variant="default"
+                    className={styles.action}
                     onClick={onMinimize}
                     leftSection={
                         <MantineIcon
                             icon={IconWindowMinimize}
+                            size={14}
+                            stroke={1.8}
                             style={{ transform: 'scaleX(-1)' }}
                         />
                     }
@@ -44,8 +48,15 @@ export const AgentPageHeader: FC<Props> = ({
                 <Button
                     component={Link}
                     variant="default"
+                    className={styles.action}
                     to={settingsHref}
-                    leftSection={<MantineIcon icon={IconSettings} />}
+                    leftSection={
+                        <MantineIcon
+                            icon={IconSettings}
+                            size={14}
+                            stroke={1.8}
+                        />
+                    }
                     styles={(theme) => ({
                         root: {
                             borderColor: theme.colors.ldGray[2],
