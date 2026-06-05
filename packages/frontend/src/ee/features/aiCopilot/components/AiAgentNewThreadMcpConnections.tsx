@@ -362,18 +362,15 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
             aria-labelledby={sectionTitleId}
             aria-busy={isStartingMcpOAuthConnection}
         >
-            {isSingleApp ? (
-                <Group justify="center" align="center" gap="xs" wrap="wrap">
-                    <Group
-                        align="center"
-                        gap={6}
-                        className={styles.connectionCopy}
-                    >
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            size={13}
-                            color="ldGray.5"
-                        />
+            <Group align="flex-start" gap="sm" wrap="nowrap">
+                <MantineIcon
+                    icon={IconInfoCircle}
+                    size={14}
+                    color="ldGray.5"
+                    className={styles.connectionIcon}
+                />
+                <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                    <Stack gap={2}>
                         <Text id={sectionTitleId} size="xs" c="ldGray.6">
                             {sectionSummary}
                         </Text>
@@ -382,57 +379,8 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                 {connectionNote}
                             </Text>
                         )}
-                    </Group>
-                    {mcpServersNeedingConnection.map((mcpServer) => {
-                        const isConnecting =
-                            isStartingMcpOAuthConnection &&
-                            startingMcpOAuthConnection?.mcpServerUuid ===
-                                mcpServer.uuid;
-                        const iconColor = getConnectionIconColor(mcpServer);
-
-                        return (
-                            <Button
-                                key={mcpServer.uuid}
-                                size="compact-xs"
-                                variant="subtle"
-                                color="gray"
-                                leftSection={
-                                    <AiMcpServerIcon
-                                        color={iconColor}
-                                        name={mcpServer.name}
-                                        size={16}
-                                        src={mcpServer.iconUrl}
-                                    />
-                                }
-                                loading={isConnecting}
-                                onClick={() =>
-                                    void handleStartConnection(mcpServer.uuid)
-                                }
-                            >
-                                {getConnectionActionLabel(mcpServer)}
-                            </Button>
-                        );
-                    })}
-                    {githubConnectButton}
-                </Group>
-            ) : (
-                <Stack gap={4} align="center">
-                    <Group gap={6} justify="center" wrap="wrap">
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            size={13}
-                            color="ldGray.5"
-                        />
-                        <Text id={sectionTitleId} size="xs" c="ldGray.6">
-                            {sectionSummary}
-                        </Text>
-                        {connectionNote && (
-                            <Text size="xs" c="ldGray.5">
-                                {connectionNote}
-                            </Text>
-                        )}
-                    </Group>
-                    <Group gap={4} justify="center">
+                    </Stack>
+                    <Group gap="xs" wrap="wrap">
                         {mcpServersNeedingConnection.map((mcpServer) => {
                             const isConnecting =
                                 isStartingMcpOAuthConnection &&
@@ -461,16 +409,18 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                         )
                                     }
                                 >
-                                    {getMultiAppConnectionActionLabel(
-                                        mcpServer,
-                                    )}
+                                    {isSingleApp
+                                        ? getConnectionActionLabel(mcpServer)
+                                        : getMultiAppConnectionActionLabel(
+                                              mcpServer,
+                                          )}
                                 </Button>
                             );
                         })}
                         {githubConnectButton}
                     </Group>
                 </Stack>
-            )}
+            </Group>
             <GithubMcpConnectModal
                 opened={isGithubConfirmModalOpen}
                 onClose={githubConfirmModalHandlers.close}

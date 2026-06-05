@@ -1,9 +1,9 @@
 .connectionStrip {
     align-self: center;
-    width: fit-content;
+    width: 100%;
     max-width: min(100%, rem(760px));
-    padding: rem(5px) rem(8px);
-    border-radius: 999px;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-lg);
 
     @mixin light {
         background-color: var(--mantine-color-ldGray-0);
@@ -16,6 +16,7 @@
     }
 }
 
-.connectionCopy {
-    min-width: 0;
+.connectionIcon {
+    flex-shrink: 0;
+    margin-top: rem(1px);
 }
