@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
 import { validate } from 'uuid';
+import { generateCompletion, type Shell } from './completions';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
     DEFAULT_DBT_PROJECT_DIR as defaultProjectDir,
@@ -1424,6 +1425,33 @@ ${styles.bold('Installation paths:')}
         undefined,
     )
     .action(installSkillsHandler);
+
+program
+    .command('completion')
+    .description('Generate shell completion scripts (bash, zsh, fish)')
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Install completions:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'completion --shell bash',
+  )} >> ~/.bashrc
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'completion --shell zsh',
+  )} > ~/.zsh/completions/_lightdash
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'completion --shell fish',
+  )} > ~/.config/fish/completions/lightdash.fish
+`,
+    )
+    .addOption(
+        new Option('-s, --shell <shell>', 'Shell type')
+            .choices(['bash', 'zsh', 'fish'])
+            .makeOptionMandatory(),
+    )
+    .action((options: { shell: Shell }) => {
+        process.stdout.write(generateCompletion(program, options.shell));
+    });
 
 const errorHandler = (err: Error) => {
     // Use error message with fallback for safety
