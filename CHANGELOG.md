@@ -1,3 +1,10 @@
+## [0.3110.4](https://github.com/lightdash/lightdash/compare/0.3110.3...0.3110.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* **ai-agents:** let evals page scroll with the document (PROD-8189) ([#24039](https://github.com/lightdash/lightdash/issues/24039)) ([7f8e605](https://github.com/lightdash/lightdash/commit/7f8e605b672e9c9860210db8536832bd3941cd54))
+
 ## [0.3110.3](https://github.com/lightdash/lightdash/compare/0.3110.2...0.3110.3) (2026-06-08)
 
 
