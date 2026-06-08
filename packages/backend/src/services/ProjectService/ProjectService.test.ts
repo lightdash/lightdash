@@ -11,8 +11,10 @@ import {
     PreAggregateMissReason,
     ProjectType,
     SessionUser,
+    SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
+    type CreateWarehouseCredentials,
     type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -2212,6 +2214,64 @@ describe('ProjectService', () => {
                 account.user.id,
             );
             expect(result.intrinsicUserAttributes).not.toEqual({});
+        });
+    });
+
+    describe('previewDataTimezone', () => {
+        const timezoneUser: SessionUser = {
+            ...user,
+            organizationUuid: 'organizationUuid',
+            organizationName: 'organizationName',
+            organizationCreatedAt: new Date(),
+        };
+        const credentials = {
+            type: WarehouseTypes.POSTGRES,
+            dataTimezone: 'America/New_York',
+        } as CreateWarehouseCredentials;
+
+        it('throws ForbiddenError when timezone support is disabled', async () => {
+            await expect(
+                service.previewDataTimezone(timezoneUser, { credentials }),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        it('renders the warehouse row in the project timezone (edit flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockReturnValueOnce({
+                getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+                runQuery: jest.fn(async () => ({
+                    fields: {},
+                    rows: [
+                        {
+                            raw: '2026-06-08T14:30:00.000Z',
+                            effective_instant: '2026-06-08T18:30:00.000',
+                            utc_instant: '2026-06-08T14:30:00.000',
+                        },
+                    ],
+                })),
+            });
+
+            const result = await service.previewDataTimezone(timezoneUser, {
+                credentials,
+                projectUuid: 'projectUuid',
+            });
+
+            expect(result.effectiveSourceTimezone).toBe('America/New_York');
+            expect(result.projectTimezone).toBe('UTC');
+            expect(result.raw).toBe('2026-06-08T14:30:00.000Z');
+            expect(result.effective.interpretedAs).toBe('America/New_York');
+            expect(result.effective.rendered).toBe(
+                '2026-06-08, 18:30:00:000 (+00:00)',
+            );
+            expect(result.utcBaseline.interpretedAs).toBe('UTC');
+            expect(result.utcBaseline.rendered).toBe(
+                '2026-06-08, 14:30:00:000 (+00:00)',
+            );
         });
     });
 });
