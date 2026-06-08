@@ -1144,6 +1144,15 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Lazy accessor (not the instance) to promote embedded data
+                    // apps during dashboard promotion. AppGenerateService depends
+                    // on PromoteService, so resolving it eagerly here would cycle.
+                    // Only wired when EE license is active; core builds resolve
+                    // undefined and reject DATA_APP tile promotion with an error.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
