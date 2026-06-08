@@ -21,6 +21,7 @@ const connection: GithubConnection = {
     owner: 'acme',
     repo: 'analytics',
     projectSubPath: '.',
+    branch: 'main',
 };
 
 const installation: GithubInstallation = {

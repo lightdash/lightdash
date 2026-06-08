@@ -67,6 +67,7 @@ export const parseGithubConnection = (
         owner,
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
+        branch: connection.branch?.trim() ?? '',
     };
 };
 

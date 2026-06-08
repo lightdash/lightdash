@@ -64,7 +64,20 @@ describe('parseGithubConnection', () => {
             owner: 'acme',
             repo: 'analytics',
             projectSubPath: '.',
+            branch: 'main',
         });
+    });
+
+    it('carries the configured branch through', () => {
+        expect(
+            parseGithubConnection(githubConfig({ branch: 'develop' })).branch,
+        ).toBe('develop');
+    });
+
+    it('returns an empty branch when none is configured', () => {
+        expect(parseGithubConnection(githubConfig({ branch: '' })).branch).toBe(
+            '',
+        );
     });
 
     it('strips leading and trailing slashes from a nested sub-path', () => {

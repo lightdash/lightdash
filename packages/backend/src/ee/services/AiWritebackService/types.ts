@@ -32,6 +32,8 @@ export type GithubConnection = {
     owner: string;
     repo: string;
     projectSubPath: string;
+    /** The project's configured branch, or '' to fall back to the repo default. */
+    branch: string;
 };
 
 export type GitlabConnection = {

@@ -230,11 +230,16 @@ export class AiWritebackService extends BaseService {
                 'GitHub App is not installed for this organization',
             );
         }
-        const branch = await getRepoDefaultBranch({
-            owner: connection.owner,
-            repo: connection.repo,
-            installationId: installation.installationId,
-        });
+        // Read the project's configured dbt branch so repoShell inspects the
+        // same source the Lightdash project compiles from. Only fall back to the
+        // repo's default branch when the project left the branch unset.
+        const branch =
+            connection.branch ||
+            (await getRepoDefaultBranch({
+                owner: connection.owner,
+                repo: connection.repo,
+                installationId: installation.installationId,
+            }));
         return {
             owner: connection.owner,
             repo: connection.repo,
