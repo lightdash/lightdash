@@ -780,28 +780,59 @@ export class SavedChartModel {
     }
 
     async updateMultiple(
+        projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChartDAO[]> {
         await this.database.transaction(async (trx) => {
-            const promises = data.map(async (savedChart) =>
-                trx(SavedChartsTableName)
+            const promises = data.map(async (savedChart) => {
+                const space = await trx(SpaceTableName)
+                    .select(`${SpaceTableName}.space_id`)
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .where(`${SpaceTableName}.space_uuid`, savedChart.spaceUuid)
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .first();
+
+                if (!space) {
+                    throw new NotFoundError('Space not found');
+                }
+
+                const updateCount = await trx(SavedChartsTableName)
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: (
-                            await SpaceModel.getSpaceIdAndName(
-                                trx,
-                                savedChart.spaceUuid,
-                            )
-                        )?.spaceId,
+                        space_id: space.space_id,
                     })
                     .where('saved_query_uuid', savedChart.uuid)
-                    .whereNull('deleted_at'),
-            );
+                    .whereIn(
+                        'space_id',
+                        trx(SpaceTableName)
+                            .select(`${SpaceTableName}.space_id`)
+                            .innerJoin(
+                                ProjectTableName,
+                                `${ProjectTableName}.project_id`,
+                                `${SpaceTableName}.project_id`,
+                            )
+                            .where(
+                                `${ProjectTableName}.project_uuid`,
+                                projectUuid,
+                            ),
+                    )
+                    .whereNull('deleted_at');
+
+                if (updateCount !== 1) {
+                    throw new NotFoundError('Saved query not found');
+                }
+            });
             await Promise.all(promises);
         });
         return Promise.all(
-            data.map(async (savedChart) => this.get(savedChart.uuid)),
+            data.map(async (savedChart) =>
+                this.get(savedChart.uuid, undefined, { projectUuid }),
+            ),
         );
     }
 

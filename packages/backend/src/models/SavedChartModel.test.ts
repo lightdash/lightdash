@@ -2,6 +2,7 @@ import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SpaceTableName } from '../database/entities/spaces';
 import { SavedChartModel } from './SavedChartModel';
 import { chartSummary } from './SavedChartModel.mock';
 
@@ -57,5 +58,68 @@ describe('getLatestVersionSummaries', () => {
 
         expect(response).toHaveLength(1);
         expect(response[0].chartUuid).toEqual(chartSummary.saved_query_uuid);
+    });
+});
+
+describe('updateMultiple', () => {
+    const model = new SavedChartModel({
+        database: knex({ client: MockClient, dialect: 'pg' }),
+        lightdashConfig: lightdashConfigMock,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('requires the destination space to belong to the requested project', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const spaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on.select(SpaceTableName).responseOnce([]);
+
+        await expect(
+            model.updateMultiple(projectUuid, [
+                {
+                    uuid: '11111111-1111-4111-8111-111111111111',
+                    name: 'Chart name',
+                    description: 'Chart description',
+                    spaceUuid,
+                },
+            ]),
+        ).rejects.toThrow('Space not found');
+
+        const [spaceQuery] = tracker.history.select;
+        expect(spaceQuery.bindings).toContain(projectUuid);
+        expect(spaceQuery.bindings).toContain(spaceUuid);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test('updates only charts that already belong to the requested project', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const spaceUuid = '33333333-3333-4333-8333-333333333333';
+        const chartUuid = '11111111-1111-4111-8111-111111111111';
+
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 1 }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(0);
+
+        await expect(
+            model.updateMultiple(projectUuid, [
+                {
+                    uuid: chartUuid,
+                    name: 'Chart name',
+                    description: 'Chart description',
+                    spaceUuid,
+                },
+            ]),
+        ).rejects.toThrow('Saved query not found');
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.bindings).toContain(chartUuid);
+        expect(updateQuery.bindings).toContain(projectUuid);
     });
 });
