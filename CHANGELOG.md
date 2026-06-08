@@ -1,3 +1,10 @@
+## [0.3110.3](https://github.com/lightdash/lightdash/compare/0.3110.2...0.3110.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* **pivot:** order hidden sort-only dims at their declared position (PROD-8159) ([#24016](https://github.com/lightdash/lightdash/issues/24016)) ([043f004](https://github.com/lightdash/lightdash/commit/043f00440dc3a323d9e28bbcc5618fa787e18eeb)), closes [#23436](https://github.com/lightdash/lightdash/issues/23436) [#23436](https://github.com/lightdash/lightdash/issues/23436) [#16871](https://github.com/lightdash/lightdash/issues/16871)
+
 ## [0.3110.2](https://github.com/lightdash/lightdash/compare/0.3110.1...0.3110.2) (2026-06-08)
 
 
