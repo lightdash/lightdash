@@ -37,6 +37,16 @@ import { getModel } from './ai/models';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
+const WRITEBACK_TOOL_NAMES = new Set([
+    'proposeWriteback',
+    'propose_writeback',
+    'runAiWriteback',
+    'run_ai_writeback',
+]);
+const SUCCESSFUL_WRITEBACK_RESULT_PATTERN =
+    /\b(opened|updated) a pull request\b/i;
+const NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN =
+    /no pull request was opened|made no file changes|error running ai writeback/i;
 
 /**
  * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
@@ -518,6 +528,33 @@ export class AiAgentReviewClassifierService extends BaseService {
         agentConfig: AiAgentReviewAgentConfigEvidence,
         args: { projectContextEnabled: boolean },
     ): Promise<AiAgentReviewClassifierClassifiedTurn> {
+        const successfulWritebackEvidence =
+            AiAgentReviewClassifierService.getSuccessfulWritebackEvidence(
+                candidate,
+            );
+        if (successfulWritebackEvidence) {
+            const signal =
+                AiAgentReviewClassifierService.buildWritebackInProgressSignal(
+                    candidate,
+                    successfulWritebackEvidence.toolCallId,
+                );
+
+            Logger.info(
+                'AI agent review suppressed finding for writeback turn',
+                {
+                    runPromptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    projectUuid: candidate.subject.projectUuid,
+                    agentUuid: candidate.subject.agentUuid,
+                    toolName: successfulWritebackEvidence.toolName,
+                    toolCallId: successfulWritebackEvidence.toolCallId,
+                    promotionReason: signal.promotionReason,
+                },
+            );
+
+            return { signal, finding: null };
+        }
+
         const reviewEvidence = await this.buildReviewEvidence(
             candidate,
             agentConfig,
@@ -957,7 +994,9 @@ Decision rules — apply in order:
 
 1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
 
-2. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
+2. If the evidence shows the assistant successfully called a writeback tool (for example proposeWriteback or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
+
+3. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
    - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
    - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
@@ -977,13 +1016,13 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
    - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
 
-3. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
+4. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
 
-4. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity, choosing between them with the explore-vs-definition tiebreaker above.
+5. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity, choosing between them with the explore-vs-definition tiebreaker above.
 
-5. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
+6. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
 
-6. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
+7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
 When promotedToFinding=true, provide concise evidence excerpts copied or summarized from the packet and a practical recommendation.
 Use one primaryRootCause. Secondary causes are optional.
@@ -1106,6 +1145,46 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
                 }),
             ),
         ].filter((excerpt): excerpt is AiAgentEvidenceExcerpt => !!excerpt);
+    }
+
+    private static getSuccessfulWritebackEvidence(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+    ):
+        | AiAgentReviewClassifierTurnCandidate['supportingEvidence'][number]
+        | null {
+        return (
+            candidate.supportingEvidence.find((evidence) => {
+                const resultPreview = evidence.resultPreview ?? '';
+                return (
+                    WRITEBACK_TOOL_NAMES.has(evidence.toolName) &&
+                    SUCCESSFUL_WRITEBACK_RESULT_PATTERN.test(resultPreview) &&
+                    !NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN.test(resultPreview)
+                );
+            }) ?? null
+        );
+    }
+
+    private static buildWritebackInProgressSignal(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+        toolCallId: string,
+    ): AiAgentReviewClassifierTurnSignal {
+        return {
+            subject: candidate.subject,
+            interactionSource: candidate.interactionSource,
+            sourceRef: candidate.sourceRef,
+            signal: 'acceptance_or_continuation',
+            implicitSignalSources: [],
+            confidence: 'high',
+            promotedToFinding: false,
+            promotionReason: 'writeback_tool_already_started',
+            toolEvidenceRefs: [toolCallId],
+            runtimeContextSnapshot: {
+                userUuid: null,
+                canRunSql: false,
+                canManageAgent: false,
+            },
+            modelMetadata: candidate.modelMetadata,
+        };
     }
 
     private static buildJudgeEvidencePacket({

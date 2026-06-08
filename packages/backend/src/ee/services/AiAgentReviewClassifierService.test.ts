@@ -67,6 +67,20 @@ const makeCandidate = (
     ...overrides,
 });
 
+const makeWritebackEvidence = (
+    resultPreview: string,
+): AiAgentReviewClassifierTurnCandidate['supportingEvidence'][number] => ({
+    source: 'tool_trace',
+    toolCallId: 'writeback-tool-call-1',
+    toolName: 'proposeWriteback',
+    parentToolCallId: null,
+    createdAt: NOW,
+    relevanceScore: 95,
+    toolArgsPreview:
+        '{"prompt":"Fix organization_events to use dbt ref syntax"}',
+    resultPreview,
+});
+
 const makeRun = (overrides: Record<string, unknown> = {}) => ({
     uuid: RUN_UUID,
     organizationUuid: ORGANIZATION_UUID,
@@ -452,6 +466,72 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+    });
+
+    it('does not promote turns where writeback already opened a pull request', async () => {
+        judgeTurn.mockResolvedValueOnce(makeSemanticJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                supportingEvidence: [
+                    makeWritebackEvidence(
+                        'Opened a pull request against Lightdash project "Jaffle shop" (repository lightdash/dbt). A "View pull request" button is shown to the user.',
+                    ),
+                ],
+                nextUserPrompt:
+                    'Can you also check the organization_events model?',
+            }),
+        ]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        expect(judgeTurn).not.toHaveBeenCalled();
+        expect(result.findingCount).toBe(0);
+        expect(result.reviewItemCount).toBe(0);
+        expect(model.createTurnSignal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                runUuid: RUN_UUID,
+                finding: null,
+                turnSignal: expect.objectContaining({
+                    signal: 'acceptance_or_continuation',
+                    promotedToFinding: false,
+                    promotionReason: 'writeback_tool_already_started',
+                    toolEvidenceRefs: ['writeback-tool-call-1'],
+                }),
+            }),
+        );
+    });
+
+    it('still judges writeback turns when no pull request was opened', async () => {
+        judgeTurn.mockResolvedValueOnce(makeSemanticJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                supportingEvidence: [
+                    makeWritebackEvidence(
+                        'The writeback agent ran against Lightdash project "Jaffle shop" but made no file changes, so no pull request was opened.',
+                    ),
+                ],
+                nextUserPrompt:
+                    'This still needs fixing in organization_events.',
+            }),
+        ]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        expect(judgeTurn).toHaveBeenCalledTimes(1);
+        expect(result.findingCount).toBe(1);
+        expect(result.reviewItemCount).toBe(1);
     });
 
     it('drops project context entries when the project context flag is disabled', async () => {
