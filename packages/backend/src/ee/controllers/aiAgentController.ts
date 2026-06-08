@@ -25,6 +25,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
@@ -37,6 +38,7 @@ import {
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCloneThreadResponse,
     ApiConnectGithubMcpServerBody,
     ApiCreateAiAgent,
@@ -1156,6 +1158,64 @@ export class AiAgentController extends BaseController {
                     versionUuid,
                 },
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/{agentUuid}/threads/{threadUuid}/shares')
+    @OperationId('createAiAgentThreadShare')
+    async createAiAgentThreadShare(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<ApiAiAgentThreadShareResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+
+        const share = await this.getAiAgentService().createThreadShare(
+            toSessionUser(req.account),
+            projectUuid,
+            agentUuid,
+            threadUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: share,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/thread-shares/{aiThreadShareUuid}/clone')
+    @OperationId('cloneAiAgentThreadShare')
+    async cloneAiAgentThreadShare(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() aiThreadShareUuid: string,
+    ): Promise<ApiCloneAiAgentThreadShareResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const clonedThread = await this.getAiAgentService().cloneThreadShare(
+            toSessionUser(req.account),
+            projectUuid,
+            aiThreadShareUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: clonedThread,
         };
     }
 

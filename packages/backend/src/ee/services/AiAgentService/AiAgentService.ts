@@ -33,6 +33,7 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAiAgentThreadShareResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -108,6 +109,7 @@ import {
 } from 'ai';
 import { EventEmitter } from 'events';
 import _ from 'lodash';
+import { nanoid as nanoidGenerator } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import { z } from 'zod';
 import {
@@ -8999,6 +9001,154 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (!clonedThread) {
             throw new Error('Failed to retrieve cloned thread');
         }
+
+        return clonedThread;
+    }
+
+    async createThreadShare(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<ApiAiAgentThreadShareResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const sourceThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!sourceThread) {
+            throw new NotFoundError(`Source thread not found: ${threadUuid}`);
+        }
+
+        const hasSourceAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            sourceThread.user.uuid,
+        );
+        if (!hasSourceAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access source thread',
+            );
+        }
+
+        const share = await this.aiAgentModel.createThreadShare({
+            sourceThreadUuid: threadUuid,
+            createdByUserUuid: user.userUuid,
+            nanoid: nanoidGenerator(),
+        });
+
+        const shareUrl = `${this.lightdashConfig.siteUrl}/share/${share.nanoid}`;
+
+        this.analytics.track({
+            event: 'ai_agent_thread_share.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                aiAgentId: agentUuid,
+                threadId: threadUuid,
+                aiThreadShareId: share.uuid,
+            },
+        });
+
+        return {
+            ...share,
+            createdAt: share.createdAt.toISOString(),
+            revokedAt: share.revokedAt?.toISOString() ?? null,
+            shareUrl,
+        };
+    }
+
+    async cloneThreadShare(
+        user: SessionUser,
+        projectUuid: string,
+        aiThreadShareUuid: string,
+    ): Promise<AiAgentThreadSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const share = await this.aiAgentModel.getThreadShare(aiThreadShareUuid);
+        if (
+            !share ||
+            share.revokedAt ||
+            share.projectUuid !== projectUuid ||
+            share.organizationUuid !== organizationUuid
+        ) {
+            throw new NotFoundError('Shared thread link does not exist');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: share.agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
+        }
+
+        const hasAgentAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAgentAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access agent',
+            );
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create AI agent thread',
+            );
+        }
+
+        const clonedThreadUuid = await this.aiAgentModel.cloneThreadShare({
+            aiThreadShareUuid,
+            projectUuid,
+            targetUserUuid: user.userUuid,
+        });
+
+        const clonedThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid: share.agentUuid,
+            threadUuid: clonedThreadUuid,
+        });
+
+        if (!clonedThread) {
+            throw new Error('Failed to retrieve cloned thread');
+        }
+
+        this.analytics.track({
+            event: 'ai_agent_thread_share.cloned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                aiAgentId: share.agentUuid,
+                threadId: clonedThreadUuid,
+                aiThreadShareId: share.uuid,
+            },
+        });
 
         return clonedThread;
     }

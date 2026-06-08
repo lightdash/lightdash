@@ -338,10 +338,14 @@ import {
     AiSqlApprovalTableName,
     AiThreadCompactionTable,
     AiThreadCompactionTableName,
+    AiThreadShareTable,
+    AiThreadShareTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
     AiWebAppPromptTableName,
+    AiWebAppThreadTable,
+    AiWebAppThreadTableName,
     AiWritebackThreadTable,
     AiWritebackThreadTableName,
 } from '../ee/database/entities/ai';
@@ -526,7 +530,9 @@ declare module 'knex/types/tables' {
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
+        [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
+        [AiWebAppThreadTableName]: AiWebAppThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiPromptContextTableName]: AiPromptContextTable;
         [AiThreadCompactionTableName]: AiThreadCompactionTable;

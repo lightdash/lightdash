@@ -275,6 +275,20 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     user: TUser;
 };
 
+export type AiAgentThreadShare = {
+    uuid: string;
+    nanoid: string;
+    threadUuid: string;
+    agentUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    snapshotPromptUuid: string;
+    createdByUserUuid: string;
+    createdAt: string;
+    revokedAt: string | null;
+    shareUrl: string;
+};
+
 export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
     AiAgentThreadSummary<TUser> & {
         messages: AiAgentMessage<TUser>[];
@@ -819,6 +833,11 @@ export type ApiCreateEvaluationResponse = ApiSuccess<
 export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
 
 export type ApiCloneThreadResponse = ApiSuccess<AiAgentThreadSummary>;
+
+export type ApiCreateAiAgentThreadShareRequest = Record<string, never>;
+export type ApiAiAgentThreadShareResponse = ApiSuccess<AiAgentThreadShare>;
+export type ApiCloneAiAgentThreadShareResponse =
+    ApiSuccess<AiAgentThreadSummary>;
 
 export type ApiAppendInstructionRequest = {
     instruction: string;
