@@ -1,3 +1,10 @@
+## [0.3110.1](https://github.com/lightdash/lightdash/compare/0.3110.0...0.3110.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* surface explore compilation errors in dashboard preview ([#24027](https://github.com/lightdash/lightdash/issues/24027)) ([0ca5bdc](https://github.com/lightdash/lightdash/commit/0ca5bdcbe65e16c5ec87a2f701cec163eebb38a6))
+
 # [0.3110.0](https://github.com/lightdash/lightdash/compare/0.3109.1...0.3110.0) (2026-06-08)
 
 
