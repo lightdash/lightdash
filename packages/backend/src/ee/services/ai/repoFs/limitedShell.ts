@@ -73,6 +73,32 @@ const splitPipeline = (input: string): string[] => {
     return stages.map((s) => s.trim()).filter((s) => s.length > 0);
 };
 
+// Redirection operators (`2>`, `>`, `>>`, `2>&1`, `&>`, …). The agent often
+// appends `2>/dev/null` to a grep out of bash habit; we have no streams to
+// redirect, so silently drop these tokens instead of treating them as paths and
+// failing the whole command.
+const REDIRECT_TOKEN = /^(?:\d*>>?|[&\d]?>&\d?|&>)/;
+const REDIRECT_OPERATOR_ONLY = /^(?:\d*>>?|&>)$/;
+
+/** Drop shell redirections from a tokenised stage so they can't break parsing. */
+const stripRedirections = (tokens: string[]): string[] => {
+    const out: string[] = [];
+    let skipNext = false;
+    for (const token of tokens) {
+        if (skipNext) {
+            // Consumes the target filename after a bare operator (`>`, `2>`).
+            skipNext = false;
+        } else if (REDIRECT_TOKEN.test(token)) {
+            // A bare operator is followed by its target; a glued form
+            // (`2>/dev/null`, `2>&1`) is self-contained.
+            skipNext = REDIRECT_OPERATOR_ONLY.test(token);
+        } else {
+            out.push(token);
+        }
+    }
+    return out;
+};
+
 /** Separate boolean/value flags from positional args for one command. */
 const parseArgs = (
     tokens: string[],
@@ -204,9 +230,15 @@ const buildMatcher = (
             );
         }
     }
+    const escapeLiteral = (s: string): string =>
+        s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Without -E the pattern is a literal substring, EXCEPT we honour GNU grep's
+    // BRE alternation `\|` (the agent reaches for `a\|b` out of habit) by OR-ing
+    // the escaped literal parts — otherwise it matches a literal backslash-pipe
+    // and silently finds nothing.
     const source = regex
         ? pattern
-        : pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        : pattern.split('\\|').map(escapeLiteral).join('|');
     try {
         return new RegExp(source, ignoreCase ? 'i' : '');
     } catch (e) {
@@ -443,7 +475,7 @@ export const runRepoShellCommand = async (
     let stdin: string[] | null = null;
     let firstCommand: string | undefined;
     for (const stage of stages) {
-        const tokens = tokenize(stage);
+        const tokens = stripRedirections(tokenize(stage));
         if (tokens.length === 0) throw new ShellError('Empty command stage');
         if (firstCommand === undefined) [firstCommand] = tokens;
         // eslint-disable-next-line no-await-in-loop

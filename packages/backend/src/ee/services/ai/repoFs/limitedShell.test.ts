@@ -254,6 +254,29 @@ describe('repoFs limited shell', () => {
         expect(out).toContain('truncated');
     });
 
+    it('honours GNU BRE alternation \\| without -E', async () => {
+        // The agent reaches for `a\|b` out of bash habit; without honouring it
+        // the pattern would match a literal backslash-pipe and find nothing.
+        await expect(run('grep -rn "ref\\|total" models')).resolves.toBe(
+            [
+                "models/orders.sql:1:select * from {{ ref('stg_orders') }}",
+                'models/orders.sql:2:-- total',
+            ].join('\n'),
+        );
+    });
+
+    it('tolerates a trailing 2>/dev/null redirection', async () => {
+        await expect(run('grep -rn ref models 2>/dev/null')).resolves.toBe(
+            "models/orders.sql:1:select * from {{ ref('stg_orders') }}",
+        );
+    });
+
+    it('tolerates a > /dev/null redirection (operator + target)', async () => {
+        await expect(run('grep -rn ref models > /dev/null')).resolves.toBe(
+            "models/orders.sql:1:select * from {{ ref('stg_orders') }}",
+        );
+    });
+
     it('rejects unsupported commands', async () => {
         await expect(run('rm -rf /')).rejects.toThrow('Unsupported command');
     });
