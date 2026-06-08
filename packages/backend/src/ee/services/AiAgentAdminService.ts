@@ -847,6 +847,20 @@ export class AiAgentAdminService extends BaseService {
                 },
             });
         }
+        if (
+            update.status === 'resolved' &&
+            reviewItem.remediation &&
+            reviewItem.remediation.status !== 'resolved'
+        ) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid: reviewItem.remediation.uuid,
+                    organizationUuid,
+                    status: 'resolved',
+                    resolvedByUserUuid: user.userUuid,
+                },
+            );
+        }
         return this.getReviewItem(user, fingerprint);
     }
 
@@ -1359,7 +1373,7 @@ export class AiAgentAdminService extends BaseService {
                 {
                     remediationUuid,
                     organizationUuid,
-                    status: 'pr_open',
+                    status: 'failed',
                     errorMessage: 'Preview URL was not published in time',
                 },
             );
