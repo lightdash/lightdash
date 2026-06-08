@@ -5353,10 +5353,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
-        const { enabled: repoFsEnabled } = await this.featureFlagService.get({
+        let { enabled: repoFsEnabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.RepoFs,
         });
+        // repoShell reads repo source and its view:SourceCode check evaluates
+        // against the resolved user. On Slack without aiRequireOAuth that user
+        // is the app installer, not the requester — so disable it, exactly as
+        // runSql and writeback do above.
+        if (repoFsEnabled && !hasTrustedPromptUserIdentity) {
+            this.logger.info(
+                `Disabling repoShell for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            repoFsEnabled = false;
+        }
 
         // The dbt project's root within the repo, so the prompt can point the
         // repoShell agent at it (instead of hardcoding "dbt/"). Derived from the
