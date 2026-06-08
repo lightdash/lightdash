@@ -50,7 +50,7 @@ import {
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
 import { getDiscoverFields } from './discoverFields/tool';
-import { getAgentTelemetryConfig } from './telemetry';
+import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -154,6 +154,7 @@ const getAgentTools = (
                 threadUuid: args.threadUuid,
                 promptUuid: args.promptUuid,
                 telemetryEnabled: args.telemetryEnabled,
+                model: args.model,
             },
         },
         {
@@ -450,7 +451,7 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
-    const modelName = args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     try {
         const availableExplores = await dependencies.listExplores();
@@ -608,7 +609,11 @@ export const generateAgentResponse = async ({
         Logger.error(
             `[AiAgent][Generate Agent Response] Error during agent response generation: ${errorMessage}`,
         );
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+            tags: {
+                'ai.model': modelName,
+            },
+        });
 
         const userFacingMessage = getUserFacingErrorMessage(
             error,
@@ -649,8 +654,7 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
-    const modelName =
-        typeof args.model === 'string' ? args.model : args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -724,6 +728,7 @@ export const streamAgentResponse = async ({
                             Sentry.captureException(event.chunk.error, {
                                 tags: {
                                     errorType: 'AiAgentToolCallInvalid',
+                                    'ai.model': modelName,
                                 },
                             });
                             break;
@@ -746,7 +751,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Call] Failed to store tool call',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
 
@@ -782,7 +791,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Result] Failed to store tool result',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
                     case 'text-delta':
@@ -831,7 +844,11 @@ export const streamAgentResponse = async ({
                                 'On Step Finish',
                                 `Failed to store reasoning: ${error}`,
                             );
-                            Sentry.captureException(error);
+                            Sentry.captureException(error, {
+                                tags: {
+                                    'ai.model': modelName,
+                                },
+                            });
                         });
                 }
             },
@@ -918,6 +935,7 @@ export const streamAgentResponse = async ({
                 Sentry.captureException(error, {
                     tags: {
                         errorType: 'AiAgentStreamError',
+                        'ai.model': modelName,
                     },
                 });
 
@@ -951,6 +969,7 @@ export const streamAgentResponse = async ({
         Sentry.captureException(error, {
             tags: {
                 errorType: 'AiAgentStreamError',
+                'ai.model': modelName,
             },
         });
 
