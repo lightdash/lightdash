@@ -687,6 +687,10 @@ export type XAxis = Axis & {
     sortType?: XAxisSortType;
     /** Enable data zoom slider for this axis */
     enableDataZoom?: boolean;
+    /** Where the initial data-zoom window anchors when data zoom is enabled */
+    dataZoomAnchor?: 'start' | 'end';
+    /** Number of items visible at once in the data-zoom window */
+    dataZoomItemCount?: number;
 };
 
 export enum XAxisSortType {

@@ -13,6 +13,7 @@ import {
     Checkbox,
     Group,
     NumberInput,
+    SegmentedControl,
     Select,
     Stack,
     Switch,
@@ -82,6 +83,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setDataZoomAnchor,
+        setDataZoomItemCount,
         dirtyChartType,
     } = visualizationConfig.chartConfig;
 
@@ -268,16 +271,68 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     </Group>
 
                     {getAxisTypeFromField(xAxisField) === 'category' && (
-                        <Checkbox
-                            label="Enable scrollable chart"
-                            checked={
-                                dirtyEchartsConfig?.xAxis?.[0]
-                                    ?.enableDataZoom || false
-                            }
-                            onChange={(e) =>
-                                setScrollableChart(e.currentTarget.checked)
-                            }
-                        />
+                        <Stack spacing="xs">
+                            <Checkbox
+                                label="Enable scrollable chart"
+                                checked={
+                                    dirtyEchartsConfig?.xAxis?.[0]
+                                        ?.enableDataZoom || false
+                                }
+                                onChange={(e) =>
+                                    setScrollableChart(e.currentTarget.checked)
+                                }
+                            />
+                            {dirtyEchartsConfig?.xAxis?.[0]?.enableDataZoom && (
+                                <>
+                                    <Group spacing="xs">
+                                        <Config.Label>
+                                            Initial scroll position
+                                        </Config.Label>
+                                        <SegmentedControl
+                                            size="xs"
+                                            data={[
+                                                {
+                                                    label: 'Start',
+                                                    value: 'start',
+                                                },
+                                                { label: 'End', value: 'end' },
+                                            ]}
+                                            value={
+                                                dirtyEchartsConfig?.xAxis?.[0]
+                                                    ?.dataZoomAnchor ?? 'start'
+                                            }
+                                            onChange={(value) =>
+                                                setDataZoomAnchor(
+                                                    value === 'end'
+                                                        ? 'end'
+                                                        : 'start',
+                                                )
+                                            }
+                                        />
+                                    </Group>
+                                    <Group spacing="xs">
+                                        <Config.Label>
+                                            Visible items
+                                        </Config.Label>
+                                        <NumberInput
+                                            size="xs"
+                                            maw={80}
+                                            min={2}
+                                            max={100}
+                                            value={
+                                                dirtyEchartsConfig?.xAxis?.[0]
+                                                    ?.dataZoomItemCount ?? 10
+                                            }
+                                            onChange={(value) => {
+                                                if (typeof value === 'number') {
+                                                    setDataZoomItemCount(value);
+                                                }
+                                            }}
+                                        />
+                                    </Group>
+                                </>
+                            )}
+                        </Stack>
                     )}
                 </Config.Section>
             </Config>
