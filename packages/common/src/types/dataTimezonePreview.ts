@@ -1,3 +1,4 @@
+import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
 import {
     type CreateWarehouseCredentials,
@@ -48,4 +49,20 @@ export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
     [SupportedDbtAdapter.ATHENA]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
     [SupportedDbtAdapter.CLICKHOUSE]: 'now()',
     [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
+};
+
+// One query: the literal raw now, plus the naive now disambiguated under the
+// effective source zone and under UTC. toUTC wraps a naive expression and
+// returns the UTC instant, matching the production Path A conversion.
+export const buildDataTimezonePreviewSql = (
+    adapterType: SupportedDbtAdapter,
+    effectiveSourceTimezone: string,
+): string => {
+    const naiveNow = currentNaiveTimestampSql[adapterType];
+    const { toUTC } = dateTruncTimezoneConversions[adapterType];
+    return (
+        `SELECT CURRENT_TIMESTAMP AS raw, ` +
+        `${toUTC(naiveNow, effectiveSourceTimezone)} AS effective_instant, ` +
+        `${toUTC(naiveNow, 'UTC')} AS utc_instant`
+    );
 };
