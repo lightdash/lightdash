@@ -1,3 +1,10 @@
+# [0.3106.0](https://github.com/lightdash/lightdash/compare/0.3105.0...0.3106.0) (2026-06-08)
+
+
+### Features
+
+* **data-apps:** include data app tiles in dashboard promotion ([#23987](https://github.com/lightdash/lightdash/issues/23987)) ([cf39b04](https://github.com/lightdash/lightdash/commit/cf39b04204fe4b81d6829cad2c1d4c6f3fb32f05))
+
 # [0.3105.0](https://github.com/lightdash/lightdash/compare/0.3104.5...0.3105.0) (2026-06-08)
 
 
