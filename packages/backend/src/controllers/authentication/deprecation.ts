@@ -8,7 +8,7 @@ const ERROR_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 export const getDefaultSunsetDate = (deprecatedOn: Date): Date => {
     const sunset = new Date(deprecatedOn);
-    sunset.setMonth(sunset.getMonth() + SUNSET_MONTHS_FROM_DEPRECATION);
+    sunset.setUTCMonth(sunset.getUTCMonth() + SUNSET_MONTHS_FROM_DEPRECATION);
     return sunset;
 };
 
