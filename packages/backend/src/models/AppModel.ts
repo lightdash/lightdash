@@ -494,6 +494,60 @@ export class AppModel {
     }
 
     /**
+     * List every non-deleted app in a project. Used by preview duplication to
+     * mirror the upstream project's apps into a freshly created preview.
+     */
+    async listAppsByProject(projectUuid: string): Promise<DbApp[]> {
+        return this.database(AppsTableName)
+            .where({ project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .select('*');
+    }
+
+    /**
+     * Repoint a preview project's data-app dashboard tiles from the source
+     * (upstream) apps they were copied with onto the preview's own duplicated
+     * apps. The update is scoped to dashboards living in the preview project so
+     * the upstream project's tiles — which carry the same `app_uuid` — are
+     * never touched.
+     */
+    async remapPreviewDashboardTileApps(
+        previewProjectUuid: string,
+        mappings: { sourceAppUuid: string; previewAppUuid: string }[],
+    ): Promise<void> {
+        if (mappings.length === 0) {
+            return;
+        }
+        const previewVersionIds = this.database(DashboardVersionsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
+            .select(`${DashboardVersionsTableName}.dashboard_version_id`);
+
+        /* eslint-disable no-await-in-loop */
+        for (const { sourceAppUuid, previewAppUuid } of mappings) {
+            await this.database(DashboardTileDataAppsTableName)
+                .where('app_uuid', sourceAppUuid)
+                .whereIn('dashboard_version_id', previewVersionIds.clone())
+                .update({ app_uuid: previewAppUuid });
+        }
+        /* eslint-enable no-await-in-loop */
+    }
+
+    /**
      * Sync the metadata of an existing production app from its preview source
      * during a follow-up promotion. Only touches the fields promotion owns —
      * versions are appended separately, the link and ownership stay put.

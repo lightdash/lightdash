@@ -217,6 +217,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -335,6 +336,11 @@ export type ProjectServiceArguments = {
             Partial<Pick<SessionUser, 'organizationName'>>;
         organizationUuid: string;
     }) => Promise<boolean>;
+    // Lazily resolves the EE data-app service so preview creation can duplicate
+    // the upstream project's data apps. A thunk — not the instance — because
+    // AppGenerateService depends on ProjectService, so eager injection would
+    // create a construction cycle. Resolves undefined in core (non-EE) builds.
+    getAppGenerateService?: () => AppGenerateService | undefined;
 };
 
 export class ProjectService extends BaseService {
@@ -423,6 +429,8 @@ export class ProjectService extends BaseService {
         | ProjectServiceArguments['isProjectContextEnabled']
         | undefined;
 
+    getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -461,6 +469,7 @@ export class ProjectService extends BaseService {
         organizationSettingsModel,
         projectContextModel,
         isProjectContextEnabled,
+        getAppGenerateService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -502,6 +511,7 @@ export class ProjectService extends BaseService {
         this.organizationSettingsModel = organizationSettingsModel;
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
+        this.getAppGenerateService = getAppGenerateService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -7761,11 +7771,34 @@ export class ProjectService extends BaseService {
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
 
-                await this.projectModel.duplicateContent(
-                    projectUuid,
-                    previewProjectUuid,
-                    spaces,
-                );
+                const { spaceMapping } =
+                    await this.projectModel.duplicateContent(
+                        projectUuid,
+                        previewProjectUuid,
+                        spaces,
+                    );
+
+                // Duplicate the upstream project's data apps into the preview
+                // and remap the copied dashboard tiles onto them. EE-only —
+                // resolves undefined in core builds. Best-effort: a failure
+                // here must not undo the content copy that already committed,
+                // so swallow and log rather than propagate.
+                const appGenerateService = this.getAppGenerateService?.();
+                if (appGenerateService) {
+                    try {
+                        await appGenerateService.duplicateAppsForPreview(
+                            projectUuid,
+                            previewProjectUuid,
+                            spaceMapping,
+                        );
+                    } catch (e) {
+                        this.logger.error(
+                            `Failed to duplicate data apps from ${projectUuid} to preview ${previewProjectUuid}: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
+                }
             },
         );
     }

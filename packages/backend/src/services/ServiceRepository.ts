@@ -765,6 +765,16 @@ export class ServiceRepository
                         this.models.getContentVerificationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    // Lazy accessor (not the instance) to duplicate the
+                    // upstream project's data apps when a preview is created.
+                    // AppGenerateService depends on ProjectService, so
+                    // resolving it eagerly here would cycle. Only wired when EE
+                    // license is active; core builds resolve undefined and skip
+                    // data-app duplication.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }

@@ -4209,6 +4209,202 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return { appUuid: newAppUuid, version: newVersion };
     }
 
+    /**
+     * Duplicate every data app from an upstream project into a freshly created
+     * preview project, then repoint the preview's data-app dashboard tiles onto
+     * the duplicated apps. Called once, system-initiated, during preview
+     * creation (`ProjectService.copyContentOnPreview`) right after the rest of
+     * the project content has been copied.
+     *
+     * Each app is copied like a standalone duplicate (latest ready version's S3
+     * artifacts server-side copied into a new v1, no sandbox) with two
+     * differences:
+     *  - it lands in the preview's mirror of the source app's space (or as a
+     *    personal app for spaceless source apps), using the source→preview
+     *    space map produced by `ProjectModel.duplicateContent`; and
+     *  - its `upstream_app_uuid` is set back to the source app, so iterating in
+     *    the preview and then promoting *updates* the original upstream app
+     *    rather than creating a duplicate — the round trip that pairs with
+     *    `promoteApp`.
+     *
+     * Best-effort and non-fatal: a per-app failure is logged and skipped so it
+     * cannot block preview creation; tiles for a skipped app keep their
+     * original upstream reference (rendered read-through, as before this
+     * feature). No per-app permission checks — this is a privileged copy of the
+     * whole project, exactly like `ProjectModel.duplicateContent`.
+     */
+    async duplicateAppsForPreview(
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[],
+    ): Promise<void> {
+        const sourceApps =
+            await this.appModel.listAppsByProject(sourceProjectUuid);
+        if (sourceApps.length === 0) {
+            return;
+        }
+
+        const previewProject =
+            await this.projectModel.getSummary(previewProjectUuid);
+        const previewSpaceBySource = new Map(
+            spaceMapping.map((s) => [s.sourceSpaceUuid, s.previewSpaceUuid]),
+        );
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        const mappings: { sourceAppUuid: string; previewAppUuid: string }[] =
+            [];
+
+        /* eslint-disable no-await-in-loop */
+        for (const sourceApp of sourceApps) {
+            const previewAppUuid = await this.copyAppForPreview(
+                sourceApp,
+                sourceProjectUuid,
+                previewProjectUuid,
+                previewProject.organizationUuid,
+                previewSpaceBySource,
+                s3Client,
+                bucket,
+            );
+            if (previewAppUuid) {
+                mappings.push({
+                    sourceAppUuid: sourceApp.app_id,
+                    previewAppUuid,
+                });
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+
+        // Repoint the preview's dashboard tiles (copied still pointing at the
+        // upstream apps) onto the duplicated apps.
+        await this.appModel.remapPreviewDashboardTileApps(
+            previewProjectUuid,
+            mappings,
+        );
+
+        this.logger.info(
+            `Preview duplication: copied ${mappings.length}/${sourceApps.length} data app(s) from project ${sourceProjectUuid} into preview ${previewProjectUuid}`,
+        );
+    }
+
+    /**
+     * Copy a single upstream app into the preview project, returning the new
+     * app's uuid — or null when there is nothing to copy (no ready version) or
+     * the copy failed (logged, S3 cleaned up). Failures are non-fatal so one
+     * bad app can't abort the whole preview duplication.
+     */
+    private async copyAppForPreview(
+        sourceApp: DbApp,
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        previewOrganizationUuid: string,
+        previewSpaceBySource: Map<string, string>,
+        s3Client: S3Client,
+        bucket: string,
+    ): Promise<string | null> {
+        const sourceVersion = await this.appModel.getLatestReadyVersion(
+            sourceApp.app_id,
+        );
+        if (!sourceVersion) {
+            // No successful build to copy — nothing to render in the preview.
+            // The tile (if any) keeps its read-through reference.
+            return null;
+        }
+
+        // Place the copy in the preview's mirror of the source space. Spaceless
+        // (personal) apps stay personal. A source space missing from the map
+        // shouldn't happen (all spaces are copied first) but falls back to a
+        // personal app rather than failing the copy.
+        const previewSpaceUuid = sourceApp.space_uuid
+            ? (previewSpaceBySource.get(sourceApp.space_uuid) ?? null)
+            : null;
+        if (sourceApp.space_uuid && !previewSpaceUuid) {
+            this.logger.warn(
+                `Preview duplication: source space ${sourceApp.space_uuid} for app ${sourceApp.app_id} not found in preview ${previewProjectUuid}; copying as a personal app`,
+            );
+        }
+
+        // Designs are org-scoped and the preview shares the source org, so the
+        // design carries over — but guard against a since-deleted one.
+        const targetDesignUuid =
+            sourceApp.design_uuid &&
+            (await this.organizationDesignModel.findInOrganization(
+                previewOrganizationUuid,
+                sourceApp.design_uuid,
+            ))
+                ? sourceApp.design_uuid
+                : null;
+
+        const resources = AppGenerateService.buildCopiedResources(
+            sourceVersion.resources ?? null,
+        );
+
+        const newAppUuid = uuidv4();
+        const newVersion = 1;
+
+        const sourceDisplayName = sourceApp.name || 'untitled app';
+        const sourcePreviewPath = `/projects/${sourceProjectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const prompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
+
+        // Keep the S3 copy inside the try so an S3 failure is per-app (logged
+        // and skipped, like a DB failure) instead of throwing out of the loop
+        // and aborting the remaining apps and the tile remap.
+        let copiedKeys: string[] = [];
+
+        try {
+            copiedKeys = await AppGenerateService.copyVersionS3Prefix(
+                s3Client,
+                bucket,
+                { appUuid: sourceApp.app_id, version: sourceVersion.version },
+                { appUuid: newAppUuid, version: newVersion },
+            );
+            await this.appModel.createWithVersion(
+                {
+                    app_id: newAppUuid,
+                    project_uuid: previewProjectUuid,
+                    // Preserve the original author so personal apps stay owned
+                    // by their creator inside the preview.
+                    created_by_user_uuid: sourceApp.created_by_user_uuid,
+                    name: sourceApp.name,
+                    description: sourceApp.description,
+                    template: sourceApp.template,
+                    space_uuid: previewSpaceUuid,
+                    design_uuid: targetDesignUuid,
+                },
+                { version: newVersion, prompt },
+                'ready',
+                resources,
+            );
+            // Link back to the upstream app so a later promote updates it
+            // instead of creating a duplicate.
+            await this.appModel.setUpstreamAppUuid(
+                newAppUuid,
+                sourceApp.app_id,
+            );
+            await this.appModel.updateStatusMessage(
+                newAppUuid,
+                newVersion,
+                'Copied from upstream project',
+            );
+        } catch (error) {
+            // Drop the orphaned S3 copy and skip this app — a single failure
+            // must not abort the rest of the preview copy.
+            await this.cleanupRestoredS3Keys(
+                s3Client,
+                bucket,
+                newAppUuid,
+                copiedKeys,
+            );
+            this.logger.error(
+                `Preview duplication: failed to copy app ${sourceApp.app_id} into preview ${previewProjectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
+
+        return newAppUuid;
+    }
+
     async cancelVersion(
         user: SessionUser,
         projectUuid: string,
