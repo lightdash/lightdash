@@ -384,6 +384,12 @@ export type ProposeWritebackFn = (args: {
 
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
+/**
+ * Run one read-only shell command against the project's dbt repo virtual
+ * filesystem (ls/cat/find/grep/head/wc) and return combined stdout.
+ */
+export type RepoShellFn = (args: { command: string }) => Promise<string>;
+
 export type ListProjectsFn = () => Promise<
     {
         projectUuid: string;

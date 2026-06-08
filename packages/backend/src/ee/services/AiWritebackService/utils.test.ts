@@ -18,9 +18,8 @@ import {
     buildGitlabCommitAuthor,
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
-    classifyToolPhase,
+    describeToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -64,7 +63,20 @@ describe('parseGithubConnection', () => {
             owner: 'acme',
             repo: 'analytics',
             projectSubPath: '.',
+            branch: 'main',
         });
+    });
+
+    it('carries the configured branch through', () => {
+        expect(
+            parseGithubConnection(githubConfig({ branch: 'develop' })).branch,
+        ).toBe('develop');
+    });
+
+    it('returns an empty branch when none is configured', () => {
+        expect(parseGithubConnection(githubConfig({ branch: '' })).branch).toBe(
+            '',
+        );
     });
 
     it('strips leading and trailing slashes from a nested sub-path', () => {
@@ -347,10 +359,34 @@ describe('interpretAgentEvent', () => {
         ).toEqual({ type: 'assistant', text: null, toolCalls: [] });
     });
 
-    it('reads the final cost from a result event', () => {
+    it('reads the cost and timing from a result event', () => {
+        expect(
+            interpretAgentEvent({
+                type: 'result',
+                total_cost_usd: 0.42,
+                duration_ms: 90000,
+                duration_api_ms: 30000,
+                num_turns: 7,
+            }),
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: 90000,
+            durationApiMs: 30000,
+            numTurns: 7,
+        });
+    });
+
+    it('defaults missing result timing fields to null', () => {
         expect(
             interpretAgentEvent({ type: 'result', total_cost_usd: 0.42 }),
-        ).toEqual({ type: 'result', costUsd: 0.42 });
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: null,
+            durationApiMs: null,
+            numTurns: null,
+        });
     });
 
     it.each([null, 'string', { type: 'system' }, undefined])(
@@ -361,35 +397,60 @@ describe('interpretAgentEvent', () => {
     );
 });
 
-describe('classifyToolPhase', () => {
-    it('classifies a lightdash compile Bash command as compiling', () => {
+describe('describeToolStep', () => {
+    it('names the file being edited (basename only)', () => {
         expect(
-            classifyToolPhase({
+            describeToolStep({
+                name: 'Edit',
+                input: { file_path: '/home/user/repo/models/fm_parts.yml' },
+            }),
+        ).toBe('Editing fm_parts.yml');
+        expect(
+            describeToolStep({
+                name: 'Write',
+                input: { file_path: 'models/orders.yml' },
+            }),
+        ).toBe('Editing orders.yml');
+    });
+
+    it('names the file being read', () => {
+        expect(
+            describeToolStep({
+                name: 'Read',
+                input: { file_path: 'models/staging/stg_orders.sql' },
+            }),
+        ).toBe('Reading stg_orders.sql');
+    });
+
+    it('describes a search by its pattern', () => {
+        expect(
+            describeToolStep({ name: 'Grep', input: { pattern: 'revenue' } }),
+        ).toBe('Searching for "revenue"');
+    });
+
+    it('labels a lightdash compile Bash command', () => {
+        expect(
+            describeToolStep({
                 name: 'Bash',
                 input: { command: 'lightdash compile --project-dir .' },
             }),
-        ).toBe('compiling');
+        ).toBe('Compiling project');
     });
 
-    it('does not classify other Bash commands', () => {
+    it('returns null for non-compile Bash and unknown tools', () => {
         expect(
-            classifyToolPhase({ name: 'Bash', input: { command: 'ls -la' } }),
+            describeToolStep({ name: 'Bash', input: { command: 'ls -la' } }),
         ).toBeNull();
+        expect(describeToolStep({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 
-    it('classifies Edit/Write as editing and Read/Glob/Grep as discovering', () => {
-        expect(classifyToolPhase({ name: 'Write', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Edit', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Read', input: {} })).toBe(
-            'discovering',
+    it('falls back to a generic label when no file is given', () => {
+        expect(describeToolStep({ name: 'Edit', input: {} })).toBe(
+            'Editing files',
         );
-        expect(classifyToolPhase({ name: 'Grep', input: {} })).toBe(
-            'discovering',
+        expect(describeToolStep({ name: 'Read', input: {} })).toBe(
+            'Reading files',
         );
-    });
-
-    it('returns null for an unknown tool', () => {
-        expect(classifyToolPhase({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 });
 
@@ -414,16 +475,6 @@ describe('summarizeToolInput', () => {
         const circular: Record<string, unknown> = {};
         circular.self = circular;
         expect(summarizeToolInput(circular)).toBe('<unserializable>');
-    });
-});
-
-describe('getPhaseProgressText', () => {
-    it('uses model wording for the writeback agent phases', () => {
-        expect(getPhaseProgressText()).toEqual({
-            discovering: 'Discovering models',
-            editing: 'Editing models',
-            compiling: 'Compiling project',
-        });
     });
 });
 

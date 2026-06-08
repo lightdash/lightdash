@@ -32,6 +32,8 @@ export type GithubConnection = {
     owner: string;
     repo: string;
     projectSubPath: string;
+    /** The project's configured branch, or '' to fall back to the repo default. */
+    branch: string;
 };
 
 export type GitlabConnection = {
@@ -123,9 +125,6 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'changeset';
 
-/** Coarse phase of the agent's work, inferred from the tools it calls. */
-export type AgentPhase = 'discovering' | 'editing' | 'compiling';
-
 export type AgentToolCall = {
     name: string;
     input: unknown;
@@ -138,7 +137,16 @@ export type AgentToolCall = {
  */
 export type AgentStreamEvent =
     | { type: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
-    | { type: 'result'; costUsd: number | null }
+    | {
+          type: 'result';
+          costUsd: number | null;
+          /** Total agent wall-clock (ms) as reported by Claude Code. */
+          durationMs: number | null;
+          /** Time (ms) spent in LLM API calls — the rest is local tool execution. */
+          durationApiMs: number | null;
+          /** Number of agent turns. */
+          numTurns: number | null;
+      }
     | { type: 'ignored' };
 
 /** Title/description parsed out of the agent's final stdout. */

@@ -7,6 +7,7 @@ import {
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
+    PullRequestProvider,
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
@@ -19,6 +20,7 @@ import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { getRepoDefaultBranch } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -34,6 +36,7 @@ import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
     COMPILE_STRIPPED_ENV_VARS,
+    COMPILE_TIMINGS_PATH,
     COMPILE_WRAPPER_PATH,
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
@@ -48,6 +51,7 @@ import {
     SKILLS_DIR,
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
+    TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { WritebackGitNotConnectedError } from './errors';
@@ -59,7 +63,6 @@ import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
     AdoptedPullRequest,
-    AgentPhase,
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
@@ -70,10 +73,10 @@ import type {
     WarehouseSkillKey,
 } from './types';
 import {
-    classifyToolPhase,
+    describeToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
     interpretAgentEvent,
+    parseGithubConnection,
     parsePullNumber,
     progressTextForStage,
     resolvePrMetadataValue,
@@ -168,6 +171,85 @@ export class AiWritebackService extends BaseService {
             null,
             `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
         );
+    }
+
+    /**
+     * Resolve read-only access to the project's dbt repo — owner/repo/default
+     * branch and an installation access token — for the repoShell virtual
+     * filesystem. Reuses the same provider + installation resolution as
+     * writeback but never creates a sandbox or clone. GitHub-only for now;
+     * throws {@link WritebackGitNotConnectedError} for any other connection.
+     */
+    async getRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        branch: string;
+        token: string;
+        subPath: string;
+    }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(projectUuid);
+        // Reading repo source requires view:SourceCode (writeback requires the
+        // stricter manage:SourceCode). Gate the read so the repoShell tool can't
+        // expose dbt source to users without source-code access.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view this project source code',
+            );
+        }
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (provider.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                provider.provider,
+                'Repository read access is currently only supported for GitHub dbt connections',
+            );
+        }
+        const connection = parseGithubConnection(project.dbtConnection);
+        const installation = await this.githubProvider.resolveInstallation(
+            user.organizationUuid,
+        );
+        if (installation.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITHUB,
+                'GitHub App is not installed for this organization',
+            );
+        }
+        // Read the project's configured dbt branch so repoShell inspects the
+        // same source the Lightdash project compiles from. Only fall back to the
+        // repo's default branch when the project left the branch unset.
+        const branch =
+            connection.branch ||
+            (await getRepoDefaultBranch({
+                owner: connection.owner,
+                repo: connection.repo,
+                installationId: installation.installationId,
+            }));
+        return {
+            owner: connection.owner,
+            repo: connection.repo,
+            branch,
+            token: installation.token,
+            // Scope the read-only VFS to the dbt project subdirectory so it
+            // can't expose secrets/other files elsewhere in the repo. '.' (repo
+            // root) means no scoping.
+            subPath: connection.projectSubPath,
+        };
     }
 
     private async assertEnabled(
@@ -455,6 +537,14 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 turn.gitConnection.projectSubPath,
             );
+            // Stage a credential-free profiles copy host-side so the agent
+            // doesn't burn turns discovering profiles.yml and hand-stripping
+            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
+            // to spend LLM round-trips on it.
+            const profilesStaged = await this.prepareProfiles(
+                sandbox,
+                turn.gitConnection.projectSubPath,
+            );
             const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
             const systemPrompt = buildSystemPrompt(
                 turn.gitConnection.projectSubPath,
@@ -464,6 +554,7 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
+                    profilesStaged,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -797,6 +888,68 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Stage a warehouse-credential-free `profiles.yml` copy at
+     * {@link TMP_PROFILES_DIR} so the in-sandbox agent can compile without
+     * discovering the profiles file, copying it, and hand-stripping Jinja —
+     * deterministic plumbing that otherwise costs several LLM turns. Strips
+     * every `{{ … }}` expression (env_var lookups, filters) to a literal so dbt
+     * parses without any environment variables. Returns true when staged;
+     * false (best-effort) leaves the agent's prompt fallback in place.
+     */
+    private async prepareProfiles(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<boolean> {
+        const start = performance.now();
+        try {
+            const base =
+                projectSubPath === '.' ? CWD : `${CWD}/${projectSubPath}`;
+            const found = await sandbox.commands.run(
+                `find ${base} -maxdepth 2 -name profiles.yml 2>/dev/null | head -1`,
+                { cwd: CWD },
+            );
+            const profilesPath = found.stdout.trim();
+            if (!profilesPath) {
+                this.logger.info(
+                    'AI writeback prepareProfiles: no profiles.yml found — agent will prepare it',
+                    { event: 'ai_writeback.profiles.skipped', projectSubPath },
+                );
+                return false;
+            }
+            const raw = await sandbox.files.read(profilesPath);
+            // Replace each Jinja expression with a literal so the copy needs no
+            // env vars. Existing surrounding quotes (`"{{ … }}"`) wrap the
+            // placeholder; bare expressions become a plain scalar.
+            const patched = raw.replace(/\{\{.*?\}\}/g, 'placeholder');
+            await sandbox.commands.run(`mkdir -p ${TMP_PROFILES_DIR}`, {
+                cwd: CWD,
+            });
+            await sandbox.files.write(
+                `${TMP_PROFILES_DIR}/profiles.yml`,
+                patched,
+            );
+            this.logger.info(
+                `AI writeback profiles staged (${AiWritebackService.elapsed(
+                    start,
+                )}ms, from ${profilesPath})`,
+                {
+                    event: 'ai_writeback.profiles.staged',
+                    sandboxId: sandbox.sandboxId,
+                },
+            );
+            return true;
+        } catch (error) {
+            this.logger.warn(
+                `AI writeback prepareProfiles failed — agent will prepare it: ${getErrorMessage(
+                    error,
+                )}`,
+                { event: 'ai_writeback.profiles.failed' },
+            );
+            return false;
+        }
+    }
+
+    /**
      * Pre-compute a dbt project snapshot (project file, file tree, models/
      * YAML) so the agent doesn't burn turns rediscovering them. Returns null
      * on any failure — the run continues without the context block.
@@ -878,11 +1031,23 @@ export class AiWritebackService extends BaseService {
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
+        // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
+        // after the run. We drop `exec` (one extra shell frame) so the timing
+        // can be recorded after the child returns; secrets are still stripped via
+        // `env -u` for the compile child, so the security property is unchanged.
         await sandbox.files.write(
             COMPILE_WRAPPER_PATH,
-            `#!/usr/bin/env bash\nexec env ${unsetFlags} lightdash compile "$@"\n`,
+            `#!/usr/bin/env bash\n` +
+                `__ld_start=$(date +%s%3N)\n` +
+                `env ${unsetFlags} lightdash compile "$@"\n` +
+                `__ld_code=$?\n` +
+                `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
+                `exit $__ld_code\n`,
         );
         await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
+        // Reset the timings log each turn — the sandbox filesystem persists across
+        // pause/resume, so a resumed turn would otherwise double-count prior runs.
+        await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
 
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
@@ -899,8 +1064,9 @@ export class AiWritebackService extends BaseService {
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
-        const phaseProgressText = getPhaseProgressText();
-        const seenPhases = new Set<AgentPhase>();
+        // Last per-file step surfaced, to suppress consecutive duplicates (e.g.
+        // the agent reading the same file twice in a row).
+        let lastStep: string | null = null;
 
         let stderrTail = '';
         const appendStderrTail = (chunk: string) => {
@@ -910,14 +1076,37 @@ export class AiWritebackService extends BaseService {
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
-                this.logger.info('AI writeback agent run summary', {
-                    event: 'ai_writeback.run.summary',
-                    source,
-                    sandboxId: sandbox.sandboxId,
-                    costUsd: interpreted.costUsd,
-                    warehouseType,
-                    toolCounts,
-                });
+                // `durationMs` is the agent's total wall-clock; `durationApiMs`
+                // is the LLM-call portion, so `durationMs - durationApiMs`
+                // approximates time spent in local tool execution (edits, git,
+                // and `lightdash compile`). A large gap points at compile/IO
+                // rather than model latency.
+                const localToolMs =
+                    interpreted.durationMs !== null &&
+                    interpreted.durationApiMs !== null
+                        ? interpreted.durationMs - interpreted.durationApiMs
+                        : null;
+                this.logger.info(
+                    `AI writeback agent run summary (wall=${
+                        interpreted.durationMs ?? '?'
+                    }ms, api=${interpreted.durationApiMs ?? '?'}ms, local=${
+                        localToolMs ?? '?'
+                    }ms, turns=${interpreted.numTurns ?? '?'}, cost=$${
+                        interpreted.costUsd ?? '?'
+                    }, tools=${JSON.stringify(toolCounts)})`,
+                    {
+                        event: 'ai_writeback.run.summary',
+                        source,
+                        sandboxId: sandbox.sandboxId,
+                        costUsd: interpreted.costUsd,
+                        durationMs: interpreted.durationMs,
+                        durationApiMs: interpreted.durationApiMs,
+                        localToolMs,
+                        numTurns: interpreted.numTurns,
+                        warehouseType,
+                        toolCounts,
+                    },
+                );
                 return;
             }
             if (interpreted.type === 'ignored') return;
@@ -931,10 +1120,13 @@ export class AiWritebackService extends BaseService {
                     toolName: toolCall.name,
                     summary: summarizeToolInput(toolCall.input),
                 });
-                const phase = classifyToolPhase(toolCall);
-                if (phase && !seenPhases.has(phase)) {
-                    seenPhases.add(phase);
-                    reportProgress(phaseProgressText[phase]);
+                // Surface the actual file the agent is touching ("Editing
+                // fm_parts.yml", "Reading orders.yml") rather than a generic
+                // phase, deduped so a repeated step doesn't spam the UI.
+                const step = describeToolStep(toolCall);
+                if (step && step !== lastStep) {
+                    lastStep = step;
+                    reportProgress(step);
                 }
             }
             if (interpreted.text !== null) assistantText = interpreted.text;
@@ -1056,6 +1248,56 @@ export class AiWritebackService extends BaseService {
             exitCode: result.exitCode,
             isResume,
         });
+
+        // Report how much of the agent stage went to `lightdash compile` (each
+        // invocation timed by the wrapper) — the prime suspect for writeback
+        // latency. Best-effort: never fail the run over a missing timings file.
+        try {
+            const timings = await sandbox.commands.run(
+                `cat ${COMPILE_TIMINGS_PATH} 2>/dev/null || true`,
+                { cwd: CWD },
+            );
+            const runs = timings.stdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+                .map((line) => {
+                    const [ms, code] = line.split(/\s+/);
+                    return { ms: Number(ms), exitCode: Number(code) };
+                })
+                .filter((run) => Number.isFinite(run.ms));
+            if (runs.length > 0) {
+                const compileTotalMs = runs.reduce(
+                    (sum, run) => sum + run.ms,
+                    0,
+                );
+                const compileFailures = runs.filter(
+                    (run) => run.exitCode !== 0,
+                ).length;
+                this.logger.info(
+                    `AI writeback compile timings (count=${
+                        runs.length
+                    }, total=${compileTotalMs}ms, runs=[${runs
+                        .map((run) => run.ms)
+                        .join(',')}]ms, failures=${compileFailures})`,
+                    {
+                        event: 'ai_writeback.run.compile',
+                        sandboxId: sandbox.sandboxId,
+                        compileCount: runs.length,
+                        compileTotalMs,
+                        compileMs: runs.map((run) => run.ms),
+                        compileFailures,
+                    },
+                );
+            }
+        } catch (error) {
+            this.logger.debug(
+                `AiWriteback: failed to read compile timings: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
         return { stdout: assistantText, exitCode: result.exitCode };
     }
 

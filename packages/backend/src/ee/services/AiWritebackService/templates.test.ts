@@ -10,12 +10,34 @@ const BASE_CONTEXT = {
     repoContext: null,
 };
 
-const buildFor = (warehouseType: WarehouseTypes | null) =>
+const buildFor = (
+    warehouseType: WarehouseTypes | null,
+    profilesStaged = false,
+) =>
     buildSystemPrompt(DBT_PROJECT_DIR, {
         ...BASE_CONTEXT,
         warehouseType,
         hasWarehouseSkill: warehouseTypeToSkillKey(warehouseType) !== null,
+        profilesStaged,
     });
+
+describe('buildSystemPrompt — staged profiles', () => {
+    it('omits the discover/copy/strip steps when profiles are pre-staged', () => {
+        const staged = buildFor(WarehouseTypes.POSTGRES, true);
+        expect(staged).toContain('already been prepared for you');
+        expect(staged).not.toContain('Discover the profiles directory');
+        expect(staged).not.toContain('Prepare a TEMPORARY profiles directory');
+        // still compiles and still emits the PR metadata blocks
+        expect(staged).toContain('--skip-warehouse-catalog');
+        expect(staged).toMatch(/single-line PR title/);
+    });
+
+    it('keeps the full discover/copy/strip steps when not pre-staged', () => {
+        const notStaged = buildFor(WarehouseTypes.POSTGRES, false);
+        expect(notStaged).toContain('Discover the profiles directory');
+        expect(notStaged).toContain('Prepare a TEMPORARY profiles directory');
+    });
+});
 
 describe('buildSystemPrompt — warehouse skill guidance', () => {
     it('names the warehouse and points at both skill files when a file exists', () => {

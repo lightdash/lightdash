@@ -13,7 +13,6 @@ import {
     PR_TITLE_OPEN,
 } from './constants';
 import type {
-    AgentPhase,
     AgentStreamEvent,
     AgentToolCall,
     CloneTarget,
@@ -67,6 +66,7 @@ export const parseGithubConnection = (
         owner,
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
+        branch: connection.branch?.trim() ?? '',
     };
 };
 
@@ -311,9 +311,18 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         type?: string;
         message?: { content?: unknown };
         total_cost_usd?: number;
+        duration_ms?: number;
+        duration_api_ms?: number;
+        num_turns?: number;
     };
     if (typed.type === 'result') {
-        return { type: 'result', costUsd: typed.total_cost_usd ?? null };
+        return {
+            type: 'result',
+            costUsd: typed.total_cost_usd ?? null,
+            durationMs: typed.duration_ms ?? null,
+            durationApiMs: typed.duration_api_ms ?? null,
+            numTurns: typed.num_turns ?? null,
+        };
     }
     if (typed.type !== 'assistant') return { type: 'ignored' };
     const content = typed.message?.content;
@@ -349,28 +358,49 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     return { type: 'assistant', text: messageText || null, toolCalls };
 };
 
-export const classifyToolPhase = ({
+const toolStepBasename = (path: string): string => {
+    const idx = path.lastIndexOf('/');
+    return idx === -1 ? path : path.slice(idx + 1);
+};
+
+/**
+ * A human, per-file progress line for one in-sandbox agent tool call —
+ * "Reading orders.yml", "Editing fm_parts.yml", "Compiling project" — so the
+ * writeback's live sub-steps show the actual files it touches instead of a
+ * generic phase ("Editing models"). Returns null for tool calls not worth
+ * surfacing (e.g. non-compile Bash). Mirrors the repoShell tool-step style.
+ */
+export const describeToolStep = ({
     name,
     input,
-}: AgentToolCall): AgentPhase | null => {
-    if (name === 'Bash') {
-        const command =
-            input && typeof input === 'object'
-                ? (input as { command?: unknown }).command
-                : undefined;
-        if (
-            typeof command === 'string' &&
-            command.includes('lightdash compile')
-        ) {
-            return 'compiling';
-        }
-        return null;
+}: AgentToolCall): string | null => {
+    const fields =
+        input && typeof input === 'object'
+            ? (input as Record<string, unknown>)
+            : {};
+    const file =
+        typeof fields.file_path === 'string'
+            ? toolStepBasename(fields.file_path)
+            : null;
+    switch (name) {
+        case 'Edit':
+        case 'Write':
+            return file ? `Editing ${file}` : 'Editing files';
+        case 'Read':
+            return file ? `Reading ${file}` : 'Reading files';
+        case 'Glob':
+        case 'Grep':
+            return typeof fields.pattern === 'string'
+                ? `Searching for "${fields.pattern}"`
+                : 'Searching files';
+        case 'Bash':
+            return typeof fields.command === 'string' &&
+                fields.command.includes('lightdash compile')
+                ? 'Compiling project'
+                : null;
+        default:
+            return null;
     }
-    if (name === 'Edit' || name === 'Write') return 'editing';
-    if (name === 'Read' || name === 'Glob' || name === 'Grep') {
-        return 'discovering';
-    }
-    return null;
 };
 
 export const summarizeToolInput = (input: unknown): string => {
@@ -388,12 +418,6 @@ export const summarizeToolInput = (input: unknown): string => {
         return '<unserializable>';
     }
 };
-
-export const getPhaseProgressText = (): Record<AgentPhase, string> => ({
-    discovering: 'Discovering models',
-    editing: 'Editing models',
-    compiling: 'Compiling project',
-});
 
 export const splitStreamBuffer = (
     buffer: string,

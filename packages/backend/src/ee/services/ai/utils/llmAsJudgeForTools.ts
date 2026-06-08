@@ -47,6 +47,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getProjectInfo: 'get_project_info',
     proposeChange: 'propose_change',
     proposeWriteback: 'propose_writeback',
+    repoShell: 'repo_shell',
     setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
 

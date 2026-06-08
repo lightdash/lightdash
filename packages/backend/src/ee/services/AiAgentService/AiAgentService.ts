@@ -207,12 +207,16 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
+import { runRepoShellCommand } from '../ai/repoFs/limitedShell';
+import { RepoFs } from '../ai/repoFs/RepoFs';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     GetPromptFn,
     ProposeWritebackFn,
+    RepoShellFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -5028,6 +5032,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return { ...result, previewDeployConfigured };
         };
 
+        // Read-only repo virtual filesystem for the repoShell tool. Resolve the
+        // GitHub access + fetch the file tree at most once per request, then
+        // reuse the cached RepoFs across every repoShell call in the run.
+        let repoFsPromise: Promise<RepoFs> | null = null;
+        const repoShell: RepoShellFn = async ({ command }) => {
+            if (!repoFsPromise) {
+                repoFsPromise = this.aiWritebackService
+                    .getRepoReadAccess({ user, projectUuid })
+                    .then(
+                        (access) => new RepoFs(createGithubRepoSource(access)),
+                    );
+            }
+            const repoFs = await repoFsPromise;
+            return runRepoShellCommand(repoFs, command);
+        };
+
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
@@ -5062,6 +5082,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues: toolsRuntime.searchFieldValues,
             proposeWriteback,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
+            repoShell,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
         };
@@ -5181,6 +5202,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             proposeWriteback,
             setupPreviewDeploy,
+            repoShell,
             listProjects,
             getProjectInfo,
         } = await this.getAiAgentDependencies(user, prompt, {
@@ -5331,6 +5353,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
+        let { enabled: repoFsEnabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.RepoFs,
+        });
+        // repoShell reads repo source and its view:SourceCode check evaluates
+        // against the resolved user. On Slack without aiRequireOAuth that user
+        // is the app installer, not the requester — so disable it, exactly as
+        // runSql and writeback do above.
+        if (repoFsEnabled && !hasTrustedPromptUserIdentity) {
+            this.logger.info(
+                `Disabling repoShell for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            repoFsEnabled = false;
+        }
+
+        // The dbt project's root within the repo, so the prompt can point the
+        // repoShell agent at it (instead of hardcoding "dbt/"). Derived from the
+        // connection's project_sub_path: '.' = repo root, else a subdirectory.
+        // null when repoFs is off or the project isn't git-backed.
+        let repoFsRoot: string | null = null;
+        if (
+            repoFsEnabled &&
+            'project_sub_path' in promptProject.dbtConnection
+        ) {
+            const raw = (promptProject.dbtConnection.project_sub_path ?? '')
+                .trim()
+                .replace(/^\/+/, '')
+                .replace(/\/+$/, '');
+            repoFsRoot = raw === '' ? '.' : raw;
+        }
+
         const canUseContentTools =
             agentRevampEnabled &&
             agentSettings.enableContentTools &&
@@ -5381,6 +5434,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
+            enableRepoFs: repoFsEnabled,
+            repoFsRoot,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -5441,6 +5496,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             proposeWriteback,
             setupPreviewDeploy,
+            repoShell,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),

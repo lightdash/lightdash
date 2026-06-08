@@ -49,6 +49,26 @@ const buildWarehouseSkillGuidance = (
 // unset variables. The original profiles.yml in the checkout must NOT be
 // touched — `git add --all` runs after the agent and would otherwise sweep
 // the patched file into the PR.
+// Compile follow-up steps when the host has already staged a
+// credential-free profiles copy at TMP_PROFILES_DIR — the agent skips the
+// discover/copy/strip dance entirely and just runs the compile.
+const buildStagedProfilesSteps = (dbtProjectDir: string): string => `
+1. From the repo root, run (use this exact wrapper command — it is the only
+   compile command available to you; a credential-free profiles directory has
+   already been prepared for you at \`${TMP_PROFILES_DIR}\`, so do NOT create or
+   edit it):
+     ${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog \\
+       --profiles-dir ${TMP_PROFILES_DIR} \\
+       --project-dir ${dbtProjectDir}
+   Capture the exit code and the last meaningful line of output.
+
+2. In your final reply, include ONE line summarising the compile result —
+   for example: "lightdash compile: ok (exit 0)" or
+   "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
+   paste the full compile output.
+
+3. End your final reply with the two structured-output blocks below.`;
+
 export const buildSystemPrompt = (
     dbtProjectDir: string,
     context: {
@@ -57,6 +77,7 @@ export const buildSystemPrompt = (
         repoContext: string | null;
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
+        profilesStaged: boolean;
     },
 ): string =>
     `
@@ -94,9 +115,11 @@ ${context.repoContext}
 `
         : ''
 }
-If you made any file changes, perform ALL of these follow-up steps before you
-finish:
-
+If you made any file changes, perform these follow-up steps before you finish:
+${
+    context.profilesStaged
+        ? buildStagedProfilesSteps(dbtProjectDir)
+        : `
 1. The dbt project directory (containing \`dbt_project.yml\`) is
    \`${dbtProjectDir}\`. Use it as the \`--project-dir\`.
 
@@ -127,10 +150,13 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. End your final reply with two structured-output blocks so the host can
-   pick up the PR metadata reliably. The host strips both blocks before
-   showing your reply to the user, so they will not appear in Slack. Emit them
-   verbatim, on their own lines, each opening and closing tag exactly as shown:
+6. End your final reply with the two structured-output blocks below.`
+}
+
+The two structured-output blocks let the host pick up the PR metadata reliably.
+The host strips both blocks before showing your reply to the user, so they will
+not appear in Slack. Emit them verbatim, on their own lines, each opening and
+closing tag exactly as shown:
 
    ${PR_TITLE_OPEN}
    single-line PR title — plain text, no emojis, max 72 characters
@@ -140,6 +166,6 @@ finish:
    PR description in plain markdown, no emojis
    ${PR_DESCRIPTION_CLOSE}
 
-If you did not change any files, skip steps 1–6 entirely and do not emit the
+If you did not change any files, skip these steps entirely and do not emit the
 blocks.
 `.trim();

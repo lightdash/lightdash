@@ -23,6 +23,7 @@ import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
 import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
+import { getRepoShell } from './repoShell';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -144,6 +145,7 @@ const makeAgentTools = () => {
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
+        repoShell: getRepoShell({ repoShell: noop }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
