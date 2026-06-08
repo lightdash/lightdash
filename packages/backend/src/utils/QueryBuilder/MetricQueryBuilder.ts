@@ -2231,6 +2231,14 @@ export class MetricQueryBuilder {
                 if (nestedAggOuterIds.has(getItemId(metric))) {
                     return;
                 }
+                // Non-aggregate metrics referencing sum_distinct/average_distinct
+                // must be emitted from the outer dd SELECT where dd_* aliases
+                // are available. Emitting compiledSql here expands the distinct
+                // metric to its raw fallback aggregate and can duplicate the
+                // outer alias.
+                if (nonAggReferencingDd.has(getItemId(metric))) {
+                    return;
+                }
                 // Inflation proof metrics don't need CTE
                 if (isInflationProofMetric(metric.type)) {
                     return;

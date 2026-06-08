@@ -3728,6 +3728,46 @@ export const EXPLORE_WITH_FANOUT_AND_DD_REFERENCE: Explore = {
                     tablesReferences: ['customers'],
                     hidden: false,
                 },
+                total_customer_value: {
+                    type: MetricType.SUM,
+                    name: 'total_customer_value',
+                    label: 'Total Customer Value',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.lifetime_value',
+                    compiledSql: 'SUM("customers".lifetime_value)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+                total_customer_value_deduped: {
+                    type: MetricType.SUM_DISTINCT,
+                    name: 'total_customer_value_deduped',
+                    label: 'Total Customer Value (Deduped)',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.lifetime_value',
+                    distinctKeys: ['customers.customer_id'],
+                    compiledSql: 'SUM("customers".lifetime_value)',
+                    compiledValueSql: '("customers".lifetime_value)',
+                    compiledDistinctKeys: ['("customers".customer_id)'],
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+                average_customer_value_deduped: {
+                    type: MetricType.NUMBER,
+                    name: 'average_customer_value_deduped',
+                    label: 'Average Customer Value (Deduped)',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${total_customer_value} / NULLIF(${total_customer_value_deduped}, 0)',
+                    compiledSql:
+                        '(SUM("customers".lifetime_value)) / NULLIF((SUM("customers".lifetime_value)), 0)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
                 total_order_amount_deduped: {
                     type: MetricType.SUM_DISTINCT,
                     name: 'total_order_amount_deduped',
@@ -3890,3 +3930,26 @@ export const METRIC_QUERY_FANOUT_AND_DD_REFERENCE: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+export const METRIC_QUERY_FANOUT_AND_SAME_TABLE_DD_REFERENCE: CompiledMetricQuery =
+    {
+        exploreName: 'customers',
+        dimensions: [],
+        metrics: [
+            'customers_average_customer_value_deduped',
+            'customers_total_customer_value',
+            'orders_total_order_amount',
+        ],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'customers_average_customer_value_deduped',
+                descending: true,
+            },
+        ],
+        limit: 500,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };

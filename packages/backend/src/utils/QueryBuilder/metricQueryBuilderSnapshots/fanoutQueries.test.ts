@@ -2,7 +2,9 @@ import { FilterOperator } from '@lightdash/common';
 import {
     EXPLORE,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
+    EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_CROSS_TABLE,
+    METRIC_QUERY_FANOUT_AND_SAME_TABLE_DD_REFERENCE,
     METRIC_QUERY_TWO_TABLES,
 } from '../MetricQueryBuilder.mock';
 import { buildQuery } from './helpers';
@@ -114,5 +116,22 @@ describe('MetricQueryBuilder snapshot: fanout queries', () => {
                 },
             }),
         ).toMatchSnapshot();
+    });
+
+    test('matches snapshot for a fanout-protected metric that references sum_distinct on the same table', () => {
+        const query = buildQuery({
+            explore: EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
+            compiledMetricQuery:
+                METRIC_QUERY_FANOUT_AND_SAME_TABLE_DD_REFERENCE,
+        });
+
+        expect(query).toContain('cte_metrics_customers');
+        expect(query).not.toContain(
+            '(SUM("customers".lifetime_value)) / NULLIF((SUM("customers".lifetime_value)), 0) AS "customers_average_customer_value_deduped"',
+        );
+        expect(
+            query.match(/AS "customers_average_customer_value_deduped"/g),
+        ).toHaveLength(1);
+        expect(query).toMatchSnapshot();
     });
 });
