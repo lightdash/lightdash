@@ -53,6 +53,7 @@ import React, {
     type FC,
 } from 'react';
 import {
+    findMatchingSubtotal,
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
 } from '../../../hooks/tableVisualization/getDataAndColumns';
@@ -529,36 +530,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                     finalHeaderInfoForColumns[colIndex];
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotal = data.groupedSubtotals?.[
-                                    subtotalGroupKey
-                                ]?.find((sub) => {
-                                    try {
-                                        return (
-                                            // All grouping values in the row must match the subtotal values
-                                            Object.keys(groupingValues).every(
-                                                (key) => {
-                                                    return (
-                                                        groupingValues[key]
-                                                            ?.value.raw ===
-                                                        sub[key]
-                                                    );
-                                                },
-                                            ) &&
-                                            // All pivoted header values in the row must match the subtotal values
-                                            Object.keys(
-                                                pivotedHeaderValues,
-                                            ).every((key) => {
-                                                return (
-                                                    pivotedHeaderValues[key]
-                                                        ?.raw === sub[key]
-                                                );
-                                            })
-                                        );
-                                    } catch (e) {
-                                        console.error(e);
-                                        return false;
-                                    }
-                                });
+                                const subtotal = findMatchingSubtotal(
+                                    data.groupedSubtotals?.[subtotalGroupKey],
+                                    groupingValues,
+                                    pivotedHeaderValues,
+                                );
 
                                 const subtotalValue = getSubtotalValueFromGroup(
                                     subtotal,

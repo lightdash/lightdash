@@ -4,14 +4,40 @@ import {
     QueryHistoryStatus,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiGetAsyncQueryResults,
     type CalculateTotalKind,
     type PivotRowTotalsByIndex,
     type RawResultRow,
+    type ResultRow,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
-import { getResultsFromStream } from '../utils/request';
+
+// Reads every page of a ready query from the paginated results endpoint.
+const fetchAllResultRows = async (
+    projectUuid: string,
+    queryUuid: string,
+): Promise<ResultRow[]> => {
+    const rows: ResultRow[] = [];
+    let page = 1;
+    let totalPageCount = 1;
+    do {
+        const result = await lightdashApi<ApiGetAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query/${queryUuid}?page=${page}`,
+            version: 'v2',
+            method: 'GET',
+            body: undefined,
+        });
+        if (result.status !== QueryHistoryStatus.READY) {
+            throw new Error('Unexpected query status while reading results');
+        }
+        rows.push(...result.rows);
+        totalPageCount = result.totalPageCount ?? 1;
+        page += 1;
+    } while (page <= totalPageCount);
+    return rows;
+};
 
 type StartCalculateTotalArgs = {
     projectUuid: string;
@@ -142,21 +168,18 @@ const fetchRowTotals = async (
         throw new Error('Unexpected query status while polling totals');
     }
 
-    // One row per index combination — potentially more than a single page, so
-    // read the whole results file rather than the paginated poll response.
-    const fileUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}/results`;
-    const rows = await getResultsFromStream<RawResultRow>(fileUrl);
+    const rows = await fetchAllResultRows(projectUuid, queryUuid);
 
     const indexFieldIdSet = new Set(indexFieldIds);
     const map: PivotRowTotalsByIndex = {};
     for (const row of rows) {
         const key = buildPivotRowTotalKey(
-            indexFieldIds.map((fieldId) => [fieldId, row[fieldId]]),
+            indexFieldIds.map((fieldId) => [fieldId, row[fieldId]?.value.raw]),
         );
         const metricTotals: Record<string, number> = {};
-        for (const [fieldId, raw] of Object.entries(row)) {
+        for (const [fieldId, cell] of Object.entries(row)) {
             if (indexFieldIdSet.has(fieldId)) continue;
-            const numeric = Number(raw);
+            const numeric = Number(cell?.value.raw);
             if (Number.isFinite(numeric)) {
                 metricTotals[fieldId] = numeric;
             }
@@ -278,12 +301,12 @@ const fetchSubtotals = async (args: {
                     );
                 }
 
-                const fileUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}/results`;
-                const rows = await getResultsFromStream<RawResultRow>(fileUrl);
+                const rows = await fetchAllResultRows(projectUuid, queryUuid);
 
                 const records = rows.map((row) => {
                     const record: Record<string, unknown> = {};
-                    for (const [fieldId, raw] of Object.entries(row)) {
+                    for (const [fieldId, cell] of Object.entries(row)) {
+                        const raw = cell?.value.raw;
                         if (dimensionKeys.has(fieldId)) {
                             record[fieldId] = raw;
                         } else {
