@@ -205,7 +205,7 @@ export class AiService {
                     );
 
                 const { name, description } =
-                    await this.savedChartModel.get(chartUuid);
+                    await this.savedChartModel.getSummary(chartUuid);
 
                 const { rows, fields } = queryResults;
                 const columns = rows[0] ? Object.keys(rows[0]) : [];
