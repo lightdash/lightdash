@@ -14038,19 +14038,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -27440,31 +27427,46 @@
                 "required": ["sendEmail", "role", "email"],
                 "type": "object"
             },
-            "DataTimezonePreviewRow": {
+            "DataTimezonePreviewNaive": {
                 "properties": {
                     "rendered": {
                         "type": "string"
                     },
-                    "instant": {
+                    "readAs": {
+                        "type": "string"
+                    },
+                    "raw": {
                         "type": "string"
                     },
                     "interpretedAs": {
                         "type": "string"
                     }
                 },
-                "required": ["rendered", "instant", "interpretedAs"],
+                "required": ["rendered", "readAs", "raw", "interpretedAs"],
+                "type": "object"
+            },
+            "DataTimezonePreviewAware": {
+                "properties": {
+                    "rendered": {
+                        "type": "string"
+                    },
+                    "raw": {
+                        "type": "string"
+                    }
+                },
+                "required": ["rendered", "raw"],
                 "type": "object"
             },
             "ApiDataTimezonePreviewResults": {
                 "properties": {
-                    "utcBaseline": {
-                        "$ref": "#/components/schemas/DataTimezonePreviewRow"
+                    "aware": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewAware"
                     },
-                    "effective": {
-                        "$ref": "#/components/schemas/DataTimezonePreviewRow"
+                    "naive": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewNaive"
                     },
-                    "raw": {
-                        "type": "string"
+                    "dataTimezoneApplies": {
+                        "type": "boolean"
                     },
                     "projectTimezone": {
                         "type": "string"
@@ -27480,9 +27482,9 @@
                     }
                 },
                 "required": [
-                    "utcBaseline",
-                    "effective",
-                    "raw",
+                    "aware",
+                    "naive",
+                    "dataTimezoneApplies",
                     "projectTimezone",
                     "effectiveSourceTimezone",
                     "selectedDataTimezone",

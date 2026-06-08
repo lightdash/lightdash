@@ -2235,7 +2235,7 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
         });
 
-        it('renders the warehouse row in the project timezone (edit flow)', async () => {
+        it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
             jest.spyOn(
                 service,
                 'isTimezoneSupportEnabled',
@@ -2248,9 +2248,8 @@ describe('ProjectService', () => {
                     fields: {},
                     rows: [
                         {
-                            raw: '2026-06-08T14:30:00.000Z',
-                            effective_instant: '2026-06-08T18:30:00.000',
-                            utc_instant: '2026-06-08T14:30:00.000',
+                            aware_instant: '2026-06-08T14:30:00.000Z',
+                            naive_instant: '2026-06-08T18:30:00.000Z',
                         },
                     ],
                 })),
@@ -2263,15 +2262,12 @@ describe('ProjectService', () => {
 
             expect(result.effectiveSourceTimezone).toBe('America/New_York');
             expect(result.projectTimezone).toBe('UTC');
-            expect(result.raw).toBe('2026-06-08T14:30:00.000Z');
-            expect(result.effective.interpretedAs).toBe('America/New_York');
-            expect(result.effective.rendered).toBe(
-                '2026-06-08, 18:30:00:000 (+00:00)',
-            );
-            expect(result.utcBaseline.interpretedAs).toBe('UTC');
-            expect(result.utcBaseline.rendered).toBe(
-                '2026-06-08, 14:30:00:000 (+00:00)',
-            );
+            expect(result.dataTimezoneApplies).toBe(true);
+            expect(result.naive.interpretedAs).toBe('America/New_York');
+            expect(result.naive.readAs).toBe('2026-06-08, 14:30:00 (-04:00)');
+            expect(result.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
+            expect(result.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
+            expect(result.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
         });
     });
 });

@@ -1,3 +1,4 @@
+import moment from 'moment-timezone';
 import { formatTimestamp } from '../utils/formatting';
 import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
@@ -5,13 +6,25 @@ import {
     type CreateWarehouseCredentials,
     type WarehouseTypes,
 } from './projects';
+import { TimeFrames } from './timeFrames';
 
-// One interpreted row of the preview: the naive "now" disambiguated under a
-// source zone, yielding a UTC instant, then rendered in the project timezone.
-export type DataTimezonePreviewRow = {
-    interpretedAs: string; // the source zone used for disambiguation
-    instant: string; // UTC instant the warehouse returned for this interpretation
-    rendered: string; // formatTimestamp(instant, projectTimezone)
+// A timestamp column with NO stored timezone (TIMESTAMP WITHOUT TIME ZONE,
+// Snowflake NTZ, BigQuery DATETIME). It has no instant until a zone is
+// assumed — the data timezone IS that assumption, so these columns ARE
+// affected by the setting.
+export type DataTimezonePreviewNaive = {
+    interpretedAs: string; // the zone Lightdash assumes (effective source zone)
+    raw: string; // the bare wall-clock the warehouse holds, no zone attached
+    readAs: string; // same wall-clock with the assumed zone attached
+    rendered: string; // the resulting instant rendered in the project timezone
+};
+
+// A timestamp column that already carries a timezone (timestamptz, Snowflake
+// TZ/LTZ, BigQuery TIMESTAMP). Its instant is already pinned, so the data
+// timezone is ignored — these columns are NOT affected by the setting.
+export type DataTimezonePreviewAware = {
+    raw: string; // the instant as the warehouse pins it (rendered in UTC)
+    rendered: string; // the same instant rendered in the project timezone
 };
 
 // The `results` payload of the API response.
@@ -20,9 +33,11 @@ export type ApiDataTimezonePreviewResults = {
     selectedDataTimezone: string; // what the user picked (or 'UTC' fallback)
     effectiveSourceTimezone: string; // getColumnTimezone(credentials)
     projectTimezone: string; // 'UTC' in create flow
-    raw: string; // literal CURRENT_TIMESTAMP the warehouse returned
-    effective: DataTimezonePreviewRow; // interpreted under effectiveSourceTimezone
-    utcBaseline: DataTimezonePreviewRow; // interpreted under 'UTC'
+    // false when the effective zone is UTC (unset, or Snowflake stores UTC) —
+    // i.e. the data timezone does not actually shift naive timestamps.
+    dataTimezoneApplies: boolean;
+    naive: DataTimezonePreviewNaive;
+    aware: DataTimezonePreviewAware;
 };
 
 export type ApiDataTimezonePreview = {
@@ -52,9 +67,10 @@ export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
     [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
 };
 
-// One query: the literal raw now, plus the naive now disambiguated under the
-// effective source zone and under UTC. toUTC wraps a naive expression and
-// returns the UTC instant, matching the production Path A conversion.
+// One query returning two instants: a naive "now" disambiguated under the
+// effective source zone (the column-without-a-timezone case), and the live
+// tz-aware "now" whose instant is already pinned (the column-with-a-timezone
+// case, unaffected by the data timezone).
 export const buildDataTimezonePreviewSql = (
     adapterType: SupportedDbtAdapter,
     effectiveSourceTimezone: string,
@@ -62,17 +78,19 @@ export const buildDataTimezonePreviewSql = (
     const naiveNow = currentNaiveTimestampSql[adapterType];
     const { toUTC } = dateTruncTimezoneConversions[adapterType];
     return (
-        `SELECT CURRENT_TIMESTAMP AS raw, ` +
-        `${toUTC(naiveNow, effectiveSourceTimezone)} AS effective_instant, ` +
-        `${toUTC(naiveNow, 'UTC')} AS utc_instant`
+        `SELECT CURRENT_TIMESTAMP AS aware_instant, ` +
+        `${toUTC(naiveNow, effectiveSourceTimezone)} AS naive_instant`
     );
 };
 
 type RawPreviewRow = {
-    raw: unknown;
-    effective_instant: unknown;
-    utc_instant: unknown;
+    aware_instant: unknown;
+    naive_instant: unknown;
 };
+
+// Cleaner than the default millisecond format for a human-facing preview.
+const renderInZone = (instant: string, timezone: string): string =>
+    formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
 
 export const buildDataTimezonePreviewResponse = ({
     row,
@@ -87,30 +105,28 @@ export const buildDataTimezonePreviewResponse = ({
     effectiveSourceTimezone: string;
     projectTimezone: string;
 }): ApiDataTimezonePreviewResults => {
-    const renderRow = (
-        instant: unknown,
-        interpretedAs: string,
-    ): DataTimezonePreviewRow => {
-        const instantStr = String(instant);
-        return {
-            interpretedAs,
-            instant: instantStr,
-            rendered: formatTimestamp(
-                instantStr,
-                undefined,
-                false,
-                projectTimezone,
-            ),
-        };
-    };
+    const naiveInstant = String(row.naive_instant);
+    const awareInstant = String(row.aware_instant);
 
     return {
         warehouseType,
         selectedDataTimezone,
         effectiveSourceTimezone,
         projectTimezone,
-        raw: String(row.raw),
-        effective: renderRow(row.effective_instant, effectiveSourceTimezone),
-        utcBaseline: renderRow(row.utc_instant, 'UTC'),
+        dataTimezoneApplies: effectiveSourceTimezone !== 'UTC',
+        naive: {
+            interpretedAs: effectiveSourceTimezone,
+            // bare wall-clock the warehouse holds, with no offset attached
+            raw: moment
+                .utc(naiveInstant)
+                .tz(effectiveSourceTimezone)
+                .format('YYYY-MM-DD, HH:mm:ss'),
+            readAs: renderInZone(naiveInstant, effectiveSourceTimezone),
+            rendered: renderInZone(naiveInstant, projectTimezone),
+        },
+        aware: {
+            raw: renderInZone(awareInstant, 'UTC'),
+            rendered: renderInZone(awareInstant, projectTimezone),
+        },
     };
 };

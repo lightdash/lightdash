@@ -6,15 +6,14 @@ import { SupportedDbtAdapter } from './dbt';
 import { WarehouseTypes } from './projects';
 
 describe('buildDataTimezonePreviewSql', () => {
-    it('selects raw now plus naive-now disambiguated for effective and UTC (postgres)', () => {
+    it('selects the aware now and the naive now disambiguated under the effective zone (postgres)', () => {
         const sql = buildDataTimezonePreviewSql(
             SupportedDbtAdapter.POSTGRES,
             'America/New_York',
         );
         expect(sql).toBe(
-            'SELECT CURRENT_TIMESTAMP AS raw, ' +
-                "(LOCALTIMESTAMP) AT TIME ZONE 'America/New_York' AS effective_instant, " +
-                "(LOCALTIMESTAMP) AT TIME ZONE 'UTC' AS utc_instant",
+            'SELECT CURRENT_TIMESTAMP AS aware_instant, ' +
+                "(LOCALTIMESTAMP) AT TIME ZONE 'America/New_York' AS naive_instant",
         );
     });
 
@@ -27,18 +26,19 @@ describe('buildDataTimezonePreviewSql', () => {
         expect(sql).toContain(
             "CONVERT_TIMEZONE('Europe/London', 'UTC', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ))",
         );
-        expect(sql).toContain('AS utc_instant');
+        expect(sql).toContain('AS naive_instant');
     });
 });
 
 describe('buildDataTimezonePreviewResponse', () => {
+    // naive "now" disambiguated as New York -> this UTC instant;
+    // aware "now" is the same wall moment already pinned.
     const row = {
-        raw: '2026-06-08T14:30:00.000Z',
-        effective_instant: '2026-06-08T18:30:00.000', // NY naive -> UTC
-        utc_instant: '2026-06-08T14:30:00.000',
+        naive_instant: '2026-06-08T18:30:00.000Z', // NY 14:30 naive -> 18:30 UTC
+        aware_instant: '2026-06-08T14:30:00.000Z',
     };
 
-    it('renders both instants in the project timezone', () => {
+    it('splits the preview into an affected naive group and an unaffected aware group', () => {
         const res = buildDataTimezonePreviewResponse({
             row,
             warehouseType: WarehouseTypes.POSTGRES,
@@ -46,15 +46,29 @@ describe('buildDataTimezonePreviewResponse', () => {
             effectiveSourceTimezone: 'America/New_York',
             projectTimezone: 'UTC',
         });
-        expect(res.raw).toBe('2026-06-08T14:30:00.000Z');
-        expect(res.effective.interpretedAs).toBe('America/New_York');
-        expect(res.effective.instant).toBe('2026-06-08T18:30:00.000');
-        expect(res.effective.rendered).toBe(
-            '2026-06-08, 18:30:00:000 (+00:00)',
-        );
-        expect(res.utcBaseline.interpretedAs).toBe('UTC');
-        expect(res.utcBaseline.rendered).toBe(
-            '2026-06-08, 14:30:00:000 (+00:00)',
-        );
+
+        expect(res.dataTimezoneApplies).toBe(true);
+
+        // Naive group: read as New York, then rendered in the project tz (UTC).
+        expect(res.naive.interpretedAs).toBe('America/New_York');
+        expect(res.naive.raw).toBe('2026-06-08, 14:30:00');
+        expect(res.naive.readAs).toBe('2026-06-08, 14:30:00 (-04:00)');
+        expect(res.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
+
+        // Aware group: instant already pinned, shown in UTC then project tz.
+        expect(res.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
+        expect(res.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
+    });
+
+    it('flags dataTimezoneApplies=false when the effective zone is UTC', () => {
+        const res = buildDataTimezonePreviewResponse({
+            row,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            selectedDataTimezone: 'America/New_York',
+            effectiveSourceTimezone: 'UTC',
+            projectTimezone: 'UTC',
+        });
+        expect(res.dataTimezoneApplies).toBe(false);
+        expect(res.naive.interpretedAs).toBe('UTC');
     });
 });

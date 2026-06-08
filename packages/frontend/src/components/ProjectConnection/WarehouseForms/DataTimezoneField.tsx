@@ -1,11 +1,33 @@
 import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
-import { Alert, Button, Stack, Table, Text } from '@mantine-8/core';
-import { type FC } from 'react';
+import {
+    Alert,
+    Badge,
+    Button,
+    Card,
+    Group,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { type FC, type ReactNode } from 'react';
 import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
+
+const PreviewRow: FC<{ label: string; value: ReactNode }> = ({
+    label,
+    value,
+}) => (
+    <Group justify="space-between" gap="md" wrap="nowrap">
+        <Text size="xs" c="dimmed">
+            {label}
+        </Text>
+        <Text size="xs" ff="monospace" ta="right">
+            {value}
+        </Text>
+    </Group>
+);
 
 const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
@@ -23,6 +45,12 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
             projectUuid: savedProject?.projectUuid,
         });
     };
+
+    const result = preview.data;
+    const snowflakeNotApplied =
+        result &&
+        !result.dataTimezoneApplies &&
+        result.warehouseType === WarehouseTypes.SNOWFLAKE;
 
     return (
         <Stack gap="xs">
@@ -46,51 +74,92 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
             >
                 Preview
             </Button>
+
             {preview.isError && (
                 <Alert color="red" title="Could not preview">
                     {preview.error?.error.message ?? 'Connection failed'}
                 </Alert>
             )}
-            {preview.data && (
-                <Stack gap={4}>
+
+            {result && (
+                <Stack gap="xs">
                     <Text size="xs" c="dimmed">
-                        Raw warehouse value: {preview.data.raw}
+                        How the current moment flows through your settings —
+                        data timezone <b>{result.selectedDataTimezone}</b>,
+                        shown in project timezone{' '}
+                        <b>{result.projectTimezone}</b>.
                     </Text>
-                    <Table withTableBorder fz="xs">
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Interpreted as</Table.Th>
-                                <Table.Th>
-                                    Rendered in {preview.data.projectTimezone}
-                                </Table.Th>
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            <Table.Tr>
-                                <Table.Td>
-                                    {preview.data.effective.interpretedAs}
-                                </Table.Td>
-                                <Table.Td>
-                                    {preview.data.effective.rendered}
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td>UTC (baseline)</Table.Td>
-                                <Table.Td>
-                                    {preview.data.utcBaseline.rendered}
-                                </Table.Td>
-                            </Table.Tr>
-                        </Table.Tbody>
-                    </Table>
-                    {preview.data.effectiveSourceTimezone !==
-                        preview.data.selectedDataTimezone && (
-                        <Text size="xs" c="orange">
-                            {preview.data.warehouseType ===
-                            WarehouseTypes.SNOWFLAKE
-                                ? 'Snowflake stores timestamps as UTC; the data timezone is not applied here.'
-                                : 'The effective source timezone differs from the selected value.'}
-                        </Text>
-                    )}
+
+                    {/* Affected: columns without a stored timezone */}
+                    <Card withBorder padding="sm" radius="sm">
+                        <Group justify="space-between" mb="xs" wrap="nowrap">
+                            <Text size="xs" fw={600}>
+                                Columns without a stored timezone
+                            </Text>
+                            <Badge
+                                size="xs"
+                                color={
+                                    result.dataTimezoneApplies ? 'blue' : 'gray'
+                                }
+                                variant="light"
+                            >
+                                {result.dataTimezoneApplies
+                                    ? 'affected'
+                                    : 'not affected'}
+                            </Badge>
+                        </Group>
+                        <Stack gap={4}>
+                            <PreviewRow
+                                label="From the warehouse"
+                                value={`${result.naive.raw} (no timezone)`}
+                            />
+                            <PreviewRow
+                                label={`Read as ${result.naive.interpretedAs}`}
+                                value={result.naive.readAs}
+                            />
+                            <PreviewRow
+                                label="Viewers see"
+                                value={result.naive.rendered}
+                            />
+                        </Stack>
+                        {snowflakeNotApplied && (
+                            <Text size="xs" c="orange" mt="xs">
+                                Snowflake stores timestamps in UTC, so your data
+                                timezone isn't applied here.
+                            </Text>
+                        )}
+                    </Card>
+
+                    {/* Unaffected: columns that already carry a timezone */}
+                    <Card withBorder padding="sm" radius="sm">
+                        <Group justify="space-between" mb="xs" wrap="nowrap">
+                            <Text size="xs" fw={600}>
+                                Columns with a stored timezone
+                            </Text>
+                            <Badge size="xs" color="gray" variant="light">
+                                not affected
+                            </Badge>
+                        </Group>
+                        <Stack gap={4}>
+                            <PreviewRow
+                                label="From the warehouse"
+                                value={result.aware.raw}
+                            />
+                            <PreviewRow
+                                label="Data timezone ignored"
+                                value="(already an exact moment)"
+                            />
+                            <PreviewRow
+                                label="Viewers see"
+                                value={result.aware.rendered}
+                            />
+                        </Stack>
+                    </Card>
+
+                    <Text size="xs" c="dimmed">
+                        Tip: change the data timezone and preview again — only
+                        the first group moves.
+                    </Text>
                 </Stack>
             )}
         </Stack>

@@ -3287,9 +3287,8 @@ export class ProjectService extends BaseService {
             }
             return buildDataTimezonePreviewResponse({
                 row: rows[0] as {
-                    raw: unknown;
-                    effective_instant: unknown;
-                    utc_instant: unknown;
+                    aware_instant: unknown;
+                    naive_instant: unknown;
                 },
                 warehouseType: effectiveCredentials.type,
                 selectedDataTimezone,
