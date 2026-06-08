@@ -1,3 +1,10 @@
+## [0.3110.5](https://github.com/lightdash/lightdash/compare/0.3110.4...0.3110.5) (2026-06-08)
+
+
+### Bug Fixes
+
+* conditional formatting works with hidden metrics in pivot tables ([#23806](https://github.com/lightdash/lightdash/issues/23806)) ([0458439](https://github.com/lightdash/lightdash/commit/0458439181b35f588353281d7ab6e4b846c454e5)), closes [#23731](https://github.com/lightdash/lightdash/issues/23731)
+
 ## [0.3110.4](https://github.com/lightdash/lightdash/compare/0.3110.3...0.3110.4) (2026-06-08)
 
 
