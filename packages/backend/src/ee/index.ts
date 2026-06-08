@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common';
+import { FeatureFlags, ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
@@ -285,6 +285,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     projectModel: models.getProjectModel(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
@@ -439,6 +441,28 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationSettingsModel(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
+                    isProjectContextEnabled: async ({
+                        user,
+                        organizationUuid,
+                    }) => {
+                        const [reviewsEnabled, aiWritebackFlag] =
+                            await Promise.all([
+                                repository
+                                    .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                                    .isAiAgentReviewsEnabled({
+                                        organizationUuid,
+                                    }),
+                                models.getFeatureFlagModel().get({
+                                    featureFlagId: FeatureFlags.AiWriteback,
+                                    user: {
+                                        userUuid: user.userUuid,
+                                        organizationUuid,
+                                        organizationName: user.organizationName,
+                                    },
+                                }),
+                            ]);
+                        return reviewsEnabled && aiWritebackFlag.enabled;
+                    },
                 }),
             instanceConfigurationService: ({
                 models,

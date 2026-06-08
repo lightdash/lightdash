@@ -658,23 +658,9 @@ export class AiAgentService extends BaseService {
 
         const userUuid = args.userUuid ?? 'system';
 
-        void this.featureFlagService
-            .get({
-                featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-                user: {
-                    userUuid,
-                    organizationUuid,
-                    organizationName: '',
-                },
-            })
-            .then(async (flag) => {
-                if (!flag.enabled) {
-                    return undefined;
-                }
-                const reviewsEnabled =
-                    await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
-                        { organizationUuid },
-                    );
+        void this.aiOrganizationSettingsService
+            .isAiAgentReviewsEnabled({ organizationUuid })
+            .then(async (reviewsEnabled) => {
                 if (!reviewsEnabled) {
                     return undefined;
                 }
@@ -5303,14 +5289,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: projectContextEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiProjectContext,
-            });
-        const projectContext = projectContextEnabled
-            ? await this.projectContextModel.getDocument(prompt.projectUuid)
-            : [];
         const { enabled: agentRevampEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -5333,6 +5311,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             aiWritebackEnabled = false;
         }
+        const projectContextEnabled =
+            aiWritebackEnabled &&
+            (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                user,
+            ));
+        const projectContext = projectContextEnabled
+            ? await this.projectContextModel.getDocument(prompt.projectUuid)
+            : [];
 
         // Preview-deploy setup rides the writeback infra, so it requires both
         // the writeback flag (and trusted identity, applied above) and its own

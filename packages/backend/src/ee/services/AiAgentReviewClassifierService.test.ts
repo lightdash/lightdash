@@ -311,7 +311,7 @@ describe('AiAgentReviewClassifierService', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         featureFlagService.get.mockResolvedValue({
-            id: FeatureFlags.AiAgentReviewClassifier,
+            id: FeatureFlags.AiWriteback,
             enabled: true,
         });
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
@@ -355,23 +355,6 @@ describe('AiAgentReviewClassifierService', () => {
             },
         ]);
         judgeTurn.mockResolvedValue(makeJudgeOutput());
-    });
-
-    it('throws when the feature flag is disabled', async () => {
-        featureFlagService.get.mockResolvedValueOnce({
-            id: FeatureFlags.AiAgentReviewClassifier,
-            enabled: false,
-        });
-
-        await expect(
-            service.run({
-                organizationUuid: ORGANIZATION_UUID,
-                startedAt: NOW,
-                endedAt: NOW,
-            }),
-        ).rejects.toThrow(ForbiddenError);
-
-        expect(model.createRun).not.toHaveBeenCalled();
     });
 
     it('throws when review collection is not opted in for the organization', async () => {
@@ -534,11 +517,11 @@ describe('AiAgentReviewClassifierService', () => {
         expect(result.reviewItemCount).toBe(1);
     });
 
-    it('drops project context entries when the project context flag is disabled', async () => {
+    it('drops project context entries when AI writeback is disabled', async () => {
         featureFlagService.get.mockImplementation(({ featureFlagId }) =>
             Promise.resolve({
                 id: featureFlagId,
-                enabled: featureFlagId !== FeatureFlags.AiProjectContext,
+                enabled: false,
             }),
         );
         judgeTurn.mockResolvedValueOnce(makeProjectContextJudgeOutput());

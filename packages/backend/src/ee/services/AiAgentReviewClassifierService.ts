@@ -379,8 +379,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? await this.captureAgentConfigSnapshot(args.candidates[0])
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
-        const projectContextFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiProjectContext,
+        const aiWritebackFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiWriteback,
             user: {
                 userUuid: args.requestedByUserUuid ?? 'system',
                 organizationUuid: args.organizationUuid,
@@ -431,7 +431,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     classifiedTurn: await this.classifyTurnWithJudge(
                         candidate,
                         runAgentConfig,
-                        { projectContextEnabled: projectContextFlag.enabled },
+                        { projectContextEnabled: aiWritebackFlag.enabled },
                     ),
                 })),
             );
@@ -1059,19 +1059,6 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
         organizationUuid: string;
         organizationName?: string;
     }): Promise<boolean> {
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: args.requestedByUserUuid ?? 'system',
-                organizationUuid: args.organizationUuid,
-                organizationName: args.organizationName ?? '',
-            },
-        });
-
-        if (!featureFlag.enabled) {
-            return false;
-        }
-
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 args.organizationUuid,
