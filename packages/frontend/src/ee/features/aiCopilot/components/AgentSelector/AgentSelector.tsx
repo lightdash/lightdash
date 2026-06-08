@@ -40,6 +40,7 @@ type Props = {
 };
 
 const AUTO_VALUE = '__auto__';
+const DROPDOWN_MIN_WIDTH = 260;
 
 export const AgentSelector = ({
     agents,
@@ -134,7 +135,7 @@ export const AgentSelector = ({
                 </UnstyledButton>
             </Combobox.Target>
 
-            <Combobox.Dropdown>
+            <Combobox.Dropdown miw={DROPDOWN_MIN_WIDTH}>
                 {showAutoOption && (
                     <Combobox.Header p={4} pr={6}>
                         <Combobox.Option value={AUTO_VALUE} p={2}>
