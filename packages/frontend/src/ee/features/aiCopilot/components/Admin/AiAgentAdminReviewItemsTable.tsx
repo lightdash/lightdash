@@ -57,7 +57,7 @@ import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
 import FilterFacet, {
     type FilterFacetOption,
@@ -1164,7 +1164,7 @@ const AiAgentAdminReviewItemsTable = ({
         );
     };
 
-    const columns: MRT_ColumnDef<AiAgentReviewItemSummary>[] = useMemo(
+    const columns: ContentTableColumnDef<AiAgentReviewItemSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'primaryRootCause',
@@ -1335,204 +1335,233 @@ const AiAgentAdminReviewItemsTable = ({
         [agentsMap, onReviewItemSelect, projectsMap],
     );
 
-    const signalColumns: MRT_ColumnDef<AiAgentReviewSignalSummary>[] = useMemo(
-        () => [
-            {
-                accessorKey: 'promotedToFinding',
-                header: 'Result',
-                enableSorting: false,
-                size: 110,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTag} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const ConfidenceIcon = getConfidenceIcon(signal.confidence);
-                    return (
-                        <Group gap={4} wrap="nowrap">
-                            <CategoryBadge
-                                variant="dot"
-                                label={getSignalResultLabel(signal)}
-                                color={
-                                    signal.finding
-                                        ? rootCauseColors[
-                                              signal.finding.primaryRootCause
-                                          ]
-                                        : 'gray'
-                                }
-                            />
-                            <Tooltip
-                                label={`${signal.confidence} confidence`}
-                                withArrow
-                            >
-                                <Box className={styles.confidenceIcon}>
-                                    <MantineIcon
-                                        icon={ConfidenceIcon}
-                                        color="ldGray.6"
-                                        size="xs"
-                                    />
-                                </Box>
-                            </Tooltip>
+    const signalColumns: ContentTableColumnDef<AiAgentReviewSignalSummary>[] =
+        useMemo(
+            () => [
+                {
+                    accessorKey: 'promotedToFinding',
+                    header: 'Result',
+                    enableSorting: false,
+                    size: 110,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconTag} color="ldGray.6" />
+                            {column.columnDef.header}
                         </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'signal',
-                header: 'Signal',
-                enableSorting: false,
-                size: 300,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const subcategory = signal.finding?.subcategories[0];
-
-                    return (
-                        <Stack gap={4}>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const ConfidenceIcon = getConfidenceIcon(
+                            signal.confidence,
+                        );
+                        return (
                             <Group gap={4} wrap="nowrap">
                                 <CategoryBadge
                                     variant="dot"
-                                    label={signalLabels[signal.signal]}
-                                    color="gray"
+                                    label={getSignalResultLabel(signal)}
+                                    color={
+                                        signal.finding
+                                            ? rootCauseColors[
+                                                  signal.finding
+                                                      .primaryRootCause
+                                              ]
+                                            : 'gray'
+                                    }
                                 />
-                                {subcategory && (
+                                <Tooltip
+                                    label={`${signal.confidence} confidence`}
+                                    withArrow
+                                >
+                                    <Box className={styles.confidenceIcon}>
+                                        <MantineIcon
+                                            icon={ConfidenceIcon}
+                                            color="ldGray.6"
+                                            size="xs"
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            </Group>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'signal',
+                    header: 'Signal',
+                    enableSorting: false,
+                    size: 300,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const subcategory = signal.finding?.subcategories[0];
+
+                        return (
+                            <Stack gap={4}>
+                                <Group gap={4} wrap="nowrap">
                                     <CategoryBadge
                                         variant="dot"
-                                        label={subcategory.replaceAll('_', ' ')}
+                                        label={signalLabels[signal.signal]}
                                         color="gray"
                                     />
-                                )}
-                                <SuggestedStep>
-                                    {getSignalActionText(signal)}
-                                </SuggestedStep>
-                            </Group>
-                            <ExpandableText lineClamp={1}>
-                                {getSignalWhyText(signal)}
-                            </ExpandableText>
-                        </Stack>
-                    );
-                },
-            },
-            {
-                accessorKey: 'prompt',
-                header: 'Turn',
-                enableSorting: false,
-                size: 300,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconListCheck} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    return (
-                        <Stack gap={2}>
-                            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
-                                {signal.prompt}
-                            </Text>
-                            <ExpandableText lineClamp={1}>
-                                {signal.errorMessage ??
-                                    signal.responsePreview ??
-                                    'No response captured'}
-                            </ExpandableText>
-                        </Stack>
-                    );
-                },
-            },
-            {
-                accessorKey: 'agentUuid',
-                header: 'Agent',
-                enableSorting: false,
-                size: 100,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const agent = agentsMap.get(signal.agentUuid);
-                    const project = projectsMap.get(signal.projectUuid);
-
-                    if (agent) {
-                        return (
-                            <AgentNamePill
-                                name={agent.name}
-                                imageUrl={agent.imageUrl}
-                            />
+                                    {subcategory && (
+                                        <CategoryBadge
+                                            variant="dot"
+                                            label={subcategory.replaceAll(
+                                                '_',
+                                                ' ',
+                                            )}
+                                            color="gray"
+                                        />
+                                    )}
+                                    <SuggestedStep>
+                                        {getSignalActionText(signal)}
+                                    </SuggestedStep>
+                                </Group>
+                                <ExpandableText lineClamp={1}>
+                                    {getSignalWhyText(signal)}
+                                </ExpandableText>
+                            </Stack>
                         );
-                    }
-
-                    return (
-                        <Group gap="two" wrap="nowrap">
+                    },
+                },
+                {
+                    accessorKey: 'prompt',
+                    header: 'Turn',
+                    enableSorting: false,
+                    size: 300,
+                    Header: ({ column }) => (
+                        <Group gap="two">
                             <MantineIcon
-                                icon={IconBox}
+                                icon={IconListCheck}
                                 color="ldGray.6"
-                                size="sm"
                             />
-                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                {project?.name ?? 'Unknown agent'}
-                            </Text>
+                            {column.columnDef.header}
                         </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'createdAt',
-                header: 'Reviewed',
-                enableSorting: true,
-                size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    return (
-                        <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                {formatLastSeenDate(signal.createdAt)}
-                            </Text>
-                            <Tooltip label="Open AI thread preview" withArrow>
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size="sm"
-                                    aria-label="Open AI thread preview"
-                                    className={styles.threadIcon}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onReviewItemSelect?.({
-                                            projectUuid: signal.projectUuid,
-                                            agentUuid: signal.agentUuid,
-                                            threadUuid: signal.threadUuid,
-                                            reviewItemUuid:
-                                                signal.finding?.reviewItemUuid,
-                                        });
-                                    }}
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        return (
+                            <Stack gap={2}>
+                                <Text
+                                    fw={600}
+                                    fz="sm"
+                                    c="ldGray.9"
+                                    lineClamp={1}
                                 >
-                                    <MantineIcon icon={IconMessages} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    );
+                                    {signal.prompt}
+                                </Text>
+                                <ExpandableText lineClamp={1}>
+                                    {signal.errorMessage ??
+                                        signal.responsePreview ??
+                                        'No response captured'}
+                                </ExpandableText>
+                            </Stack>
+                        );
+                    },
                 },
-            },
-        ],
-        [agentsMap, onReviewItemSelect, projectsMap],
-    );
+                {
+                    accessorKey: 'agentUuid',
+                    header: 'Agent',
+                    enableSorting: false,
+                    size: 100,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconRobotFace}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const agent = agentsMap.get(signal.agentUuid);
+                        const project = projectsMap.get(signal.projectUuid);
+
+                        if (agent) {
+                            return (
+                                <AgentNamePill
+                                    name={agent.name}
+                                    imageUrl={agent.imageUrl}
+                                />
+                            );
+                        }
+
+                        return (
+                            <Group gap="two" wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconBox}
+                                    color="ldGray.6"
+                                    size="sm"
+                                />
+                                <Text fz="sm" c="ldGray.9" lineClamp={1}>
+                                    {project?.name ?? 'Unknown agent'}
+                                </Text>
+                            </Group>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'createdAt',
+                    header: 'Reviewed',
+                    enableSorting: true,
+                    size: 150,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        return (
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                justify="space-between"
+                            >
+                                <Text fz="xs" c="ldGray.7" fw={500}>
+                                    {formatLastSeenDate(signal.createdAt)}
+                                </Text>
+                                <Tooltip
+                                    label="Open AI thread preview"
+                                    withArrow
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="Open AI thread preview"
+                                        className={styles.threadIcon}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onReviewItemSelect?.({
+                                                projectUuid: signal.projectUuid,
+                                                agentUuid: signal.agentUuid,
+                                                threadUuid: signal.threadUuid,
+                                                reviewItemUuid:
+                                                    signal.finding
+                                                        ?.reviewItemUuid,
+                                            });
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconMessages} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        );
+                    },
+                },
+            ],
+            [agentsMap, onReviewItemSelect, projectsMap],
+        );
 
     const table = useContentTable({
         columns,

@@ -29,8 +29,8 @@ import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
@@ -49,7 +49,9 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const [search, setSearch] = useState('');
 
@@ -113,7 +115,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
     const canManageGroups =
         activeUser.data?.ability?.can('manage', 'Group') ?? false;
 
-    const columns: MRT_ColumnDef<GroupWithMembers>[] = useMemo(
+    const columns: ContentTableColumnDef<GroupWithMembers>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',

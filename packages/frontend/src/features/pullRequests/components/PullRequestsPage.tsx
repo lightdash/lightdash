@@ -38,7 +38,7 @@ import { CategoryBadge } from '../../../components/common/CategoryBadge/Category
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
@@ -131,7 +131,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached, stateFilter]);
 
-    const columns = useMemo<MRT_ColumnDef<PullRequestRow>[]>(
+    const columns = useMemo<ContentTableColumnDef<PullRequestRow>[]>(
         () => [
             {
                 accessorKey: 'title',
@@ -262,7 +262,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         enableRowActions: true,
         positionActionsColumn: 'last',
         displayColumnDefOptions: {
-            'mrt-row-actions': {
+            'content-table-row-actions': {
                 header: '',
                 size: 96,
             },

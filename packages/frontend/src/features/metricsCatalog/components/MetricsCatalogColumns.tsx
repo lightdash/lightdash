@@ -3,7 +3,7 @@ import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
-import { type MRT_ColumnDef } from '../../../components/common/ContentTable';
+import { type ContentTableColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -28,7 +28,7 @@ import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescripti
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
 
-export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
+export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     {
         accessorKey: SpotlightTableColumns.METRIC,
         header: 'Metric',

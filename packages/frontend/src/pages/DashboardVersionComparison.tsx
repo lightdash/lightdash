@@ -38,7 +38,7 @@ import { useMemo, useRef, useState } from 'react';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../components/common/ContentTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
@@ -281,7 +281,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         return data.filter((row) => row.tileType !== 'Total');
     }, [data]);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorKey: 'tileType',
@@ -442,7 +442,7 @@ const ChartsTable = ({
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorKey: 'chartName',
@@ -659,7 +659,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',

@@ -45,7 +45,7 @@ import { Link } from 'react-router';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
@@ -120,7 +120,7 @@ const formatCreatedBy = (sa: ServiceAccount): string => {
 
 // Resolve the role label for a row so sort-by-role groups SAs that render
 // the same badge together (rather than sorting on raw scope strings).
-// MRT briefly invokes accessorFn with placeholder rows during auto-sort
+// ContentTable briefly invokes accessorFn with placeholder rows during auto-sort
 // inference, so guard against `scopes` being undefined.
 const formatRoleLabel = (
     sa: ServiceAccount,
@@ -245,7 +245,7 @@ export const ServiceAccountsTable: FC<Props> = ({
         closeRotate();
     }, [closeRotate]);
 
-    const columns: MRT_ColumnDef<ServiceAccountWithProjectAccessCount>[] =
+    const columns: ContentTableColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
             () => [
                 {
@@ -469,7 +469,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     ),
                     // Coerce to a sortable number; null = no-expiration so we
                     // float those rows to the end (Infinity) regardless of
-                    // sort direction. MRT will respect the asc/desc factor.
+                    // sort direction. ContentTable will respect the asc/desc factor.
                     sortingFn: (a, b) => {
                         const av = a.original.expiresAt
                             ? +new Date(a.original.expiresAt)

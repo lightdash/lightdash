@@ -53,7 +53,7 @@ import {
     ContentTableSearchInput,
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -274,7 +274,7 @@ const ProjectManagementPanel: FC = () => {
         [lastProjectUuid, navigate, updateActiveProjectMutation],
     );
 
-    const columns: MRT_ColumnDef<OrganizationProject>[] = useMemo(
+    const columns: ContentTableColumnDef<OrganizationProject>[] = useMemo(
         () => [
             {
                 id: 'select',

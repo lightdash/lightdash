@@ -2,14 +2,14 @@ import { type CatalogField } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { type MRT_Row } from '../../../components/common/ContentTable';
+import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { toggleMetricExploreModal } from '../store/metricsCatalogSlice';
 
 type Props = {
-    row: MRT_Row<CatalogField>;
+    row: ContentTableRow<CatalogField>;
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {

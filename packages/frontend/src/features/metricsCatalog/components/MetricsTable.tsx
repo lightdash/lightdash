@@ -33,8 +33,8 @@ import {
 import {
     ContentTable,
     useContentTable,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -106,11 +106,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const prevView = useRef(metricCatalogView);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     // We need internal state to handle non serializable state for the updater function
     const [internalSorting, setInternalSorting] =
-        useState<MRT_SortingState>(stateTableSorting);
+        useState<ContentTableSortingState>(stateTableSorting);
 
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
@@ -577,7 +579,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         displayColumnDefOptions: {
-            'mrt-row-actions': {
+            'content-table-row-actions': {
                 header: '',
             },
         },

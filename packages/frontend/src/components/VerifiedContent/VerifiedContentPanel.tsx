@@ -29,7 +29,7 @@ import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -76,7 +76,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     const items = useMemo(() => verifiedContent ?? [], [verifiedContent]);
 
-    const columns: MRT_ColumnDef<VerifiedContentListItem>[] = useMemo(
+    const columns: ContentTableColumnDef<VerifiedContentListItem>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',

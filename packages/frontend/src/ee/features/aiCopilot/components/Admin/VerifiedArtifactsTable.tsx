@@ -17,7 +17,7 @@ import { useNavigate, useParams } from 'react-router';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -104,7 +104,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         [navigate, projectUuid, agentUuid],
     );
 
-    const columns: MRT_ColumnDef<AiAgentVerifiedArtifact>[] = useMemo(
+    const columns: ContentTableColumnDef<AiAgentVerifiedArtifact>[] = useMemo(
         () => [
             // {
             //     accessorKey: 'artifactType',

@@ -42,7 +42,7 @@ import { useContentAction } from '../../../hooks/useContent';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
@@ -151,7 +151,7 @@ const MyAppsPanel: FC = () => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<ApiAppSummary>[] = useMemo(
+    const columns: ContentTableColumnDef<ApiAppSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',

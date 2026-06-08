@@ -32,6 +32,8 @@ export type ContentTableVirtualizer<
 
 export type ContentTableSortingState = SortingState;
 
+export type ContentTableRow<TData extends RowData> = Row<TData>;
+
 export type ContentTableDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 export type ContentTableHeaderColumn<TData extends RowData> = Omit<
@@ -315,15 +317,3 @@ export type ContentTableInstance<TData extends RowData> = Omit<
 };
 
 export type ContentTableUpdater<TValue> = Updater<TValue>;
-
-export type MRT_ColumnDef<TData extends RowData> = ContentTableColumnDef<TData>;
-export type MRT_Row<TData extends RowData> = Row<TData>;
-export type MRT_SortingState = ContentTableSortingState;
-export type MRT_TableInstance<TData extends RowData> =
-    ContentTableInstance<TData>;
-export type MRT_TableOptions<TData extends RowData> =
-    ContentTableOptions<TData>;
-export type MRT_Virtualizer<
-    TScrollElement extends Element | Window = HTMLDivElement,
-    TItemElement extends Element = HTMLTableRowElement,
-> = ContentTableVirtualizer<TScrollElement, TItemElement>;

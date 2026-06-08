@@ -41,8 +41,8 @@ import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from './InviteSuccess';
@@ -60,7 +60,9 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const [search, setSearch] = useState('');
     const inviteLink = useCreateInviteLinkMutation();
@@ -142,10 +144,10 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
     const canInvite =
         activeUser.data?.ability?.can('create', 'InviteLink') ?? false;
 
-    const columns: MRT_ColumnDef<
+    const columns: ContentTableColumnDef<
         OrganizationMemberProfile | OrganizationMemberProfileWithGroups
     >[] = useMemo(() => {
-        const cols: MRT_ColumnDef<
+        const cols: ContentTableColumnDef<
             OrganizationMemberProfile | OrganizationMemberProfileWithGroups
         >[] = [
             {

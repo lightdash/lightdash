@@ -25,7 +25,7 @@ export function ServiceAccountsPage() {
 
     const accountsData = listAccounts?.data;
     // First-load vs background refetch: only block UI on the first fetch.
-    // Subsequent refetches keep the existing rows visible (and MRT's own
+    // Subsequent refetches keep the existing rows visible (and ContentTable's
     // loading state will dim them via state.isLoading inside the table) so
     // the page doesn't flash on every revalidation.
     const isInitialLoading = listAccounts.isLoading && !accountsData;
