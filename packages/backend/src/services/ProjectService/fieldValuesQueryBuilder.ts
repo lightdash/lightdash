@@ -27,6 +27,22 @@ type ExploreResolver = {
     ): Promise<Explore | ExploreError | undefined>;
 };
 
+const parseFieldValuesLimit = (limit: unknown, maxLimit: number): number => {
+    if (
+        typeof limit !== 'number' ||
+        !Number.isSafeInteger(limit) ||
+        limit < 0
+    ) {
+        throw new ParameterError('Query limit must be a non-negative integer');
+    }
+
+    if (limit > maxLimit) {
+        throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
+    }
+
+    return limit;
+};
+
 export async function getFieldValuesMetricQuery({
     projectUuid,
     table,
@@ -41,7 +57,7 @@ export async function getFieldValuesMetricQuery({
     table: string;
     initialFieldId: string;
     search: string;
-    limit: number;
+    limit: unknown;
     maxLimit: number;
     filters: AndFilterGroup | undefined;
     exploreResolver: ExploreResolver;
@@ -51,9 +67,7 @@ export async function getFieldValuesMetricQuery({
     field: Dimension;
     fieldId: string;
 }> {
-    if (limit > maxLimit) {
-        throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
-    }
+    const parsedLimit = parseFieldValuesLimit(limit, maxLimit);
 
     if (!table) {
         throw new ParameterError(
@@ -148,7 +162,7 @@ export async function getFieldValuesMetricQuery({
                 descending: false,
             },
         ],
-        limit,
+        limit: parsedLimit,
     };
 
     return { metricQuery, explore, field, fieldId };

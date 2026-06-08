@@ -5256,7 +5256,7 @@ export class ProjectService extends BaseService {
         table: string;
         initialFieldId: string;
         search: string;
-        limit: number;
+        limit: unknown;
         filters: AndFilterGroup | undefined;
     }) {
         const { organizationUuid } =
@@ -5284,7 +5284,7 @@ export class ProjectService extends BaseService {
         table: string,
         initialFieldId: string,
         search: string,
-        limit: number,
+        limit: unknown,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
@@ -5443,7 +5443,7 @@ export class ProjectService extends BaseService {
                 fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: resultsArray.length,
-                searchLimit: limit,
+                searchLimit: metricQuery.limit,
             },
         });
 
