@@ -170,7 +170,13 @@ export class AiWritebackService extends BaseService {
         );
     }
 
-    private async assertEnabled(user: SessionUser): Promise<void> {
+    private async assertEnabled(
+        user: SessionUser,
+        source: AiWritebackSource,
+    ): Promise<void> {
+        if (source === 'admin_review') {
+            return;
+        }
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.AiWriteback,
@@ -372,6 +378,7 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
             aiThreadUuid,
+            source,
         });
 
         this.logger.info('AI writeback run started', {
@@ -600,19 +607,22 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Pre-flight: enforce the feature flag, the `manage:SourceCode` permission,
-     * and resolve everything from the request that doesn't require a sandbox.
+     * Pre-flight: enforce source-specific rollout gates, the
+     * `manage:SourceCode` permission, and resolve everything from the request
+     * that doesn't require a sandbox.
      */
     private async prepareTurn({
         user,
         projectUuid,
         aiThreadUuid,
+        source,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
+        source: AiWritebackSource;
     }): Promise<TurnContext> {
-        await this.assertEnabled(user);
+        await this.assertEnabled(user, source);
 
         const project = await this.projectModel.get(projectUuid);
         // Writeback opens a PR from a freshly created feature branch

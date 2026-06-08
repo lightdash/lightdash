@@ -34,6 +34,12 @@ const makeExampleReviewItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     writebackEligible: false,
+    writebackEligibility: {
+        eligible: false,
+        reason: 'missing_project',
+        provider: null,
+        strategy: null,
+    },
     createdAt: EXAMPLE_SEEN_AT,
     updatedAt: EXAMPLE_SEEN_AT,
     latestFinding: null,

@@ -281,13 +281,16 @@ describe('AiAgentReviewClassifierModel', () => {
     describe('listReviewItems', () => {
         it('groups actionable signals into review item projections', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
-                makeTurnSignalRow(),
-                makeTurnSignalRow({
-                    ai_agent_review_turn_signal_uuid:
-                        '00000000-0000-0000-0000-000000000011',
-                    created_at: new Date('2026-05-26T09:00:00.000Z'),
-                }),
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: new Date('2026-05-26T09:00:00.000Z'),
+                    last_seen_at: SEEN_AT,
+                    finding_count: '2',
+                },
             ]);
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([makeTurnSignalRow()]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.listReviewItems({
@@ -322,6 +325,14 @@ describe('AiAgentReviewClassifierModel', () => {
         });
 
         it('overlays persisted human state and PR linkage onto the projection', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
             tracker.on
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
@@ -361,10 +372,7 @@ describe('AiAgentReviewClassifierModel', () => {
         });
 
         it('filters by overlaid status', async () => {
-            tracker.on
-                .select(AiAgentTurnSignalTableName)
-                .responseOnce([makeTurnSignalRow()]);
-            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,

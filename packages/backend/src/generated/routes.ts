@@ -19936,6 +19936,64 @@ const models: TsoaRoute.Models = {
                             dataType: 'boolean',
                             required: true,
                         },
+                        writebackEligibility: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                reason: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'enum',
+                                            enums: [
+                                                'reviews_disabled',
+                                                'unsupported_root_cause',
+                                                'missing_project',
+                                                'missing_project_context_entry',
+                                                'project_context_disabled',
+                                                'unsupported_source_control',
+                                                'git_app_not_installed',
+                                                'missing_writeback_config',
+                                                'pull_request_open',
+                                                'terminal_state',
+                                                'writeback_in_progress',
+                                            ],
+                                        },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                strategy: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'enum',
+                                            enums: [
+                                                'semantic_layer',
+                                                'project_context',
+                                            ],
+                                        },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                provider: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'enum',
+                                            enums: ['github', 'gitlab'],
+                                        },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                eligible: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
                     },
                 },
             ],

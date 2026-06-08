@@ -20505,10 +20505,58 @@
                             },
                             "writebackEligible": {
                                 "type": "boolean",
-                                "description": "Server-computed: true only when a writeback PR can actually be opened for\nthis item — semantic-layer root cause, a GitHub-connected project, and\nboth the review-writeback and writeback-engine feature flags enabled.\nThe \"Create PR\" action is gated on this."
+                                "description": "Legacy boolean kept for current clients. New clients should use\nwritebackEligibility for the blocking reason and provider."
+                            },
+                            "writebackEligibility": {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "enum": [
+                                            "reviews_disabled",
+                                            "unsupported_root_cause",
+                                            "missing_project",
+                                            "missing_project_context_entry",
+                                            "project_context_disabled",
+                                            "unsupported_source_control",
+                                            "git_app_not_installed",
+                                            "missing_writeback_config",
+                                            "pull_request_open",
+                                            "terminal_state",
+                                            "writeback_in_progress"
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "strategy": {
+                                        "type": "string",
+                                        "enum": [
+                                            "semantic_layer",
+                                            "project_context"
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "provider": {
+                                        "type": "string",
+                                        "enum": ["github", "gitlab"],
+                                        "nullable": true
+                                    },
+                                    "eligible": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": [
+                                    "reason",
+                                    "strategy",
+                                    "provider",
+                                    "eligible"
+                                ],
+                                "type": "object"
                             }
                         },
-                        "required": ["latestFinding", "writebackEligible"],
+                        "required": [
+                            "latestFinding",
+                            "writebackEligible",
+                            "writebackEligibility"
+                        ],
                         "type": "object"
                     }
                 ]
