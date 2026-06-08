@@ -8,6 +8,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
@@ -17,6 +18,8 @@ import {
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildDataTimezonePreviewResponse,
+    buildDataTimezonePreviewSql,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -3200,6 +3203,102 @@ export class ProjectService extends BaseService {
             throw e;
         }
         return { adapter, sshTunnel };
+    }
+
+    async previewDataTimezone(
+        user: SessionUser,
+        {
+            credentials,
+            projectUuid,
+        }: { credentials: CreateWarehouseCredentials; projectUuid?: string },
+    ): Promise<ApiDataTimezonePreviewResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            !(await this.isTimezoneSupportEnabled({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError('Timezone support is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+
+        // Edit flow: source secrets from storage, apply only the unsaved
+        // dataTimezone override. Create flow: use the just-typed credentials.
+        let effectiveCredentials: CreateWarehouseCredentials = credentials;
+        let projectTimezone = 'UTC';
+        if (projectUuid) {
+            const stored =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
+            if (auditedAbility.cannot('update', subject('Project', stored))) {
+                throw new ForbiddenError();
+            }
+            if (
+                stored.warehouseConnection &&
+                stored.warehouseConnection.type === credentials.type
+            ) {
+                effectiveCredentials = {
+                    ...stored.warehouseConnection,
+                    dataTimezone: credentials.dataTimezone,
+                } as CreateWarehouseCredentials;
+            }
+            projectTimezone =
+                await this.getQueryTimezoneForProject(projectUuid);
+        } else if (
+            auditedAbility.cannot(
+                'create',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    type: ProjectType.DEFAULT,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const selectedDataTimezone = effectiveCredentials.dataTimezone ?? 'UTC';
+        const effectiveSourceTimezone = getColumnTimezone(effectiveCredentials);
+
+        const sshTunnel = new SshTunnel(effectiveCredentials);
+        const tunnelCredentials = await sshTunnel.connect();
+        try {
+            const warehouseClient =
+                this.projectModel.getWarehouseClientFromCredentials(
+                    tunnelCredentials,
+                );
+            const adapterType = warehouseClient.getAdapterType();
+            const sql = buildDataTimezonePreviewSql(
+                adapterType,
+                effectiveSourceTimezone,
+            );
+            const queryTags: RunQueryTags = {
+                organization_uuid: user.organizationUuid,
+                user_uuid: user.userUuid,
+                query_context: QueryExecutionContext.API,
+            };
+            const { rows } = await warehouseClient.runQuery(sql, queryTags);
+            if (rows.length === 0) {
+                throw new UnexpectedServerError(
+                    'Data timezone preview query returned no rows',
+                );
+            }
+            return buildDataTimezonePreviewResponse({
+                row: rows[0] as {
+                    raw: unknown;
+                    effective_instant: unknown;
+                    utc_instant: unknown;
+                },
+                warehouseType: effectiveCredentials.type,
+                selectedDataTimezone,
+                effectiveSourceTimezone,
+                projectTimezone,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
