@@ -22,8 +22,14 @@ import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
+import {
+    AI_ROUTING_AUTO_VALUE,
+    AI_ROUTING_SEARCH_PARAM,
+} from '../../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
+import { usePendingPrompt } from '../../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useAiRouterConfig } from '../../../features/aiCopilot/hooks/useAiRouter';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -37,6 +43,8 @@ import { SearchDropdown } from './SearchDropdown';
 type Props = {
     projectUuid: string;
 };
+
+type SelectedAgent = AiAgentSummary | 'auto';
 
 const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
@@ -53,7 +61,9 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,
     } = useGetUserAgentPreferences(projectUuid);
-    const [selectedAgent, setSelectedAgent] = useState<AiAgentSummary>();
+    const aiRouterConfigQuery = useAiRouterConfig();
+    const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>();
+    const { setPendingPrompt } = usePendingPrompt();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -62,16 +72,42 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const noAgentsAvailable =
         !isLoadingAgents && (!agents || agents.length === 0);
 
+    const showAutoOption =
+        (agents?.length ?? 0) > 1 && aiRouterConfigQuery.data?.enabled === true;
+
+    const validDefaultAgent = agents?.find(
+        (agent) => agent.uuid === userAgentPreferences?.defaultAgentUuid,
+    );
+    const preferredSelection: SelectedAgent | undefined =
+        validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
+    const activeSelection = selectedAgent ?? preferredSelection;
+
     useEffect(() => {
         if (!agents || agents.length === 0) return;
+        if (isLoadingUserAgentPreferences) return;
+        if (aiRouterConfigQuery.isLoading) return;
 
-        const preferredAgent =
-            agents.find(
-                (agent) =>
-                    agent.uuid === userAgentPreferences?.defaultAgentUuid,
-            ) ?? agents[0];
-        setSelectedAgent(preferredAgent);
-    }, [agents, userAgentPreferences?.defaultAgentUuid]);
+        setSelectedAgent((currentSelection) => {
+            if (currentSelection === 'auto') {
+                return showAutoOption ? currentSelection : preferredSelection;
+            }
+
+            if (
+                currentSelection &&
+                agents.some((agent) => agent.uuid === currentSelection.uuid)
+            ) {
+                return currentSelection;
+            }
+
+            return preferredSelection;
+        });
+    }, [
+        agents,
+        aiRouterConfigQuery.isLoading,
+        isLoadingUserAgentPreferences,
+        preferredSelection,
+        showAutoOption,
+    ]);
 
     const form = useForm({
         initialValues: {
@@ -83,12 +119,28 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         useCreateAgentThreadMutation(projectUuid);
 
     const handleSubmit = form.onSubmit(async (values) => {
-        if (!selectedAgent) {
+        const prompt = values.prompt.trim();
+
+        if (activeSelection === 'auto') {
+            setPendingPrompt(prompt);
+            void navigate(
+                {
+                    pathname: `/projects/${projectUuid}/ai-agents`,
+                    search: new URLSearchParams({
+                        [AI_ROUTING_SEARCH_PARAM]: AI_ROUTING_AUTO_VALUE,
+                    }).toString(),
+                },
+                {
+                    state: { autoSubmitPrompt: prompt },
+                    viewTransition: true,
+                },
+            );
+        } else if (!activeSelection) {
             void navigate(`/projects/${projectUuid}/ai-agents`);
         } else {
             await createAgentThread({
-                agentUuid: selectedAgent.uuid,
-                prompt: values.prompt.trim(),
+                agentUuid: activeSelection.uuid,
+                prompt,
             });
         }
     });
@@ -99,13 +151,22 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
 
     const onSelect = (agentUuid: string) => {
         if (!agents) return;
+        if (agentUuid === AI_ROUTING_AUTO_VALUE && showAutoOption) {
+            setSelectedAgent('auto');
+            return;
+        }
+
         setSelectedAgent(
             (currentSelection) =>
                 agents.find((a) => a.uuid === agentUuid) ?? currentSelection,
         );
     };
 
-    if (isLoadingAgents || isLoadingUserAgentPreferences) {
+    if (
+        isLoadingAgents ||
+        isLoadingUserAgentPreferences ||
+        aiRouterConfigQuery.isLoading
+    ) {
         return (
             <Paper style={{ overflow: 'hidden' }} p="md">
                 <Group wrap="nowrap" align="center">
@@ -132,8 +193,9 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                     <Group>
                         <CompactAgentSelector
                             agents={agents}
-                            selectedAgent={selectedAgent ?? agents[0]}
+                            selectedAgent={activeSelection ?? agents[0]}
                             onSelect={onSelect}
+                            showAutoOption={showAutoOption}
                         />
                         <Group gap="xs" flex={1}>
                             <SearchDropdown
@@ -144,9 +206,11 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                 }
                                 onSearchItemSelect={handleSearchItemSelect}
                                 placeholder={
-                                    selectedAgent
-                                        ? `Ask ${selectedAgent.name} or search your data`
-                                        : 'Search your data'
+                                    activeSelection === 'auto'
+                                        ? 'Ask AI or search your data'
+                                        : activeSelection
+                                          ? `Ask ${activeSelection.name} or search your data`
+                                          : 'Search your data'
                                 }
                                 onHeaderClick={handleSubmit}
                                 header={
@@ -175,9 +239,11 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             mt={2}
                                         >
                                             Ask{' '}
-                                            {selectedAgent
-                                                ? selectedAgent.name
-                                                : 'AI'}
+                                            {activeSelection === 'auto'
+                                                ? 'AI'
+                                                : activeSelection
+                                                  ? activeSelection.name
+                                                  : 'AI'}
                                             :{' '}
                                             <Text
                                                 component="span"

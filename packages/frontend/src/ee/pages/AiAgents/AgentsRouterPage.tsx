@@ -23,7 +23,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
@@ -64,6 +64,7 @@ type Phase =
 const AgentsRouterPage = () => {
     const { projectUuid } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const dispatch = useAiAgentStoreDispatch();
 
     const { data: agents } = useProjectAiAgents({
@@ -251,6 +252,31 @@ const AgentsRouterPage = () => {
             startThreadForDecision,
         ],
     );
+
+    useEffect(() => {
+        const autoSubmitPrompt =
+            typeof location.state?.autoSubmitPrompt === 'string'
+                ? location.state.autoSubmitPrompt.trim()
+                : '';
+
+        if (!autoSubmitPrompt || phase.kind !== 'idle') return;
+
+        void navigate(
+            { pathname: location.pathname, search: location.search },
+            { replace: true, state: undefined },
+        );
+        void handleSubmit({
+            message: autoSubmitPrompt,
+            toolHints: [],
+        });
+    }, [
+        handleSubmit,
+        location.pathname,
+        location.search,
+        location.state,
+        navigate,
+        phase.kind,
+    ]);
 
     const confirmPick = useCallback(
         async (agentUuid: string) => {
