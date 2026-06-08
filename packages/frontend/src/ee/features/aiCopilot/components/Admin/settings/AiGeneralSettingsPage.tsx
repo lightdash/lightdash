@@ -1,4 +1,6 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Box,
     Divider,
@@ -10,10 +12,12 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
+import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     useAiOrganizationSettings,
     useUpdateAiOrganizationSettings,
@@ -29,6 +33,9 @@ export const AiGeneralSettingsPage = () => {
         useAiOrganizationSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
+    const { data: aiAgentReviewClassifierFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentReviewClassifier,
+    );
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -124,6 +131,22 @@ export const AiGeneralSettingsPage = () => {
                                     projects, Lightdash can suggest pull
                                     requests that improve context and dbt
                                     definitions.
+                                    {settings.aiAgentReviewsEnabled &&
+                                        aiAgentReviewClassifierFlag?.enabled ===
+                                            true && (
+                                            <>
+                                                {' '}
+                                                See findings in{' '}
+                                                <Anchor
+                                                    component={Link}
+                                                    to="/generalSettings/ai/reviews"
+                                                    fz="inherit"
+                                                >
+                                                    Ask AI &gt; Reviews
+                                                </Anchor>
+                                                .
+                                            </>
+                                        )}
                                 </Text>
                             </Box>
                             <Switch

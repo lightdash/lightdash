@@ -17,7 +17,6 @@ import {
     Group,
     HoverCard,
     Loader,
-    Menu,
     SegmentedControl,
     Stack,
     Text,
@@ -33,8 +32,6 @@ import {
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
-    IconDots,
-    IconExternalLink,
     IconFilterX,
     IconGitPullRequest,
     IconHelpCircle,
@@ -46,6 +43,7 @@ import {
     IconTriangle,
     IconX,
 } from '@tabler/icons-react';
+import { type RowSelectionState } from '@tanstack/react-table';
 import {
     useCallback,
     useDeferredValue,
@@ -54,6 +52,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
@@ -63,7 +62,6 @@ import {
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
-import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
 import { useProjects } from '../../../../../hooks/useProjects';
@@ -536,12 +534,15 @@ const statusColors: Record<AiAgentReviewItemStatus, string> = {
     duplicate: 'gray',
 };
 
+const isTerminalReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
+    reviewItem.status === 'resolved' ||
+    reviewItem.status === 'dismissed' ||
+    reviewItem.status === 'duplicate';
+
 const FindingCell = ({
     reviewItem,
-    onPreview,
 }: {
     reviewItem: AiAgentReviewItemSummary;
-    onPreview: (() => void) | null;
 }) => {
     const [showReasoning, setShowReasoning] = useState(false);
     const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
@@ -594,39 +595,17 @@ const FindingCell = ({
                     <Text fz="xs" c="ldGray.7">
                         {reasoning}
                     </Text>
-                    <Group justify="flex-end">
-                        {onPreview && (
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                color="gray"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconMessages}
-                                        size="sm"
-                                    />
-                                }
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onPreview();
-                                }}
-                            >
-                                Open AI thread
-                            </Button>
-                        )}
-                    </Group>
                 </Box>
             </Collapse>
         </Stack>
     );
 };
 
-const ReviewItemActionsCell = ({
+const ReviewItemPrCell = ({
     reviewItem,
 }: {
     reviewItem: AiAgentReviewItemSummary;
 }) => {
-    const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -643,10 +622,6 @@ const ReviewItemActionsCell = ({
     const isWritebackInFlight =
         current.prWritebackStatus === 'queued' ||
         current.prWritebackStatus === 'running';
-    const isTerminal =
-        current.status === 'resolved' ||
-        current.status === 'dismissed' ||
-        current.status === 'duplicate';
     const canCreatePr = current.writebackEligibility.eligible;
     const blockedReason = current.writebackEligibility.eligible
         ? null
@@ -675,17 +650,19 @@ const ReviewItemActionsCell = ({
                 <Stack gap={6} align="flex-start">
                     <Group gap="xs" wrap="nowrap">
                         {current.linkedPrUrl && (
-                            <LinkButton
+                            <Button
+                                component="a"
                                 href={current.linkedPrUrl}
                                 target="_blank"
                                 onClick={(event) => event.stopPropagation()}
-                                leftIcon={IconExternalLink}
                                 size="compact-xs"
                                 fz="xs"
                                 loading={createWriteback.isLoading}
+                                variant="subtle"
+                                color="gray"
                             >
                                 View PR
-                            </LinkButton>
+                            </Button>
                         )}
 
                         {canCreatePr && (
@@ -701,11 +678,6 @@ const ReviewItemActionsCell = ({
                                     radius="md"
                                     variant="default"
                                     loading={createWriteback.isLoading}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconGitPullRequest}
-                                        />
-                                    }
                                     onClick={(event) => {
                                         event.stopPropagation();
                                         if (previewsDiff) {
@@ -721,55 +693,10 @@ const ReviewItemActionsCell = ({
                                 </Button>
                             </Tooltip>
                         )}
-
-                        {!isTerminal && (
-                            <Menu position="bottom-end" withinPortal>
-                                <Menu.Target>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        size="sm"
-                                        aria-label="More actions"
-                                        loading={updateStatus.isLoading}
-                                        onClick={(event) =>
-                                            event.stopPropagation()
-                                        }
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconX} />
-                                        }
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            updateStatus.mutate({
-                                                fingerprint:
-                                                    current.fingerprint,
-                                                body: {
-                                                    status: 'dismissed',
-                                                    dismissedReason:
-                                                        'not_actionable',
-                                                },
-                                            });
-                                        }}
-                                    >
-                                        Dismiss finding
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
-                        )}
                     </Group>
 
                     {canCreatePr && (
-                        <Group gap={4} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconArrowRight}
-                                size="xs"
-                                className={styles.suggestedStepArrow}
-                            />
+                        <Group gap={0} wrap="nowrap">
                             <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
                                 {getSuggestedNextStep(current)}
                             </Text>
@@ -833,7 +760,9 @@ const AiAgentAdminReviewItemsTable = ({
     const [selectedSignals, setSelectedSignals] = useState<AiAgentTurnSignal[]>(
         [],
     );
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     const deferredSearch = useDeferredValue(search);
+    const updateStatus = useUpdateAiAgentReviewItemStatus();
 
     // While the tour is running the table always shows the sample rows so the
     // tour is deterministic; otherwise it passes real data straight through
@@ -1068,20 +997,42 @@ const AiAgentAdminReviewItemsTable = ({
         setSelectedSignals([]);
     }, []);
 
+    const handleRowSelectionChange = useCallback(
+        (
+            updater:
+                | RowSelectionState
+                | ((previous: RowSelectionState) => RowSelectionState),
+        ) => {
+            setRowSelection((previous) =>
+                typeof updater === 'function' ? updater(previous) : updater,
+            );
+        },
+        [],
+    );
+
     const renderReviewsToolbar = ({
         visibleCount,
         totalCount,
         noun,
         isLoading: toolbarLoading,
         surface,
+        selectedCount = 0,
+        isDismissingSelected = false,
+        onClearSelection,
+        onDismissSelected,
     }: {
         visibleCount: number;
         totalCount: number;
         noun: 'item' | 'signal';
         isLoading: boolean;
         surface: ReviewSurface;
+        selectedCount?: number;
+        isDismissingSelected?: boolean;
+        onClearSelection?: () => void;
+        onDismissSelected?: () => void;
     }) => {
         const pluralised = visibleCount === 1 ? noun : `${noun}s`;
+        const hasSelection = selectedCount > 0;
         const countLabel = toolbarLoading
             ? 'Loading…'
             : hasActiveFilters && visibleCount !== totalCount
@@ -1167,11 +1118,46 @@ const AiAgentAdminReviewItemsTable = ({
                         )}
                     </Group>
 
-                    <Box className={styles.countPill}>
-                        <Text fz="sm" fw={500}>
-                            {countLabel}
-                        </Text>
-                    </Box>
+                    <Group gap="sm" wrap="nowrap">
+                        {surface === 'findings' &&
+                            hasSelection &&
+                            onDismissSelected && (
+                                <>
+                                    <Text fz="sm" c="dimmed" fw={500}>
+                                        {selectedCount} selected
+                                    </Text>
+                                    <Button
+                                        size="xs"
+                                        variant="light"
+                                        color="red"
+                                        loading={isDismissingSelected}
+                                        leftSection={
+                                            <MantineIcon icon={IconX} />
+                                        }
+                                        onClick={onDismissSelected}
+                                    >
+                                        Dismiss findings
+                                    </Button>
+                                    {onClearSelection && (
+                                        <Button
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={onClearSelection}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </>
+                            )}
+                        {!hasSelection && (
+                            <Box className={styles.countPill}>
+                                <Text fz="sm" fw={500}>
+                                    {countLabel}
+                                </Text>
+                            </Box>
+                        )}
+                    </Group>
                 </Group>
                 <Divider color="ldGray.2" />
             </Box>
@@ -1248,83 +1234,78 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
-                    const latestFinding = reviewItem.latestFinding;
-                    return (
-                        <FindingCell
-                            reviewItem={reviewItem}
-                            onPreview={
-                                latestFinding
-                                    ? () =>
-                                          onReviewItemSelect?.({
-                                              projectUuid:
-                                                  latestFinding.projectUuid,
-                                              agentUuid:
-                                                  latestFinding.agentUuid,
-                                              threadUuid:
-                                                  latestFinding.threadUuid,
-                                              reviewItemUuid: reviewItem.uuid,
-                                          })
-                                    : null
-                            }
-                        />
-                    );
+                    return <FindingCell reviewItem={reviewItem} />;
                 },
             },
             {
                 accessorKey: 'agentUuid',
-                header: 'Agent',
+                header: 'Context',
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                        <MantineIcon icon={IconMessages} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
+                    const latestFinding = reviewItem.latestFinding;
                     const agentUuid =
-                        reviewItem.latestFinding?.agentUuid ??
-                        reviewItem.agentUuid;
+                        latestFinding?.agentUuid ?? reviewItem.agentUuid;
                     const projectUuid =
-                        reviewItem.latestFinding?.projectUuid ??
-                        reviewItem.projectUuid;
+                        latestFinding?.projectUuid ?? reviewItem.projectUuid;
                     const agent = agentUuid
                         ? agentsMap.get(agentUuid)
                         : undefined;
                     const project = projectUuid
                         ? projectsMap.get(projectUuid)
                         : undefined;
-                    const projectName = project?.name ?? 'Organization';
-
-                    if (agent) {
-                        return (
-                            <AgentNamePill
-                                name={agent.name}
-                                imageUrl={agent.imageUrl}
-                            />
-                        );
-                    }
+                    const contextName =
+                        agent?.name ?? project?.name ?? 'Organization';
+                    const imageUrl = agent?.imageUrl ?? null;
 
                     return (
-                        <Group gap="two" wrap="nowrap">
-                            <MantineIcon
-                                icon={IconBox}
-                                color="ldGray.6"
-                                size="sm"
-                            />
-                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                {projectName}
-                            </Text>
+                        <Group gap="xs" wrap="nowrap">
+                            <Tooltip label={contextName} withArrow>
+                                <Box>
+                                    <LightdashUserAvatar
+                                        size={18}
+                                        name={contextName}
+                                        src={imageUrl}
+                                    />
+                                </Box>
+                            </Tooltip>
+                            {latestFinding && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="gray"
+                                    px={0}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onReviewItemSelect?.({
+                                            projectUuid:
+                                                latestFinding.projectUuid,
+                                            agentUuid: latestFinding.agentUuid,
+                                            threadUuid:
+                                                latestFinding.threadUuid,
+                                            reviewItemUuid: reviewItem.uuid,
+                                        });
+                                    }}
+                                >
+                                    View thread
+                                </Button>
+                            )}
                         </Group>
                     );
                 },
             },
             {
-                accessorKey: 'status',
-                header: 'Action',
+                accessorKey: 'prWritebackStatus',
+                header: 'PR',
                 enableSorting: false,
-                size: 260,
+                size: 170,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon
@@ -1342,15 +1323,12 @@ const AiAgentAdminReviewItemsTable = ({
                                 radius="md"
                                 variant="default"
                                 disabled
-                                leftSection={
-                                    <MantineIcon icon={IconGitPullRequest} />
-                                }
                             >
                                 Create PR
                             </Button>
                         </Box>
                     ) : (
-                        <ReviewItemActionsCell reviewItem={row.original} />
+                        <ReviewItemPrCell reviewItem={row.original} />
                     ),
             },
         ],
@@ -1572,6 +1550,20 @@ const AiAgentAdminReviewItemsTable = ({
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        enableRowSelection: (row) =>
+            !isTerminalReviewItem(row.original) &&
+            !isExampleReviewItem(row.original.uuid),
+        mantineSelectCheckboxProps: { size: 'xs' },
+        mantineSelectAllCheckboxProps: { size: 'xs' },
+        displayColumnDefOptions: {
+            'mrt-row-select': {
+                size: 28,
+                minSize: 28,
+                maxSize: 28,
+                enableResizing: false,
+            },
+        },
+        getRowId: (row) => row.uuid,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -1627,14 +1619,37 @@ const AiAgentAdminReviewItemsTable = ({
                 ...rowAnchor,
             };
         },
-        renderTopToolbar: () =>
-            renderReviewsToolbar({
+        renderTopToolbar: ({ table: tableInstance }) => {
+            const selectedRows = tableInstance
+                .getFilteredSelectedRowModel()
+                .flatRows.map((row) => row.original);
+
+            const dismissSelected = () => {
+                selectedRows.forEach((reviewItem) => {
+                    updateStatus.mutate({
+                        fingerprint: reviewItem.fingerprint,
+                        body: {
+                            status: 'dismissed',
+                            dismissedReason: 'not_actionable',
+                        },
+                    });
+                });
+                tableInstance.resetRowSelection();
+            };
+
+            return renderReviewsToolbar({
                 visibleCount: filteredReviewItems.length,
                 totalCount: searchFilteredReviewItems.length,
                 noun: 'item',
                 isLoading,
                 surface: 'findings',
-            }),
+                selectedCount: selectedRows.length,
+                isDismissingSelected: updateStatus.isLoading,
+                onClearSelection: () => tableInstance.resetRowSelection(),
+                onDismissSelected:
+                    selectedRows.length > 0 ? dismissSelected : undefined,
+            });
+        },
         emptyState: {
             entityName: 'reviews',
             emptyMessage:
@@ -1647,7 +1662,9 @@ const AiAgentAdminReviewItemsTable = ({
             showProgressBars: false,
             showSkeletons: isLoading,
             density: 'md',
+            rowSelection,
         },
+        onRowSelectionChange: handleRowSelectionChange,
         mantineLoadingOverlayProps: {
             loaderProps: {
                 color: 'gray',
