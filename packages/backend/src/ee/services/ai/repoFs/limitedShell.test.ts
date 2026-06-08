@@ -119,6 +119,25 @@ describe('repoFs limited shell', () => {
         ).resolves.toBe('(no output)');
     });
 
+    it('rejects catastrophic-backtracking grep patterns (ReDoS guard)', async () => {
+        await expect(run('grep -rE "(a+)+$" .')).rejects.toThrow(
+            'nested quantifiers',
+        );
+        await expect(run('grep -rE "(.*)*x" .')).rejects.toThrow(
+            'nested quantifiers',
+        );
+        // benign regexes still work
+        await expect(run('grep -E "ref" models/orders.sql')).resolves.toContain(
+            'ref',
+        );
+    });
+
+    it('rejects over-long grep patterns', async () => {
+        await expect(
+            run(`grep -E "${'a'.repeat(250)}" models/orders.sql`),
+        ).rejects.toThrow('pattern too long');
+    });
+
     it('rejects unsupported commands', async () => {
         await expect(run('rm -rf /')).rejects.toThrow('Unsupported command');
     });

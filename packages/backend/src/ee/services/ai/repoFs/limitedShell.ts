@@ -10,6 +10,9 @@ import { RepoEntryType, RepoFs } from './RepoFs';
 const MAX_OUTPUT_CHARS = 60_000;
 const MAX_GREP_FILES = 1_500;
 const MAX_XARGS_ARGS = 2_000;
+// Defense-in-depth cap on how much of a line the regex engine scans, bounding
+// worst-case backtracking even if a dangerous pattern slips past the guard.
+const MAX_MATCH_LINE = 10_000;
 
 class ShellError extends Error {}
 
@@ -84,10 +87,31 @@ const parseArgs = (
 const toLines = (content: string): string[] =>
     (content.endsWith('\n') ? content.slice(0, -1) : content).split('\n');
 
+const MAX_PATTERN_LENGTH = 200;
+// Quantifier ({+,*,{n,}}) applied to a group/class that itself contains a
+// quantifier — the classic catastrophic-backtracking shape (e.g. (a+)+, (.*)*).
+// Node's regex engine is backtracking and runs synchronously on the event loop,
+// so such a pattern from `grep -E` can hang the backend. Heuristic, not a proof;
+// a linear-time engine (re2) would be the complete fix.
+const NESTED_QUANTIFIER =
+    /\((?:[^()\\]|\\.)*[*+}][^()]*\)\s*[*+{]|\[[^\]]*\][*+]\s*[*+{]/;
+
 const buildMatcher = (
     pattern: string,
     { regex, ignoreCase }: { regex: boolean; ignoreCase: boolean },
 ): RegExp => {
+    if (regex) {
+        if (pattern.length > MAX_PATTERN_LENGTH) {
+            throw new ShellError(
+                `grep: pattern too long (max ${MAX_PATTERN_LENGTH} chars)`,
+            );
+        }
+        if (NESTED_QUANTIFIER.test(pattern)) {
+            throw new ShellError(
+                'grep: pattern rejected — nested quantifiers can cause catastrophic backtracking',
+            );
+        }
+    }
     const source = regex
         ? pattern
         : pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -162,6 +186,10 @@ const cmdGrep = async (
     const [pattern, ...paths] = positionals;
     if (pattern === undefined) throw new ShellError('grep: missing pattern');
     const matcher = buildMatcher(pattern, { regex, ignoreCase });
+    const test = (line: string): boolean =>
+        matcher.test(
+            line.length > MAX_MATCH_LINE ? line.slice(0, MAX_MATCH_LINE) : line,
+        );
 
     // No paths: filter piped input.
     if (paths.length === 0 && (!recursive || stdin !== null)) {
@@ -171,11 +199,9 @@ const cmdGrep = async (
             );
         }
         if (listFilesOnly) {
-            return stdin.some((line) => matcher.test(line))
-                ? ['(standard input)']
-                : [];
+            return stdin.some(test) ? ['(standard input)'] : [];
         }
-        return stdin.filter((line) => matcher.test(line));
+        return stdin.filter(test);
     }
 
     // Gather candidate files from the given paths (dirs expand recursively).
@@ -203,10 +229,10 @@ const cmdGrep = async (
         if (content !== null) {
             const lines = toLines(content);
             if (listFilesOnly) {
-                if (lines.some((line) => matcher.test(line))) output.push(file);
+                if (lines.some(test)) output.push(file);
             } else {
                 lines.forEach((line, idx) => {
-                    if (matcher.test(line)) {
+                    if (test(line)) {
                         const prefix = multiFile ? `${file}:` : '';
                         const lineNo = showLineNo ? `${idx + 1}:` : '';
                         output.push(`${prefix}${lineNo}${line}`);
