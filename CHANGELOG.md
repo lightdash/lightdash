@@ -1,3 +1,10 @@
+# [0.3111.0](https://github.com/lightdash/lightdash/compare/0.3110.5...0.3111.0) (2026-06-08)
+
+
+### Features
+
+* **ai:** read-only repo virtual filesystem (repoShell) for AI agents ([#24041](https://github.com/lightdash/lightdash/issues/24041)) ([b7430c4](https://github.com/lightdash/lightdash/commit/b7430c48dd62a0a321e371b4cafd27f95d2adf52))
+
 ## [0.3110.5](https://github.com/lightdash/lightdash/compare/0.3110.4...0.3110.5) (2026-06-08)
 
 
