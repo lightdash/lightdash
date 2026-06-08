@@ -1,5 +1,5 @@
 <summary>
-Single source for the settings sidebar navigation. `useSettingsContext` gathers the gating inputs (the user's abilities, organization/project, resolved feature flags, loading/error). `useSettingsNavigation` derives the gated, grouped list of sidebar entries (`SettingsNavigationSection[]`) from that context. Each entry carries `keywords` so a future global search can match aliases.
+Single source for the settings sidebar navigation. `useSettingsContext` gathers the gating inputs (the user's abilities, organization/project, resolved feature flags, loading/error). `useSettingsNavigation` derives the gated, grouped list of sidebar entries (`SettingsNavigationSection[]`) from that context. Each entry carries `keywords` that power the sidebar search (`filterSettingsNavigation`).
 </summary>
 
 <howToUse>
@@ -9,7 +9,7 @@ The sidebar nav is data, not JSX. To add or edit a sidebar entry, edit the build
 - Entries are pushed into one of three sections (`your-settings`, `organization`, `current-project`) in display order — position your `push` where you want it to appear.
 - Gating is the `if` guarding each `push`: combine `ability?.can(...)` (CASL, with `subject(...)` for scoped checks) and the resolved feature-flag booleans destructured from `useSettingsContext()`. Only permitted entries are added, so rendering stays a dumb map.
 - Leaf entries set `exact: true`. A parent with `children` omits `exact` (partial match) so it stays active on its child routes; nested children render expanded when the path matches (`defaultOpened` in `SettingsNavigation`).
-- `keywords` are hidden search aliases — add the synonyms a user might type (e.g. `Single Sign-On` → `['sso','saml','okta']`). They don't affect rendering today.
+- `keywords` are hidden search aliases that feed the sidebar search (`filterSettingsNavigation`, Fuse.js fuzzy match on label + keywords) — add the synonyms a user might type (e.g. `Single Sign-On` → `['sso','saml','okta']`). Matched label text is highlighted in results; keyword-only matches surface without a highlight.
 
 If your entry needs a new feature flag, resolve it in `useSettingsContext.ts` and add it to the `SettingsContext` type, then destructure it in `useSettingsNavigation`. `SettingsNavigation.tsx` renders whatever sections it's given; you rarely need to touch it.
 </howToUse>
@@ -51,8 +51,10 @@ if (isMyFeatureEnabled && ability?.can('manage', 'Organization')) {
 <links>
 - Gating context: @/packages/frontend/src/hooks/settings/useSettingsContext.ts
 - Nav model assembly: @/packages/frontend/src/hooks/settings/useSettingsNavigation.ts
+- Search filter (Fuse.js): @/packages/frontend/src/hooks/settings/filterSettingsNavigation.ts
 - Entry/section + context types: @/packages/frontend/src/hooks/settings/types.ts
 - Renderer: @/packages/frontend/src/pages/SettingsNavigation.tsx
+- Search input: @/packages/frontend/src/pages/SettingsSearchInput.tsx
 - Router + org/user routes: @/packages/frontend/src/pages/Settings.tsx
 - Project-level routes: @/packages/frontend/src/pages/ProjectSettings.tsx
 - Permissions/abilities: @/packages/common/src/authorization/

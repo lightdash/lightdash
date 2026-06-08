@@ -14,7 +14,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
-import { useState, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import {
     matchPath,
     Navigate,
@@ -71,6 +71,7 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
@@ -78,10 +79,17 @@ import { PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 import classes from './Settings.module.css';
 import SettingsNavigation from './SettingsNavigation';
+import SettingsSearchInput from './SettingsSearchInput';
 
 const Settings: FC = () => {
     const context = useSettingsContext();
     const sections = useSettingsNavigation(context);
+    const [search, setSearch] = useState('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const filteredSections = useMemo(
+        () => filterSettingsNavigation(sections, search),
+        [sections, search],
+    );
     const {
         user,
         health,
@@ -111,6 +119,29 @@ const Settings: FC = () => {
     } = context;
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== '/') {
+                return;
+            }
+            const target = event.target;
+            const isEditableTarget =
+                target instanceof HTMLElement &&
+                (target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.tagName === 'SELECT' ||
+                    target.isContentEditable);
+            if (isEditableTarget) {
+                return;
+            }
+            event.preventDefault();
+            searchInputRef.current?.focus();
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -781,13 +812,37 @@ const Settings: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                     </Group>
+                    <SettingsSearchInput
+                        ref={searchInputRef}
+                        value={search}
+                        onChange={setSearch}
+                    />
                     <ScrollArea
                         type="scroll"
                         scrollbarSize={8}
                         scrollHideDelay={800}
                         className={classes.sidebarScroll}
                     >
-                        <SettingsNavigation sections={sections} />
+                        {filteredSections.length > 0 ? (
+                            <SettingsNavigation
+                                sections={filteredSections}
+                                searchQuery={search}
+                            />
+                        ) : (
+                            <Stack gap="xs" align="center" py="xl" px="md">
+                                <Text fz="sm" c="ldGray.6" ta="center">
+                                    No settings match “{search.trim()}”
+                                </Text>
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="xs"
+                                    onClick={() => setSearch('')}
+                                >
+                                    Clear search
+                                </Anchor>
+                            </Stack>
+                        )}
                     </ScrollArea>
                 </Stack>
             }
