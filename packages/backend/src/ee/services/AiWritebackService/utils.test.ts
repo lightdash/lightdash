@@ -18,9 +18,8 @@ import {
     buildGitlabCommitAuthor,
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
-    classifyToolPhase,
+    describeToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -398,35 +397,60 @@ describe('interpretAgentEvent', () => {
     );
 });
 
-describe('classifyToolPhase', () => {
-    it('classifies a lightdash compile Bash command as compiling', () => {
+describe('describeToolStep', () => {
+    it('names the file being edited (basename only)', () => {
         expect(
-            classifyToolPhase({
+            describeToolStep({
+                name: 'Edit',
+                input: { file_path: '/home/user/repo/models/fm_parts.yml' },
+            }),
+        ).toBe('Editing fm_parts.yml');
+        expect(
+            describeToolStep({
+                name: 'Write',
+                input: { file_path: 'models/orders.yml' },
+            }),
+        ).toBe('Editing orders.yml');
+    });
+
+    it('names the file being read', () => {
+        expect(
+            describeToolStep({
+                name: 'Read',
+                input: { file_path: 'models/staging/stg_orders.sql' },
+            }),
+        ).toBe('Reading stg_orders.sql');
+    });
+
+    it('describes a search by its pattern', () => {
+        expect(
+            describeToolStep({ name: 'Grep', input: { pattern: 'revenue' } }),
+        ).toBe('Searching for "revenue"');
+    });
+
+    it('labels a lightdash compile Bash command', () => {
+        expect(
+            describeToolStep({
                 name: 'Bash',
                 input: { command: 'lightdash compile --project-dir .' },
             }),
-        ).toBe('compiling');
+        ).toBe('Compiling project');
     });
 
-    it('does not classify other Bash commands', () => {
+    it('returns null for non-compile Bash and unknown tools', () => {
         expect(
-            classifyToolPhase({ name: 'Bash', input: { command: 'ls -la' } }),
+            describeToolStep({ name: 'Bash', input: { command: 'ls -la' } }),
         ).toBeNull();
+        expect(describeToolStep({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 
-    it('classifies Edit/Write as editing and Read/Glob/Grep as discovering', () => {
-        expect(classifyToolPhase({ name: 'Write', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Edit', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Read', input: {} })).toBe(
-            'discovering',
+    it('falls back to a generic label when no file is given', () => {
+        expect(describeToolStep({ name: 'Edit', input: {} })).toBe(
+            'Editing files',
         );
-        expect(classifyToolPhase({ name: 'Grep', input: {} })).toBe(
-            'discovering',
+        expect(describeToolStep({ name: 'Read', input: {} })).toBe(
+            'Reading files',
         );
-    });
-
-    it('returns null for an unknown tool', () => {
-        expect(classifyToolPhase({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 });
 
@@ -451,16 +475,6 @@ describe('summarizeToolInput', () => {
         const circular: Record<string, unknown> = {};
         circular.self = circular;
         expect(summarizeToolInput(circular)).toBe('<unserializable>');
-    });
-});
-
-describe('getPhaseProgressText', () => {
-    it('uses model wording for the writeback agent phases', () => {
-        expect(getPhaseProgressText()).toEqual({
-            discovering: 'Discovering models',
-            editing: 'Editing models',
-            compiling: 'Compiling project',
-        });
     });
 });
 

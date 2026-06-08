@@ -63,7 +63,6 @@ import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
     AdoptedPullRequest,
-    AgentPhase,
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
@@ -74,9 +73,8 @@ import type {
     WarehouseSkillKey,
 } from './types';
 import {
-    classifyToolPhase,
+    describeToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
     interpretAgentEvent,
     parseGithubConnection,
     parsePullNumber,
@@ -1066,8 +1064,9 @@ export class AiWritebackService extends BaseService {
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
-        const phaseProgressText = getPhaseProgressText();
-        const seenPhases = new Set<AgentPhase>();
+        // Last per-file step surfaced, to suppress consecutive duplicates (e.g.
+        // the agent reading the same file twice in a row).
+        let lastStep: string | null = null;
 
         let stderrTail = '';
         const appendStderrTail = (chunk: string) => {
@@ -1121,10 +1120,13 @@ export class AiWritebackService extends BaseService {
                     toolName: toolCall.name,
                     summary: summarizeToolInput(toolCall.input),
                 });
-                const phase = classifyToolPhase(toolCall);
-                if (phase && !seenPhases.has(phase)) {
-                    seenPhases.add(phase);
-                    reportProgress(phaseProgressText[phase]);
+                // Surface the actual file the agent is touching ("Editing
+                // fm_parts.yml", "Reading orders.yml") rather than a generic
+                // phase, deduped so a repeated step doesn't spam the UI.
+                const step = describeToolStep(toolCall);
+                if (step && step !== lastStep) {
+                    lastStep = step;
+                    reportProgress(step);
                 }
             }
             if (interpreted.text !== null) assistantText = interpreted.text;
