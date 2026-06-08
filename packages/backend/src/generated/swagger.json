@@ -23257,6 +23257,13 @@
                         "type": "array",
                         "description": "Dimensions referenced by ORDER BY but NOT spread into pivot columns.\nUsed when a user hides a dim that's part of `pivotConfig.columns` and has\na sort entry on it: the dim still ranks column order via the GROUP BY /\nORDER BY pipeline, but it doesn't become a pivot column header level.\nMirrors `sortOnlyColumns` (which serves the same purpose for metrics)."
                     },
+                    "pivotColumnsOrder": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
+                    },
                     "sortOnlyColumns": {
                         "items": {
                             "$ref": "#/components/schemas/ValuesColumn"

@@ -1398,6 +1398,65 @@ describe('derivePivotConfigurationFromChart', () => {
             ).toBe(true);
         });
 
+        it('sets pivotColumnsOrder to the declared pivot-column order (visible + sort-only) so a hidden sort dim keeps its position (PROD-8159)', () => {
+            // Declared order: payment_method (outer, visible), status_priority
+            // (hidden sort helper), status (inner, visible). Hiding the helper
+            // must not change column order, so pivotColumnsOrder preserves the
+            // full declared sequence — the SQL builder then sorts the helper at
+            // its declared (middle) position instead of hoisting it to the front.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: { orders_status_priority: { visible: false } },
+                    pivotDimensions: [
+                        'payments_payment_method',
+                        'orders_status_priority',
+                        'orders_status',
+                    ],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: {
+                    columns: [
+                        'payments_payment_method',
+                        'orders_status_priority',
+                        'orders_status',
+                    ],
+                },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'orders_status_priority',
+                ],
+                metrics: ['payments_total_revenue'],
+                sorts: [
+                    { fieldId: 'orders_status_priority', descending: false },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithPriority,
+            );
+
+            expect(result?.pivotColumnsOrder).toEqual([
+                { reference: 'payments_payment_method' },
+                { reference: 'orders_status_priority' },
+                { reference: 'orders_status' },
+            ]);
+        });
+
         it('routes a hidden pivot-column dim with no sort entry to passthroughDimensions (PROD-7873)', () => {
             // Hidden + not sorted used to drop the dim from the query entirely,
             // which broke richText / image templates on visible fields that

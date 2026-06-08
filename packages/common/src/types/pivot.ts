@@ -59,6 +59,17 @@ export type PivotConfiguration = {
      * references would silently resolve to undefined.
      */
     passthroughDimensions?: GroupByColumn[];
+    /**
+     * Declared order of the pivot-column dimensions (visible `groupByColumns`
+     * plus hidden `sortOnlyDimensions`) as they appear in the chart's
+     * `pivotConfig.columns`. `column_ranking` orders columns by this sequence so
+     * a hidden sort-only dim sorts at its DECLARED position — hiding a dim then
+     * leaves column order identical to when it was visible, instead of hoisting
+     * the hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)
+     * dims are excluded since they don't drive sort. When omitted, ordering falls
+     * back to hoisting sort-only sort targets to the front (legacy behavior).
+     */
+    pivotColumnsOrder?: GroupByColumn[];
 };
 
 type Field =

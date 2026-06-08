@@ -22710,6 +22710,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'GroupByColumn' },
                 },
+                pivotColumnsOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
+                },
                 sortOnlyColumns: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'ValuesColumn' },

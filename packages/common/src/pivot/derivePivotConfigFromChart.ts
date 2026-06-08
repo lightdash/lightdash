@@ -262,6 +262,18 @@ function getTablePivotConfiguration(
         )
         .map((col) => ({ reference: col.reference }));
 
+    // Declared order of pivot-column dims that drive column ORDER BY: visible
+    // groupByColumns + hidden sortOnlyDimensions, in their declared
+    // (pivotConfig.columns) order. Passthrough dims are excluded (they don't
+    // sort). PivotQueryBuilder orders columns by this so a hidden sort dim sorts
+    // at its declared position — hiding it preserves the visible column order.
+    const passthroughPivotRefs = new Set(
+        passthroughPivotDimensions.map((c) => c.reference),
+    );
+    const pivotColumnsOrder = allPivotGroupByColumns.filter(
+        (col) => !passthroughPivotRefs.has(col.reference),
+    );
+
     const groupByRefs = new Set([
         ...groupByColumns.map((c) => c.reference),
         ...sortOnlyPivotDimensions.map((c) => c.reference),
@@ -339,6 +351,7 @@ function getTablePivotConfiguration(
         }),
         ...(sortOnlyPivotDimensions.length > 0 && {
             sortOnlyDimensions: sortOnlyPivotDimensions,
+            pivotColumnsOrder,
         }),
         ...((passthroughPivotDimensions.length > 0 ||
             passthroughRowDimensions.length > 0) && {
