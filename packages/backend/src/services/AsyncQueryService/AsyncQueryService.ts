@@ -541,7 +541,11 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (isExploreError(explore)) {
-            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+            throw new NotFoundError(
+                `Explore "${exploreName}" has an error: ${explore.errors
+                    .map((error) => error.message)
+                    .join(', ')}`,
+            );
         }
 
         if (

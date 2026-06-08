@@ -6243,7 +6243,9 @@ export class ProjectService extends BaseService {
                 }
                 if (isExploreError(explore)) {
                     throw new NotFoundError(
-                        `Explore "${exploreName}" has an error.`,
+                        `Explore "${exploreName}" has an error: ${explore.errors
+                            .map((error) => error.message)
+                            .join(', ')}`,
                     );
                 }
                 if (includeUnfilteredTables) {
