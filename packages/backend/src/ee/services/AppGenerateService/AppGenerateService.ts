@@ -3985,6 +3985,109 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /**
+     * Promote every data app referenced by a dashboard's `DATA_APP` tiles into
+     * the dashboard's upstream project, returning a source→upstream uuid map so
+     * the caller can remap the tiles. Each app is promoted with the same
+     * single-app `promoteApp` flow (S3 copy, version, upstream link).
+     *
+     * Soft-deleted apps (a tile can still reference one — it renders as a
+     * "no longer exists" placeholder) are skipped rather than failing the whole
+     * dashboard promotion; their tiles keep their original reference.
+     *
+     * Apps are promoted SEQUENTIALLY, not in parallel: each `promoteApp`
+     * resolves and lazily creates the app's upstream space via
+     * `getOrCreateUpstreamSpace`, whose check-then-create is not atomic and is
+     * not backed by a slug/path unique constraint. Two apps sharing an
+     * un-promoted space (or ancestor) run in parallel would both create it,
+     * producing duplicate upstream spaces. Serializing means the second app
+     * sees the space the first one created. Promotion is a cold, user-initiated
+     * path and app counts are small, so the lost parallelism is irrelevant.
+     *
+     * Used by `PromoteService.upsertDataApps` during dashboard promotion.
+     */
+    async promoteAppsForDashboard(
+        user: SessionUser,
+        projectUuid: string,
+        appUuids: string[],
+    ): Promise<{ sourceAppUuid: string; upstreamAppUuid: string }[]> {
+        if (appUuids.length === 0) {
+            return [];
+        }
+        await this.assertDataAppsEnabled(user);
+
+        const results: { sourceAppUuid: string; upstreamAppUuid: string }[] =
+            [];
+        /* eslint-disable no-await-in-loop */
+        for (const appUuid of appUuids) {
+            const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
+            if (sourceApp) {
+                const { appUuid: upstreamAppUuid } = await this.promoteApp(
+                    user,
+                    projectUuid,
+                    appUuid,
+                );
+                results.push({ sourceAppUuid: appUuid, upstreamAppUuid });
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+
+        return results;
+    }
+
+    /**
+     * Read-only counterpart to `promoteAppsForDashboard`: resolve, per referenced
+     * app, whether promotion would create a new production app or update the
+     * linked one (plus its name) so the dashboard promote diff can list apps
+     * alongside charts. Soft-deleted apps are skipped — there is nothing to
+     * promote for a placeholder tile.
+     */
+    async getDataAppPromoteChanges(
+        user: SessionUser,
+        projectUuid: string,
+        appUuids: string[],
+    ): Promise<{ uuid: string; name: string; action: PromoteAppAction }[]> {
+        if (appUuids.length === 0) {
+            return [];
+        }
+        await this.assertDataAppsEnabled(user);
+
+        const { upstreamProjectUuid } =
+            await this.getUpstreamProjectForPromotion(projectUuid);
+
+        const changes = await Promise.all(
+            appUuids.map(async (appUuid) => {
+                const sourceApp = await this.appModel.findApp(
+                    appUuid,
+                    projectUuid,
+                );
+                if (!sourceApp) {
+                    return null;
+                }
+                await this.assertCanManageApp(
+                    user,
+                    sourceApp,
+                    'Insufficient permissions to promote this data app',
+                );
+                const upstreamApp = await this.findLinkedUpstreamApp(
+                    sourceApp,
+                    upstreamProjectUuid,
+                );
+                return {
+                    uuid: sourceApp.app_id,
+                    name: sourceApp.name,
+                    action: (upstreamApp
+                        ? 'update'
+                        : 'create') as PromoteAppAction,
+                };
+            }),
+        );
+
+        return changes.filter(
+            (change): change is NonNullable<typeof change> => change !== null,
+        );
+    }
+
+    /**
      * Duplicate an existing app the user can view into a new personal app
      * owned by the requester. The new app starts at v1 with the source's
      * latest ready version's S3 artifacts (dist.tar + source.tar + any

@@ -274,29 +274,51 @@ Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates 
 `permanentDeleteApp`, which each enforce the appropriate manage scope (see [Permissions](#permissions) below) and
 handle sandbox/S3 cleanup.
 
-### Preview environments and promotion
+### Promotion
 
-Data apps are **not yet duplicated** when a project is copied to a preview environment, and **not yet remapped**
-during cross-project promotion. The preview-copy step in `ProjectModel.duplicateContent` does copy
-`dashboard_tile_data_apps` rows — but it leaves their `app_uuid` pointing at the source project's app rather than
-creating a fresh `apps` row in the preview. The preview project ends up with zero `apps` rows of its own; any data
-app dashboard tile in the preview is a read-through window to the source project's app.
+Data apps promote from a preview project into its linked upstream (production) project, mirroring how charts and
+dashboards promote. Two entry points share the same per-app primitive:
 
-What this means in practice:
+**Standalone app promotion.** `AppGenerateService.promoteApp` snapshots an app's latest ready version into the upstream
+project as one new version — a fresh app on first promotion (linked back via `apps.upstream_app_uuid`), or an appended
+version on the already-linked production app on follow-up promotions. Built S3 artifacts are server-side copied into the
+production app's prefix; the source app is untouched beyond recording the link. `getPromoteAppDiff` previews whether a
+promotion will create or update, and which space it lands in.
 
-- **Preview rendering.** If the user opening the preview has view access to the source project's app, the tile
-  renders normally. Otherwise the existing `DashboardDataAppTile` error states show a "Data app not found" or
-  "No access" placeholder; the rest of the dashboard renders fine.
-- **Iterating inside the preview.** Not supported — the preview project has no `apps` row, so the AppGenerate page
-  isn't reachable from within the preview. Iteration still happens on the source project's app.
-- **Promote-back from preview to source.** Works: the tile's `app_uuid` is the source app's UUID, so the upstream
-  insert succeeds.
-- **Cross-project promotion between unrelated projects.** Data app tiles can be promoted but the tile's `app_uuid`
-  is not remapped — it stays pointing at the downstream project's app. Effectively the same read-through behavior
-  as previews.
+**Data app tiles inside a dashboard.** When a dashboard carrying `DATA_APP` tiles is promoted, every referenced app is
+promoted alongside it and the tile's `appUuid` is remapped to the upstream app — exactly how chart / SQL-chart tiles
+remap their `savedChartUuid` / `savedSqlUuid`. The orchestration lives in `PromoteService.promoteDashboard`:
 
-Full preview/promote support (copying `apps` + `app_versions` + S3 artifacts and remapping `app_uuid` during
-promotion) is tracked in [PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
+- `upsertDataApps` runs after `upsertCharts` / `upsertSqlCharts` and **before** `updateDashboard`, so the upstream
+  `apps` row exists before the `dashboard_tile_data_apps` FK references it.
+- The per-app promotion is delegated to the EE `AppGenerateService.promoteAppsForDashboard` (which reuses `promoteApp`
+  per app), reached through a lazy `getAppGenerateService` accessor injected into `PromoteService`. The accessor is a
+  thunk, not the instance, because `AppGenerateService` depends on `PromoteService` — eager injection would create a
+  construction cycle. Core (non-EE) builds resolve `undefined` and reject `DATA_APP` tile promotion with a clear error.
+- The promote confirmation diff (`getPromoteDashboardDiff` → `getDataAppPromoteChanges`) lists the apps that will be
+  created / updated alongside spaces / charts / SQL charts, rendered as a "Data apps" section in `PromotionConfirmDialog`
+  (`PromotionChanges.dataApps`).
+- Each app promotes into **its own** mirrored space (the app's `space_uuid`, ancestors created as needed), not the
+  dashboard's space — apps are standalone entities the tile merely references. Personal apps (`space_uuid IS NULL`)
+  promote as personal apps owned by the promoting user.
+- Apps the user can't manage block the promotion (the per-app `manage` check inside `promoteApp`), the same gate chart
+  tiles get. Soft-deleted apps behind placeholder tiles are skipped — the tile keeps its original reference and renders
+  the existing "app no longer exists" placeholder upstream.
+
+### Preview environments (copy-on-preview — out of scope)
+
+Data apps are **not yet duplicated** when a project is copied to a preview environment. The preview-copy step in
+`ProjectModel.duplicateContent` copies `dashboard_tile_data_apps` rows but leaves their `app_uuid` pointing at the source
+project's app rather than creating a fresh `apps` row in the preview, so any data app tile in a preview is a read-through
+window to the source project's app:
+
+- **Preview rendering.** If the user opening the preview has view access to the source app, the tile renders normally.
+  Otherwise the `DashboardDataAppTile` error states show a "Data app not found" / "No access" placeholder and the rest
+  of the dashboard renders fine.
+- **Iterating inside the preview.** Not supported — the preview project has no `apps` row of its own.
+
+Copying `apps` + `app_versions` + S3 artifacts into previews is tracked in
+[PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
 
 ---
 
