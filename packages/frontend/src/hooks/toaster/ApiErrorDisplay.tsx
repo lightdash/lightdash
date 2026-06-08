@@ -77,7 +77,9 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
             <Stack spacing="xxs">
-                <Text mb={0}>{apiError.message}</Text>
+                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+                    {apiError.message}
+                </Text>
                 <Text mb={0} weight="bold">
                     Contact support with the following information:
                 </Text>
@@ -98,7 +100,11 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
         );
     }
 
-    return <span>{apiError.message}</span>;
+    return (
+        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+            {apiError.message}
+        </Text>
+    );
 };
 
 const ApiErrorDisplayWithHealth = ({
@@ -162,7 +168,11 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack spacing="xxs" align="start">
-                    <Text mb={0} color="red.6">
+                    <Text
+                        mb={0}
+                        color="red.6"
+                        style={{ whiteSpace: 'pre-wrap' }}
+                    >
                         {apiError.message}
                     </Text>
                     <Group spacing="xs">
@@ -205,7 +215,9 @@ const ApiErrorDisplayWithHealth = ({
         // Self-hosted: show IDs with copy button
         return (
             <Stack spacing="xxs">
-                <Text mb={0}>{apiError.message}</Text>
+                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+                    {apiError.message}
+                </Text>
                 <Text mb={0} weight="bold">
                     Contact support with the following information:
                 </Text>
@@ -226,7 +238,11 @@ const ApiErrorDisplayWithHealth = ({
         );
     }
 
-    return <span>{apiError.message}</span>;
+    return (
+        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+            {apiError.message}
+        </Text>
+    );
 };
 
 const ApiErrorDisplay = ({
