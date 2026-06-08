@@ -108,6 +108,7 @@ import {
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
+import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
 import {
@@ -923,6 +924,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiCreatePreviewResults
+    | ApiDataTimezonePreviewResults
     | ApiHealthResults
     | OrganizationAccess
     | Organization
