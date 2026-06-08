@@ -1,0 +1,19 @@
+.shareCopyBar {
+    background-color: var(--mantine-color-background);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.shareLinkInput {
+    flex: 1;
+    min-width: 0;
+
+    input {
+        color: var(--mantine-color-foreground);
+        text-overflow: ellipsis;
+    }
+}
