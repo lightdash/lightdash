@@ -1,3 +1,10 @@
+## [0.3104.5](https://github.com/lightdash/lightdash/compare/0.3104.4...0.3104.5) (2026-06-08)
+
+
+### Bug Fixes
+
+* scope bulk chart updates to project ([#23988](https://github.com/lightdash/lightdash/issues/23988)) ([5e95737](https://github.com/lightdash/lightdash/commit/5e95737590ed3e08352cfa7758c6f604c67d0412))
+
 ## [0.3104.4](https://github.com/lightdash/lightdash/compare/0.3104.3...0.3104.4) (2026-06-08)
 
 
