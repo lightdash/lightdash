@@ -197,3 +197,22 @@ export const extractPreviewUrlFromComments = (
     }
     return null;
 };
+
+export const extractPreviewProjectUuidFromUrl = (
+    previewUrl: string,
+    siteUrl: string,
+): string | null => {
+    try {
+        const preview = new URL(previewUrl);
+        const site = new URL(siteUrl);
+        if (preview.host !== site.host) {
+            return null;
+        }
+        const match = preview.pathname.match(
+            new RegExp(`^/projects/(${PREVIEW_PROJECT_UUID})(?:/|$)`, 'i'),
+        );
+        return match?.[1] ?? null;
+    } catch {
+        return null;
+    }
+};

@@ -148,4 +148,48 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
             reason: 'missing_writeback_config',
         });
     });
+
+    it('blocks writeback when an active remediation exists', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    remediation: {
+                        uuid: 'remediation-1',
+                        fingerprint: 'fingerprint-1',
+                        organizationUuid: 'org-1',
+                        sourceFindingUuid: 'finding-1',
+                        sourcePromptUuid: 'prompt-1',
+                        sourceThreadUuid: 'thread-1',
+                        sourceProjectUuid: 'project-1',
+                        sourceAgentUuid: 'agent-1',
+                        pullRequestUuid: null,
+                        linkedPrUrl: null,
+                        previewProjectUuid: null,
+                        previewAgentUuid: null,
+                        previewThreadUuid: null,
+                        status: 'pr_open',
+                        errorMessage: null,
+                        retryPrompt: 'Show revenue',
+                        createdByUserUuid: null,
+                        resolvedByUserUuid: null,
+                        resolvedAt: null,
+                        createdAt: NOW,
+                        updatedAt: NOW,
+                    },
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: false,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: true,
+            }),
+        ).toEqual({
+            eligible: false,
+            provider: null,
+            strategy: null,
+            reason: 'writeback_in_progress',
+        });
+    });
 });

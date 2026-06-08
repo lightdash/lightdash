@@ -171,6 +171,14 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
     }),
 
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'ai_agent_review.fingerprint': payload.fingerprint,
+        'ai_agent_review.remediation_uuid': payload.remediationUuid,
+    }),
+
     [SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,

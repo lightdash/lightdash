@@ -189,6 +189,13 @@ type SetReviewRemediationPullRequestArgs = {
     pullRequestUuid: string;
 };
 
+type SetReviewRemediationPreviewArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    previewProjectUuid: string;
+    previewAgentUuid: string;
+};
+
 type SetReviewRemediationPreviewThreadArgs = {
     remediationUuid: string;
     organizationUuid: string;
@@ -202,6 +209,11 @@ type ListReviewSignalsArgs = {
     projectUuid?: string;
     agentUuid?: string;
     limit?: number;
+};
+
+type GetPromptTextArgs = {
+    organizationUuid: string;
+    promptUuid: string;
 };
 
 type BaseCandidateRow = {
@@ -1125,6 +1137,31 @@ export class AiAgentReviewClassifierModel {
         return remediations;
     }
 
+    async getReviewRemediation(args: {
+        organizationUuid: string;
+        remediationUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where(
+                'remediation.ai_agent_review_remediation_uuid',
+                args.remediationUuid,
+            )
+            .select<ReviewRemediationRow>('remediation.*', {
+                linked_pr_url: 'pull_request.pr_url',
+            })
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
     async createReviewRemediation(
         args: CreateReviewRemediationArgs,
     ): Promise<AiAgentReviewRemediation> {
@@ -1186,6 +1223,23 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
+    async setReviewRemediationPreview(
+        args: SetReviewRemediationPreviewArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                preview_project_uuid: args.previewProjectUuid,
+                preview_agent_uuid: args.previewAgentUuid,
+                status: 'preview_ready',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async setReviewRemediationPreviewThread(
         args: SetReviewRemediationPreviewThreadArgs,
     ): Promise<void> {
@@ -1213,6 +1267,20 @@ export class AiAgentReviewClassifierModel {
             fingerprint,
         });
         return items[0] ?? null;
+    }
+
+    async getPromptText(args: GetPromptTextArgs): Promise<string | null> {
+        const row = await this.database(`${AiPromptTableName} as prompt`)
+            .join(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'prompt.ai_thread_uuid',
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .where('prompt.ai_prompt_uuid', args.promptUuid)
+            .first<{ prompt: string }>('prompt.prompt');
+
+        return row?.prompt ?? null;
     }
 
     async getPromotedFingerprintScope(

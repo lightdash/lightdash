@@ -102,6 +102,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ) => {
                 await this.aiAgentService.pollSlackWritebackPreview(payload);
             },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentAdminService.pollReviewRemediationPreview(
+                    payload,
+                );
+            },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
                 payload,
                 _helpers,

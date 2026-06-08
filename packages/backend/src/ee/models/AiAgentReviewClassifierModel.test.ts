@@ -1,5 +1,6 @@
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { AiPromptTableName } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
@@ -503,11 +504,20 @@ describe('AiAgentReviewClassifierModel', () => {
             tracker.on
                 .update(AiAgentReviewRemediationTableName)
                 .responseOnce([]);
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
 
             await model.setReviewRemediationPullRequest({
                 remediationUuid: REMEDIATION_UUID,
                 organizationUuid: ORGANIZATION_UUID,
                 pullRequestUuid: PULL_REQUEST_UUID,
+            });
+            await model.setReviewRemediationPreview({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                previewProjectUuid: PREVIEW_PROJECT_UUID,
+                previewAgentUuid: PREVIEW_AGENT_UUID,
             });
             await model.setReviewRemediationPreviewThread({
                 remediationUuid: REMEDIATION_UUID,
@@ -517,7 +527,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 previewThreadUuid: PREVIEW_THREAD_UUID,
             });
 
-            expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update).toHaveLength(3);
             expect(tracker.history.update[0].bindings).toContain(
                 PULL_REQUEST_UUID,
             );
@@ -525,9 +535,47 @@ describe('AiAgentReviewClassifierModel', () => {
                 expect.arrayContaining([
                     PREVIEW_PROJECT_UUID,
                     PREVIEW_AGENT_UUID,
+                ]),
+            );
+            expect(tracker.history.update[2].bindings).toEqual(
+                expect.arrayContaining([
+                    PREVIEW_PROJECT_UUID,
+                    PREVIEW_AGENT_UUID,
                     PREVIEW_THREAD_UUID,
                 ]),
             );
+        });
+
+        it('gets a single remediation with linked PR URL', async () => {
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([makeRemediationRow()]);
+
+            const result = await model.getReviewRemediation({
+                organizationUuid: ORGANIZATION_UUID,
+                remediationUuid: REMEDIATION_UUID,
+            });
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    uuid: REMEDIATION_UUID,
+                    linkedPrUrl: 'https://github.com/acme/dbt/pull/42',
+                    previewProjectUuid: PREVIEW_PROJECT_UUID,
+                }),
+            );
+        });
+
+        it('gets prompt text for a retry prompt', async () => {
+            tracker.on
+                .select(AiPromptTableName)
+                .responseOnce([{ prompt: 'Show revenue' }]);
+
+            await expect(
+                model.getPromptText({
+                    organizationUuid: ORGANIZATION_UUID,
+                    promptUuid: PROMPT_UUID,
+                }),
+            ).resolves.toEqual('Show revenue');
         });
     });
 

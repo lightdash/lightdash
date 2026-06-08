@@ -1,4 +1,7 @@
-import { extractPreviewUrlFromComments } from './gitIntegration';
+import {
+    extractPreviewProjectUuidFromUrl,
+    extractPreviewUrlFromComments,
+} from './gitIntegration';
 
 const SITE_URL = 'https://app.lightdash.cloud';
 const PREVIEW_UUID = '3c9a1b2d-4e5f-6071-8293-a4b5c6d7e8f9';
@@ -74,6 +77,32 @@ describe('extractPreviewUrlFromComments', () => {
             extractPreviewUrlFromComments(
                 [`Preview: ${PREVIEW_URL}`],
                 'not a url',
+            ),
+        ).toBeNull();
+    });
+});
+
+describe('extractPreviewProjectUuidFromUrl', () => {
+    it('extracts the preview project UUID from a Lightdash project URL', () => {
+        expect(extractPreviewProjectUuidFromUrl(PREVIEW_URL, SITE_URL)).toEqual(
+            PREVIEW_UUID,
+        );
+    });
+
+    it('matches the project root URL', () => {
+        expect(
+            extractPreviewProjectUuidFromUrl(
+                `${SITE_URL}/projects/${PREVIEW_UUID}`,
+                SITE_URL,
+            ),
+        ).toEqual(PREVIEW_UUID);
+    });
+
+    it('rejects URLs from another host', () => {
+        expect(
+            extractPreviewProjectUuidFromUrl(
+                `https://evil.example.com/projects/${PREVIEW_UUID}/tables`,
+                SITE_URL,
             ),
         ).toBeNull();
     });

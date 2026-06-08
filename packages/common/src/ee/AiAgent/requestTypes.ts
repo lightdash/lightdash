@@ -194,6 +194,14 @@ export type AiAgentReviewWritebackJobPayload = TraceTaskBase & {
     fingerprint: string;
     organizationUuid: string;
     projectUuid: string;
+    remediationUuid?: string;
+};
+
+export type AiAgentReviewRemediationPreviewJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    prUrl: string;
+    startedAt: number;
 };
 
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {
