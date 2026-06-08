@@ -1,6 +1,7 @@
 import {
     type AiAgentAdminFilters,
     type AiAgentAdminSort,
+    type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentReviewItemResponse,
@@ -251,6 +252,36 @@ const createAiAgentReviewItemWriteback = async (fingerprint: string) => {
     });
 };
 
+export const getReviewItemWritebackSuccessToast = (
+    reviewItem: Pick<
+        AiAgentReviewItemSummary,
+        'linkedPrUrl' | 'prWritebackMessage' | 'prWritebackStatus'
+    >,
+): { title: string; subtitle?: string } => {
+    const isInProgress =
+        reviewItem.prWritebackStatus === 'queued' ||
+        reviewItem.prWritebackStatus === 'running';
+    if (isInProgress) {
+        return {
+            title: 'Writeback queued',
+            subtitle: 'The review item will update as it runs.',
+        };
+    }
+
+    if (reviewItem.linkedPrUrl) {
+        return { title: 'Pull request opened' };
+    }
+
+    if (reviewItem.prWritebackStatus === 'completed') {
+        return {
+            title: 'Writeback completed',
+            subtitle: reviewItem.prWritebackMessage ?? undefined,
+        };
+    }
+
+    return { title: 'Writeback queued' };
+};
+
 export const useCreateAiAgentReviewItemWriteback = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -262,11 +293,14 @@ export const useCreateAiAgentReviewItemWriteback = () => {
     >({
         mutationFn: createAiAgentReviewItemWriteback,
         onSuccess: (reviewItem) => {
+            const toast = getReviewItemWritebackSuccessToast(reviewItem);
+            const showPrAction =
+                Boolean(reviewItem.linkedPrUrl) &&
+                reviewItem.prWritebackStatus !== 'queued' &&
+                reviewItem.prWritebackStatus !== 'running';
             showToastSuccess({
-                title: reviewItem.linkedPrUrl
-                    ? 'Pull request opened'
-                    : 'Writeback ran — no changes were needed',
-                ...(reviewItem.linkedPrUrl && {
+                ...toast,
+                ...(showPrAction && {
                     action: {
                         children: 'View pull request',
                         icon: IconArrowRight,
