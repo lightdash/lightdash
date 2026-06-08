@@ -296,7 +296,10 @@ const getAgentTools = (
     const searchSemanticLayer = getSearchSemanticLayer({
         searchSemanticLayer: dependencies.searchSemanticLayer,
         updateProgress: dependencies.updateProgress,
-        pageSize: 200,
+        // The agent chooses pageSize per task; cap it so one call can't pull an
+        // unbounded payload while still letting an audit grab the inventory in
+        // one or two round-trips.
+        maxPageSize: 500,
     });
 
     const listKnowledgeDocuments = getListKnowledgeDocuments({

@@ -12,8 +12,12 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     updateProgress: UpdateProgressFn;
-    pageSize: number;
+    /** Upper bound for the agent-supplied pageSize; also the fallback default. */
+    maxPageSize: number;
 };
+
+/** Used when the agent does not specify a pageSize. */
+const DEFAULT_PAGE_SIZE = 200;
 
 const toolDefinition = searchSemanticLayerToolDefinition.for('agent');
 
@@ -30,9 +34,11 @@ const generateResponse = ({
         <note>
             These fields are drawn from across ALL explores in the project. Use
             this inventory to compare definitions and spot duplicate or
-            confusingly similar metrics. If there are more pages, request the
-            next page to see the rest. To inspect a single explore in depth, use
-            findFields.
+            confusingly similar metrics. For a high-level overview, this first
+            page plus the totals above is usually enough — only page through the
+            rest when you genuinely need every field (e.g. a project-wide
+            duplicate/inconsistency audit). To inspect a single explore in
+            depth, use findFields.
         </note>
         {fields.map((field) => (
             <field
@@ -58,7 +64,7 @@ const generateResponse = ({
 export const getSearchSemanticLayer = ({
     searchSemanticLayer,
     updateProgress,
-    pageSize,
+    maxPageSize,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -71,6 +77,12 @@ export const getSearchSemanticLayer = ({
                         : 'Listing metrics and dimensions across the semantic layer...',
                 );
 
+                // The agent picks the page size to fit the task; clamp to the
+                // server max so a single call can't pull an unbounded payload.
+                const pageSize = Math.min(
+                    args.pageSize ?? DEFAULT_PAGE_SIZE,
+                    maxPageSize,
+                );
                 const { fields, pagination } = await searchSemanticLayer({
                     searchQuery: args.searchQuery,
                     type: args.type,
