@@ -1,4 +1,8 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import {
+    FeatureFlags,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
+} from '@lightdash/common';
 import {
     Alert,
     Badge,
@@ -40,8 +44,18 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     if (!(timezoneSupportFlag?.enabled ?? false)) return null;
 
     const onPreview = () => {
+        const warehouse = form.values.warehouse;
+        // The clearable TimeZonePicker yields null when unset, but the
+        // credentials type validates dataTimezone as an optional string —
+        // omit it so "no data timezone" previews as the UTC fallback.
+        const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
+            ? warehouse
+            : ({
+                  ...warehouse,
+                  dataTimezone: undefined,
+              } as CreateWarehouseCredentials);
         preview.mutate({
-            credentials: form.values.warehouse,
+            credentials,
             projectUuid: savedProject?.projectUuid,
         });
     };
