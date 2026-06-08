@@ -51,7 +51,11 @@ import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
 import { useProject } from '../useProject';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
-import { type SettingsNavItem, type SettingsNavSection } from './types';
+import {
+    type SettingsNavItem,
+    type SettingsNavSection,
+    type UseSettingsNavSectionsResult,
+} from './types';
 
 /**
  * Assembles the runtime inputs the settings page gates on (user + abilities,
@@ -60,7 +64,7 @@ import { type SettingsNavItem, type SettingsNavSection } from './types';
  * sidebar — and, later, a global settings search — read from this one source;
  * each nav item carries `keywords` so search can match aliases.
  */
-export const useSettingsNavSections = () => {
+export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
     const { track } = useTracking();
 
     const { data: embeddingEnabled } = useServerFeatureFlag(
@@ -888,5 +892,3 @@ export const useSettingsNavSections = () => {
         projectError,
     };
 };
-
-export type SettingsContext = ReturnType<typeof useSettingsNavSections>;
