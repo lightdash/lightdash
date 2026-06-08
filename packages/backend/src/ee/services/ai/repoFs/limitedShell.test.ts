@@ -126,10 +126,15 @@ describe('repoFs limited shell', () => {
 
     it('rejects catastrophic-backtracking grep patterns (ReDoS guard)', async () => {
         await expect(run('grep -rE "(a+)+$" .')).rejects.toThrow(
-            'nested quantifiers',
+            'catastrophic backtracking',
         );
         await expect(run('grep -rE "(.*)*x" .')).rejects.toThrow(
-            'nested quantifiers',
+            'catastrophic backtracking',
+        );
+        // optional inside a quantified group — bypassed the old nested-quantifier
+        // heuristic but is just as catastrophic.
+        await expect(run('grep -rE "(aa?)+$" .')).rejects.toThrow(
+            'catastrophic backtracking',
         );
         // benign regexes still work
         await expect(run('grep -E "ref" models/orders.sql')).resolves.toContain(
@@ -137,10 +142,57 @@ describe('repoFs limited shell', () => {
         );
     });
 
+    it('rejects a quantified alternation group (and does not split it as a pipe)', async () => {
+        await expect(run('grep -rE "(a|aa)+$" .')).rejects.toThrow(
+            'catastrophic backtracking',
+        );
+    });
+
+    it('treats a quoted | as regex alternation, not a pipe', async () => {
+        await expect(run('grep -rE "id|total" models')).resolves.toContain(
+            '-- total',
+        );
+    });
+
+    it('rejects unsupported grep flags loudly (grep -v)', async () => {
+        await expect(
+            run('grep -v id models/staging/stg_orders.sql'),
+        ).rejects.toThrow('unsupported flag -v');
+    });
+
+    it('rejects unsupported find flags loudly (-maxdepth)', async () => {
+        await expect(
+            run('find models -maxdepth 1 -name "*.sql"'),
+        ).rejects.toThrow('unsupported flag -maxdepth');
+    });
+
+    it('rejects unsupported ls flags loudly (-R)', async () => {
+        await expect(run('ls -R models')).rejects.toThrow(
+            'unsupported flag -R',
+        );
+    });
+
     it('rejects over-long grep patterns', async () => {
         await expect(
             run(`grep -E "${'a'.repeat(250)}" models/orders.sql`),
         ).rejects.toThrow('pattern too long');
+    });
+
+    it('surfaces a truncated repo listing on tree-walking commands', async () => {
+        const truncatedSource: RepoSource = {
+            label: 'acme/big@main',
+            listAllPaths: async () => ({
+                files: [{ path: 'models/orders.sql', size: 10 }],
+                truncated: true,
+            }),
+            readFile: async () => 'select 1\n',
+        };
+        const out = await runRepoShellCommand(
+            new RepoFs(truncatedSource),
+            'find . -name "*.sql"',
+        );
+        expect(out).toContain('models/orders.sql');
+        expect(out).toContain('truncated');
     });
 
     it('rejects unsupported commands', async () => {

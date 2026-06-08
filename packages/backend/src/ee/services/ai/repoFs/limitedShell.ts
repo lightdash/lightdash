@@ -12,7 +12,7 @@ const MAX_GREP_FILES = 1_500;
 const MAX_XARGS_ARGS = 2_000;
 // Defense-in-depth cap on how much of a line the regex engine scans, bounding
 // worst-case backtracking even if a dangerous pattern slips past the guard.
-const MAX_MATCH_LINE = 10_000;
+const MAX_MATCH_LINE = 1_000;
 
 class ShellError extends Error {}
 
@@ -44,6 +44,33 @@ const tokenize = (input: string): string[] => {
     if (quote) throw new ShellError('Unterminated quote in command');
     if (hasToken) tokens.push(current);
     return tokens;
+};
+
+/**
+ * Split a command line into pipeline stages on `|`, but only when the `|` is
+ * outside quotes — so a regex alternation like `grep -E 'a|b'` stays one stage
+ * instead of being mistaken for a pipe.
+ */
+const splitPipeline = (input: string): string[] => {
+    const stages: string[] = [];
+    let current = '';
+    let quote: '"' | "'" | null = null;
+    for (const char of input) {
+        if (quote) {
+            current += char;
+            if (char === quote) quote = null;
+        } else if (char === '"' || char === "'") {
+            quote = char;
+            current += char;
+        } else if (char === '|') {
+            stages.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    stages.push(current);
+    return stages.map((s) => s.trim()).filter((s) => s.length > 0);
 };
 
 /** Separate boolean/value flags from positional args for one command. */
@@ -80,6 +107,66 @@ const parseArgs = (
 };
 
 /**
+ * Reject any clustered short flag whose letters aren't all supported, e.g.
+ * `grep -v`. Unsupported flags must fail loudly — silently dropping them
+ * (e.g. treating `grep -v` as a plain match) returns plausible-but-wrong output.
+ * Negative-number tokens (`head -5`) are left for the command to interpret.
+ */
+const assertShortFlags = (
+    tokens: string[],
+    allowed: string,
+    command: string,
+): void => {
+    for (const token of tokens) {
+        if (
+            token.startsWith('-') &&
+            token.length > 1 &&
+            !/^-\d+$/.test(token)
+        ) {
+            for (const ch of token.slice(1)) {
+                if (!allowed.includes(ch)) {
+                    throw new ShellError(
+                        `${command}: unsupported flag -${ch} (supported: ${
+                            allowed
+                                .split('')
+                                .map((c) => `-${c}`)
+                                .join(', ') || 'none'
+                        })`,
+                    );
+                }
+            }
+        }
+    }
+};
+
+/**
+ * Reject any word-style flag (e.g. `-maxdepth`, `-R`) not in `allowed`. Used by
+ * commands whose flags are whole words rather than clustered letters.
+ */
+const assertWordFlags = (
+    tokens: string[],
+    allowed: Set<string>,
+    command: string,
+): void => {
+    for (const token of tokens) {
+        if (
+            token.startsWith('-') &&
+            token.length > 1 &&
+            !/^-\d+$/.test(token) &&
+            !allowed.has(token)
+        ) {
+            throw new ShellError(
+                `${command}: unsupported flag ${token}${
+                    allowed.size
+                        ? ` (supported: ${[...allowed].join(', ')})`
+                        : ' (no flags supported)'
+                }`,
+            );
+        }
+    }
+};
+
+/**
  * Split file content into lines for the line-oriented pipeline, dropping the
  * single trailing newline most files end with so `wc -l` matches the real tool
  * and `cat` does not emit a phantom empty final line.
@@ -88,13 +175,15 @@ const toLines = (content: string): string[] =>
     (content.endsWith('\n') ? content.slice(0, -1) : content).split('\n');
 
 const MAX_PATTERN_LENGTH = 200;
-// Quantifier ({+,*,{n,}}) applied to a group/class that itself contains a
-// quantifier — the classic catastrophic-backtracking shape (e.g. (a+)+, (.*)*).
-// Node's regex engine is backtracking and runs synchronously on the event loop,
-// so such a pattern from `grep -E` can hang the backend. Heuristic, not a proof;
-// a linear-time engine (re2) would be the complete fix.
-const NESTED_QUANTIFIER =
-    /\((?:[^()\\]|\\.)*[*+}][^()]*\)\s*[*+{]|\[[^\]]*\][*+]\s*[*+{]/;
+// A quantifier (`*`, `+`, `{n,}`) applied to a group — `(…)+`, `(…)*`, `(…){n}` —
+// is the catastrophic-backtracking class: it covers nested quantifiers `(a+)+`,
+// alternation `(a|aa)+`, and optionals `(aa?)+` alike. Node's regex engine
+// backtracks synchronously on the event loop, so such a pattern from `grep -E`
+// can hang the backend. A read-only code search never needs a quantified capture
+// group, so reject the whole shape. (Also catch a char class quantified twice.)
+// Heuristic, not a proof; a linear-time engine (re2) would be the complete fix.
+const QUANTIFIED_GROUP = /\)[*+]|\)\{/;
+const DOUBLE_CLASS_QUANTIFIER = /\[[^\]]*\][*+]\s*[*+{]/;
 
 const buildMatcher = (
     pattern: string,
@@ -106,9 +195,12 @@ const buildMatcher = (
                 `grep: pattern too long (max ${MAX_PATTERN_LENGTH} chars)`,
             );
         }
-        if (NESTED_QUANTIFIER.test(pattern)) {
+        if (
+            QUANTIFIED_GROUP.test(pattern) ||
+            DOUBLE_CLASS_QUANTIFIER.test(pattern)
+        ) {
             throw new ShellError(
-                'grep: pattern rejected — nested quantifiers can cause catastrophic backtracking',
+                'grep: pattern rejected — a quantifier applied to a group can cause catastrophic backtracking; simplify the expression',
             );
         }
     }
@@ -281,18 +373,29 @@ async function runStage(
     const [command, ...rest] = tokens;
     switch (command) {
         case 'ls':
+            assertWordFlags(rest, new Set(), 'ls');
             return cmdLs(repoFs, parseArgs(rest, new Set()).positionals);
         case 'cat':
+            assertWordFlags(rest, new Set(), 'cat');
             return cmdCat(repoFs, parseArgs(rest, new Set()).positionals);
         case 'find':
+            assertWordFlags(rest, new Set(['-name', '-type']), 'find');
             return cmdFind(repoFs, rest);
         case 'grep':
+            assertShortFlags(rest, 'rRinEl', 'grep');
             return cmdGrep(repoFs, rest, stdin);
         case 'head':
+            assertWordFlags(rest, new Set(['-n']), 'head');
             return cmdHead(rest, stdin);
         case 'wc':
+            assertShortFlags(rest, 'l', 'wc');
             return cmdWc(rest, stdin);
         case 'xargs': {
+            if (rest[0]?.startsWith('-')) {
+                throw new ShellError(
+                    `xargs: unsupported flag ${rest[0]} (usage: … | xargs <command>)`,
+                );
+            }
             // Append each stdin line as an argument to the wrapped command and
             // run it, e.g. `find … | xargs grep -l foo` → `grep -l foo <files>`.
             // Treats each line as a single arg (like `xargs -d "\n"`) so paths
@@ -334,21 +437,32 @@ export const runRepoShellCommand = async (
     repoFs: RepoFs,
     command: string,
 ): Promise<string> => {
-    const stages = command
-        .split('|')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+    const stages = splitPipeline(command);
     if (stages.length === 0) throw new ShellError('Empty command');
 
     let stdin: string[] | null = null;
+    let firstCommand: string | undefined;
     for (const stage of stages) {
         const tokens = tokenize(stage);
         if (tokens.length === 0) throw new ShellError('Empty command stage');
+        if (firstCommand === undefined) [firstCommand] = tokens;
         // eslint-disable-next-line no-await-in-loop
         stdin = await runStage(repoFs, tokens, stdin);
     }
 
     const lines = stdin ?? [];
+    // Surface a truncated tree so tree-walking commands don't read as exhaustive
+    // when GitHub capped the file listing — otherwise find/grep/ls can return
+    // silent false negatives on large repos.
+    if (
+        firstCommand &&
+        ['find', 'grep', 'ls'].includes(firstCommand) &&
+        (await repoFs.isTruncated())
+    ) {
+        lines.push(
+            '… note: this repository is large and GitHub truncated its file listing, so find/grep/ls results may be incomplete — narrow to a subdirectory.',
+        );
+    }
     if (lines.length === 0) return '(no output)';
     return clamp(lines.join('\n'));
 };

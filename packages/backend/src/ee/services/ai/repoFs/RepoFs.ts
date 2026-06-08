@@ -158,6 +158,12 @@ export class RepoFs {
         return { paths: index.sortedPaths, truncated: index.truncated };
     }
 
+    /** True when the backing source capped the file listing (large repos). */
+    async isTruncated(): Promise<boolean> {
+        const index = await this.ensureIndex();
+        return index.truncated;
+    }
+
     /**
      * Every file path under `base` (recursive). `base === ''` means the whole
      * repo. Includes matching directory paths only when requested.
