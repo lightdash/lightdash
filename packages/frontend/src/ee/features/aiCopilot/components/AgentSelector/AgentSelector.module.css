@@ -53,13 +53,12 @@
     }
 }
 
-/* Compact: icon-only at rest, no border. On hover / focus / open, the chip
- * grows a border + light background to match the adjacent model+thinking
- * group, then snaps back when interaction ends. The default 1px transparent
- * border reserves the same footprint so the chip doesn't shift on hover. */
 .compact {
     width: auto;
+    height: rem(30px);
+    padding: 0 var(--mantine-spacing-xs);
     border-color: transparent;
+    border-radius: var(--mantine-radius-xl);
     box-shadow: none;
     background: transparent;
 }
@@ -67,7 +66,7 @@
 .compact:hover,
 .compact:focus-visible,
 .compact[data-open='true'] {
-    border-color: var(--mantine-color-ldGray-2);
+    border-color: transparent;
 
     @mixin light {
         background-color: var(--mantine-color-ldGray-0);
@@ -79,24 +78,10 @@
 
 .compact .label {
     flex: none;
-    width: 0;
+    width: auto;
+    max-width: rem(140px);
     overflow: hidden;
     white-space: nowrap;
-    transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.compact[data-auto='true'] .label {
-    width: auto;
-}
-
-.compact:hover .label,
-.compact:focus-visible .label,
-.compact[data-open='true'] .label {
-    width: 140px;
-}
-
-.compact[data-auto='true']:hover .label,
-.compact[data-auto='true']:focus-visible .label,
-.compact[data-auto='true'][data-open='true'] .label {
-    width: auto;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-8);
 }

@@ -3,15 +3,7 @@ import {
     type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Paper,
-    Skeleton,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconBrandGithub,
@@ -255,18 +247,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         ],
     );
 
-    if (isLoading) {
-        return (
-            <Box
-                className={styles.connectionStrip}
-                component="section"
-                aria-label="Loading tools to connect"
-                aria-busy="true"
-            >
-                <Skeleton h={24} w={260} radius="xl" />
-            </Box>
-        );
-    }
+    if (isLoading) return null;
 
     if (justConnectedGithub) {
         return (
