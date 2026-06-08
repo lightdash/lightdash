@@ -52,6 +52,7 @@ import express from 'express';
 import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -296,6 +297,10 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-27'), {
+            suffixMessage:
+                'Use the /api/v2/org/assignments/user/{userId} endpoint instead.',
+        }),
     ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')

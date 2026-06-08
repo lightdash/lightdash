@@ -33,6 +33,7 @@ import {
 } from '../database/entities/projectGroupAccess';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -223,6 +224,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Post('{groupUuid}/projects/{projectUuid}')
     @OperationId('addProjectAccessToGroup')
@@ -257,6 +261,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Patch('{groupUuid}/projects/{projectUuid}')
     @OperationId('updateProjectAccessForGroup')
@@ -292,6 +299,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Delete('{groupUuid}/projects/{projectUuid}')
     @OperationId('removeProjectAccessFromGroup')

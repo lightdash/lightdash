@@ -57,6 +57,7 @@ import {
 import express from 'express';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
@@ -428,6 +429,12 @@ export class EmbedController extends BaseController {
      * @summary Calculate totals for embed saved chart
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-total')
     @OperationId('embedCalculateTotalFromSavedChart')
@@ -463,6 +470,12 @@ export class EmbedController extends BaseController {
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals for embed chart
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-subtotals')
     @OperationId('embedCalculateSubtotalsFromSavedChart')
@@ -507,6 +520,12 @@ export class EmbedController extends BaseController {
      * @summary Calculate totals for embed query
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')
     @OperationId('embedCalculateTotalFromQuery')
@@ -535,6 +554,12 @@ export class EmbedController extends BaseController {
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals for embed query
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-subtotals')
     @OperationId('embedCalculateSubtotalsFromQuery')

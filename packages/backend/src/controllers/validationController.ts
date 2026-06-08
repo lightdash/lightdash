@@ -28,7 +28,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
+    isAuthenticated,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/validate')
@@ -91,7 +95,15 @@ export class ValidationController extends BaseController {
      * @param fromSettings boolean to know if this request is made from the settings page, for analytics
      * @param jobId optional jobId to get results for a specific job, used on CLI
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-02-11'), {
+            removeOn: new Date('2026-09-08'),
+            suffixMessage:
+                'Use ListValidationResults instead for paginated results.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('GetLatestValidationResults')
