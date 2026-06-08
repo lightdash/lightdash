@@ -1,3 +1,15 @@
+# [0.3108.0](https://github.com/lightdash/lightdash/compare/0.3107.0...0.3108.0) (2026-06-08)
+
+
+### Bug Fixes
+
+* **promotion:** vertically align icons with labels in promotion preview ([#23995](https://github.com/lightdash/lightdash/issues/23995)) ([b157711](https://github.com/lightdash/lightdash/commit/b1577113ea548c14eb47f4e3c9b1a210cf304f66))
+
+
+### Features
+
+* **ai-agents:** suppress review findings for writeback turns ([#23990](https://github.com/lightdash/lightdash/issues/23990)) ([b86efa0](https://github.com/lightdash/lightdash/commit/b86efa0a88178bd418d27f011c688e0fa8409839))
+
 # [0.3107.0](https://github.com/lightdash/lightdash/compare/0.3106.0...0.3107.0) (2026-06-08)
 
 
