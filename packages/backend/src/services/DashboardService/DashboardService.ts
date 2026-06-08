@@ -577,6 +577,7 @@ export class DashboardService
         }
 
         return this.searchModel.getDashboardCharts(
+            projectUuid,
             dashboard.uuid,
             page,
             pageSize,

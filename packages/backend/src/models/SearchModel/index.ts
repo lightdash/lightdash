@@ -505,6 +505,7 @@ export class SearchModel {
     }
 
     async getDashboardCharts(
+        projectUuid: string,
         dashboardUuid: string,
         page: number,
         pageSize: number,
@@ -519,9 +520,23 @@ export class SearchModel {
         };
     }> {
         const dashboard = await this.database(DashboardsTableName)
-            .select('dashboard_uuid', 'name')
-            .where('dashboard_uuid', dashboardUuid)
-            .whereNull('deleted_at')
+            .join(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .first();
 
         if (!dashboard) {
@@ -532,15 +547,32 @@ export class SearchModel {
         // or via dashboard tiles. UNION deduplicates across both sources.
         // Column order must match between both queries (PostgreSQL UNION matches by position).
         const directCharts = this.database(SavedChartsTableName)
-            .select(
-                { uuid: 'saved_query_uuid' },
-                'name',
-                'description',
-                { chartType: 'last_version_chart_kind' },
-                { viewsCount: 'views_count' },
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
             )
-            .where('dashboard_uuid', dashboardUuid)
-            .whereNull('deleted_at');
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+            )
+            .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .where((builder) => {
+                void builder
+                    .whereNull(`${SavedChartsTableName}.space_id`)
+                    .orWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+            })
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         const tileCharts = this.database(DashboardsTableName)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -572,6 +604,16 @@ export class SearchModel {
                     'dashboard_tile_charts.saved_chart_id',
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
+            .leftJoin(
+                `${SpaceTableName} as chart_space`,
+                'chart_space.space_id',
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                `${ProjectTableName} as chart_project`,
+                'chart_project.project_id',
+                'chart_space.project_id',
+            )
             .select(
                 { uuid: `${SavedChartsTableName}.saved_query_uuid` },
                 `${SavedChartsTableName}.name`,
@@ -582,6 +624,18 @@ export class SearchModel {
                 { viewsCount: `${SavedChartsTableName}.views_count` },
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where((builder) => {
+                void builder
+                    .where(function dashboardOwnedChart() {
+                        void this.whereNull(
+                            `${SavedChartsTableName}.space_id`,
+                        ).where(
+                            `${SavedChartsTableName}.dashboard_uuid`,
+                            dashboardUuid,
+                        );
+                    })
+                    .orWhere('chart_project.project_uuid', projectUuid);
+            })
             .whereRaw(
                 `dashboard_versions.dashboard_version_id = (
                     SELECT MAX(dashboard_version_id)
