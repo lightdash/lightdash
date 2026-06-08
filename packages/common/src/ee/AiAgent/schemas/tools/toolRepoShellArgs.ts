@@ -7,7 +7,7 @@ export const TOOL_REPO_SHELL_DESCRIPTION = [
     'Supported commands: `ls [path]`, `cat <path>`, `find [path] [-name <glob>] [-type f]`, `grep [-r] [-i] [-n] [-E] [-l] <pattern> [path...]` (`-l` lists matching file names), `head [-n N]`, `wc -l`, and `xargs <command>` (appends piped lines as arguments).',
     'Commands can be piped, e.g. `find models -name "*.sql" | head -n 20`, `grep -rln "stg_api_error" models`, `find . -name "*.yml" | xargs grep -l orders`, `cat models/orders.sql | grep ref`.',
     'Only those commands and flags are implemented — other shell features (sed, awk, redirection, subshells, &&) are NOT available.',
-    'Paths are relative to the repository root.',
+    'Paths are relative to the dbt project root, which may itself be a subdirectory of the repository — so the dbt files are at the top level (e.g. `ls models`, `cat dbt_project.yml`); explore from there rather than assuming a repo-root layout.',
 ].join(' ');
 
 export const toolRepoShellArgsSchema = z.object({

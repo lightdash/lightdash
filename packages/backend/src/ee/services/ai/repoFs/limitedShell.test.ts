@@ -178,6 +178,65 @@ describe('repoFs limited shell', () => {
         ).rejects.toThrow('pattern too long');
     });
 
+    it('cats a known file under a truncated tree even when absent from the listing', async () => {
+        const truncatedSource: RepoSource = {
+            label: 'acme/big@main',
+            listAllPaths: async () => ({
+                files: [{ path: 'models/visible.sql', size: 10 }],
+                truncated: true,
+            }),
+            readFile: async (path) =>
+                path === 'models/known_file.sql' ? 'select 1 as id\n' : null,
+        };
+        await expect(
+            runRepoShellCommand(
+                new RepoFs(truncatedSource),
+                'cat models/known_file.sql',
+            ),
+        ).resolves.toBe('select 1 as id');
+    });
+
+    it('does not fall back to the source for a genuinely missing file (complete tree)', async () => {
+        const calls: string[] = [];
+        const source: RepoSource = {
+            label: 'acme/jaffle@main',
+            listAllPaths: async () => ({
+                files: [{ path: 'models/orders.sql', size: 10 }],
+                truncated: false,
+            }),
+            readFile: async (path) => {
+                calls.push(path);
+                return 'x';
+            },
+        };
+        await expect(
+            runRepoShellCommand(new RepoFs(source), 'cat models/missing.sql'),
+        ).rejects.toThrow('No such file or directory');
+        expect(calls).toEqual([]); // never hit the Contents API
+    });
+
+    it('refuses to escape the chroot via .. even on a truncated tree', async () => {
+        const reads: string[] = [];
+        const truncatedSource: RepoSource = {
+            label: 'acme/big@main',
+            listAllPaths: async () => ({
+                files: [{ path: 'models/visible.sql', size: 10 }],
+                truncated: true,
+            }),
+            readFile: async (path) => {
+                reads.push(path);
+                return 'SECRET';
+            },
+        };
+        await expect(
+            runRepoShellCommand(
+                new RepoFs(truncatedSource),
+                'cat ../secrets.env',
+            ),
+        ).rejects.toThrow('No such file or directory');
+        expect(reads).toEqual([]); // never asked the source for a .. path
+    });
+
     it('surfaces a truncated repo listing on tree-walking commands', async () => {
         const truncatedSource: RepoSource = {
             label: 'acme/big@main',

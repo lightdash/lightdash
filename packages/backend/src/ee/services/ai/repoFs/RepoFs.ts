@@ -216,8 +216,20 @@ export class RepoFs {
         if (this.fileCache.has(normalized)) {
             return this.fileCache.get(normalized) ?? null;
         }
+        // Never let a `..` segment escape the sub-path chroot the source enforces
+        // by prefixing every read — the index gate below stops it on a complete
+        // tree, but the truncated-tree fallback would otherwise resolve it.
+        if (normalized.split('/').includes('..')) {
+            this.fileCache.set(normalized, null);
+            return null;
+        }
         const index = await this.ensureIndex();
-        if (!index.files.has(normalized)) {
+        // When the tree listing is complete it's authoritative, so a miss means
+        // the file genuinely doesn't exist — skip the wasted Contents API call.
+        // When it's truncated, the file may exist despite being absent from the
+        // capped listing, so ask the source directly (it can fetch an explicit
+        // path) instead of falsely reporting "No such file".
+        if (!index.files.has(normalized) && !index.truncated) {
             this.fileCache.set(normalized, null);
             return null;
         }
