@@ -3755,6 +3755,21 @@ export const EXPLORE_WITH_FANOUT_AND_DD_REFERENCE: Explore = {
                     tablesReferences: ['customers'],
                     hidden: false,
                 },
+                average_customer_value_distinct: {
+                    type: MetricType.AVERAGE_DISTINCT,
+                    name: 'average_customer_value_distinct',
+                    label: 'Average Customer Value (Distinct)',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.lifetime_value',
+                    distinctKeys: ['customers.customer_id'],
+                    compiledSql: 'AVG("customers".lifetime_value)',
+                    compiledValueSql: '("customers".lifetime_value)',
+                    compiledDistinctKeys: ['("customers".customer_id)'],
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
                 average_customer_value_deduped: {
                     type: MetricType.NUMBER,
                     name: 'average_customer_value_deduped',
@@ -3765,6 +3780,19 @@ export const EXPLORE_WITH_FANOUT_AND_DD_REFERENCE: Explore = {
                     sql: '${total_customer_value} / NULLIF(${total_customer_value_deduped}, 0)',
                     compiledSql:
                         '(SUM("customers".lifetime_value)) / NULLIF((SUM("customers".lifetime_value)), 0)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+                customer_value_vs_distinct_average: {
+                    type: MetricType.NUMBER,
+                    name: 'customer_value_vs_distinct_average',
+                    label: 'Customer Value vs Distinct Average',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${total_customer_value} / NULLIF(${average_customer_value_distinct}, 0)',
+                    compiledSql:
+                        '(SUM("customers".lifetime_value)) / NULLIF((AVG("customers".lifetime_value)), 0)',
                     tablesReferences: ['customers'],
                     hidden: false,
                 },
@@ -3944,6 +3972,29 @@ export const METRIC_QUERY_FANOUT_AND_SAME_TABLE_DD_REFERENCE: CompiledMetricQuer
         sorts: [
             {
                 fieldId: 'customers_average_customer_value_deduped',
+                descending: true,
+            },
+        ],
+        limit: 500,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_FANOUT_AND_SAME_TABLE_AVERAGE_DD_REFERENCE: CompiledMetricQuery =
+    {
+        exploreName: 'customers',
+        dimensions: [],
+        metrics: [
+            'customers_customer_value_vs_distinct_average',
+            'customers_total_customer_value',
+            'orders_total_order_amount',
+        ],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'customers_customer_value_vs_distinct_average',
                 descending: true,
             },
         ],
