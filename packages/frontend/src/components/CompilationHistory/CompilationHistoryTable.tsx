@@ -29,9 +29,9 @@ import {
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
@@ -52,11 +52,13 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
     const theme = useMantineTheme();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { data: project } = useProject(projectUuid);
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([
+    const [sorting, setSorting] = useState<ContentTableSortingState>([
         { id: 'createdAt', desc: true },
     ]);
 
@@ -135,7 +137,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<ProjectCompileLog>[] = useMemo(
+    const columns: ContentTableColumnDef<ProjectCompileLog>[] = useMemo(
         () => [
             {
                 accessorKey: 'createdAt',

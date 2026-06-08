@@ -56,7 +56,7 @@ const DEFAULT_COLUMN_SIZE = 180;
 const DEFAULT_COLUMN_MIN_SIZE = 40;
 const DEFAULT_COLUMN_MAX_SIZE = 1000;
 const DEFAULT_DISPLAY_COLUMN_MIN_SIZE = 40;
-const ROW_SELECT_COLUMN_ID = 'mrt-row-select';
+const ROW_SELECT_COLUMN_ID = 'content-table-row-select';
 const ROW_SELECT_COLUMN_MIN_SIZE = 44;
 
 const getDerivedMinSize = (size: number) =>
@@ -309,24 +309,24 @@ export const useContentTable = <TData extends RowData>(
 
         if (enableRowSelection) {
             leadingDisplayColumns.push({
-                id: 'mrt-row-select',
+                id: 'content-table-row-select',
                 enableResizing: false,
                 enableSorting: false,
                 size: getDisplayColumnSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-select',
+                    'content-table-row-select',
                     60,
                 ),
                 minSize: getDisplayColumnMinSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-select',
+                    'content-table-row-select',
                 ),
                 maxSize: getDisplayColumnMaxSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-select',
+                    'content-table-row-select',
                 ),
                 header: ({ table }) => (
                     <div className={classes.rowSelectContent}>
@@ -357,9 +357,9 @@ export const useContentTable = <TData extends RowData>(
 
         if (enableRowActions) {
             const actionsHeader =
-                displayColumnDefOptions?.['mrt-row-actions']?.header;
+                displayColumnDefOptions?.['content-table-row-actions']?.header;
             const actionsColumn: ColumnDef<TData, unknown> = {
-                id: 'mrt-row-actions',
+                id: 'content-table-row-actions',
                 enableResizing: false,
                 enableSorting: false,
                 header: (headerContext) => {
@@ -383,18 +383,18 @@ export const useContentTable = <TData extends RowData>(
                 size: getDisplayColumnSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-actions',
+                    'content-table-row-actions',
                     72,
                 ),
                 minSize: getDisplayColumnMinSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-actions',
+                    'content-table-row-actions',
                 ),
                 maxSize: getDisplayColumnMaxSize(
                     displayColumnDefOptions,
                     defaultDisplayColumn,
-                    'mrt-row-actions',
+                    'content-table-row-actions',
                 ),
                 cell: ({ row, table }) =>
                     renderRowActions?.({

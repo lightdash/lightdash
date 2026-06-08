@@ -58,7 +58,7 @@ import {
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import CreateProjectAccessModal from './CreateProjectAccessModal';
@@ -350,196 +350,205 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         rolesData,
     ]);
 
-    const columns: MRT_ColumnDef<EnrichedProjectUser>[] = useMemo(() => {
-        const cols: MRT_ColumnDef<EnrichedProjectUser>[] = [
-            {
-                accessorKey: 'email',
-                header: 'User',
-                enableSorting: false,
-                size: 300,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconUserCircle} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const u = row.original;
+    const columns: ContentTableColumnDef<EnrichedProjectUser>[] =
+        useMemo(() => {
+            const cols: ContentTableColumnDef<EnrichedProjectUser>[] = [
+                {
+                    accessorKey: 'email',
+                    header: 'User',
+                    enableSorting: false,
+                    size: 300,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconUserCircle}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const u = row.original;
 
-                    // Build role summary tooltip
-                    const roleSummary = (
-                        <Stack>
-                            <Text fw={300} fz="xs">
-                                Organization role:{' '}
-                                <Text fw={600} span fz="xs">
-                                    {getRoleName(u.organizationRoleId || '')}
-                                </Text>
-                            </Text>
-                            {u.userGroupAccesses.map((uga) => (
-                                <Text key={uga.group.uuid} fw={300}>
-                                    Group{' '}
-                                    <Text fw={600} span>
-                                        {uga.group.name}
-                                    </Text>
-                                    :{' '}
-                                    <Text fw={600} span>
-                                        {uga.roleName}
+                        // Build role summary tooltip
+                        const roleSummary = (
+                            <Stack>
+                                <Text fw={300} fz="xs">
+                                    Organization role:{' '}
+                                    <Text fw={600} span fz="xs">
+                                        {getRoleName(
+                                            u.organizationRoleId || '',
+                                        )}
                                     </Text>
                                 </Text>
-                            ))}
-                            {u.hasProjectRole && (
-                                <Text fw={300}>
-                                    Project role:{' '}
-                                    <Text fw={600} span>
-                                        {u.projectRole}
+                                {u.userGroupAccesses.map((uga) => (
+                                    <Text key={uga.group.uuid} fw={300}>
+                                        Group{' '}
+                                        <Text fw={600} span>
+                                            {uga.group.name}
+                                        </Text>
+                                        :{' '}
+                                        <Text fw={600} span>
+                                            {uga.roleName}
+                                        </Text>
                                     </Text>
-                                </Text>
-                            )}
-                        </Stack>
-                    );
-
-                    return (
-                        <Tooltip
-                            label={roleSummary}
-                            fz="sm"
-                            position="top-start"
-                        >
-                            <Stack gap="xxs" align="flex-start">
-                                {u.firstName && (
-                                    <Text fw={600} fz="sm">
-                                        {u.firstName} {u.lastName}
+                                ))}
+                                {u.hasProjectRole && (
+                                    <Text fw={300}>
+                                        Project role:{' '}
+                                        <Text fw={600} span>
+                                            {u.projectRole}
+                                        </Text>
                                     </Text>
-                                )}
-                                {u.email && (
-                                    <Badge variant="light" color="gray">
-                                        {u.email}
-                                    </Badge>
                                 )}
                             </Stack>
-                        </Tooltip>
-                    );
-                },
-            },
-            {
-                accessorKey: 'role',
-                header: 'Role',
-                enableSorting: false,
-                size: 300,
-                Cell: ({ row }) => {
-                    const u = row.original;
+                        );
 
-                    return (
-                        <Group gap="xs">
+                        return (
                             <Tooltip
-                                disabled={u.hasProjectRole}
-                                multiline
-                                w={
-                                    u.isMember && !u.hasProjectRole
-                                        ? 280
-                                        : undefined
-                                }
-                                label={
-                                    u.isMember && !u.hasProjectRole ? (
-                                        <Text fz="xs">
-                                            <Text fw={600} fz="xs">
-                                                Members have no access to this
-                                                project.
-                                            </Text>
-                                            <Text fz="xs">
-                                                Assign a project role to grant
-                                                them visibility.
-                                            </Text>
-                                        </Text>
-                                    ) : (
-                                        <Text fz="xs">
-                                            User inherits this role from{' '}
-                                            <Text span fw={600} fz="xs">
-                                                {u.highestRoleType}
-                                            </Text>
-                                        </Text>
-                                    )
-                                }
+                                label={roleSummary}
+                                fz="sm"
+                                position="top-start"
                             >
-                                <Select
-                                    id="user-role"
-                                    w={250}
-                                    size="xs"
-                                    disabled={
-                                        isMutating || !canManageProjectAccess
-                                    }
-                                    data={
+                                <Stack gap="xxs" align="flex-start">
+                                    {u.firstName && (
+                                        <Text fw={600} fz="sm">
+                                            {u.firstName} {u.lastName}
+                                        </Text>
+                                    )}
+                                    {u.email && (
+                                        <Badge variant="light" color="gray">
+                                            {u.email}
+                                        </Badge>
+                                    )}
+                                </Stack>
+                            </Tooltip>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'role',
+                    header: 'Role',
+                    enableSorting: false,
+                    size: 300,
+                    Cell: ({ row }) => {
+                        const u = row.original;
+
+                        return (
+                            <Group gap="xs">
+                                <Tooltip
+                                    disabled={u.hasProjectRole}
+                                    multiline
+                                    w={
                                         u.isMember && !u.hasProjectRole
-                                            ? [
-                                                  {
-                                                      group: 'Organization role',
-                                                      items: [
-                                                          {
-                                                              value: 'member',
-                                                              label: 'member (no project access)',
-                                                          },
-                                                      ],
-                                                  },
-                                                  ...groupedRolesData,
-                                              ]
-                                            : groupedRolesData
+                                            ? 280
+                                            : undefined
                                     }
-                                    value={u.currentRoleUuid || u.highestRole}
-                                    onChange={(newRoleUuid) =>
-                                        handleRoleChange(
-                                            u.userUuid,
-                                            newRoleUuid,
+                                    label={
+                                        u.isMember && !u.hasProjectRole ? (
+                                            <Text fz="xs">
+                                                <Text fw={600} fz="xs">
+                                                    Members have no access to
+                                                    this project.
+                                                </Text>
+                                                <Text fz="xs">
+                                                    Assign a project role to
+                                                    grant them visibility.
+                                                </Text>
+                                            </Text>
+                                        ) : (
+                                            <Text fz="xs">
+                                                User inherits this role from{' '}
+                                                <Text span fw={600} fz="xs">
+                                                    {u.highestRoleType}
+                                                </Text>
+                                            </Text>
                                         )
                                     }
-                                />
-                            </Tooltip>
-                            {u.accessWarning && (
-                                <Tooltip label={u.accessWarning}>
-                                    <MantineIcon
-                                        icon={IconAlertTriangle}
-                                        color="yellow.9"
+                                >
+                                    <Select
+                                        id="user-role"
+                                        w={250}
+                                        size="xs"
+                                        disabled={
+                                            isMutating ||
+                                            !canManageProjectAccess
+                                        }
+                                        data={
+                                            u.isMember && !u.hasProjectRole
+                                                ? [
+                                                      {
+                                                          group: 'Organization role',
+                                                          items: [
+                                                              {
+                                                                  value: 'member',
+                                                                  label: 'member (no project access)',
+                                                              },
+                                                          ],
+                                                      },
+                                                      ...groupedRolesData,
+                                                  ]
+                                                : groupedRolesData
+                                        }
+                                        value={
+                                            u.currentRoleUuid || u.highestRole
+                                        }
+                                        onChange={(newRoleUuid) =>
+                                            handleRoleChange(
+                                                u.userUuid,
+                                                newRoleUuid,
+                                            )
+                                        }
                                     />
                                 </Tooltip>
-                            )}
-                        </Group>
-                    );
+                                {u.accessWarning && (
+                                    <Tooltip label={u.accessWarning}>
+                                        <MantineIcon
+                                            icon={IconAlertTriangle}
+                                            color="yellow.9"
+                                        />
+                                    </Tooltip>
+                                )}
+                            </Group>
+                        );
+                    },
                 },
-            },
-        ];
+            ];
 
-        if (canManageProjectAccess) {
-            cols.push({
-                id: 'actions',
-                header: '',
-                enableSorting: false,
-                size: 50,
-                Cell: ({ row }) => (
-                    <Box
-                        component="div"
-                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                        }}
-                    >
-                        <ProjectAccessActionCell
-                            user={row.original}
-                            canManageProjectAccess={canManageProjectAccess}
-                            onDelete={handleDelete}
-                            isLoading={isMutating}
-                        />
-                    </Box>
-                ),
-            });
-        }
+            if (canManageProjectAccess) {
+                cols.push({
+                    id: 'actions',
+                    header: '',
+                    enableSorting: false,
+                    size: 50,
+                    Cell: ({ row }) => (
+                        <Box
+                            component="div"
+                            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                        >
+                            <ProjectAccessActionCell
+                                user={row.original}
+                                canManageProjectAccess={canManageProjectAccess}
+                                onDelete={handleDelete}
+                                isLoading={isMutating}
+                            />
+                        </Box>
+                    ),
+                });
+            }
 
-        return cols;
-    }, [
-        canManageProjectAccess,
-        getRoleName,
-        handleRoleChange,
-        handleDelete,
-        isMutating,
-        groupedRolesData,
-    ]);
+            return cols;
+        }, [
+            canManageProjectAccess,
+            getRoleName,
+            handleRoleChange,
+            handleDelete,
+            isMutating,
+            groupedRolesData,
+        ]);
 
     const table = useContentTable({
         columns,

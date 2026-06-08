@@ -40,7 +40,7 @@ import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -323,7 +323,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         });
     };
 
-    const columns: MRT_ColumnDef<ChangeWithDependencies>[] = useMemo(
+    const columns: ContentTableColumnDef<ChangeWithDependencies>[] = useMemo(
         () => [
             {
                 accessorKey: 'entityName',

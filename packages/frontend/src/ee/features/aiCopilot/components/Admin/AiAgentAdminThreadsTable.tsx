@@ -42,9 +42,9 @@ import { useNavigate } from 'react-router';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
@@ -91,7 +91,7 @@ const AiAgentAdminThreadsTable = ({
 
     const deferredSearch = useDeferredValue(search);
 
-    const sorting = useMemo<MRT_SortingState>(
+    const sorting = useMemo<ContentTableSortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
         [sortField, sortDirection],
     );
@@ -99,8 +99,8 @@ const AiAgentAdminThreadsTable = ({
     const handleSortingChange = useCallback(
         (
             updaterOrValue:
-                | MRT_SortingState
-                | ((old: MRT_SortingState) => MRT_SortingState),
+                | ContentTableSortingState
+                | ((old: ContentTableSortingState) => ContentTableSortingState),
         ) => {
             const newSorting =
                 typeof updaterOrValue === 'function'
@@ -125,7 +125,9 @@ const AiAgentAdminThreadsTable = ({
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteAiAgentAdminThreads(
@@ -184,7 +186,7 @@ const AiAgentAdminThreadsTable = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<AiAgentAdminThreadSummary>[] = [
+    const columns: ContentTableColumnDef<AiAgentAdminThreadSummary>[] = [
         {
             accessorKey: 'title',
             header: 'Thread',

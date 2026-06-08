@@ -37,7 +37,7 @@ import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -180,7 +180,7 @@ const AiAgentAdminAgentsTable = () => {
         handleSelectedProjectUuidsChange([]);
     };
 
-    const columns: MRT_ColumnDef<AiAgentSummary>[] = useMemo(
+    const columns: ContentTableColumnDef<AiAgentSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
