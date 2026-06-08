@@ -44,18 +44,20 @@ import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
+    type SettingsContext,
     type SettingsNavigationItem,
     type SettingsNavigationSection,
 } from './types';
-import { useSettingsContext } from './useSettingsContext';
 
 /**
- * Derives the gated settings sidebar nav model from `useSettingsContext`. Only
- * items the user is permitted to see are included, so the sidebar can render
- * the result as a dumb map; each item carries `keywords` so a future settings
- * search can match aliases.
+ * Derives the gated settings sidebar nav model from a `SettingsContext` (see
+ * `useSettingsContext`). Only items the user is permitted to see are included,
+ * so the sidebar can render the result as a dumb map; each item carries
+ * `keywords` so a future settings search can match aliases.
  */
-export const useSettingsNavigation = (): SettingsNavigationSection[] => {
+export const useSettingsNavigation = (
+    context: SettingsContext,
+): SettingsNavigationSection[] => {
     const { track } = useTracking();
     const {
         user,
@@ -76,7 +78,7 @@ export const useSettingsNavigation = (): SettingsNavigationSection[] => {
         embeddingEnabled,
         dataAppsFlag,
         isGitProject,
-    } = useSettingsContext();
+    } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;

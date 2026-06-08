@@ -30,13 +30,7 @@ export const useSettingsContext = (): SettingsContext => {
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
             aiOrganizationSettingsQuery.data.isTrial);
 
-    const { data: aiAgentReviewClassifierFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentReviewClassifier,
-    );
-    const isAiAgentReviewClassifierEnabled =
-        aiAgentReviewClassifierFlag?.enabled === true;
     const shouldShowAiAgentReviews =
-        isAiAgentReviewClassifierEnabled &&
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
     const { data: serviceAccountsFlag } = useServerFeatureFlag(

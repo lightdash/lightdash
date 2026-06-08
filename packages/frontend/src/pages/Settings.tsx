@@ -80,7 +80,8 @@ import classes from './Settings.module.css';
 import SettingsNavigation from './SettingsNavigation';
 
 const Settings: FC = () => {
-    const sections = useSettingsNavigation();
+    const context = useSettingsContext();
+    const sections = useSettingsNavigation(context);
     const {
         user,
         health,
@@ -107,7 +108,7 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading,
         isProjectLoading,
         projectError,
-    } = useSettingsContext();
+    } = context;
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
