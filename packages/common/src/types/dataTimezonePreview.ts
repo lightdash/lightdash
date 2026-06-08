@@ -1,3 +1,4 @@
+import { formatTimestamp } from '../utils/formatting';
 import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
 import {
@@ -65,4 +66,51 @@ export const buildDataTimezonePreviewSql = (
         `${toUTC(naiveNow, effectiveSourceTimezone)} AS effective_instant, ` +
         `${toUTC(naiveNow, 'UTC')} AS utc_instant`
     );
+};
+
+type RawPreviewRow = {
+    raw: unknown;
+    effective_instant: unknown;
+    utc_instant: unknown;
+};
+
+export const buildDataTimezonePreviewResponse = ({
+    row,
+    warehouseType,
+    selectedDataTimezone,
+    effectiveSourceTimezone,
+    projectTimezone,
+}: {
+    row: RawPreviewRow;
+    warehouseType: WarehouseTypes;
+    selectedDataTimezone: string;
+    effectiveSourceTimezone: string;
+    projectTimezone: string;
+}): ApiDataTimezonePreviewResults => {
+    const renderRow = (
+        instant: unknown,
+        interpretedAs: string,
+    ): DataTimezonePreviewRow => {
+        const instantStr = String(instant);
+        return {
+            interpretedAs,
+            instant: instantStr,
+            rendered: formatTimestamp(
+                instantStr,
+                undefined,
+                false,
+                projectTimezone,
+            ),
+        };
+    };
+
+    return {
+        warehouseType,
+        selectedDataTimezone,
+        effectiveSourceTimezone,
+        projectTimezone,
+        raw: String(row.raw),
+        effective: renderRow(row.effective_instant, effectiveSourceTimezone),
+        utcBaseline: renderRow(row.utc_instant, 'UTC'),
+    };
 };

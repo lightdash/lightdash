@@ -1,5 +1,9 @@
-import { buildDataTimezonePreviewSql } from './dataTimezonePreview';
+import {
+    buildDataTimezonePreviewResponse,
+    buildDataTimezonePreviewSql,
+} from './dataTimezonePreview';
 import { SupportedDbtAdapter } from './dbt';
+import { WarehouseTypes } from './projects';
 
 describe('buildDataTimezonePreviewSql', () => {
     it('selects raw now plus naive-now disambiguated for effective and UTC (postgres)', () => {
@@ -24,5 +28,33 @@ describe('buildDataTimezonePreviewSql', () => {
             "CONVERT_TIMEZONE('Europe/London', 'UTC', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ))",
         );
         expect(sql).toContain('AS utc_instant');
+    });
+});
+
+describe('buildDataTimezonePreviewResponse', () => {
+    const row = {
+        raw: '2026-06-08T14:30:00.000Z',
+        effective_instant: '2026-06-08T18:30:00.000', // NY naive -> UTC
+        utc_instant: '2026-06-08T14:30:00.000',
+    };
+
+    it('renders both instants in the project timezone', () => {
+        const res = buildDataTimezonePreviewResponse({
+            row,
+            warehouseType: WarehouseTypes.POSTGRES,
+            selectedDataTimezone: 'America/New_York',
+            effectiveSourceTimezone: 'America/New_York',
+            projectTimezone: 'UTC',
+        });
+        expect(res.raw).toBe('2026-06-08T14:30:00.000Z');
+        expect(res.effective.interpretedAs).toBe('America/New_York');
+        expect(res.effective.instant).toBe('2026-06-08T18:30:00.000');
+        expect(res.effective.rendered).toBe(
+            '2026-06-08, 18:30:00:000 (+00:00)',
+        );
+        expect(res.utcBaseline.interpretedAs).toBe('UTC');
+        expect(res.utcBaseline.rendered).toBe(
+            '2026-06-08, 14:30:00:000 (+00:00)',
+        );
     });
 });
