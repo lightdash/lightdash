@@ -16,7 +16,6 @@ import { type FC, type ReactNode } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import {
     useAiAgentEvaluation,
     useAiAgentEvaluationRuns,
@@ -200,10 +199,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     };
 
     return (
-        <PanelGroup
-            direction="horizontal"
-            style={{ height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}
-        >
+        <PanelGroup direction="horizontal">
             <Panel
                 id="eval-content"
                 defaultSize={isSidebarOpen ? 40 : 100}
