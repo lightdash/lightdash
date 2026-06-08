@@ -20341,6 +20341,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiAgentReviewsEnabled: {
+                    dataType: 'boolean',
+                    required: true,
+                },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
                 organizationUuid: { dataType: 'string', required: true },
             },
@@ -20410,7 +20414,11 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
-                    aiAgentsVisible: { dataType: 'boolean', required: true },
+                    aiAgentReviewsEnabled: {
+                        dataType: 'boolean',
+                        required: false,
+                    },
+                    aiAgentsVisible: { dataType: 'boolean', required: false },
                 },
                 validators: {},
             },

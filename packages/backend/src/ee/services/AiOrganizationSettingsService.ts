@@ -129,6 +129,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 isCopilotEnabled,
                 aiAgentsVisible: true,
+                aiAgentReviewsEnabled: false,
                 isTrial: isTrialEligible,
             };
         }
@@ -154,5 +155,20 @@ export class AiOrganizationSettingsService extends BaseService {
             user.organizationUuid,
             data,
         );
+    }
+
+    async isAiAgentReviewsEnabled(
+        user: Pick<LightdashUser, 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                user.organizationUuid,
+            );
+
+        return settings?.aiAgentReviewsEnabled ?? false;
     }
 }

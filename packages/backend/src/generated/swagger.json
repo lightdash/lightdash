@@ -20902,6 +20902,9 @@
             },
             "AiOrganizationSettings": {
                 "properties": {
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
                     "aiAgentsVisible": {
                         "type": "boolean"
                     },
@@ -20909,7 +20912,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["aiAgentsVisible", "organizationUuid"],
+                "required": [
+                    "aiAgentReviewsEnabled",
+                    "aiAgentsVisible",
+                    "organizationUuid"
+                ],
                 "type": "object"
             },
             "ComputedAiOrganizationSettings": {
@@ -20967,11 +20974,13 @@
             },
             "Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__": {
                 "properties": {
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
                     "aiAgentsVisible": {
                         "type": "boolean"
                     }
                 },
-                "required": ["aiAgentsVisible"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },

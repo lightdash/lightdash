@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import {
     AiAgentReviewClassifierService,
     resolveReviewJudgeProvider,
@@ -275,6 +276,9 @@ describe('AiAgentReviewClassifierService', () => {
     const aiAgentModel = {
         getAgent: jest.fn(),
     };
+    const aiOrganizationSettingsModel = {
+        findByOrganizationUuid: jest.fn(),
+    } as unknown as jest.Mocked<AiOrganizationSettingsModel>;
     const catalogModel = {
         getCatalogItemsSummary: jest.fn(),
     };
@@ -283,6 +287,7 @@ describe('AiAgentReviewClassifierService', () => {
     const service = new AiAgentReviewClassifierService({
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
+        aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
         featureFlagService,
         lightdashConfig: {} as never,
@@ -294,6 +299,11 @@ describe('AiAgentReviewClassifierService', () => {
         featureFlagService.get.mockResolvedValue({
             id: FeatureFlags.AiAgentReviewClassifier,
             enabled: true,
+        });
+        aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            aiAgentsVisible: true,
+            aiAgentReviewsEnabled: true,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -338,6 +348,26 @@ describe('AiAgentReviewClassifierService', () => {
             id: FeatureFlags.AiAgentReviewClassifier,
             enabled: false,
         });
+
+        await expect(
+            service.run({
+                organizationUuid: ORGANIZATION_UUID,
+                startedAt: NOW,
+                endedAt: NOW,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(model.createRun).not.toHaveBeenCalled();
+    });
+
+    it('throws when review collection is not opted in for the organization', async () => {
+        aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValueOnce(
+            {
+                organizationUuid: ORGANIZATION_UUID,
+                aiAgentsVisible: true,
+                aiAgentReviewsEnabled: false,
+            },
+        );
 
         await expect(
             service.run({

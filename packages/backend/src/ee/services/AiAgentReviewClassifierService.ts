@@ -31,6 +31,7 @@ import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
@@ -60,6 +61,7 @@ type AiAgentReviewClassifierJudgeTargetRef =
 type AiAgentReviewClassifierServiceDependencies = {
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentModel: AiAgentModel;
+    aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
@@ -207,6 +209,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
 
+    private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -219,6 +223,8 @@ export class AiAgentReviewClassifierService extends BaseService {
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.catalogModel = dependencies.catalogModel;
+        this.aiOrganizationSettingsModel =
+            dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.judgeTurn =
@@ -1023,7 +1029,16 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             },
         });
 
-        return featureFlag.enabled;
+        if (!featureFlag.enabled) {
+            return false;
+        }
+
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                args.organizationUuid,
+            );
+
+        return settings?.aiAgentReviewsEnabled ?? false;
     }
 
     private static buildEvidenceExcerpts(
