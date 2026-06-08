@@ -111,14 +111,21 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-                        <LargeMenuItem
-                            // Users who manage explores should be able to create dashboards in any space
-                            title="Dashboard"
-                            description="Arrange multiple charts into a single view."
-                            onClick={() => setIsCreateDashboardOpen(true)}
-                            icon={IconLayoutDashboard}
-                            data-testid="ExploreMenu/NewDashboardButton"
-                        />
+                        <Can
+                            I="create"
+                            this={subject('Dashboard', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Dashboard"
+                                description="Arrange multiple charts into a single view."
+                                onClick={() => setIsCreateDashboardOpen(true)}
+                                icon={IconLayoutDashboard}
+                                data-testid="ExploreMenu/NewDashboardButton"
+                            />
+                        </Can>
 
                         {dataAppsFlag.data?.enabled && (
                             <Can
