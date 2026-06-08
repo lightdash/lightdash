@@ -1,3 +1,19 @@
+# [0.3110.0](https://github.com/lightdash/lightdash/compare/0.3109.1...0.3110.0) (2026-06-08)
+
+
+### Bug Fixes
+
+* **pivot:** clear stale re-run prompt when a sort-only pivot dim is hidden ([#23968](https://github.com/lightdash/lightdash/issues/23968)) ([3ec9e74](https://github.com/lightdash/lightdash/commit/3ec9e7482fd039de9c7a6345fd93aac5b5e32375)), closes [#23911](https://github.com/lightdash/lightdash/issues/23911)
+* scope dashboard chart listings to project ([#24010](https://github.com/lightdash/lightdash/issues/24010)) ([69c07e8](https://github.com/lightdash/lightdash/commit/69c07e8372f820e6d2e4a400bb752389b6937d64)), closes [#23889](https://github.com/lightdash/lightdash/issues/23889)
+* scope space move operations to project ([#23989](https://github.com/lightdash/lightdash/issues/23989)) ([a5019bd](https://github.com/lightdash/lightdash/commit/a5019bd57258967112100bee14fb98b40c34e3a6)), closes [#23889](https://github.com/lightdash/lightdash/issues/23889)
+* wrap DashboardAiAgentContextBridge in error boundary ([#24004](https://github.com/lightdash/lightdash/issues/24004)) ([98e90b0](https://github.com/lightdash/lightdash/commit/98e90b003b30a3f6ff11908a351569cfe9c0cd8c))
+
+
+### Features
+
+* add ai thread share backend ([#23999](https://github.com/lightdash/lightdash/issues/23999)) ([9312b6a](https://github.com/lightdash/lightdash/commit/9312b6a1eb4f4ca1898963a9c836dd5aef4d3c9d))
+* add ai thread share frontend ([#24000](https://github.com/lightdash/lightdash/issues/24000)) ([bc717e1](https://github.com/lightdash/lightdash/commit/bc717e1e284e7c9eb11760b8eeb703bb7d1eb351))
+
 ## [0.3109.1](https://github.com/lightdash/lightdash/compare/0.3109.0...0.3109.1) (2026-06-08)
 
 
