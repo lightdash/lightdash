@@ -7,6 +7,7 @@ import {
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
+    PullRequestProvider,
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
@@ -19,6 +20,7 @@ import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { getRepoDefaultBranch } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -74,6 +76,7 @@ import {
     extractPrMetadata,
     getPhaseProgressText,
     interpretAgentEvent,
+    parseGithubConnection,
     parsePullNumber,
     progressTextForStage,
     resolvePrMetadataValue,
@@ -168,6 +171,59 @@ export class AiWritebackService extends BaseService {
             null,
             `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
         );
+    }
+
+    /**
+     * Resolve read-only access to the project's dbt repo — owner/repo/default
+     * branch and an installation access token — for the repoShell virtual
+     * filesystem. Reuses the same provider + installation resolution as
+     * writeback but never creates a sandbox or clone. GitHub-only for now;
+     * throws {@link WritebackGitNotConnectedError} for any other connection.
+     */
+    async getRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        branch: string;
+        token: string;
+    }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(projectUuid);
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (provider.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                provider.provider,
+                'Repository read access is currently only supported for GitHub dbt connections',
+            );
+        }
+        const connection = parseGithubConnection(project.dbtConnection);
+        const installation = await this.githubProvider.resolveInstallation(
+            user.organizationUuid,
+        );
+        if (installation.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITHUB,
+                'GitHub App is not installed for this organization',
+            );
+        }
+        const branch = await getRepoDefaultBranch({
+            owner: connection.owner,
+            repo: connection.repo,
+            installationId: installation.installationId,
+        });
+        return {
+            owner: connection.owner,
+            repo: connection.repo,
+            branch,
+            token: installation.token,
+        };
     }
 
     private async assertEnabled(

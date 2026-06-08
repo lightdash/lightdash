@@ -228,6 +228,59 @@ export const getFileContent = async ({
  * demand. Reads the repo's default branch when `ref` is omitted. Returns an
  * empty list when the workflows directory does not exist.
  */
+/**
+ * List every file path in a repo via the GitHub Git Trees API (recursive) — no
+ * clone/sandbox. Backs the read-only repo virtual filesystem (`repoShell` tool).
+ * `branch` may be a branch name, tag, or commit SHA (resolved to its tree).
+ * `truncated` is true when the repo exceeds the API's tree-entry limit, in which
+ * case the returned list is incomplete.
+ */
+export const getRepoTree = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{
+    files: { path: string; size: number }[];
+    truncated: boolean;
+}> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const response = await octokit.rest.git.getTree({
+            owner,
+            repo,
+            tree_sha: branch,
+            recursive: 'true',
+            headers,
+        });
+        const files = response.data.tree
+            .filter((entry) => entry.type === 'blob' && Boolean(entry.path))
+            .map((entry) => ({
+                path: entry.path as string,
+                size: entry.size ?? 0,
+            }));
+        return { files, truncated: response.data.truncated ?? false };
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(
+                `repo ${owner}/${repo} (ref ${branch}) not found in Github`,
+            );
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getRepoWorkflowFiles = async ({
     owner,
     repo,

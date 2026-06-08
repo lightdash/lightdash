@@ -243,6 +243,14 @@ export enum FeatureFlags {
     GithubMcpOneClick = 'github-mcp-one-click',
 
     /**
+     * Give the AI agent a read-only virtual filesystem over the project's dbt
+     * repo (`repoShell` tool): a limited shell (ls/cat/find/grep/head) backed by
+     * the GitHub API — no E2B sandbox/clone. Lets the agent inspect source
+     * before diagnosing, instead of guessing or spinning up a writeback sandbox.
+     */
+    RepoFs = 'repo-fs',
+
+    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.

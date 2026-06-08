@@ -155,6 +155,11 @@ import {
     toolReadContentOutputSchema,
 } from './toolReadContentArgs';
 import {
+    TOOL_REPO_SHELL_DESCRIPTION,
+    toolRepoShellArgsSchema,
+    toolRepoShellOutputSchema,
+} from './toolRepoShellArgs';
+import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
     toolRunContentQueryOutputSchema,
@@ -528,6 +533,15 @@ export const proposeWritebackToolDefinition = defineTool({
     agent: { outputSchema: toolProposeWritebackOutputSchema },
 });
 
+export const repoShellToolDefinition = defineTool({
+    name: 'repoShell',
+    title: 'Read repository',
+    description: TOOL_REPO_SHELL_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRepoShellArgsSchema,
+    agent: { outputSchema: toolRepoShellOutputSchema },
+});
+
 export const setupPreviewDeployToolDefinition = defineTool({
     name: 'setupPreviewDeploy',
     title: 'Set up preview deploys',
@@ -776,6 +790,7 @@ type AgentToolDefinitionsByName = {
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     proposeWriteback: typeof proposeWritebackToolDefinition;
+    repoShell: typeof repoShellToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -815,6 +830,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     proposeWriteback: proposeWritebackToolDefinition,
+    repoShell: repoShellToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -856,6 +872,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
     proposeWritebackToolDefinition,
+    repoShellToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,

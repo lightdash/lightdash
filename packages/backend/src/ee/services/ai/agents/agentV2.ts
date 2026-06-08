@@ -32,6 +32,7 @@ import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
+import { getRepoShell } from '../tools/repoShell';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -282,6 +283,12 @@ const getAgentTools = (
           })
         : null;
 
+    const repoShell = args.enableRepoFs
+        ? getRepoShell({
+              repoShell: dependencies.repoShell,
+          })
+        : null;
+
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
     });
@@ -355,6 +362,7 @@ const getAgentTools = (
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(proposeWriteback ? { proposeWriteback } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
+        ...(repoShell ? { repoShell } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -394,6 +402,8 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableDataAccess: args.enableDataAccess,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
+            enableRepoFs: args.enableRepoFs,
+            repoFsRoot: args.repoFsRoot,
             enableContentTools:
                 args.enableAgentRevamp &&
                 args.enableDataAccess &&
