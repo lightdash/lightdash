@@ -197,7 +197,8 @@ models:
                 round: 1
                 sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
                 show_underlying_values:
-                  - amount
+                  - status
+                  - total_order_amount
                   - customers.first_name
                 spotlight:
                   owner: demo2@lightdash.com
