@@ -1601,7 +1601,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
-        e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        e2bTemplateName:
+            process.env.E2B_TEMPLATE_NAME || 'lightdash/lightdash-data-app',
         // Default to the running Lightdash version so prod always launches
         // sandboxes from the matching template build (the release workflow
         // guarantees this tag exists). Operators can override to roll back
