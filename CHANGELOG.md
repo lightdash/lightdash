@@ -1,3 +1,10 @@
+## [0.3104.1](https://github.com/lightdash/lightdash/compare/0.3104.0...0.3104.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* **permissions:** gate data app view at interactive viewer ([#23977](https://github.com/lightdash/lightdash/issues/23977)) ([3110c4b](https://github.com/lightdash/lightdash/commit/3110c4b15d9fbc10e6f3a6006adf6545de94943c))
+
 # [0.3104.0](https://github.com/lightdash/lightdash/compare/0.3103.0...0.3104.0) (2026-06-05)
 
 
