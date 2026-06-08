@@ -481,6 +481,7 @@ export class SavedSqlService
     ): Promise<void> {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
         const { projectUuid } = savedChart.project;
         const { organizationUuid } = savedChart.organization;
@@ -550,7 +551,7 @@ export class SavedSqlService
         } else {
             const savedChart = await this.savedSqlModel.getByUuid(
                 savedSqlUuid,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { projectUuid } = savedChart.project;
             const { organizationUuid } = savedChart.organization;

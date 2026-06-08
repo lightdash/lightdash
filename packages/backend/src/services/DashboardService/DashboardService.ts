@@ -1556,7 +1556,7 @@ export class DashboardService
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
 
         if (options?.bypassPermissions) {
@@ -1614,7 +1614,7 @@ export class DashboardService
         // not-yet-deleted dashboard (when softDelete config is off).
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: 'any' },
+            { deleted: 'any', projectUuid: options?.projectUuid },
         );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {

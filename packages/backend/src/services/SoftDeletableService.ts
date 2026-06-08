@@ -7,6 +7,7 @@ import type { SessionUser } from '@lightdash/common';
  */
 export type SoftDeleteOptions = {
     bypassPermissions?: boolean;
+    projectUuid?: string;
 };
 
 /**
