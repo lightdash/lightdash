@@ -18,6 +18,7 @@ import {
 import { type ResultRow, type ResultValue } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue } from '../utils/accessors';
+import { getPivotRowContextKey } from '../utils/conditionalFormatting';
 import {
     formatItemValue,
     formatTemporalCellForSpreadsheet,
@@ -1208,6 +1209,54 @@ export const convertSqlPivotedRowsToPivotData = ({
                     return enriched;
                 },
             );
+    }
+
+    // Hidden-metric side-channel for conditional formatting (PROD-2372).
+    // Hidden metrics are dropped from `filteredValuesColumns`, so their pivoted
+    // values never reach `dataValues` and a CF rule that references a hidden
+    // metric renders nothing. Stash each hidden metric's pivoted cell value,
+    // keyed by the same displayed-dimension context the renderer rebuilds
+    // (visible index dims + visible header/pivot dims) via the shared
+    // `getPivotRowContextKey` helper, so producer and consumer keys cannot drift.
+    const hiddenValuesColumns = pivotDetails.valuesColumns.filter(
+        ({ referenceField }) => !isMetricVisibleInPivot(referenceField),
+    );
+    if (hiddenValuesColumns.length > 0) {
+        const visiblePivotDimRefs = new Set(
+            (pivotDetails.groupByColumns ?? []).map((c) => c.reference),
+        );
+        const hiddenContextValues: Record<
+            string,
+            Record<string, ResultValue>
+        > = {};
+        rows.forEach((row) => {
+            hiddenValuesColumns.forEach((col) => {
+                const cell = row[col.pivotColumnName];
+                if (!cell?.value) return;
+                const dimValues: Record<string, unknown> = {};
+                // Visible index (row) dims — match the renderer, which keys on
+                // displayed index dims only (hidden index dims are excluded).
+                indexColumns.forEach((ref) => {
+                    dimValues[ref] = row[ref]?.value?.raw;
+                });
+                // Visible header (pivot) dims for this column group. Hidden
+                // sort-only pivot dims never appear in `groupByColumns`, so they
+                // are excluded here too — keeping the key aligned with the
+                // renderer's `headerInfo`.
+                col.pivotValues.forEach((pv) => {
+                    if (visiblePivotDimRefs.has(pv.referenceField)) {
+                        dimValues[pv.referenceField] = pv.value;
+                    }
+                });
+                const key = getPivotRowContextKey(dimValues);
+                const perField = hiddenContextValues[key] ?? {};
+                perField[col.referenceField] = cell.value;
+                hiddenContextValues[key] = perField;
+            });
+        });
+        if (Object.keys(hiddenContextValues).length > 0) {
+            retrofitted.hiddenContextValues = hiddenContextValues;
+        }
     }
 
     return retrofitted;
