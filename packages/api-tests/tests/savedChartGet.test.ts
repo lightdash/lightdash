@@ -17,6 +17,17 @@ const apiUrl = '/api/v1';
 const apiV2Url = '/api/v2';
 const projectUuid = SEED_PROJECT.project_uuid;
 
+const postgresWarehouseConfig = {
+    type: 'postgres',
+    host: process.env.PGHOST || 'localhost',
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'password',
+    dbname: 'postgres',
+    schema: 'jaffle',
+    port: 5432,
+    sslmode: 'disable',
+};
+
 const chartPayload = (name: string, limit = 500) => ({
     ...chartMock,
     name,
@@ -58,41 +69,30 @@ async function waitForV1JobCompletion(
     return false;
 }
 
+const createdProjectUuids: string[] = [];
+
 async function createAndRefreshProject(
     client: Awaited<ReturnType<typeof login>>,
     name: string,
 ): Promise<string> {
-    const sourceProjectResp = await client.get<
-        Body<{
-            dbtConnection: Record<string, unknown>;
-            dbtVersion: string;
-            warehouseConnection?: Record<string, unknown>;
-        }>
-    >(`/api/v1/projects/${projectUuid}`);
-    expect(sourceProjectResp.status).toBe(200);
-    const sourceWarehouse = sourceProjectResp.body.results
-        .warehouseConnection as Record<string, unknown> | undefined;
-
     const projectResp = await client.post<
         Body<{ project: { projectUuid: string } }>
     >('/api/v1/org/projects', {
         name,
         type: 'DEFAULT',
-        dbtConnection: sourceProjectResp.body.results.dbtConnection,
-        dbtVersion: sourceProjectResp.body.results.dbtVersion,
-        warehouseConnection: {
-            type: 'postgres',
-            host: sourceWarehouse?.host || 'localhost',
-            port: sourceWarehouse?.port || 5432,
-            dbname: sourceWarehouse?.dbname || 'postgres',
-            schema: sourceWarehouse?.schema || 'jaffle',
-            sslmode: sourceWarehouse?.sslmode || 'disable',
-            user: process.env.PGUSER || 'postgres',
-            password: process.env.PGPASSWORD || 'password',
+        dbtConnection: {
+            target: '',
+            environment: [],
+            type: 'dbt',
+            project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
         },
+        dbtVersion: 'v1.7',
+        warehouseConnection: postgresWarehouseConfig,
     });
     expect(projectResp.status).toBe(200);
     const secondProjectUuid = projectResp.body.results.project.projectUuid;
+    // Track before refreshing so a failed compile cannot leak the project
+    createdProjectUuids.push(secondProjectUuid);
 
     const refreshResp = await client.post<Body<{ jobUuid: string }>>(
         `/api/v1/projects/${secondProjectUuid}/refresh`,
@@ -207,6 +207,13 @@ describe('Saved chart get API behavior', () => {
                 { failOnStatusCode: false },
             )
             .catch(() => {});
+        for (const uuid of createdProjectUuids) {
+            await admin
+                .delete(`${apiUrl}/org/projects/${uuid}`, {
+                    failOnStatusCode: false,
+                })
+                .catch(() => {});
+        }
     });
 
     describe('resolution by uuid and slug', () => {
