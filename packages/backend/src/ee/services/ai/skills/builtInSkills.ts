@@ -62,6 +62,10 @@ type CachedMcpResource = BuiltInSkillMcpResource & {
 export class BuiltInSkills {
     private static readonly SKILLS_DIR = path.join(__dirname, 'builtInSkills');
 
+    // Vendor prefix (authority segment) for skill:// URIs, so our skills never
+    // collide when a host mounts several servers' skills into one namespace.
+    private static readonly SKILL_NAMESPACE = 'lightdash';
+
     private static skills: AiAgentSkill[] = [];
 
     private static skillsPromise: Promise<AiAgentSkill[]> | undefined;
@@ -179,14 +183,14 @@ export class BuiltInSkills {
     }
 
     private static getSkillUri(skillName: string): string {
-        return `skill://${skillName}/SKILL.md`;
+        return `skill://${this.SKILL_NAMESPACE}/${skillName}/SKILL.md`;
     }
 
     private static getSkillResourceUri(
         skillName: string,
         fileName: string,
     ): string {
-        return `skill://${skillName}/resources/${fileName}`;
+        return `skill://${this.SKILL_NAMESPACE}/${skillName}/resources/${fileName}`;
     }
 
     private static getSkillIndexUri(): string {
@@ -449,7 +453,7 @@ export class BuiltInSkills {
         skillName: string,
         resource: CachedMcpResource,
     ): string | undefined {
-        const prefix = `skill://${skillName}/resources/`;
+        const prefix = `skill://${this.SKILL_NAMESPACE}/${skillName}/resources/`;
         if (!resource.uri.startsWith(prefix)) {
             return undefined;
         }

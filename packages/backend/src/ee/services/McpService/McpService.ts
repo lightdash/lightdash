@@ -2568,6 +2568,11 @@ export class McpService extends BaseService {
         // notifications, so override it to avoid misleading clients.
         mcpServer.server.registerCapabilities({
             resources: { subscribe: false, listChanged: false },
+            // Advertise under both: `extensions` per the final SEP, and
+            // `experimental` for draft-era clients (the de-facto wild form).
+            experimental: {
+                [MCP_SKILLS_EXTENSION_NAME]: {},
+            },
             extensions: {
                 [MCP_SKILLS_EXTENSION_NAME]: {},
             },

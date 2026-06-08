@@ -53,6 +53,9 @@ describe('MCP server', () => {
         expect(response.body.result.serverInfo).toHaveProperty('version');
         expect(response.body.result.capabilities).toMatchObject({
             resources: { subscribe: false, listChanged: false },
+            experimental: {
+                'io.modelcontextprotocol/skills': {},
+            },
             extensions: {
                 'io.modelcontextprotocol/skills': {},
             },
@@ -255,11 +258,12 @@ describe('MCP server', () => {
         );
         const overviewResource = response.body.result.resources.find(
             (resource) =>
-                resource.uri === 'skill://developing-in-lightdash/SKILL.md',
+                resource.uri ===
+                'skill://lightdash/developing-in-lightdash/SKILL.md',
         );
         const nestedResource = response.body.result.resources.find((resource) =>
             resource.uri.startsWith(
-                'skill://developing-in-lightdash/resources/',
+                'skill://lightdash/developing-in-lightdash/resources/',
             ),
         );
 
@@ -270,7 +274,7 @@ describe('MCP server', () => {
             mimeType: 'application/json',
         });
         expect(overviewResource).toMatchObject({
-            uri: 'skill://developing-in-lightdash/SKILL.md',
+            uri: 'skill://lightdash/developing-in-lightdash/SKILL.md',
             name: 'developing-in-lightdash',
             title: 'Developing in Lightdash',
             mimeType: 'text/markdown',
@@ -305,7 +309,7 @@ describe('MCP server', () => {
         const nestedResource = listResponse.body.result.resources.find(
             (resource) =>
                 resource.uri.startsWith(
-                    'skill://developing-in-lightdash/resources/',
+                    'skill://lightdash/developing-in-lightdash/resources/',
                 ),
         );
 
@@ -390,7 +394,7 @@ describe('MCP server', () => {
             type: 'skill-md',
             description:
                 'Use when reading, creating, and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.',
-            url: 'skill://developing-in-lightdash/SKILL.md',
+            url: 'skill://lightdash/developing-in-lightdash/SKILL.md',
             digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         });
     });
@@ -407,7 +411,7 @@ describe('MCP server', () => {
                 id: 8,
                 method: 'resources/read',
                 params: {
-                    uri: 'skill://developing-in-lightdash/resources/does-not-exist.md',
+                    uri: 'skill://lightdash/developing-in-lightdash/resources/does-not-exist.md',
                 },
             },
             { headers: mcpHeaders },
