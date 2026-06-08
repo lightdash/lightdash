@@ -100,6 +100,7 @@ import {
     AiSlackThreadTableName,
     AiSqlApprovalTableName,
     AiThreadCompactionTableName,
+    AiThreadShareTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
@@ -112,6 +113,7 @@ import {
     DbAiSqlApproval,
     DbAiThread,
     DbAiThreadCompaction,
+    DbAiThreadShare,
     DbAiWebAppPrompt,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
@@ -239,6 +241,19 @@ type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
     mcp_server_uuid: string | null;
     mcp_server_name: string | null;
     mcp_server_icon_url: string | null;
+};
+
+export type CreateAiThreadShareResult = {
+    uuid: string;
+    nanoid: string;
+    threadUuid: string;
+    agentUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    snapshotPromptUuid: string;
+    createdByUserUuid: string;
+    createdAt: Date;
+    revokedAt: Date | null;
 };
 
 type AiThreadSummaryRow = Pick<
@@ -4396,8 +4411,16 @@ export class AiAgentModel {
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
+                errorMessage: `${AiPromptTableName}.error_message`,
+                respondedAt: `${AiPromptTableName}.responded_at`,
                 humanScore: `${AiPromptTableName}.human_score`,
+                humanFeedback: `${AiPromptTableName}.human_feedback`,
+                filtersOutput: `${AiPromptTableName}.filters_output`,
+                vizConfigOutput: `${AiPromptTableName}.viz_config_output`,
+                metricQuery: `${AiPromptTableName}.metric_query`,
+                savedQueryUuid: `${AiPromptTableName}.saved_query_uuid`,
                 modelConfig: `${AiPromptTableName}.model_config`,
+                tokenUsage: `${AiPromptTableName}.token_usage`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -6626,17 +6649,275 @@ export class AiAgentModel {
         });
     }
 
+    private async cloneThreadCompactions({
+        sourceThreadUuid,
+        targetThreadUuid,
+        promptMapping,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        targetThreadUuid: string;
+        promptMapping: Map<string, string>;
+        db?: Knex;
+    }): Promise<void> {
+        await AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const compactions = await trx(AiThreadCompactionTableName)
+                .select<DbAiThreadCompaction[]>(
+                    'compacted_through_ai_prompt_uuid',
+                    'triggering_ai_prompt_uuid',
+                    'serialized_input',
+                    'summary',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'asc');
+
+            const clonedCompactions = compactions.flatMap((compaction) => {
+                const compactedThroughPromptUuid = promptMapping.get(
+                    compaction.compacted_through_ai_prompt_uuid,
+                );
+                const triggeringPromptUuid = promptMapping.get(
+                    compaction.triggering_ai_prompt_uuid,
+                );
+                if (!compactedThroughPromptUuid || !triggeringPromptUuid) {
+                    return [];
+                }
+                return {
+                    ai_thread_uuid: targetThreadUuid,
+                    compacted_through_ai_prompt_uuid:
+                        compactedThroughPromptUuid,
+                    triggering_ai_prompt_uuid: triggeringPromptUuid,
+                    serialized_input: compaction.serialized_input,
+                    summary: compaction.summary,
+                };
+            });
+
+            if (clonedCompactions.length > 0) {
+                await trx(AiThreadCompactionTableName).insert(
+                    clonedCompactions,
+                );
+            }
+        });
+    }
+
+    async createThreadShare({
+        sourceThreadUuid,
+        createdByUserUuid,
+        nanoid,
+    }: {
+        sourceThreadUuid: string;
+        createdByUserUuid: string;
+        nanoid: string;
+    }): Promise<CreateAiThreadShareResult> {
+        return AiAgentModel.withTrx(this.database, async (trx) => {
+            const sourceThread = await trx(AiThreadTableName)
+                .select(
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'created_from',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .first();
+
+            if (!sourceThread || !sourceThread.agent_uuid) {
+                throw new NotFoundError(
+                    `Source thread ${sourceThreadUuid} not found`,
+                );
+            }
+
+            if (sourceThread.created_from !== 'web_app') {
+                throw new ParameterError('Only web app threads can be shared');
+            }
+
+            const latestPrompt = await trx(AiPromptTableName)
+                .select('ai_prompt_uuid')
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'desc')
+                .first();
+
+            if (!latestPrompt) {
+                throw new ParameterError('Thread has no prompts to share');
+            }
+
+            const [threadShare] = await trx(AiThreadShareTableName)
+                .insert({
+                    nanoid,
+                    ai_thread_uuid: sourceThread.ai_thread_uuid,
+                    agent_uuid: sourceThread.agent_uuid,
+                    project_uuid: sourceThread.project_uuid,
+                    organization_uuid: sourceThread.organization_uuid,
+                    snapshot_prompt_uuid: latestPrompt.ai_prompt_uuid,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning<DbAiThreadShare[]>([
+                    'ai_thread_share_uuid',
+                    'nanoid',
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'snapshot_prompt_uuid',
+                    'created_by_user_uuid',
+                    'created_at',
+                    'revoked_at',
+                ]);
+
+            if (!threadShare) {
+                throw new Error('Failed to create thread share');
+            }
+
+            const [user] = await trx('users')
+                .select('user_id')
+                .where('user_uuid', createdByUserUuid);
+            const [organization] = await trx('organizations')
+                .select('organization_id')
+                .where('organization_uuid', sourceThread.organization_uuid);
+
+            await trx('share').insert({
+                nanoid,
+                path: `/projects/${sourceThread.project_uuid}/ai-agents/share/${threadShare.ai_thread_share_uuid}`,
+                params: '',
+                organization_id: organization.organization_id,
+                created_by_user_id: user.user_id,
+            });
+
+            return {
+                uuid: threadShare.ai_thread_share_uuid,
+                nanoid: threadShare.nanoid,
+                threadUuid: threadShare.ai_thread_uuid,
+                agentUuid: threadShare.agent_uuid,
+                projectUuid: threadShare.project_uuid,
+                organizationUuid: threadShare.organization_uuid,
+                snapshotPromptUuid: threadShare.snapshot_prompt_uuid,
+                createdByUserUuid: threadShare.created_by_user_uuid,
+                createdAt: threadShare.created_at,
+                revokedAt: threadShare.revoked_at,
+            };
+        });
+    }
+
+    async getThreadShare(
+        aiThreadShareUuid: string,
+    ): Promise<CreateAiThreadShareResult | undefined> {
+        const row = await this.database(AiThreadShareTableName)
+            .select<DbAiThreadShare[]>(
+                'ai_thread_share_uuid',
+                'nanoid',
+                'ai_thread_uuid',
+                'agent_uuid',
+                'project_uuid',
+                'organization_uuid',
+                'snapshot_prompt_uuid',
+                'created_by_user_uuid',
+                'created_at',
+                'revoked_at',
+            )
+            .where('ai_thread_share_uuid', aiThreadShareUuid)
+            .first();
+
+        if (!row) return undefined;
+
+        return {
+            uuid: row.ai_thread_share_uuid,
+            nanoid: row.nanoid,
+            threadUuid: row.ai_thread_uuid,
+            agentUuid: row.agent_uuid,
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            snapshotPromptUuid: row.snapshot_prompt_uuid,
+            createdByUserUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+            revokedAt: row.revoked_at,
+        };
+    }
+
+    async cloneThreadShare({
+        aiThreadShareUuid,
+        projectUuid,
+        targetUserUuid,
+    }: {
+        aiThreadShareUuid: string;
+        projectUuid: string;
+        targetUserUuid: string;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(this.database, async (trx) => {
+            const share = await trx(AiThreadShareTableName)
+                .select<DbAiThreadShare[]>(
+                    'ai_thread_share_uuid',
+                    'nanoid',
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'snapshot_prompt_uuid',
+                    'created_by_user_uuid',
+                    'created_at',
+                    'revoked_at',
+                )
+                .where('ai_thread_share_uuid', aiThreadShareUuid)
+                .forUpdate()
+                .first();
+
+            if (!share || share.revoked_at) {
+                throw new NotFoundError('Shared thread link does not exist');
+            }
+
+            if (share.project_uuid !== projectUuid) {
+                throw new NotFoundError('Shared thread link does not exist');
+            }
+
+            const existingClone = await trx(AiThreadTableName)
+                .join(
+                    AiWebAppThreadTableName,
+                    `${AiThreadTableName}.ai_thread_uuid`,
+                    `${AiWebAppThreadTableName}.ai_thread_uuid`,
+                )
+                .select(`${AiThreadTableName}.ai_thread_uuid`)
+                .where(
+                    `${AiThreadTableName}.share_source_thread_share_uuid`,
+                    aiThreadShareUuid,
+                )
+                .where(`${AiWebAppThreadTableName}.user_uuid`, targetUserUuid)
+                .first();
+
+            if (existingClone) {
+                return existingClone.ai_thread_uuid;
+            }
+
+            return this.cloneThread({
+                sourceThreadUuid: share.ai_thread_uuid,
+                sourcePromptUuid: share.snapshot_prompt_uuid,
+                targetUserUuid,
+                createdFrom: 'web_app',
+                includeSelectedPromptResponse: true,
+                shareSourceThreadShareUuid: aiThreadShareUuid,
+                copyTitle: true,
+                copyCompactions: true,
+                db: trx,
+            });
+        });
+    }
+
     async cloneThread({
         sourceThreadUuid,
         sourcePromptUuid,
         targetUserUuid,
         createdFrom,
+        includeSelectedPromptResponse = false,
+        shareSourceThreadShareUuid,
+        copyTitle = false,
+        copyCompactions = false,
         db,
     }: {
         sourceThreadUuid: string;
         sourcePromptUuid: string;
         targetUserUuid: string;
         createdFrom?: 'web_app' | 'evals';
+        includeSelectedPromptResponse?: boolean;
+        shareSourceThreadShareUuid?: string;
+        copyTitle?: boolean;
+        copyCompactions?: boolean;
         db?: Knex;
     }): Promise<string> {
         return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
@@ -6648,6 +6929,7 @@ export class AiAgentModel {
                     'agent_uuid',
                     'created_from',
                     'title',
+                    'title_generated_at',
                 )
                 .where('ai_thread_uuid', sourceThreadUuid)
                 .first();
@@ -6670,6 +6952,19 @@ export class AiAgentModel {
                 },
                 { db: trx },
             );
+
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', newThreadUuid)
+                .update({
+                    ...(shareSourceThreadShareUuid && {
+                        share_source_thread_share_uuid:
+                            shareSourceThreadShareUuid,
+                    }),
+                    ...(copyTitle && {
+                        title: sourceThread.title,
+                        title_generated_at: sourceThread.title_generated_at,
+                    }),
+                });
 
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({
@@ -6702,21 +6997,35 @@ export class AiAgentModel {
             );
 
             // Clone each prompt sequentially to maintain chronological order
+            const promptMapping = new Map<string, string>();
             // eslint-disable-next-line no-await-in-loop
             for (let i = 0; i < promptsToClone.length; i += 1) {
                 const promptToClone = promptsToClone[i];
                 const isLastPrompt = i === promptsToClone.length - 1;
 
                 // eslint-disable-next-line no-await-in-loop
-                await this.cloneWebAppPrompt({
+                const newPromptUuid = await this.cloneWebAppPrompt({
                     sourcePromptUuid: promptToClone.ai_prompt_uuid,
                     targetThreadUuid: newThreadUuid,
                     targetUserUuid,
                     artifactMapping,
-                    includeAssistantResponse: !isLastPrompt,
+                    includeAssistantResponse:
+                        !isLastPrompt || includeSelectedPromptResponse,
+                    db: trx,
+                });
+                promptMapping.set(promptToClone.ai_prompt_uuid, newPromptUuid);
+            }
+
+            if (copyCompactions) {
+                await this.cloneThreadCompactions({
+                    sourceThreadUuid,
+                    targetThreadUuid: newThreadUuid,
+                    promptMapping,
                     db: trx,
                 });
             }
+
+            // TODO: copy AI reasoning for shared clones when the UI supports it.
 
             return newThreadUuid;
         });

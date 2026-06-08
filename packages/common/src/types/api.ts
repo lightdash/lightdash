@@ -18,6 +18,7 @@ import type {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
@@ -33,6 +34,7 @@ import type {
     ApiAiRouterRouteResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
     ApiGetAppResponse,
@@ -1069,6 +1071,8 @@ type ApiResults =
     | ApiGetProjectParametersResults
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
+    | ApiAiAgentThreadShareResponse['results']
+    | ApiCloneAiAgentThreadShareResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']

@@ -6,6 +6,7 @@ export const AiThreadTableName = 'ai_thread';
 export type DbAiThread = {
     agent_uuid: string | null;
     ai_thread_uuid: string;
+    share_source_thread_share_uuid: string | null;
     created_at: Date;
     organization_uuid: string;
     project_uuid: string;
@@ -23,9 +24,43 @@ export type AiThreadTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbAiThread,
-            'agent_uuid' | 'title' | 'title_generated_at' | 'project_uuid'
+            | 'agent_uuid'
+            | 'title'
+            | 'title_generated_at'
+            | 'project_uuid'
+            | 'share_source_thread_share_uuid'
         >
     >
+>;
+
+export const AiThreadShareTableName = 'ai_thread_share';
+
+export type DbAiThreadShare = {
+    ai_thread_share_uuid: string;
+    nanoid: string;
+    ai_thread_uuid: string;
+    agent_uuid: string;
+    project_uuid: string;
+    organization_uuid: string;
+    snapshot_prompt_uuid: string;
+    created_by_user_uuid: string;
+    created_at: Date;
+    revoked_at: Date | null;
+};
+
+export type AiThreadShareTable = Knex.CompositeTableType<
+    DbAiThreadShare,
+    Pick<
+        DbAiThreadShare,
+        | 'nanoid'
+        | 'ai_thread_uuid'
+        | 'agent_uuid'
+        | 'project_uuid'
+        | 'organization_uuid'
+        | 'snapshot_prompt_uuid'
+        | 'created_by_user_uuid'
+    >,
+    Pick<DbAiThreadShare, 'revoked_at'>
 >;
 
 export const AiSlackThreadTableName = 'ai_slack_thread';
@@ -41,7 +76,7 @@ export type DbAiSlackThread = {
 };
 
 type DbWebAppThread = {
-    ai_slack_thread_uuid: string;
+    ai_web_app_thread_uuid: string;
     ai_thread_uuid: string;
     user_uuid: string;
 };
@@ -60,7 +95,7 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
-    Pick<DbWebAppThread, 'ai_thread_uuid'>,
+    Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'>,
     never
 >;
 

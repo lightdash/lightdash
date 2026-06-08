@@ -919,6 +919,18 @@ type ShareUrl = BaseTrack & {
     };
 };
 
+type AiAgentThreadShareEvent = BaseTrack & {
+    event: 'ai_agent_thread_share.created' | 'ai_agent_thread_share.cloned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        aiThreadShareId: string;
+    };
+};
+
 type ShareSlack = BaseTrack & {
     event:
         | 'share_slack.unfurl'
@@ -2340,6 +2352,7 @@ type TypedEvent =
     | FieldValueSearch
     | PermissionsUpdated
     | ShareUrl
+    | AiAgentThreadShareEvent
     | ShareSlack
     | SavedChartView
     | DashboardView
