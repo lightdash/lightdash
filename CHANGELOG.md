@@ -1,3 +1,10 @@
+# [0.3107.0](https://github.com/lightdash/lightdash/compare/0.3106.0...0.3107.0) (2026-06-08)
+
+
+### Features
+
+* **ai-agents:** harden review writeback workflow ([#23984](https://github.com/lightdash/lightdash/issues/23984)) ([aee5b2f](https://github.com/lightdash/lightdash/commit/aee5b2f3ad4517897701be3107e521f31472b73c))
+
 # [0.3106.0](https://github.com/lightdash/lightdash/compare/0.3105.0...0.3106.0) (2026-06-08)
 
 
