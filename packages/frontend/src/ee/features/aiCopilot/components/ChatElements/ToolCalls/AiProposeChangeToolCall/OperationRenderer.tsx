@@ -2,6 +2,8 @@ import { assertUnreachable, capitalize } from '@lightdash/common';
 import { Paper, Stack, Text } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import rehypeExternalLinks from 'rehype-external-links';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import {
     mdEditorComponents,
     rehypeRemoveHeaderLinks,
@@ -26,7 +28,11 @@ const ReplaceOrAddOperation = ({ value, name }: ReplaceOperationProps) => {
                 source={value}
                 style={mdStyle}
                 rehypeRewrite={rehypeRemoveHeaderLinks}
-                rehypePlugins={[[rehypeExternalLinks, { target: '_blank' }]]}
+                rehypePlugins={[
+                    rehypeRaw,
+                    [rehypeSanitize, defaultSchema],
+                    [rehypeExternalLinks, { target: '_blank' }],
+                ]}
                 components={mdEditorComponents}
             />
         </Paper>

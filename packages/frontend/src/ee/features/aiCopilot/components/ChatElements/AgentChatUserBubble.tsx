@@ -4,6 +4,8 @@ import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -106,6 +108,10 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                                     key={`text-${idx}`}
                                     source={segment.text}
                                     className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                    rehypePlugins={[
+                                        rehypeRaw,
+                                        [rehypeSanitize, defaultSchema],
+                                    ]}
                                 />
                             ) : (
                                 <ContentReferenceLink
@@ -133,6 +139,10 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                     <MDEditor.Markdown
                         source={message.message}
                         className={styles.markdown}
+                        rehypePlugins={[
+                            rehypeRaw,
+                            [rehypeSanitize, defaultSchema],
+                        ]}
                     />
                 )}
             </Card>
