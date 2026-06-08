@@ -37,6 +37,77 @@ const oldestVersionUuid = (history: ChartHistory['history']) =>
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     )[0].versionUuid;
 
+async function waitForV1JobCompletion(
+    client: Awaited<ReturnType<typeof login>>,
+    jobUuid: string,
+    maxRetries = 60,
+): Promise<boolean> {
+    for (let i = 0; i < maxRetries; i++) {
+        const resp = await client.get<Body<{ jobStatus: string }>>(
+            `/api/v1/jobs/${jobUuid}`,
+        );
+        const { jobStatus } = resp.body.results;
+        if (jobStatus === 'ERROR') {
+            return false;
+        }
+        if (jobStatus === 'DONE') {
+            return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    return false;
+}
+
+async function createAndRefreshProject(
+    client: Awaited<ReturnType<typeof login>>,
+    name: string,
+): Promise<string> {
+    const sourceProjectResp = await client.get<
+        Body<{
+            dbtConnection: Record<string, unknown>;
+            dbtVersion: string;
+            warehouseConnection?: Record<string, unknown>;
+        }>
+    >(`/api/v1/projects/${projectUuid}`);
+    expect(sourceProjectResp.status).toBe(200);
+    const sourceWarehouse = sourceProjectResp.body.results
+        .warehouseConnection as Record<string, unknown> | undefined;
+
+    const projectResp = await client.post<
+        Body<{ project: { projectUuid: string } }>
+    >('/api/v1/org/projects', {
+        name,
+        type: 'DEFAULT',
+        dbtConnection: sourceProjectResp.body.results.dbtConnection,
+        dbtVersion: sourceProjectResp.body.results.dbtVersion,
+        warehouseConnection: {
+            type: 'postgres',
+            host: sourceWarehouse?.host || 'localhost',
+            port: sourceWarehouse?.port || 5432,
+            dbname: sourceWarehouse?.dbname || 'postgres',
+            schema: sourceWarehouse?.schema || 'jaffle',
+            sslmode: sourceWarehouse?.sslmode || 'disable',
+            user: process.env.PGUSER || 'postgres',
+            password: process.env.PGPASSWORD || 'password',
+        },
+    });
+    expect(projectResp.status).toBe(200);
+    const secondProjectUuid = projectResp.body.results.project.projectUuid;
+
+    const refreshResp = await client.post<Body<{ jobUuid: string }>>(
+        `/api/v1/projects/${secondProjectUuid}/refresh`,
+    );
+    expect(refreshResp.status).toBe(200);
+
+    const compiled = await waitForV1JobCompletion(
+        client,
+        refreshResp.body.results.jobUuid,
+    );
+    expect(compiled).toBe(true);
+
+    return secondProjectUuid;
+}
+
 describe('Saved chart get API behavior', () => {
     const spaceName = uniqueName('Chart get behavior space');
     const mainChartName = uniqueName('Chart get behavior main');
@@ -284,6 +355,60 @@ describe('Saved chart get API behavior', () => {
                 { failOnStatusCode: false },
             );
             expect(resp.status).toBe(404);
+        });
+
+        it('prefers a slug match inside the scoped project over a uuid match in another project', async () => {
+            const secondProjectName = uniqueName(
+                'Chart get behavior second project',
+            );
+            const secondProjectUuid = await createAndRefreshProject(
+                admin,
+                secondProjectName,
+            );
+
+            try {
+                const secondSpaceResp = await admin.post<
+                    Body<{ uuid: string }>
+                >(`/api/v1/projects/${secondProjectUuid}/spaces/`, {
+                    name: uniqueName('Chart get behavior second project space'),
+                });
+                expect(secondSpaceResp.status).toBe(200);
+
+                const secondProjectChart = await admin.post<Body<SavedChart>>(
+                    `/api/v1/projects/${secondProjectUuid}/saved`,
+                    {
+                        ...chartPayload(mainChart.uuid),
+                        spaceUuid: secondSpaceResp.body.results.uuid,
+                    },
+                );
+                expect(secondProjectChart.status).toBe(200);
+
+                const v2Resp = await admin.get<Body<SavedChart>>(
+                    `${apiV2Url}/projects/${secondProjectUuid}/saved/${mainChart.uuid}`,
+                );
+                expect(v2Resp.status).toBe(200);
+                expect(v2Resp.body.results.uuid).toBe(
+                    secondProjectChart.body.results.uuid,
+                );
+                expect(v2Resp.body.results.projectUuid).toBe(secondProjectUuid);
+                expect(v2Resp.body.results.slug).toBe(mainChart.uuid);
+
+                const v1Resp = await admin.get<Body<SavedChart>>(
+                    `${apiUrl}/saved/${mainChart.uuid}?projectUuid=${secondProjectUuid}`,
+                );
+                expect(v1Resp.status).toBe(200);
+                expect(v1Resp.body.results.uuid).toBe(
+                    secondProjectChart.body.results.uuid,
+                );
+                expect(v1Resp.body.results.projectUuid).toBe(secondProjectUuid);
+            } finally {
+                await admin.delete(
+                    `/api/v1/org/projects/${secondProjectUuid}`,
+                    {
+                        failOnStatusCode: false,
+                    },
+                );
+            }
         });
     });
 
