@@ -524,12 +524,14 @@ export const getConditionalFormattingConfig = ({
     minMaxMap = {},
     conditionalFormattings,
     rowFields,
+    applyTo,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown | undefined;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields?: ConditionalFormattingRowFields;
+    applyTo?: ConditionalFormattingColorApplyTo;
 }) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
@@ -543,9 +545,23 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    return findLast(conditionalFormattings, (config) =>
-        hasMatchingConditionalRules(field, value, minMaxMap, config, rowFields),
-    );
+    return findLast(conditionalFormattings, (config) => {
+        if (
+            applyTo !== undefined &&
+            (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) !==
+                applyTo
+        ) {
+            return false;
+        }
+
+        return hasMatchingConditionalRules(
+            field,
+            value,
+            minMaxMap,
+            config,
+            rowFields,
+        );
+    });
 };
 
 export const getConditionalFormattingDescription = (
