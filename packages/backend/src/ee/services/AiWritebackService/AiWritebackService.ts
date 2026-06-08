@@ -51,6 +51,7 @@ import {
     SKILLS_DIR,
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
+    TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { WritebackGitNotConnectedError } from './errors';
@@ -538,6 +539,14 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 turn.gitConnection.projectSubPath,
             );
+            // Stage a credential-free profiles copy host-side so the agent
+            // doesn't burn turns discovering profiles.yml and hand-stripping
+            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
+            // to spend LLM round-trips on it.
+            const profilesStaged = await this.prepareProfiles(
+                sandbox,
+                turn.gitConnection.projectSubPath,
+            );
             const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
             const systemPrompt = buildSystemPrompt(
                 turn.gitConnection.projectSubPath,
@@ -547,6 +556,7 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
+                    profilesStaged,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -880,6 +890,68 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Stage a warehouse-credential-free `profiles.yml` copy at
+     * {@link TMP_PROFILES_DIR} so the in-sandbox agent can compile without
+     * discovering the profiles file, copying it, and hand-stripping Jinja —
+     * deterministic plumbing that otherwise costs several LLM turns. Strips
+     * every `{{ … }}` expression (env_var lookups, filters) to a literal so dbt
+     * parses without any environment variables. Returns true when staged;
+     * false (best-effort) leaves the agent's prompt fallback in place.
+     */
+    private async prepareProfiles(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<boolean> {
+        const start = performance.now();
+        try {
+            const base =
+                projectSubPath === '.' ? CWD : `${CWD}/${projectSubPath}`;
+            const found = await sandbox.commands.run(
+                `find ${base} -maxdepth 2 -name profiles.yml 2>/dev/null | head -1`,
+                { cwd: CWD },
+            );
+            const profilesPath = found.stdout.trim();
+            if (!profilesPath) {
+                this.logger.info(
+                    'AI writeback prepareProfiles: no profiles.yml found — agent will prepare it',
+                    { event: 'ai_writeback.profiles.skipped', projectSubPath },
+                );
+                return false;
+            }
+            const raw = await sandbox.files.read(profilesPath);
+            // Replace each Jinja expression with a literal so the copy needs no
+            // env vars. Existing surrounding quotes (`"{{ … }}"`) wrap the
+            // placeholder; bare expressions become a plain scalar.
+            const patched = raw.replace(/\{\{.*?\}\}/g, 'placeholder');
+            await sandbox.commands.run(`mkdir -p ${TMP_PROFILES_DIR}`, {
+                cwd: CWD,
+            });
+            await sandbox.files.write(
+                `${TMP_PROFILES_DIR}/profiles.yml`,
+                patched,
+            );
+            this.logger.info(
+                `AI writeback profiles staged (${AiWritebackService.elapsed(
+                    start,
+                )}ms, from ${profilesPath})`,
+                {
+                    event: 'ai_writeback.profiles.staged',
+                    sandboxId: sandbox.sandboxId,
+                },
+            );
+            return true;
+        } catch (error) {
+            this.logger.warn(
+                `AI writeback prepareProfiles failed — agent will prepare it: ${getErrorMessage(
+                    error,
+                )}`,
+                { event: 'ai_writeback.profiles.failed' },
+            );
+            return false;
+        }
+    }
+
+    /**
      * Pre-compute a dbt project snapshot (project file, file tree, models/
      * YAML) so the agent doesn't burn turns rediscovering them. Returns null
      * on any failure — the run continues without the context block.
@@ -1022,7 +1094,7 @@ export class AiWritebackService extends BaseService {
                         localToolMs ?? '?'
                     }ms, turns=${interpreted.numTurns ?? '?'}, cost=$${
                         interpreted.costUsd ?? '?'
-                    })`,
+                    }, tools=${JSON.stringify(toolCounts)})`,
                     {
                         event: 'ai_writeback.run.summary',
                         source,
