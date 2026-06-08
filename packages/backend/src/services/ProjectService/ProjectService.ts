@@ -1557,7 +1557,9 @@ export class ProjectService extends BaseService {
                         'Please authenticate to access Databricks',
                     );
                 }
-                throw new NotFoundError('User warehouse credentials not found');
+                throw new MissingWarehouseCredentialsError(
+                    "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
+                );
             } else if (!organizationWarehouseCredentialsUuid) {
                 // No user credentials, no org credentials, refresh project credentials
                 this.logger.debug(

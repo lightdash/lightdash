@@ -68,6 +68,17 @@ const UserCredentialsSwitcher = () => {
 
                 if (query.state.error) {
                     const error = query.state.error as any;
+                    // Re-open the credentials modal whenever a query fails
+                    // because the user has no warehouse credentials
+                    if (
+                        error?.error?.name ===
+                            'MissingWarehouseCredentialsError' &&
+                        activeProject?.warehouseConnection
+                            ?.requireUserCredentials
+                    ) {
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
                     // Check if this is a SnowflakeTokenError and we have a Snowflake project
                     if (
                         error?.error?.name === 'SnowflakeTokenError' &&
