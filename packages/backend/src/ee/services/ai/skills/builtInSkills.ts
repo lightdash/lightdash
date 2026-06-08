@@ -1,6 +1,5 @@
 import { ParameterError } from '@lightdash/common';
 import crypto from 'crypto';
-import * as fsSync from 'fs';
 import * as fs from 'fs/promises';
 import matter from 'gray-matter';
 import * as path from 'path';
@@ -12,11 +11,11 @@ import {
 
 type MarkdownMetadata = {
     name: string;
-    title: string;
     description: string;
 };
 
 type ParsedMarkdownFile = MarkdownMetadata & {
+    title: string;
     content: string;
     rawContent: string;
     digest: string;
@@ -30,6 +29,28 @@ export type BuiltInSkillMcpResource = {
     description: string;
     mimeType: string;
     size?: number;
+};
+
+export type BuiltInSkillToolResource = {
+    path: string;
+    uri: string;
+    name: string;
+    title: string;
+    description: string;
+    mimeType: string;
+    size: number;
+    digest: string;
+};
+
+export type BuiltInSkillToolReference = {
+    name: string;
+    uri: string;
+    title: string;
+    description: string;
+    mimeType: string;
+    size: number;
+    digest: string;
+    resources: BuiltInSkillToolResource[];
 };
 
 type CachedMcpResource = BuiltInSkillMcpResource & {
@@ -70,22 +91,36 @@ export class BuiltInSkills {
             .digest('hex')}`;
     }
 
+    private static deriveTitleFromName(name: string): string {
+        return name
+            .split(/[-_/]/)
+            .filter((part) => part.length > 0)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    }
+
     private static parseMarkdownContent(
         filePath: string,
         fileContents: string,
     ): ParsedMarkdownFile {
         const { content, data } = matter(fileContents);
-        const { name, title, description } = data as Partial<MarkdownMetadata>;
+        const { name, description, metadata } =
+            data as Partial<MarkdownMetadata> & {
+                metadata?: { title?: string };
+            };
 
-        if (!name || !title || !description) {
+        if (!name || !description) {
             throw new ParameterError(
-                `Missing required skill frontmatter in ${filePath}. Expected "name", "title" and "description".`,
+                `Missing required skill frontmatter in ${filePath}. Expected "name" and "description".`,
             );
         }
 
+        // Agent Skills frontmatter recognizes only name + description at the top
+        // level; the display title lives under the optional metadata map and
+        // falls back to a name-derived title.
         return {
             name,
-            title,
+            title: metadata?.title ?? this.deriveTitleFromName(name),
             description,
             content,
             rawContent: fileContents,
@@ -103,29 +138,8 @@ export class BuiltInSkills {
         );
     }
 
-    private static parseMarkdownFileSync(filePath: string): ParsedMarkdownFile {
-        return this.parseMarkdownContent(
-            filePath,
-            fsSync.readFileSync(filePath, 'utf8'),
-        );
-    }
-
     private static getSkillDirectory(skillName: string): string {
         return path.join(this.SKILLS_DIR, skillName);
-    }
-
-    private static getBuiltInSkillNamesSync(): string[] {
-        if (this.skillNames) {
-            return this.skillNames;
-        }
-
-        const names = fsSync
-            .readdirSync(this.SKILLS_DIR, { withFileTypes: true })
-            .filter((entry) => entry.isDirectory())
-            .map((entry) => entry.name)
-            .sort();
-        this.skillNames = names;
-        return names;
     }
 
     private static async getBuiltInSkillNames(): Promise<string[]> {
@@ -268,35 +282,6 @@ export class BuiltInSkills {
         return [...resources, ...nestedResources];
     }
 
-    private static loadMcpResourcesForSkillSync(
-        skillName: string,
-    ): CachedMcpResource[] {
-        const skillFilePath = this.getSkillFilePath(skillName);
-        const skill = this.parseMarkdownFileSync(skillFilePath);
-        const resourcesDir = this.getSkillResourcesDirectory(skillName);
-
-        let resourceFileNames: string[];
-        try {
-            resourceFileNames = fsSync.readdirSync(resourcesDir);
-        } catch (error) {
-            if (this.isNodeErrnoException(error) && error.code === 'ENOENT') {
-                resourceFileNames = [];
-            } else {
-                throw error;
-            }
-        }
-
-        return this.buildSkillMcpResources(
-            skillName,
-            skill,
-            skillFilePath,
-            resourceFileNames,
-            resourcesDir,
-            (fileName) =>
-                this.parseMarkdownFileSync(path.join(resourcesDir, fileName)),
-        );
-    }
-
     private static async loadMcpResourcesForSkill(
         skillName: string,
     ): Promise<CachedMcpResource[]> {
@@ -369,23 +354,6 @@ export class BuiltInSkills {
             size: Buffer.byteLength(content, 'utf8'),
             content,
         };
-    }
-
-    private static loadMcpResourcesSync(): CachedMcpResource[] {
-        if (this.mcpResources) {
-            return this.mcpResources;
-        }
-
-        const skillNames = this.getBuiltInSkillNamesSync();
-        const skillResources = skillNames.flatMap((skillName) =>
-            this.loadMcpResourcesForSkillSync(skillName),
-        );
-        const resources = [
-            this.buildMcpSkillIndex(skillResources),
-            ...skillResources,
-        ];
-        this.mcpResources = resources;
-        return resources;
     }
 
     private static async loadMcpResources(): Promise<CachedMcpResource[]> {
@@ -477,10 +445,134 @@ export class BuiltInSkills {
         );
     }
 
-    static listMcpResourcesSync(): BuiltInSkillMcpResource[] {
-        return this.loadMcpResourcesSync().map(
-            ({ content, digest, filePath, ...resource }) => resource,
+    private static getSkillResourcePath(
+        skillName: string,
+        resource: CachedMcpResource,
+    ): string | undefined {
+        const prefix = `skill://${skillName}/resources/`;
+        if (!resource.uri.startsWith(prefix)) {
+            return undefined;
+        }
+
+        return `resources/${resource.uri.slice(prefix.length)}`;
+    }
+
+    private static toSkillToolResource(
+        skillName: string,
+        resource: CachedMcpResource,
+    ): BuiltInSkillToolResource | undefined {
+        const resourcePath = this.getSkillResourcePath(skillName, resource);
+        if (!resourcePath || !resource.size || !resource.digest) {
+            return undefined;
+        }
+
+        return {
+            path: resourcePath,
+            uri: resource.uri,
+            name: resource.name,
+            title: resource.title,
+            description: resource.description,
+            mimeType: resource.mimeType,
+            size: resource.size,
+            digest: resource.digest,
+        };
+    }
+
+    static async listSkillToolReferences(): Promise<
+        BuiltInSkillToolReference[]
+    > {
+        const resources = await this.loadMcpResources();
+        return resources
+            .filter((resource) => resource.uri.endsWith('/SKILL.md'))
+            .map((skillResource) => {
+                if (!skillResource.size || !skillResource.digest) {
+                    throw new ParameterError(
+                        `Missing metadata for skill resource ${skillResource.uri}`,
+                    );
+                }
+
+                return {
+                    name: skillResource.name,
+                    uri: skillResource.uri,
+                    title: skillResource.title,
+                    description: skillResource.description,
+                    mimeType: skillResource.mimeType,
+                    size: skillResource.size,
+                    digest: skillResource.digest,
+                    resources: resources
+                        .map((resource) =>
+                            this.toSkillToolResource(
+                                skillResource.name,
+                                resource,
+                            ),
+                        )
+                        .filter(
+                            (resource): resource is BuiltInSkillToolResource =>
+                                resource !== undefined,
+                        ),
+                };
+            });
+    }
+
+    static async getSkillToolReference(
+        name: string,
+    ): Promise<BuiltInSkillToolReference | undefined> {
+        return (await this.listSkillToolReferences()).find(
+            (skill) => skill.name.toLowerCase() === name.trim().toLowerCase(),
         );
+    }
+
+    static async readSkillTool(
+        name: string,
+    ): Promise<{ skill: BuiltInSkillToolReference; body: string } | undefined> {
+        const skill = await this.getSkillToolReference(name);
+        if (!skill) {
+            return undefined;
+        }
+
+        const body = await this.getMcpResourceBody(skill.uri);
+        if (body === undefined) {
+            return undefined;
+        }
+
+        return { skill, body };
+    }
+
+    static async readSkillToolResource({
+        name,
+        resourcePath,
+    }: {
+        name: string;
+        resourcePath: string;
+    }): Promise<
+        | {
+              skillName: string;
+              resource: BuiltInSkillToolResource;
+              body: string;
+          }
+        | undefined
+    > {
+        const skill = await this.getSkillToolReference(name);
+        if (!skill) {
+            return undefined;
+        }
+
+        const normalizedPath = resourcePath.startsWith('resources/')
+            ? resourcePath
+            : `resources/${resourcePath}`;
+        const resource = skill.resources.find(
+            (item) => item.path === normalizedPath,
+        );
+        if (!resource) {
+            return undefined;
+        }
+
+        const body = await this.getMcpResourceBody(resource.uri);
+        if (body === undefined) {
+            return undefined;
+        }
+
+        return { skillName: skill.name, resource, body };
     }
 
     static async listMcpResources(): Promise<BuiltInSkillMcpResource[]> {
@@ -489,30 +581,8 @@ export class BuiltInSkills {
         );
     }
 
-    static getMcpResourceBodySync(uri: string): string | undefined {
-        const resource = this.loadMcpResourcesSync().find(
-            (mcpResource) => mcpResource.uri === uri,
-        );
-        if (!resource) {
-            return undefined;
-        }
-        if (resource.content !== undefined) {
-            return resource.content;
-        }
-        const cached = this.mcpResourceBodyCache.get(uri);
-        if (cached !== undefined) {
-            return cached;
-        }
-        if (!resource.filePath) {
-            return undefined;
-        }
-        const body = fsSync.readFileSync(resource.filePath, 'utf8');
-        this.mcpResourceBodyCache.set(uri, body);
-        return body;
-    }
-
     static async getMcpResourceBody(uri: string): Promise<string | undefined> {
-        const resource = this.loadMcpResourcesSync().find(
+        const resource = (await this.loadMcpResources()).find(
             (mcpResource) => mcpResource.uri === uri,
         );
         if (!resource) {

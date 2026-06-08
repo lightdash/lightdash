@@ -1,7 +1,8 @@
 ---
 name: funnel-chart-reference
-title: Funnel Chart Reference
 description: Funnel chart structure, stage ordering, labels, colors, and examples for Lightdash charts.
+metadata:
+    title: Funnel Chart Reference
 ---
 
 # Funnel Chart Reference

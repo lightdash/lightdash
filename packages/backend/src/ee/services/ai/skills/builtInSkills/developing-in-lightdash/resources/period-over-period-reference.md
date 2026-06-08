@@ -1,7 +1,8 @@
 ---
 name: period-over-period-reference
-title: Period over Period Reference
 description: Period over period comparison configuration for Lightdash chart JSON.
+metadata:
+    title: Period over Period Reference
 ---
 
 # Period over Period (PoP) Comparison Reference

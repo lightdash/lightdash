@@ -1,7 +1,8 @@
 ---
 name: sankey-chart-reference
-title: Sankey Chart Reference
 description: Sankey chart structure, source and target flow settings, and examples for Lightdash charts.
+metadata:
+    title: Sankey Chart Reference
 ---
 
 # Sankey Chart Reference

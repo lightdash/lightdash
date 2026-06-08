@@ -53,9 +53,6 @@ describe('MCP server', () => {
         expect(response.body.result.serverInfo).toHaveProperty('version');
         expect(response.body.result.capabilities).toMatchObject({
             resources: { subscribe: false, listChanged: false },
-            experimental: {
-                'io.modelcontextprotocol/skills': {},
-            },
             extensions: {
                 'io.modelcontextprotocol/skills': {},
             },
@@ -95,6 +92,106 @@ describe('MCP server', () => {
             'Get the current Lightdash version',
         );
         expect(versionTool).toHaveProperty('inputSchema');
+        expect(tools.map((tool) => tool.name)).toEqual(
+            expect.arrayContaining([
+                'list_skills',
+                'read_skill',
+                'read_skill_resource',
+            ]),
+        );
+    });
+
+    it('should expose skill fallback tools', async () => {
+        const listResponse = await admin.post<
+            McpResponse<{
+                content: Array<{ type: string; text: string }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 10,
+                method: 'tools/call',
+                params: {
+                    name: 'list_skills',
+                    arguments: {},
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(listResponse.status).toBe(200);
+        const listSkills = JSON.parse(
+            listResponse.body.result.content[0].text,
+        ) as {
+            skills: Array<{
+                name: string;
+                resources: Array<{ path: string }>;
+            }>;
+        };
+        const skill = listSkills.skills.find(
+            (item) => item.name === 'developing-in-lightdash',
+        );
+        expect(skill).toBeDefined();
+        expect(skill?.resources).toContainEqual({
+            path: 'resources/dashboard-reference.md',
+            uri: expect.any(String),
+            name: expect.any(String),
+            title: expect.any(String),
+            description: expect.any(String),
+            mimeType: 'text/markdown',
+            size: expect.any(Number),
+            digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        });
+
+        const readSkillResponse = await admin.post<
+            McpResponse<{
+                content: Array<{ type: string; text: string }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 11,
+                method: 'tools/call',
+                params: {
+                    name: 'read_skill',
+                    arguments: { name: 'developing-in-lightdash' },
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(readSkillResponse.status).toBe(200);
+        expect(readSkillResponse.body.result.content[0].text).toContain(
+            '# Developing in Lightdash',
+        );
+
+        const readResourceResponse = await admin.post<
+            McpResponse<{
+                content: Array<{ type: string; text: string }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 12,
+                method: 'tools/call',
+                params: {
+                    name: 'read_skill_resource',
+                    arguments: {
+                        name: 'developing-in-lightdash',
+                        path: 'resources/dashboard-reference.md',
+                    },
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(readResourceResponse.status).toBe(200);
+        expect(readResourceResponse.body.result.content[0].text).toContain(
+            '# Dashboard Reference',
+        );
     });
 
     it('should list the analyst prompt without skill prompts', async () => {

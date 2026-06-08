@@ -1,7 +1,8 @@
 ---
 name: cartesian-chart-reference
-title: Cartesian Chart Reference
 description: Bar, line, area, and scatter chart configuration, layout, series options, and examples for Lightdash charts.
+metadata:
+    title: Cartesian Chart Reference
 ---
 
 # Cartesian Chart Reference

@@ -1,7 +1,8 @@
 ---
 name: dashboard-best-practices
-title: Dashboard Best Practices
 description: A guide to building effective, user-friendly dashboards in Lightdash based on data visualization principles and BI best practices.
+metadata:
+    title: Dashboard Best Practices
 ---
 
 ## Data Visualization Fundamentals

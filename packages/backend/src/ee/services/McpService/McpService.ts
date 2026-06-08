@@ -63,7 +63,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
-    ServerCapabilities,
     ServerNotification,
     ServerRequest,
     // eslint-disable-next-line import/extensions
@@ -148,6 +147,9 @@ export enum McpToolName {
     GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
+    LIST_SKILLS = 'list_skills',
+    READ_SKILL = 'read_skill',
+    READ_SKILL_RESOURCE = 'read_skill_resource',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
 }
 
@@ -171,6 +173,27 @@ const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
+
+const listSkillsToolSchema = z.object({});
+const readSkillToolSchema = z.object({
+    name: z
+        .string()
+        .describe(
+            'Skill name from list_skills, for example developing-in-lightdash',
+        ),
+});
+const readSkillResourceToolSchema = z.object({
+    name: z
+        .string()
+        .describe(
+            'Skill name from list_skills, for example developing-in-lightdash',
+        ),
+    path: z
+        .string()
+        .describe(
+            'Resource path from list_skills, for example resources/dashboard-reference.md',
+        ),
+});
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -989,6 +1012,117 @@ export class McpService extends BaseService {
         schema: z.ZodObject<TShape>,
     ): TShape {
         return this.mcpCompatLayer.processZodType(schema).shape;
+    }
+
+    private registerSkillToolHandlers(): void {
+        this.mcpServer.registerTool(
+            McpToolName.LIST_SKILLS,
+            {
+                title: 'List Skills',
+                description:
+                    'List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.',
+                inputSchema: this.getMcpCompatibleSchema(listSkillsToolSchema),
+                annotations: { readOnlyHint: true },
+            },
+            async (_args, extra) => {
+                const ctx = getMcpContext(extra);
+                this.trackToolCall(ctx, McpToolName.LIST_SKILLS);
+
+                const skills = await BuiltInSkills.listSkillToolReferences();
+                return {
+                    content: [
+                        {
+                            type: 'text' as const,
+                            text: JSON.stringify({ skills }, null, 2),
+                        },
+                    ],
+                    structuredContent: { skills },
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.READ_SKILL,
+            {
+                title: 'Read Skill',
+                description:
+                    'Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.',
+                inputSchema: this.getMcpCompatibleSchema(readSkillToolSchema),
+                annotations: { readOnlyHint: true },
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                this.trackToolCall(ctx, McpToolName.READ_SKILL);
+
+                const result = await BuiltInSkills.readSkillTool(args.name);
+                if (!result) {
+                    throw new NotFoundError(
+                        `Skill "${args.name}" was not found`,
+                    );
+                }
+                const { skill, body } = result;
+
+                return {
+                    content: [
+                        {
+                            type: 'text' as const,
+                            text: body,
+                        },
+                    ],
+                    structuredContent: {
+                        skill: {
+                            name: skill.name,
+                            uri: skill.uri,
+                            title: skill.title,
+                            description: skill.description,
+                            mimeType: skill.mimeType,
+                            size: skill.size,
+                            digest: skill.digest,
+                        },
+                    },
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.READ_SKILL_RESOURCE,
+            {
+                title: 'Read Skill Resource',
+                description:
+                    'Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.',
+                inputSchema: this.getMcpCompatibleSchema(
+                    readSkillResourceToolSchema,
+                ),
+                annotations: { readOnlyHint: true },
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                this.trackToolCall(ctx, McpToolName.READ_SKILL_RESOURCE);
+
+                const result = await BuiltInSkills.readSkillToolResource({
+                    name: args.name,
+                    resourcePath: args.path,
+                });
+                if (!result) {
+                    throw new NotFoundError(
+                        `Skill resource "${args.path}" was not found for skill "${args.name}"`,
+                    );
+                }
+
+                return {
+                    content: [
+                        {
+                            type: 'text' as const,
+                            text: result.body,
+                        },
+                    ],
+                    structuredContent: {
+                        skill: { name: result.skillName },
+                        resource: result.resource,
+                    },
+                };
+            },
+        );
     }
 
     /**
@@ -2326,6 +2460,8 @@ export class McpService extends BaseService {
             },
         );
 
+        this.registerSkillToolHandlers();
+
         // Dark-launched: this tool is only registered — and therefore only
         // advertised in tools/list and invocable — when the AiWriteback
         // feature flag is enabled for the caller. Clients without the flag
@@ -2386,12 +2522,12 @@ export class McpService extends BaseService {
                 };
             },
         );
-
-        McpService.setupSkillResourceHandlers(this.mcpServer);
     }
 
-    private static setupSkillResourceHandlers(mcpServer: McpServer): void {
-        const resources = BuiltInSkills.listMcpResourcesSync();
+    private static async setupSkillResourceHandlers(
+        mcpServer: McpServer,
+    ): Promise<void> {
+        const resources = await BuiltInSkills.listMcpResources();
 
         resources.forEach((resource) => {
             mcpServer.registerResource(
@@ -2432,13 +2568,10 @@ export class McpService extends BaseService {
         // notifications, so override it to avoid misleading clients.
         mcpServer.server.registerCapabilities({
             resources: { subscribe: false, listChanged: false },
-            experimental: {
-                [MCP_SKILLS_EXTENSION_NAME]: {},
-            },
             extensions: {
                 [MCP_SKILLS_EXTENSION_NAME]: {},
             },
-        } as ServerCapabilities);
+        });
     }
 
     async getProjectUuidFromContext(context: McpProtocolContext) {
@@ -2711,10 +2844,10 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public createServer(options?: {
+    public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-    }): McpServer {
+    }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2739,7 +2872,9 @@ export class McpService extends BaseService {
             }),
         );
 
-        // Temporarily swap the server to register handlers on the new instance
+        // Temporarily swap the server to register handlers on the new instance.
+        // This region stays synchronous so concurrent createServer calls can't
+        // observe each other's swapped this.mcpServer across an await.
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
         try {
@@ -2750,6 +2885,10 @@ export class McpService extends BaseService {
         } finally {
             this.mcpServer = originalServer;
         }
+
+        // Skill resources load asynchronously; register them directly on the
+        // new server so no server swap spans the await.
+        await McpService.setupSkillResourceHandlers(newServer);
 
         return newServer;
     }

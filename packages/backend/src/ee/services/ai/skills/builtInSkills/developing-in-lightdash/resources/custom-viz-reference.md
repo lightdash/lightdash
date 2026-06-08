@@ -1,7 +1,8 @@
 ---
 name: custom-viz-reference
-title: Custom Visualizations Reference
 description: Custom chart guidance using Vega-Lite specifications in Lightdash charts.
+metadata:
+    title: Custom Visualizations Reference
 ---
 
 # Custom Visualizations Reference

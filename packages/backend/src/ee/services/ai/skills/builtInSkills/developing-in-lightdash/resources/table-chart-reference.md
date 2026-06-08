@@ -1,7 +1,8 @@
 ---
 name: table-chart-reference
-title: Table Chart Reference
 description: Table chart configuration, columns, conditional formatting, pivots, and display options for Lightdash charts.
+metadata:
+    title: Table Chart Reference
 ---
 
 # Table Chart Reference
