@@ -48,6 +48,28 @@ type McpResourceWithBody = {
     body: string;
 };
 
+/** A built-in skill's supporting file, as returned by the skill read tools. */
+export type BuiltInSkillToolResource = {
+    path: string;
+    uri: string;
+    name: string;
+    title: string;
+    description: string;
+    mimeType: string;
+    size: number;
+};
+
+/** A built-in skill, as returned by the list/read skill tools. */
+export type BuiltInSkillToolReference = {
+    name: string;
+    uri: string;
+    title: string;
+    description: string;
+    mimeType: string;
+    size: number;
+    resources: BuiltInSkillToolResource[];
+};
+
 export class BuiltInSkills {
     private static readonly SKILLS_DIR = path.join(__dirname, 'builtInSkills');
 
@@ -326,5 +348,91 @@ export class BuiltInSkills {
         return (await this.loadMcpResources()).find(
             (item) => item.resource.uri === uri,
         )?.body;
+    }
+
+    static async listSkillToolReferences(): Promise<
+        BuiltInSkillToolReference[]
+    > {
+        return (await this.load()).map((skill) => {
+            const skillTitle = this.deriveTitleFromName(skill.name);
+            return {
+                name: skill.name,
+                uri: this.getSkillUri(skill.name),
+                title: skillTitle,
+                description: skill.skill.description,
+                mimeType: 'text/markdown',
+                size: Buffer.byteLength(skill.skill.raw, 'utf8'),
+                resources: skill.resources.map((file) => ({
+                    path: `resources/${file.fileName}`,
+                    uri: this.getSkillResourceUri(skill.name, file.fileName),
+                    name: `${skill.name}/resources/${path.basename(
+                        file.fileName,
+                        '.md',
+                    )}`,
+                    title: `${skillTitle} / ${this.deriveTitleFromName(
+                        file.name,
+                    )}`,
+                    description: file.description,
+                    mimeType: 'text/markdown',
+                    size: Buffer.byteLength(file.raw, 'utf8'),
+                })),
+            };
+        });
+    }
+
+    private static async getSkillToolReference(
+        name: string,
+    ): Promise<BuiltInSkillToolReference | undefined> {
+        return (await this.listSkillToolReferences()).find(
+            (skill) => skill.name.toLowerCase() === name.trim().toLowerCase(),
+        );
+    }
+
+    static async readSkillTool(
+        name: string,
+    ): Promise<{ skill: BuiltInSkillToolReference; body: string } | undefined> {
+        const skill = await this.getSkillToolReference(name);
+        if (!skill) {
+            return undefined;
+        }
+        const body = await this.getMcpResourceBody(skill.uri);
+        if (body === undefined) {
+            return undefined;
+        }
+        return { skill, body };
+    }
+
+    static async readSkillToolResource({
+        name,
+        resourcePath,
+    }: {
+        name: string;
+        resourcePath: string;
+    }): Promise<
+        | {
+              skillName: string;
+              resource: BuiltInSkillToolResource;
+              body: string;
+          }
+        | undefined
+    > {
+        const skill = await this.getSkillToolReference(name);
+        if (!skill) {
+            return undefined;
+        }
+        const normalizedPath = resourcePath.startsWith('resources/')
+            ? resourcePath
+            : `resources/${resourcePath}`;
+        const resource = skill.resources.find(
+            (item) => item.path === normalizedPath,
+        );
+        if (!resource) {
+            return undefined;
+        }
+        const body = await this.getMcpResourceBody(resource.uri);
+        if (body === undefined) {
+            return undefined;
+        }
+        return { skillName: skill.name, resource, body };
     }
 }

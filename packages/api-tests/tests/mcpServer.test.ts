@@ -231,4 +231,110 @@ describe('MCP server', () => {
             }),
         );
     });
+
+    it('should expose the skill fallback tools', async () => {
+        const response = await admin.post<
+            McpResponse<{ tools: Array<{ name: string }> }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 9,
+                method: 'tools/list',
+                params: {},
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        const names = response.body.result.tools.map((tool) => tool.name);
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'list_skills',
+                'read_skill',
+                'read_skill_resource',
+            ]),
+        );
+    });
+
+    it('should call the list_skills tool', async () => {
+        const response = await admin.post<
+            McpResponse<{ content: Array<{ type: string; text: string }> }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 10,
+                method: 'tools/call',
+                params: { name: 'list_skills', arguments: {} },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        const parsed = JSON.parse(response.body.result.content[0].text) as {
+            skills: Array<{
+                name: string;
+                uri: string;
+                resources: Array<{ path: string }>;
+            }>;
+        };
+        const skill = parsed.skills.find(
+            (s) => s.name === 'developing-in-lightdash',
+        );
+        expect(skill?.uri).toBe('skill://developing-in-lightdash/SKILL.md');
+        expect(skill?.resources.length).toBeGreaterThan(0);
+        expect(
+            skill?.resources.every((r) => r.path.startsWith('resources/')),
+        ).toBe(true);
+    });
+
+    it('should call the read_skill tool', async () => {
+        const response = await admin.post<
+            McpResponse<{ content: Array<{ type: string; text: string }> }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 11,
+                method: 'tools/call',
+                params: {
+                    name: 'read_skill',
+                    arguments: { name: 'developing-in-lightdash' },
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.result.content[0].text).toContain(
+            '# Developing in Lightdash',
+        );
+    });
+
+    it('should call the read_skill_resource tool', async () => {
+        const response = await admin.post<
+            McpResponse<{ content: Array<{ type: string; text: string }> }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 12,
+                method: 'tools/call',
+                params: {
+                    name: 'read_skill_resource',
+                    arguments: {
+                        name: 'developing-in-lightdash',
+                        path: 'resources/dashboard-reference.md',
+                    },
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.result.content[0].text).toContain(
+            '# Dashboard Reference',
+        );
+    });
 });

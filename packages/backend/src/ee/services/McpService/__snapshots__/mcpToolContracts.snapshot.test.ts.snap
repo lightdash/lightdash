@@ -7367,6 +7367,63 @@ Notes:
     },
     {
       "agentName": null,
+      "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object",
+      },
+      "name": "list_skills",
+      "title": "List Skills",
+    },
+    {
+      "agentName": null,
+      "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Skill name from list_skills, for example developing-in-lightdash",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+        ],
+        "type": "object",
+      },
+      "name": "read_skill",
+      "title": "Read Skill",
+    },
+    {
+      "agentName": null,
+      "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Skill name from list_skills, for example developing-in-lightdash",
+            "type": "string",
+          },
+          "path": {
+            "description": "Resource path from list_skills, for example resources/dashboard-reference.md",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "path",
+        ],
+        "type": "object",
+      },
+      "name": "read_skill_resource",
+      "title": "Read Skill Resource",
+    },
+    {
+      "agentName": null,
       "description": "Tool: run_ai_writeback
 
 Purpose:
