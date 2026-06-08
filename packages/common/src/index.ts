@@ -108,6 +108,7 @@ export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/dataTimezonePreview';
 export * from './types/dbt';
 export * from './types/downloadFile';
 export * from './types/email';
