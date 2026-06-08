@@ -7,7 +7,7 @@ import {
     Alert,
     Badge,
     Button,
-    Card,
+    Divider,
     Group,
     Stack,
     Text,
@@ -19,18 +19,30 @@ import TimeZonePicker from '../../common/TimeZonePicker';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 
-const PreviewRow: FC<{ label: string; value: ReactNode }> = ({
-    label,
+const PipelineStep: FC<{ n: number; title: string; value: ReactNode }> = ({
+    n,
+    title,
     value,
 }) => (
-    <Group justify="space-between" gap="md" wrap="nowrap">
-        <Text size="xs" c="dimmed">
-            {label}
-        </Text>
-        <Text size="xs" ff="monospace" ta="right">
-            {value}
-        </Text>
+    <Group gap="sm" wrap="nowrap" align="flex-start">
+        <Badge size="sm" circle variant="light">
+            {n}
+        </Badge>
+        <Stack gap={0}>
+            <Text size="xs" fw={600}>
+                {title}
+            </Text>
+            <Text size="xs" ff="monospace">
+                {value}
+            </Text>
+        </Stack>
     </Group>
+);
+
+const Connector: FC<{ children: ReactNode }> = ({ children }) => (
+    <Text size="xs" c="dimmed" ml="md" pl={4}>
+        ↓ {children}
+    </Text>
 );
 
 const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
@@ -61,10 +73,11 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     };
 
     const result = preview.data;
-    const snowflakeNotApplied =
+    const snowflakeNotApplied = Boolean(
         result &&
         !result.dataTimezoneApplies &&
-        result.warehouseType === WarehouseTypes.SNOWFLAKE;
+        result.warehouseType === WarehouseTypes.SNOWFLAKE,
+    );
 
     return (
         <Stack gap="xs">
@@ -98,81 +111,42 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
             {result && (
                 <Stack gap="xs">
                     <Text size="xs" c="dimmed">
-                        How the current moment flows through your settings —
-                        data timezone <b>{result.selectedDataTimezone}</b>,
-                        shown in project timezone{' '}
-                        <b>{result.projectTimezone}</b>.
+                        The current moment, step by step
                     </Text>
-
-                    {/* Affected: columns without a stored timezone */}
-                    <Card withBorder padding="sm" radius="sm">
-                        <Group justify="space-between" mb="xs" wrap="nowrap">
-                            <Text size="xs" fw={600}>
-                                Columns without a stored timezone
-                            </Text>
-                            <Badge
-                                size="xs"
-                                color={
-                                    result.dataTimezoneApplies ? 'blue' : 'gray'
-                                }
-                                variant="light"
-                            >
-                                {result.dataTimezoneApplies
-                                    ? 'affected'
-                                    : 'not affected'}
-                            </Badge>
-                        </Group>
-                        <Stack gap={4}>
-                            <PreviewRow
-                                label="From the warehouse"
-                                value={`${result.naive.raw} (no timezone)`}
-                            />
-                            <PreviewRow
-                                label={`Read as ${result.naive.interpretedAs}`}
-                                value={result.naive.readAs}
-                            />
-                            <PreviewRow
-                                label="Viewers see"
-                                value={result.naive.rendered}
-                            />
-                        </Stack>
-                        {snowflakeNotApplied && (
-                            <Text size="xs" c="orange" mt="xs">
-                                Snowflake stores timestamps in UTC, so your data
-                                timezone isn't applied here.
-                            </Text>
-                        )}
-                    </Card>
-
-                    {/* Unaffected: columns that already carry a timezone */}
-                    <Card withBorder padding="sm" radius="sm">
-                        <Group justify="space-between" mb="xs" wrap="nowrap">
-                            <Text size="xs" fw={600}>
-                                Columns with a stored timezone
-                            </Text>
-                            <Badge size="xs" color="gray" variant="light">
-                                not affected
-                            </Badge>
-                        </Group>
-                        <Stack gap={4}>
-                            <PreviewRow
-                                label="From the warehouse"
-                                value={result.aware.raw}
-                            />
-                            <PreviewRow
-                                label="Data timezone ignored"
-                                value="(already an exact moment)"
-                            />
-                            <PreviewRow
-                                label="Viewers see"
-                                value={result.aware.rendered}
-                            />
-                        </Stack>
-                    </Card>
-
+                    <PipelineStep
+                        n={1}
+                        title="From the warehouse"
+                        value={`${result.naive.raw}  ·  no timezone`}
+                    />
+                    <Connector>
+                        read as {result.naive.interpretedAs} (your data
+                        timezone)
+                        {snowflakeNotApplied &&
+                            ' — but Snowflake stores UTC, so it is not applied'}
+                    </Connector>
+                    <PipelineStep
+                        n={2}
+                        title="An exact moment in time"
+                        value={result.naive.readAs}
+                    />
+                    <Connector>
+                        shown in {result.projectTimezone} (your project
+                        timezone)
+                    </Connector>
+                    <PipelineStep
+                        n={3}
+                        title="What viewers see"
+                        value={result.naive.rendered}
+                    />
+                    <Divider my={4} />
                     <Text size="xs" c="dimmed">
-                        Tip: change the data timezone and preview again — only
-                        the first group moves.
+                        If a column already stores a timezone, step 1 is skipped
+                        — the moment is already exact and your data timezone is
+                        ignored. Viewers see{' '}
+                        <Text span ff="monospace">
+                            {result.aware.rendered}
+                        </Text>
+                        .
                     </Text>
                 </Stack>
             )}
