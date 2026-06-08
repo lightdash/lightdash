@@ -128,6 +128,9 @@ describe('MCP server', () => {
         expect(response.status).toBe(200);
         expect(response.body.result.capabilities).toMatchObject({
             resources: { subscribe: false, listChanged: false },
+            experimental: {
+                'io.modelcontextprotocol/skills': {},
+            },
             extensions: {
                 'io.modelcontextprotocol/skills': {},
             },
@@ -157,10 +160,13 @@ describe('MCP server', () => {
         expect(response.status).toBe(200);
         const uris = response.body.result.resources.map((r) => r.uri);
         expect(uris).toContain('skill://index.json');
-        expect(uris).toContain('skill://developing-in-lightdash/SKILL.md');
+        expect(uris).toContain(
+            'skill://lightdash/developing-in-lightdash/SKILL.md',
+        );
 
         const skillMd = response.body.result.resources.find(
-            (r) => r.uri === 'skill://developing-in-lightdash/SKILL.md',
+            (r) =>
+                r.uri === 'skill://lightdash/developing-in-lightdash/SKILL.md',
         );
         expect(skillMd?.name).toBe('developing-in-lightdash');
         expect(skillMd?.mimeType).toBe('text/markdown');
@@ -181,7 +187,9 @@ describe('MCP server', () => {
                 jsonrpc: '2.0',
                 id: 7,
                 method: 'resources/read',
-                params: { uri: 'skill://developing-in-lightdash/SKILL.md' },
+                params: {
+                    uri: 'skill://lightdash/developing-in-lightdash/SKILL.md',
+                },
             },
             { headers: mcpHeaders },
         );
@@ -189,7 +197,7 @@ describe('MCP server', () => {
         expect(response.status).toBe(200);
         expect(response.body.result.contents).toHaveLength(1);
         expect(response.body.result.contents[0].uri).toBe(
-            'skill://developing-in-lightdash/SKILL.md',
+            'skill://lightdash/developing-in-lightdash/SKILL.md',
         );
         expect(response.body.result.contents[0].text).toContain(
             '# Developing in Lightdash',
@@ -221,13 +229,19 @@ describe('MCP server', () => {
         expect(content.mimeType).toBe('application/json');
 
         const index = JSON.parse(content.text) as {
-            skills: Array<{ name: string; type: string; url: string }>;
+            skills: Array<{
+                name: string;
+                type: string;
+                url: string;
+                digest: string;
+            }>;
         };
         expect(index.skills).toContainEqual(
             expect.objectContaining({
                 name: 'developing-in-lightdash',
                 type: 'skill-md',
-                url: 'skill://developing-in-lightdash/SKILL.md',
+                url: 'skill://lightdash/developing-in-lightdash/SKILL.md',
+                digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
             }),
         );
     });
@@ -282,7 +296,9 @@ describe('MCP server', () => {
         const skill = parsed.skills.find(
             (s) => s.name === 'developing-in-lightdash',
         );
-        expect(skill?.uri).toBe('skill://developing-in-lightdash/SKILL.md');
+        expect(skill?.uri).toBe(
+            'skill://lightdash/developing-in-lightdash/SKILL.md',
+        );
         expect(skill?.resources.length).toBeGreaterThan(0);
         expect(
             skill?.resources.every((r) => r.path.startsWith('resources/')),

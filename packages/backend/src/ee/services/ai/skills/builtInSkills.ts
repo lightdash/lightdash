@@ -1,4 +1,5 @@
 import { ParameterError } from '@lightdash/common';
+import crypto from 'crypto';
 import * as fs from 'fs/promises';
 import matter from 'gray-matter';
 import * as path from 'path';
@@ -57,6 +58,7 @@ export type BuiltInSkillToolResource = {
     description: string;
     mimeType: string;
     size: number;
+    digest: string;
 };
 
 /** A built-in skill, as returned by the list/read skill tools. */
@@ -67,6 +69,7 @@ export type BuiltInSkillToolReference = {
     description: string;
     mimeType: string;
     size: number;
+    digest: string;
     resources: BuiltInSkillToolResource[];
 };
 
@@ -77,6 +80,17 @@ export class BuiltInSkills {
 
     private static readonly SKILLS_DISCOVERY_SCHEMA =
         'https://schemas.agentskills.io/discovery/0.2.0/schema.json';
+
+    // Vendor prefix (authority segment) for skill:// URIs, so our skills never
+    // collide when a host mounts several servers' skills into one namespace.
+    private static readonly SKILL_NAMESPACE = 'lightdash';
+
+    private static getContentDigest(content: string): string {
+        return `sha256:${crypto
+            .createHash('sha256')
+            .update(content)
+            .digest('hex')}`;
+    }
 
     private static loaded: LoadedBuiltInSkill[] | undefined;
 
@@ -250,14 +264,14 @@ export class BuiltInSkills {
     }
 
     private static getSkillUri(skillName: string): string {
-        return `skill://${skillName}/SKILL.md`;
+        return `skill://${this.SKILL_NAMESPACE}/${skillName}/SKILL.md`;
     }
 
     private static getSkillResourceUri(
         skillName: string,
         fileName: string,
     ): string {
-        return `skill://${skillName}/resources/${fileName}`;
+        return `skill://${this.SKILL_NAMESPACE}/${skillName}/resources/${fileName}`;
     }
 
     private static buildSkillIndex(
@@ -270,6 +284,7 @@ export class BuiltInSkills {
                 type: 'skill-md',
                 description: item.resource.description,
                 url: item.resource.uri,
+                digest: this.getContentDigest(item.body),
             }));
         const body = JSON.stringify(
             { $schema: this.SKILLS_DISCOVERY_SCHEMA, skills },
@@ -362,6 +377,7 @@ export class BuiltInSkills {
                 description: skill.skill.description,
                 mimeType: 'text/markdown',
                 size: Buffer.byteLength(skill.skill.raw, 'utf8'),
+                digest: this.getContentDigest(skill.skill.raw),
                 resources: skill.resources.map((file) => ({
                     path: `resources/${file.fileName}`,
                     uri: this.getSkillResourceUri(skill.name, file.fileName),
@@ -375,6 +391,7 @@ export class BuiltInSkills {
                     description: file.description,
                     mimeType: 'text/markdown',
                     size: Buffer.byteLength(file.raw, 'utf8'),
+                    digest: this.getContentDigest(file.raw),
                 })),
             };
         });

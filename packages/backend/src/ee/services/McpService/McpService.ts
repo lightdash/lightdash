@@ -2789,6 +2789,7 @@ export class McpService extends BaseService {
                             description: skill.description,
                             mimeType: skill.mimeType,
                             size: skill.size,
+                            digest: skill.digest,
                         },
                     },
                 };
@@ -2874,6 +2875,11 @@ export class McpService extends BaseService {
         // detect built-in skill support.
         mcpServer.server.registerCapabilities({
             resources: { subscribe: false, listChanged: false },
+            // Advertise under both: `extensions` per the final SEP, and
+            // `experimental` for draft-era clients (the de-facto wild form).
+            experimental: {
+                [MCP_SKILLS_EXTENSION_NAME]: {},
+            },
             extensions: {
                 [MCP_SKILLS_EXTENSION_NAME]: {},
             },
