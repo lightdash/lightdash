@@ -1,3 +1,11 @@
+## [0.3104.3](https://github.com/lightdash/lightdash/compare/0.3104.2...0.3104.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* add minimum width to agent selector dropdown ([#23986](https://github.com/lightdash/lightdash/issues/23986)) ([9c97ab6](https://github.com/lightdash/lightdash/commit/9c97ab6646426d4561774e7ee29fbc9b3cbae816))
+* trace ai agent model ([#23975](https://github.com/lightdash/lightdash/issues/23975)) ([9298bab](https://github.com/lightdash/lightdash/commit/9298bab2432334c3f5ee7b4c9264b9c6e8ec81bb)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3104.2](https://github.com/lightdash/lightdash/compare/0.3104.1...0.3104.2) (2026-06-08)
 
 
