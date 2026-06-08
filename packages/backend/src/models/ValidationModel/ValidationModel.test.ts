@@ -1,7 +1,54 @@
 import { DashboardFilterValidationErrorType } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { ValidationTableName } from '../../database/entities/validation';
 import { ValidationModel } from './ValidationModel';
 
 describe('ValidationModel', () => {
+    describe('tenant-scoped cleanup', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new ValidationModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('deletes chart validations only in the requested project', async () => {
+            const chartUuid = '11111111-1111-4111-8111-111111111111';
+            const projectUuid = '22222222-2222-4222-8222-222222222222';
+
+            tracker.on
+                .delete(({ sql }) => sql.includes(ValidationTableName))
+                .responseOnce(1);
+
+            await model.deleteChartValidations(chartUuid, projectUuid);
+
+            const [query] = tracker.history.delete;
+            expect(query.bindings).toContain(chartUuid);
+            expect(query.bindings).toContain(projectUuid);
+        });
+
+        it('deletes dashboard validations only in the requested project', async () => {
+            const dashboardUuid = '33333333-3333-4333-8333-333333333333';
+            const projectUuid = '22222222-2222-4222-8222-222222222222';
+
+            tracker.on
+                .delete(({ sql }) => sql.includes(ValidationTableName))
+                .responseOnce(1);
+
+            await model.deleteDashboardValidations(dashboardUuid, projectUuid);
+
+            const [query] = tracker.history.delete;
+            expect(query.bindings).toContain(dashboardUuid);
+            expect(query.bindings).toContain(projectUuid);
+        });
+    });
+
     describe('parseDashboardFilterError', () => {
         it('Should parse "table not used by any chart" error', () => {
             const error =
