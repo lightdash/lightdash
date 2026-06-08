@@ -17,11 +17,12 @@ type SkillFrontmatter = {
  * A single parsed markdown file within a skill directory — the skill's SKILL.md
  * or one of its supporting resource files. This is the shared, parse-once
  * representation that every consumer projects its own view from (the AI-agent
- * skill API today; the MCP resource API in later slices).
+ * skill API and the MCP resource API).
  */
 export type ParsedSkillFile = SkillFrontmatter & {
     fileName: string;
     content: string;
+    raw: string;
 };
 
 /** A fully-loaded built-in skill: its SKILL.md plus supporting resource files. */
@@ -32,12 +33,34 @@ export type LoadedBuiltInSkill = {
     resources: ParsedSkillFile[];
 };
 
+/** A built-in skill file exposed as an MCP resource. */
+export type BuiltInSkillMcpResource = {
+    uri: string;
+    name: string;
+    title: string;
+    description: string;
+    mimeType: string;
+    size: number;
+};
+
+type McpResourceWithBody = {
+    resource: BuiltInSkillMcpResource;
+    body: string;
+};
+
 export class BuiltInSkills {
     private static readonly SKILLS_DIR = path.join(__dirname, 'builtInSkills');
+
+    private static readonly SKILL_INDEX_URI = 'skill://index.json';
+
+    private static readonly SKILLS_DISCOVERY_SCHEMA =
+        'https://schemas.agentskills.io/discovery/0.2.0/schema.json';
 
     private static loaded: LoadedBuiltInSkill[] | undefined;
 
     private static loadedPromise: Promise<LoadedBuiltInSkill[]> | undefined;
+
+    private static mcpResources: McpResourceWithBody[] | undefined;
 
     private static parseSkillFile(
         filePath: string,
@@ -57,6 +80,7 @@ export class BuiltInSkills {
             name,
             description,
             content,
+            raw: fileContents,
         };
     }
 
@@ -193,5 +217,114 @@ export class BuiltInSkills {
             (loaded) => loaded.name.toLowerCase() === name.trim().toLowerCase(),
         );
         return skill ? this.toAiAgentSkill(skill) : undefined;
+    }
+
+    private static deriveTitleFromName(name: string): string {
+        return name
+            .split(/[-_/]/)
+            .filter((part) => part.length > 0)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    }
+
+    private static getSkillUri(skillName: string): string {
+        return `skill://${skillName}/SKILL.md`;
+    }
+
+    private static getSkillResourceUri(
+        skillName: string,
+        fileName: string,
+    ): string {
+        return `skill://${skillName}/resources/${fileName}`;
+    }
+
+    private static buildSkillIndex(
+        skillResources: McpResourceWithBody[],
+    ): McpResourceWithBody {
+        const skills = skillResources
+            .filter((item) => item.resource.uri.endsWith('/SKILL.md'))
+            .map((item) => ({
+                name: item.resource.name,
+                type: 'skill-md',
+                description: item.resource.description,
+                url: item.resource.uri,
+            }));
+        const body = JSON.stringify(
+            { $schema: this.SKILLS_DISCOVERY_SCHEMA, skills },
+            null,
+            2,
+        );
+
+        return {
+            resource: {
+                uri: this.SKILL_INDEX_URI,
+                name: 'skills-index',
+                title: 'Lightdash Skills Index',
+                description:
+                    'Index of Lightdash built-in skills exposed as MCP resources.',
+                mimeType: 'application/json',
+                size: Buffer.byteLength(body, 'utf8'),
+            },
+            body,
+        };
+    }
+
+    /**
+     * Projects the loaded skills into MCP resources (the SKILL.md, each
+     * supporting file, and a discovery index), keyed by skill:// URI.
+     */
+    private static async loadMcpResources(): Promise<McpResourceWithBody[]> {
+        if (this.mcpResources) {
+            return this.mcpResources;
+        }
+
+        const skillResources = (await this.load()).flatMap((skill) => {
+            const skillTitle = this.deriveTitleFromName(skill.name);
+            const skillMd: McpResourceWithBody = {
+                resource: {
+                    uri: this.getSkillUri(skill.name),
+                    name: skill.skill.name,
+                    title: skillTitle,
+                    description: skill.skill.description,
+                    mimeType: 'text/markdown',
+                    size: Buffer.byteLength(skill.skill.raw, 'utf8'),
+                },
+                body: skill.skill.raw,
+            };
+            const supporting = skill.resources.map((file) => ({
+                resource: {
+                    uri: this.getSkillResourceUri(skill.name, file.fileName),
+                    name: `${skill.name}/resources/${path.basename(
+                        file.fileName,
+                        '.md',
+                    )}`,
+                    title: `${skillTitle} / ${this.deriveTitleFromName(
+                        file.name,
+                    )}`,
+                    description: file.description,
+                    mimeType: 'text/markdown',
+                    size: Buffer.byteLength(file.raw, 'utf8'),
+                },
+                body: file.raw,
+            }));
+            return [skillMd, ...supporting];
+        });
+
+        const resources = [
+            this.buildSkillIndex(skillResources),
+            ...skillResources,
+        ];
+        this.mcpResources = resources;
+        return resources;
+    }
+
+    static async listMcpResources(): Promise<BuiltInSkillMcpResource[]> {
+        return (await this.loadMcpResources()).map((item) => item.resource);
+    }
+
+    static async getMcpResourceBody(uri: string): Promise<string | undefined> {
+        return (await this.loadMcpResources()).find(
+            (item) => item.resource.uri === uri,
+        )?.body;
     }
 }

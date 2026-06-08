@@ -36,6 +36,9 @@ jest.mock('@sentry/node', () => ({
 
 jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
     McpServer: jest.fn().mockImplementation(() => ({
+        server: {
+            registerCapabilities: jest.fn(),
+        },
         registerResource: jest.fn(),
         registerPrompt: jest.fn(
             (
@@ -115,12 +118,12 @@ describe('MCP tool contracts', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
-    it('matches the current MCP tool and prompt contract snapshot', () => {
+    it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        mcpService.createServer({ aiWritebackEnabled: true });
+        await mcpService.createServer({ aiWritebackEnabled: true });
 
         expect({
             prompts: mockRegisteredMcpPrompts.map(({ name, config }) => ({

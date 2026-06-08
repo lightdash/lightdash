@@ -176,7 +176,7 @@ mcpRouter.all(
                 // registration in createServer/setupHandlers is synchronous.
                 const aiWritebackEnabled =
                     await mcpService.isAiWritebackEnabled(req.user!);
-                const mcpServer = mcpService.createServer({
+                const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     aiWritebackEnabled,
                 });
