@@ -8,24 +8,43 @@ import {
     AiAgentSkillResource,
 } from './types';
 
-type MarkdownMetadata = {
+type SkillFrontmatter = {
     name: string;
     description: string;
+};
+
+/**
+ * A single parsed markdown file within a skill directory — the skill's SKILL.md
+ * or one of its supporting resource files. This is the shared, parse-once
+ * representation that every consumer projects its own view from (the AI-agent
+ * skill API today; the MCP resource API in later slices).
+ */
+export type ParsedSkillFile = SkillFrontmatter & {
+    fileName: string;
+    content: string;
+};
+
+/** A fully-loaded built-in skill: its SKILL.md plus supporting resource files. */
+export type LoadedBuiltInSkill = {
+    name: string;
+    directory: string;
+    skill: ParsedSkillFile;
+    resources: ParsedSkillFile[];
 };
 
 export class BuiltInSkills {
     private static readonly SKILLS_DIR = path.join(__dirname, 'builtInSkills');
 
-    private static skills: AiAgentSkill[] = [];
+    private static loaded: LoadedBuiltInSkill[] | undefined;
 
-    private static skillsPromise: Promise<AiAgentSkill[]> | undefined;
+    private static loadedPromise: Promise<LoadedBuiltInSkill[]> | undefined;
 
-    private static async parseMarkdownFile(
+    private static parseSkillFile(
         filePath: string,
-    ): Promise<MarkdownMetadata & { content: string }> {
-        const fileContents = await fs.readFile(filePath, 'utf8');
+        fileContents: string,
+    ): ParsedSkillFile {
         const { content, data } = matter(fileContents);
-        const { name, description } = data as Partial<MarkdownMetadata>;
+        const { name, description } = data as Partial<SkillFrontmatter>;
 
         if (!name || !description) {
             throw new ParameterError(
@@ -34,15 +53,35 @@ export class BuiltInSkills {
         }
 
         return {
+            fileName: path.basename(filePath),
             name,
             description,
             content,
         };
     }
 
-    private static async loadSkillResources(
+    private static async readSkillFile(
+        filePath: string,
+    ): Promise<ParsedSkillFile> {
+        return this.parseSkillFile(
+            filePath,
+            await fs.readFile(filePath, 'utf8'),
+        );
+    }
+
+    private static async getSkillNames(): Promise<string[]> {
+        const entries = await fs.readdir(this.SKILLS_DIR, {
+            withFileTypes: true,
+        });
+        return entries
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort();
+    }
+
+    private static async readSkillResources(
         resourcesDir: string,
-    ): Promise<AiAgentSkillResource[]> {
+    ): Promise<ParsedSkillFile[]> {
         try {
             await fs.access(resourcesDir);
         } catch {
@@ -55,64 +94,76 @@ export class BuiltInSkills {
             fileNames
                 .filter((fileName) => fileName.endsWith('.md'))
                 .sort()
-                .map(async (fileName) => {
-                    const resource = await this.parseMarkdownFile(
-                        path.join(resourcesDir, fileName),
-                    );
-
-                    return {
-                        name: resource.name,
-                        description: resource.description,
-                        content: resource.content,
-                    };
-                }),
+                .map((fileName) =>
+                    this.readSkillFile(path.join(resourcesDir, fileName)),
+                ),
         );
     }
 
-    private static async loadSkillFromDirectory(
-        skillDir: string,
-    ): Promise<AiAgentSkill> {
-        const skill = await this.parseMarkdownFile(
-            path.join(skillDir, 'SKILL.md'),
+    private static async loadSkillDirectory(
+        skillName: string,
+    ): Promise<LoadedBuiltInSkill> {
+        const directory = path.join(this.SKILLS_DIR, skillName);
+        const skill = await this.readSkillFile(
+            path.join(directory, 'SKILL.md'),
+        );
+        const resources = await this.readSkillResources(
+            path.join(directory, 'resources'),
         );
 
-        return {
-            name: skill.name,
-            description: skill.description,
-            body: skill.content,
-            resources: await this.loadSkillResources(
-                path.join(skillDir, 'resources'),
-            ),
-        };
+        return { name: skill.name, directory, skill, resources };
     }
 
-    private static async getBuiltInSkills(): Promise<AiAgentSkill[]> {
-        if (this.skills.length > 0) {
-            return this.skills;
+    /**
+     * Reads and parses every built-in skill directory once, caching the result.
+     * The single source of truth that both the AI-agent and MCP views build on.
+     */
+    private static async load(): Promise<LoadedBuiltInSkill[]> {
+        if (this.loaded) {
+            return this.loaded;
+        }
+        if (this.loadedPromise) {
+            return this.loadedPromise;
         }
 
-        if (this.skillsPromise) {
-            return this.skillsPromise;
-        }
-
-        this.skillsPromise = (async () => {
+        this.loadedPromise = (async () => {
             try {
-                const skillPromises = [
-                    this.loadSkillFromDirectory(
-                        path.join(this.SKILLS_DIR, 'developing-in-lightdash'),
+                const skillNames = await this.getSkillNames();
+                const loaded = await Promise.all(
+                    skillNames.map((skillName) =>
+                        this.loadSkillDirectory(skillName),
                     ),
-                ];
-                const skills = await Promise.all(skillPromises);
-
-                this.skills = skills;
-                return skills;
+                );
+                this.loaded = loaded;
+                return loaded;
             } catch (error) {
-                this.skillsPromise = undefined;
+                this.loadedPromise = undefined;
                 throw error;
             }
         })();
 
-        return this.skillsPromise;
+        return this.loadedPromise;
+    }
+
+    private static toAiAgentResource(
+        file: ParsedSkillFile,
+    ): AiAgentSkillResource {
+        return {
+            name: file.name,
+            description: file.description,
+            content: file.content,
+        };
+    }
+
+    private static toAiAgentSkill(skill: LoadedBuiltInSkill): AiAgentSkill {
+        return {
+            name: skill.skill.name,
+            description: skill.skill.description,
+            body: skill.skill.content,
+            resources: skill.resources.map((resource) =>
+                this.toAiAgentResource(resource),
+            ),
+        };
     }
 
     private static toSkillReference(
@@ -130,14 +181,17 @@ export class BuiltInSkills {
     }
 
     static async getAiAgentSkills(): Promise<AiAgentSkillReference[]> {
-        return (await this.getBuiltInSkills()).map(this.toSkillReference);
+        return (await this.load()).map((skill) =>
+            this.toSkillReference(this.toAiAgentSkill(skill)),
+        );
     }
 
     static async getAiAgentSkill(
         name: string,
     ): Promise<AiAgentSkill | undefined> {
-        return (await this.getBuiltInSkills()).find(
-            (skill) => skill.name.toLowerCase() === name.trim().toLowerCase(),
+        const skill = (await this.load()).find(
+            (loaded) => loaded.name.toLowerCase() === name.trim().toLowerCase(),
         );
+        return skill ? this.toAiAgentSkill(skill) : undefined;
     }
 }
