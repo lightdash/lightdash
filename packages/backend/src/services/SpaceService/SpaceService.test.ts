@@ -48,6 +48,59 @@ describe('SpaceService', () => {
         jest.clearAllMocks();
     });
 
+    describe('moveToSpace', () => {
+        it('loads the source space scoped to the requested project', async () => {
+            const spaceModel = {
+                getSpaceSummary: jest.fn(async () => ({
+                    uuid: 'spaceUuid',
+                    name: 'Space',
+                    projectUuid: 'projectUuid',
+                    parentSpaceUuid: 'parentSpaceUuid',
+                })),
+                moveToSpace: jest.fn(async () => undefined),
+            };
+            const spacePermissionService = {
+                can: jest.fn(async () => true),
+            };
+            const moveService = new SpaceService({
+                analytics: analyticsMock,
+                lightdashConfig: lightdashConfigMock,
+                projectModel: {} as ProjectModel,
+                spaceModel: spaceModel as unknown as SpaceModel,
+                organizationModel: {} as OrganizationModel,
+                pinnedListModel: {} as PinnedListModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+                savedChartService: {} as SavedChartService,
+                dashboardService: {} as DashboardService,
+                appGenerateService: undefined,
+            });
+
+            await moveService.moveToSpace(
+                createTestUser() as SessionUser,
+                {
+                    projectUuid: 'projectUuid',
+                    itemUuid: 'spaceUuid',
+                    targetSpaceUuid: null,
+                },
+                { trackEvent: false },
+            );
+
+            expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith(
+                'spaceUuid',
+                { projectUuid: 'projectUuid' },
+            );
+            expect(spaceModel.moveToSpace).toHaveBeenCalledWith(
+                {
+                    projectUuid: 'projectUuid',
+                    itemUuid: 'spaceUuid',
+                    targetSpaceUuid: null,
+                },
+                { tx: undefined },
+            );
+        });
+    });
+
     describe('_userCanActionSpace', () => {
         describe('organization admins', () => {
             it.each([
