@@ -922,7 +922,10 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
+        const savedChartsDaos = await this.savedChartModel.updateMultiple(
+            projectUuid,
+            data,
+        );
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
