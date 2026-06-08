@@ -352,6 +352,38 @@ export type AiAgentReviewItemWritebackEligibility =
           reason: AiAgentReviewItemWritebackBlockedReason;
       };
 
+export type AiAgentReviewRemediationStatus =
+    | 'queued'
+    | 'running'
+    | 'pr_open'
+    | 'preview_ready'
+    | 'resolved'
+    | 'failed';
+
+export type AiAgentReviewRemediation = {
+    uuid: string;
+    fingerprint: string;
+    organizationUuid: string;
+    sourceFindingUuid: string;
+    sourcePromptUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
+    pullRequestUuid: string | null;
+    linkedPrUrl: string | null;
+    previewProjectUuid: string | null;
+    previewAgentUuid: string | null;
+    previewThreadUuid: string | null;
+    status: AiAgentReviewRemediationStatus;
+    errorMessage: string | null;
+    retryPrompt: string | null;
+    createdByUserUuid: string | null;
+    resolvedByUserUuid: string | null;
+    resolvedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 const aiAgentConfigurationSettingSchema = z.enum([
     'instructions',
     'knowledge_documents',
@@ -577,6 +609,7 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
      */
     writebackEligible: boolean;
     writebackEligibility: AiAgentReviewItemWritebackEligibility;
+    remediation: AiAgentReviewRemediation | null;
     latestFinding: {
         uuid: string;
         promptUuid: string;

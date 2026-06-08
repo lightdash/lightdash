@@ -3,6 +3,7 @@ import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
 } from '../database/entities/aiAgentReviewClassifier';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
@@ -14,6 +15,11 @@ const RUN_UUID = '00000000-0000-0000-0000-000000000006';
 const THREAD_UUID = '00000000-0000-0000-0000-000000000007';
 const PROMPT_UUID = '00000000-0000-0000-0000-000000000008';
 const TURN_SIGNAL_UUID = '00000000-0000-0000-0000-000000000009';
+const REMEDIATION_UUID = '00000000-0000-0000-0000-000000000010';
+const PULL_REQUEST_UUID = '00000000-0000-0000-0000-000000000011';
+const PREVIEW_PROJECT_UUID = '00000000-0000-0000-0000-000000000012';
+const PREVIEW_AGENT_UUID = '00000000-0000-0000-0000-000000000013';
+const PREVIEW_THREAD_UUID = '00000000-0000-0000-0000-000000000014';
 const SEEN_AT = new Date('2026-05-26T10:00:00.000Z');
 const FINGERPRINT = 'ai_agent_review_item:fingerprint';
 
@@ -114,6 +120,33 @@ const makeTurnSignalRow = (
         model: 'gpt-5',
     },
     created_at: SEEN_AT,
+    ...overrides,
+});
+
+const makeRemediationRow = (
+    overrides: Partial<Record<string, unknown>> = {},
+) => ({
+    ai_agent_review_remediation_uuid: REMEDIATION_UUID,
+    fingerprint: FINGERPRINT,
+    organization_uuid: ORGANIZATION_UUID,
+    source_ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
+    source_prompt_uuid: PROMPT_UUID,
+    source_thread_uuid: THREAD_UUID,
+    source_project_uuid: PROJECT_UUID,
+    source_agent_uuid: AGENT_UUID,
+    pull_request_uuid: PULL_REQUEST_UUID,
+    linked_pr_url: 'https://github.com/acme/dbt/pull/42',
+    preview_project_uuid: PREVIEW_PROJECT_UUID,
+    preview_agent_uuid: PREVIEW_AGENT_UUID,
+    preview_thread_uuid: PREVIEW_THREAD_UUID,
+    status: 'preview_ready',
+    error_message: null,
+    retry_prompt: 'Show revenue',
+    created_by_user_uuid: null,
+    resolved_by_user_uuid: null,
+    resolved_at: null,
+    created_at: SEEN_AT,
+    updated_at: SEEN_AT,
     ...overrides,
 });
 
@@ -292,6 +325,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,
@@ -306,6 +342,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     status: 'open',
                     linkedPrUrl: null,
                     prState: null,
+                    remediation: null,
                     findingCount: 2,
                 }),
             );
@@ -357,6 +394,9 @@ describe('AiAgentReviewClassifierModel', () => {
                     updated_at: SEEN_AT,
                 },
             ]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,
@@ -367,6 +407,43 @@ describe('AiAgentReviewClassifierModel', () => {
                     status: 'resolved',
                     linkedPrUrl: 'https://github.com/acme/dbt/pull/42',
                     prState: 'merged',
+                    remediation: null,
+                }),
+            );
+        });
+
+        it('overlays the latest remediation onto the projection', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([makeTurnSignalRow()]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([makeRemediationRow()]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0].remediation).toEqual(
+                expect.objectContaining({
+                    uuid: REMEDIATION_UUID,
+                    fingerprint: FINGERPRINT,
+                    status: 'preview_ready',
+                    pullRequestUuid: PULL_REQUEST_UUID,
+                    linkedPrUrl: 'https://github.com/acme/dbt/pull/42',
+                    previewProjectUuid: PREVIEW_PROJECT_UUID,
+                    previewAgentUuid: PREVIEW_AGENT_UUID,
+                    previewThreadUuid: PREVIEW_THREAD_UUID,
+                    retryPrompt: 'Show revenue',
                 }),
             );
         });
@@ -380,6 +457,77 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toHaveLength(0);
+        });
+    });
+
+    describe('review remediations', () => {
+        it('creates a remediation for a review item finding', async () => {
+            tracker.on.insert(AiAgentReviewRemediationTableName).responseOnce([
+                makeRemediationRow({
+                    pull_request_uuid: null,
+                    linked_pr_url: undefined,
+                }),
+            ]);
+
+            const result = await model.createReviewRemediation({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                sourceFindingUuid: TURN_SIGNAL_UUID,
+                sourcePromptUuid: PROMPT_UUID,
+                sourceThreadUuid: THREAD_UUID,
+                sourceProjectUuid: PROJECT_UUID,
+                sourceAgentUuid: AGENT_UUID,
+                retryPrompt: 'Show revenue',
+                createdByUserUuid: null,
+            });
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    uuid: REMEDIATION_UUID,
+                    fingerprint: FINGERPRINT,
+                    sourceFindingUuid: TURN_SIGNAL_UUID,
+                    sourcePromptUuid: PROMPT_UUID,
+                    sourceThreadUuid: THREAD_UUID,
+                    sourceProjectUuid: PROJECT_UUID,
+                    sourceAgentUuid: AGENT_UUID,
+                    linkedPrUrl: null,
+                    retryPrompt: 'Show revenue',
+                }),
+            );
+        });
+
+        it('links PR and preview thread state onto a remediation', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            await model.setReviewRemediationPullRequest({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                pullRequestUuid: PULL_REQUEST_UUID,
+            });
+            await model.setReviewRemediationPreviewThread({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                previewProjectUuid: PREVIEW_PROJECT_UUID,
+                previewAgentUuid: PREVIEW_AGENT_UUID,
+                previewThreadUuid: PREVIEW_THREAD_UUID,
+            });
+
+            expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update[0].bindings).toContain(
+                PULL_REQUEST_UUID,
+            );
+            expect(tracker.history.update[1].bindings).toEqual(
+                expect.arrayContaining([
+                    PREVIEW_PROJECT_UUID,
+                    PREVIEW_AGENT_UUID,
+                    PREVIEW_THREAD_UUID,
+                ]),
+            );
         });
     });
 
