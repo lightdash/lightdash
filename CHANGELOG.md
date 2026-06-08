@@ -1,3 +1,22 @@
+# [0.3109.0](https://github.com/lightdash/lightdash/compare/0.3108.0...0.3109.0) (2026-06-08)
+
+
+### Bug Fixes
+
+* clearer guidance when user warehouse credentials are missing ([#23985](https://github.com/lightdash/lightdash/issues/23985)) ([2d3d558](https://github.com/lightdash/lightdash/commit/2d3d558fc957e2a41036e39530391fc3b10119da))
+* correct ai review writeback success toast ([#24001](https://github.com/lightdash/lightdash/issues/24001)) ([10b28f4](https://github.com/lightdash/lightdash/commit/10b28f41607313edf75e9e2001cedc0a07d141f8))
+* **data-apps:** use fully qualified e2b template name ([#22850](https://github.com/lightdash/lightdash/issues/22850)) ([3d5a0dc](https://github.com/lightdash/lightdash/commit/3d5a0dcccf33ef1963d06841c7e508513865ee5f))
+* **explorer:** reword confusing save-chart permission tooltip ([#23996](https://github.com/lightdash/lightdash/issues/23996)) ([ca4c5ac](https://github.com/lightdash/lightdash/commit/ca4c5acc54519dd1d42dfa35222e695fbc07fcd9))
+* guard New Dashboard menu item with create permission ([#23993](https://github.com/lightdash/lightdash/issues/23993)) ([78d23c9](https://github.com/lightdash/lightdash/commit/78d23c9dd244d6e45e0273758827952318373da7))
+* respect column order for metrics in show_underlying_values ([#23997](https://github.com/lightdash/lightdash/issues/23997)) ([81868b3](https://github.com/lightdash/lightdash/commit/81868b3fd9e1da092a9348548fe4a9efe2fc29d1))
+* scope deleted content operations to project ([#23998](https://github.com/lightdash/lightdash/issues/23998)) ([c809dfe](https://github.com/lightdash/lightdash/commit/c809dfe1cd9228071027c18f07ed8fb0aa79e294))
+* speed up SavedChartModel.get with lateral version join ([#23910](https://github.com/lightdash/lightdash/issues/23910)) ([53b53c0](https://github.com/lightdash/lightdash/commit/53b53c00f9eb4000dda07417afafea3ccb769b41))
+
+
+### Features
+
+* **ai-agents:** polish review actions ([#24002](https://github.com/lightdash/lightdash/issues/24002)) ([b14de8d](https://github.com/lightdash/lightdash/commit/b14de8de0776e3ab18910846cdb5834036615618))
+
 # [0.3108.0](https://github.com/lightdash/lightdash/compare/0.3107.0...0.3108.0) (2026-06-08)
 
 
