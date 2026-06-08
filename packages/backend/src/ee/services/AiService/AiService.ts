@@ -27,6 +27,8 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
@@ -54,11 +56,8 @@ import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tool
 import { getModel } from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
-import {
-    fieldDesc,
-    formatSummaryArray,
-    makeResultsCSV,
-} from './utils/prepareData';
+import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
+import { fieldDesc, formatSummaryArray } from './utils/prepareData';
 import {
     DEFAULT_CHART_SUMMARY_PROMPT,
     DEFAULT_CUSTOM_VIZ_PROMPT,
@@ -78,7 +77,9 @@ type Dependencies = {
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     dashboardSummaryModel: DashboardSummaryModel;
+    savedChartModel: SavedChartModel;
     projectService: ProjectService;
+    asyncQueryService: AsyncQueryService;
     openAi: OpenAi;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
@@ -93,7 +94,11 @@ export class AiService {
 
     private readonly dashboardSummaryModel: DashboardSummaryModel;
 
+    private readonly savedChartModel: SavedChartModel;
+
     private readonly projectService: ProjectService;
+
+    private readonly asyncQueryService: AsyncQueryService;
 
     private readonly openAi: OpenAi;
 
@@ -103,7 +108,9 @@ export class AiService {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
         this.dashboardSummaryModel = dependencies.dashboardSummaryModel;
+        this.savedChartModel = dependencies.savedChartModel;
         this.projectService = dependencies.projectService;
+        this.asyncQueryService = dependencies.asyncQueryService;
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagService = dependencies.featureFlagService;
@@ -163,48 +170,56 @@ export class AiService {
         user: SessionUser,
         dashboard: DashboardDAO,
     ): Promise<ChartPromptData[]> {
-        const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
+        const chartTiles = dashboard.tiles.reduce<
+            { chartUuid: string; tileUuid: string }[]
+        >((acc, tile) => {
             if (
                 isDashboardChartTileType(tile) &&
                 tile.properties.savedChartUuid
             ) {
-                return [...acc, tile.properties.savedChartUuid];
+                return [
+                    ...acc,
+                    {
+                        chartUuid: tile.properties.savedChartUuid,
+                        tileUuid: tile.uuid,
+                    },
+                ];
             }
             return acc;
         }, []);
 
-        const chartResultPromises = chartUuids.map(async (chartUuid) => {
-            const chartAndResults =
-                await this.projectService.getChartAndResults({
-                    account: fromSession(user),
-                    dashboardUuid: dashboard.uuid,
-                    chartUuid,
-                    dashboardFilters: dashboard.filters,
-                    dashboardSorts: [],
-                    context: QueryExecutionContext.AI,
-                });
+        const chartResultPromises = chartTiles.map(
+            async ({ chartUuid, tileUuid }) => {
+                const queryResults =
+                    await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                        {
+                            account: fromSession(user),
+                            projectUuid: dashboard.projectUuid,
+                            chartUuid,
+                            tileUuid,
+                            dashboardUuid: dashboard.uuid,
+                            dashboardFilters: dashboard.filters,
+                            dashboardSorts: [],
+                            context: QueryExecutionContext.AI,
+                        },
+                    );
 
-            const columns = [
-                ...chartAndResults.metricQuery.dimensions,
-                ...chartAndResults.metricQuery.metrics, // custom metrics are already included here
-                ...chartAndResults.metricQuery.tableCalculations.map(
-                    (tc) => tc.name,
-                ),
-                ...(chartAndResults.metricQuery.customDimensions ?? []).map(
-                    (cd) => cd.id,
-                ),
-            ];
+                const { name, description } =
+                    await this.savedChartModel.getSummary(chartUuid);
 
-            const data = await makeResultsCSV(columns, chartAndResults.rows);
+                const { rows, fields } = queryResults;
+                const columns = rows[0] ? Object.keys(rows[0]) : [];
+                const data = convertQueryResultsToCsv(queryResults);
 
-            return {
-                name: chartAndResults.chart.name,
-                description: chartAndResults.chart.description,
-                data,
-                columns,
-                fields: chartAndResults.fields,
-            };
-        });
+                return {
+                    name,
+                    description,
+                    data,
+                    columns,
+                    fields,
+                };
+            },
+        );
 
         return Promise.all(chartResultPromises);
     }

@@ -23,7 +23,9 @@ describe('AiService', () => {
             dashboardSummaryModel: {
                 getByDashboardUuid: jest.fn(),
             },
+            savedChartModel: {},
             projectService: {},
+            asyncQueryService: {},
             openAi: {},
             lightdashConfig: lightdashConfigMock,
             featureFlagService: {

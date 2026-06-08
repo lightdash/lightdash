@@ -10,24 +10,7 @@ import {
     isSqlTableCalculation,
     isTableCalculation,
     Item,
-    ResultRow,
 } from '@lightdash/common';
-import { stringify } from 'csv-stringify';
-
-export async function makeResultsCSV(columns: string[], data: ResultRow[]) {
-    const rows = data.map((row) =>
-        columns.map((col) => row[col].value.formatted),
-    );
-
-    return new Promise<string>((resolve, reject) => {
-        stringify([columns, ...rows], { delimiter: ',' }, (err, output) => {
-            if (err) {
-                reject(err);
-            }
-            resolve(output);
-        });
-    });
-}
 
 export function fieldDesc(fieldName: string, item: Item) {
     if (isCustomSqlDimension(item)) {

@@ -186,7 +186,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     dashboardModel: models.getDashboardModel(),
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
+                    savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
                         context.lightdashConfig.ai.copilot.providers.openai,
